@@ -1,0 +1,5 @@
+pandas
+pathlib
+numpy
+matplotlib
+seaborn

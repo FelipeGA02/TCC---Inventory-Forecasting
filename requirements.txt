@@ -1,5 +1,5 @@
 pandas
-pathlib
 numpy
 matplotlib
 seaborn
+openpyxl

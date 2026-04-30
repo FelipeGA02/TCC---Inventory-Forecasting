@@ -1,9 +1,11 @@
 import os
 
-RAW_DIR = 'data/raw'
-PROCESSED_DIR = 'data/processed'
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+RAW_DIR = os.path.join(_PROJECT_ROOT, 'data', 'raw')
+PROCESSED_DIR = os.path.join(_PROJECT_ROOT, 'data', 'processed')
 OUTPUT_CSV = os.path.join(PROCESSED_DIR, 'contas_a_receber.csv')
-CONTROL_FILE = os.path.join(PROCESSED_DIR, '.processados.json')
+LOG_FILE = os.path.join(PROCESSED_DIR, 'processamento_log.json')
 
 FIELDS = [
     'doc_tipo', 'doc_numero', 'pagamento', 'emissao', 'operador',

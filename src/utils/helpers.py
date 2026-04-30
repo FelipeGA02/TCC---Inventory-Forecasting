@@ -1,3 +1,4 @@
+import csv
 import hashlib
 import json
 import os
@@ -51,18 +52,31 @@ def file_hash(path):
     return h.hexdigest()
 
 
-def load_control(control_file):
-    """Load the processing control file."""
-    if os.path.exists(control_file):
-        with open(control_file, 'r') as f:
+def load_log(log_file):
+    """Load the processing log file."""
+    if os.path.exists(log_file):
+        with open(log_file, 'r', encoding='utf-8') as f:
             return json.load(f)
-    return {}
+    return {'arquivos_processados': {}, 'historico_execucoes': []}
 
 
-def save_control(control, control_file):
-    """Save the processing control file."""
-    with open(control_file, 'w') as f:
-        json.dump(control, f, indent=2, ensure_ascii=False)
+def save_log(log, log_file):
+    """Save the processing log file."""
+    with open(log_file, 'w', encoding='utf-8') as f:
+        json.dump(log, f, indent=2, ensure_ascii=False)
+
+
+def load_existing_record_keys(csv_path, key_fields=('doc_numero', 'produto_cod')):
+    """Build a set of composite keys from an existing CSV for duplicate detection."""
+    keys = set()
+    if not os.path.exists(csv_path):
+        return keys
+    with open(csv_path, 'r', encoding='utf-8') as f:
+        reader = csv.DictReader(f, delimiter=';')
+        for row in reader:
+            key = tuple(row.get(field, '') for field in key_fields)
+            keys.add(key)
+    return keys
 
 
 def cell_str(row_map, col):

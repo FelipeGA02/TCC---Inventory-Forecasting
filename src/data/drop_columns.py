@@ -2,7 +2,7 @@ import os
 import pandas as pd
 from src.utils.constants import PROCESSED_DIR
 
-COLUMNS_TO_DROP = ['operador', 'obs', 'icms_ret', 'arquivo_origem']
+COLUMNS_TO_DROP = ['operador', 'obs', 'icms_ret', 'arquivo_origem', 'cliente_nome', 'produto_nome', 'doc_tipo']
 
 INPUT_CSV = os.path.join(PROCESSED_DIR, 'contas_a_receber.csv')
 OUTPUT_CSV = os.path.join(PROCESSED_DIR, 'contas_a_receber_sem_colunas.csv')

@@ -26,7 +26,7 @@ def _write_encodings_module(encodings: dict, path: str) -> None:
         var_name = f'{field.upper()}_ENCODING'
         lines.append(f'{var_name} = {{\n')
         for val, code in mapping.items():
-            escaped = val.replace('\\', '\\\\').replace("'", "\\'")
+            escaped = val.replace('\\', '\\\\').replace("'", "\\'").replace('\n', '\\n').replace('\r', '\\r')
             lines.append(f"    '{escaped}': {code},\n")
         lines.append('}\n\n')
     with open(path, 'w', encoding='utf-8') as f:

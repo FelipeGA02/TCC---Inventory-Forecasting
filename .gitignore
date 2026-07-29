@@ -1,40 +1,87 @@
-# Python
+# ─── Python ───────────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *.pyo
+*.pyd
 .venv/
 venv/
 env/
+ENV/
 *.egg-info/
 dist/
 build/
+.eggs/
+site-packages/
+pip-wheel-metadata/
 
-# Dados e artefatos gerados em runtime
-ia-predictor/floricultura.db
-ia-predictor/models/*.joblib
-ia-predictor/data/raw/
-ia-predictor/data/processed/contas_a_receber.csv
-
-# Variáveis de ambiente
+# ─── Variáveis de ambiente ────────────────────────────────────────────────────
 .env
 .env.*
 !.env.example
 
-# Frontend
-app-react/node_modules/
-app-react/dist/
-app-react/.next/
+# ─── Banco de dados ───────────────────────────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
 
-# Cliente gerado (pode ser commitado se preferir rastreabilidade)
-# app-react/src/services/api/
+# ─── Artefatos ML (joblib) ────────────────────────────────────────────────────
+ia-predictor/models/*.joblib
+ia-predictor/models/*.pkl
 
-# OS / IDE
-.DS_Store
-Thumbs.db
-.idea/
-.vscode/settings.json
+# ─── Dados brutos e processados ───────────────────────────────────────────────
+ia-predictor/data/raw/
+ia-predictor/data/processed/
 
-# Testes
+# ─── Logs e relatórios gerados ────────────────────────────────────────────────
+*.log
+ia-predictor/exports/
+
+# ─── Testes ───────────────────────────────────────────────────────────────────
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
+coverage.xml
+*.cover
+
+# ─── Tipagem e linting ────────────────────────────────────────────────────────
+.mypy_cache/
+.ruff_cache/
+.dmypy.json
+
+# ─── Frontend ─────────────────────────────────────────────────────────────────
+app-react/node_modules/
+app-react/dist/
+app-react/build/
+app-react/.next/
+app-react/.cache/
+app-react/.parcel-cache/
+
+# Cliente TypeScript gerado por openapi-typescript-codegen
+app-react/src/services/api/
+
+# ─── OS ───────────────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ─── IDEs ─────────────────────────────────────────────────────────────────────
+.idea/
+.vscode/settings.json
+.vscode/launch.json
+*.swp
+*.swo
+*~
+
+# ─── Jupyter (notebooks antigos — não fazem parte do novo sistema) ────────────
+.ipynb_checkpoints/
+*.ipynb
+
+# ─── Alembic ──────────────────────────────────────────────────────────────────
+# Manter migrations/ commitado; ignorar apenas o env gerado
+ia-predictor/backend/alembic.ini

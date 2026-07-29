@@ -1,0 +1,1107 @@
+openapi: 3.0.3
+
+info:
+  title: Floricultura — API de Previsão de Estoque
+  description: |
+    Sistema de previsão de demanda para rede de floricultura com 3 unidades operacionais.
+    Baseado em modelos SARIMAX com ponderação de variáveis exógenas via Random Forest.
+
+    ## Autenticação
+    Todos os endpoints `/api/v1/*` exigem JWT via header `Authorization: Bearer <token>`.
+    Obtenha o token em `POST /auth/login`.
+
+    ## Perfis
+    - **admin**: upload, retrain, acesso completo
+    - **viewer**: somente visualização (forecast, alerts, simulation, export)
+  version: "1.0.0"
+  contact:
+    name: Daniel Nunes da Silva & Felipe Gurgel Araújo
+    email: felipegurgel5@gmail.com
+
+servers:
+  - url: http://localhost:8000
+    description: Desenvolvimento local
+
+tags:
+  - name: health
+    description: Status do sistema
+  - name: auth
+    description: Autenticação e autorização
+  - name: products
+    description: Catálogo de produtos e histórico de vendas
+  - name: forecast
+    description: Previsões de demanda por produto
+  - name: alerts
+    description: Alertas automáticos de reposição
+  - name: simulation
+    description: Simulação de promoções e vendas casadas
+  - name: reports
+    description: Exportação de relatórios PDF e Excel
+  - name: models
+    description: Status e controle dos modelos preditivos
+
+# ─────────────────────────────────────────────
+# Security Schemes
+# ─────────────────────────────────────────────
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token JWT obtido via POST /auth/login
+
+  # ─────────────────────────────────────────────
+  # Schemas
+  # ─────────────────────────────────────────────
+  schemas:
+
+    # --- Auth ---
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: gestora@floricultura.com
+        password:
+          type: string
+          format: password
+          example: "senha_segura_123"
+
+    TokenResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        refresh_token:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        token_type:
+          type: string
+          example: bearer
+        role:
+          type: string
+          enum: [admin, viewer]
+          example: admin
+        expires_in:
+          type: integer
+          description: Segundos até expiração do access_token
+          example: 28800
+
+    UserOut:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        email:
+          type: string
+          format: email
+          example: gestora@floricultura.com
+        name:
+          type: string
+          example: Ana Gestora
+        role:
+          type: string
+          enum: [admin, viewer]
+          example: admin
+
+    RefreshRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
+
+    # --- Health ---
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+        version:
+          type: string
+          example: "1.0.0"
+        database:
+          type: string
+          example: connected
+        scheduler:
+          type: string
+          example: running
+
+    # --- Upload ---
+    UploadResponse:
+      type: object
+      properties:
+        filename:
+          type: string
+          example: contas_jan2026.xlsx
+        rows_added:
+          type: integer
+          example: 3821
+        rows_skipped:
+          type: integer
+          example: 12
+        rows_duplicate:
+          type: integer
+          example: 44
+        processing_time_seconds:
+          type: number
+          format: float
+          example: 8.3
+        retrain_scheduled:
+          type: boolean
+          example: true
+        errors:
+          type: array
+          items:
+            type: string
+
+    # --- Products ---
+    ProductSummary:
+      type: object
+      properties:
+        produto_cod:
+          type: string
+          example: "147"
+        produto_nome:
+          type: string
+          example: ROSA VERMELHA 40CM
+        total_sold:
+          type: number
+          format: float
+          example: 128450.0
+        model_status:
+          type: string
+          enum: [trained, low_confidence, insufficient_data, error, pending, training]
+          example: trained
+        last_mape:
+          type: number
+          format: float
+          nullable: true
+          example: 8.3
+        last_trained_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-07-21T02:00:00"
+
+    ProductListResponse:
+      type: object
+      properties:
+        total:
+          type: integer
+          example: 5134
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProductSummary"
+
+    MonthlyPoint:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+          example: "2024-01-01"
+        quantity:
+          type: number
+          format: float
+          example: 4200.0
+
+    ModelMetrics:
+      type: object
+      properties:
+        MAE:
+          type: number
+          format: float
+          example: 312.4
+        RMSE:
+          type: number
+          format: float
+          example: 418.1
+        MAPE_pct:
+          type: number
+          format: float
+          example: 8.3
+        SMAPE_pct:
+          type: number
+          format: float
+          example: 7.9
+        R2:
+          type: number
+          format: float
+          example: 0.87
+        accuracy_label:
+          type: string
+          description: Rótulo em PT-BR sem jargão técnico
+          example: "Precisão estimada: 92%"
+
+    ProductDetailResponse:
+      type: object
+      properties:
+        produto_cod:
+          type: string
+          example: "147"
+        produto_nome:
+          type: string
+          example: ROSA VERMELHA 40CM
+        total_sold:
+          type: number
+          format: float
+          example: 128450.0
+        monthly_history:
+          type: array
+          items:
+            $ref: "#/components/schemas/MonthlyPoint"
+        model_status:
+          type: string
+          enum: [trained, low_confidence, insufficient_data, error, pending, training]
+        metrics:
+          $ref: "#/components/schemas/ModelMetrics"
+          nullable: true
+        sarimax_order:
+          type: string
+          nullable: true
+          example: "(1,1,1)"
+        seasonal_order:
+          type: string
+          nullable: true
+          example: "(1,0,1,12)"
+        use_log_transform:
+          type: boolean
+          nullable: true
+          example: false
+        last_trained_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    # --- Forecast ---
+    ForecastPoint:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+          example: "2026-08-01"
+        predicted:
+          type: number
+          format: float
+          example: 4850.0
+        lower_95:
+          type: number
+          format: float
+          example: 3920.0
+        upper_95:
+          type: number
+          format: float
+          example: 5780.0
+        month_label:
+          type: string
+          example: Ago/2026
+        is_high_season:
+          type: boolean
+          description: true para meses de alta temporada (mai, out, nov, dez)
+          example: false
+
+    ForecastResponse:
+      type: object
+      properties:
+        produto_cod:
+          type: string
+          example: "147"
+        produto_nome:
+          type: string
+          example: ROSA VERMELHA 40CM
+        horizon_months:
+          type: integer
+          example: 3
+        forecast:
+          type: array
+          items:
+            $ref: "#/components/schemas/ForecastPoint"
+        generated_at:
+          type: string
+          format: date-time
+          example: "2026-07-28T14:32:00"
+        model_trained_at:
+          type: string
+          format: date-time
+          example: "2026-07-21T02:00:00"
+
+    ForecastBatchItem:
+      type: object
+      properties:
+        produto_cod:
+          type: string
+          example: "147"
+        produto_nome:
+          type: string
+          example: ROSA VERMELHA 40CM
+        next_month_predicted:
+          type: number
+          format: float
+          example: 4850.0
+        next_month_lower_95:
+          type: number
+          format: float
+          example: 3920.0
+        next_month_upper_95:
+          type: number
+          format: float
+          example: 5780.0
+        next_month_date:
+          type: string
+          format: date
+          example: "2026-08-01"
+
+    ForecastBatchResponse:
+      type: object
+      properties:
+        horizon_months:
+          type: integer
+          example: 3
+        generated_at:
+          type: string
+          format: date-time
+        forecasts:
+          type: array
+          items:
+            $ref: "#/components/schemas/ForecastBatchItem"
+
+    # --- Alerts ---
+    AlertItem:
+      type: object
+      properties:
+        produto_cod:
+          type: string
+          example: "147"
+        produto_nome:
+          type: string
+          example: ROSA VERMELHA 40CM
+        severity:
+          type: string
+          enum: [high, medium]
+          example: high
+        reason:
+          type: string
+          description: Justificativa em PT-BR sem jargão técnico
+          example: "Previsão de Ago/2026 (4850 un) é 38% acima da média recente (3510 un)"
+        predicted_next_month:
+          type: number
+          format: float
+          example: 4850.0
+        recent_avg_3m:
+          type: number
+          format: float
+          example: 3510.0
+        variation_pct:
+          type: number
+          format: float
+          example: 38.2
+        alert_date:
+          type: string
+          format: date
+          example: "2026-08-01"
+
+    AlertListResponse:
+      type: object
+      properties:
+        generated_at:
+          type: string
+          format: date-time
+        total_alerts:
+          type: integer
+          example: 7
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AlertItem"
+
+    # --- Simulation ---
+    SimulationScenario:
+      type: object
+      required: [label, apply_months]
+      properties:
+        label:
+          type: string
+          example: "Promoção 15%"
+        discount_pct:
+          type: number
+          format: float
+          nullable: true
+          example: 15.0
+        bundle_product_cod:
+          type: string
+          nullable: true
+          example: "150"
+        expected_uplift_pct:
+          type: number
+          format: float
+          nullable: true
+          example: 10.0
+        apply_months:
+          type: array
+          items:
+            type: string
+            format: date
+          example: ["2026-08-01"]
+
+    SimulationRequest:
+      type: object
+      required: [produto_cod, scenarios]
+      properties:
+        produto_cod:
+          type: string
+          example: "147"
+        horizon_months:
+          type: integer
+          default: 3
+          example: 3
+        scenarios:
+          type: array
+          items:
+            $ref: "#/components/schemas/SimulationScenario"
+
+    SimulationForecastPoint:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+          example: "2026-08-01"
+        predicted:
+          type: number
+          format: float
+          example: 5680.0
+        delta:
+          type: number
+          format: float
+          example: 830.0
+        delta_pct:
+          type: number
+          format: float
+          example: 17.1
+
+    SimulationScenarioResult:
+      type: object
+      properties:
+        label:
+          type: string
+          example: "Promoção 15%"
+        forecast:
+          type: array
+          items:
+            $ref: "#/components/schemas/SimulationForecastPoint"
+
+    SimulationResponse:
+      type: object
+      properties:
+        produto_cod:
+          type: string
+          example: "147"
+        base_forecast:
+          type: array
+          items:
+            $ref: "#/components/schemas/ForecastPoint"
+        scenarios:
+          type: array
+          items:
+            $ref: "#/components/schemas/SimulationScenarioResult"
+
+    # --- Model Status ---
+    ModelStatusResponse:
+      type: object
+      properties:
+        last_retrain_at:
+          type: string
+          format: date-time
+          nullable: true
+        next_retrain_at:
+          type: string
+          format: date-time
+          nullable: true
+        total_products:
+          type: integer
+          example: 5134
+        trained_products:
+          type: integer
+          example: 18
+        low_confidence_products:
+          type: integer
+          example: 3
+        failed_products:
+          type: integer
+          example: 2
+        insufficient_data_products:
+          type: integer
+          example: 5111
+        is_training:
+          type: boolean
+          example: false
+        training_progress_pct:
+          type: number
+          format: float
+          nullable: true
+          example: null
+        last_retrain_summary:
+          type: string
+          nullable: true
+          example: "18 modelos atualizados, 2 com erro"
+
+    RetrainResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Atualização dos modelos iniciada em segundo plano."
+        started_at:
+          type: string
+          format: date-time
+
+    # --- Errors ---
+    ErrorDetail:
+      type: object
+      properties:
+        detail:
+          type: string
+          example: "Você não tem permissão para esta ação."
+
+    ValidationError:
+      type: object
+      properties:
+        detail:
+          type: array
+          items:
+            type: object
+            properties:
+              loc:
+                type: array
+                items:
+                  type: string
+              msg:
+                type: string
+              type:
+                type: string
+
+# ─────────────────────────────────────────────
+# Paths
+# ─────────────────────────────────────────────
+paths:
+
+  # ── Health ──────────────────────────────────
+  /health:
+    get:
+      tags: [health]
+      summary: Status do sistema
+      description: Verifica se a API, banco e scheduler estão operacionais. Endpoint público.
+      operationId: getHealth
+      responses:
+        "200":
+          description: Sistema operacional
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  # ── Auth ─────────────────────────────────────
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: Login com e-mail e senha
+      description: Retorna access_token (8h) e refresh_token (7d). Endpoint público.
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login bem-sucedido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenResponse"
+        "401":
+          description: Credenciais inválidas
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+              example:
+                detail: "E-mail ou senha incorretos."
+        "422":
+          description: Dados inválidos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationError"
+
+  /auth/refresh:
+    post:
+      tags: [auth]
+      summary: Renovar access_token
+      description: Gera novo access_token usando um refresh_token válido.
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+      responses:
+        "200":
+          description: Novo access_token gerado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  expires_in:
+                    type: integer
+        "401":
+          description: Refresh token inválido ou expirado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+
+  /auth/me:
+    get:
+      tags: [auth]
+      summary: Dados do usuário autenticado
+      operationId: getMe
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Dados do usuário atual
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserOut"
+        "401":
+          description: Não autenticado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+
+  # ── Upload ───────────────────────────────────
+  /api/v1/upload:
+    post:
+      tags: [upload]
+      summary: Enviar planilha XLSX de vendas
+      description: |
+        Processa arquivo XLSX exportado do sistema financeiro.
+        Deduplica registros por (doc_numero, produto_cod).
+        Agenda retrain automático dos modelos após processamento.
+        **Requer perfil admin.**
+      operationId: uploadFile
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Arquivo .xlsx ou .xlsm (máximo 50 MB)
+      responses:
+        "200":
+          description: Arquivo processado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadResponse"
+        "400":
+          description: Formato de arquivo inválido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+              example:
+                detail: "Apenas arquivos .xlsx e .xlsm são aceitos."
+        "401":
+          description: Não autenticado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+        "403":
+          description: Perfil insuficiente (requer admin)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+              example:
+                detail: "Você não tem permissão para esta ação."
+        "413":
+          description: Arquivo maior que 50 MB
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+
+  # ── Products ─────────────────────────────────
+  /api/v1/products:
+    get:
+      tags: [products]
+      summary: Listar produtos
+      description: Lista produtos com status do modelo e métricas de desempenho. Requer perfil viewer ou superior.
+      operationId: listProducts
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 200
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            enum: [total_sold, name, mape]
+            default: total_sold
+        - name: search
+          in: query
+          description: Busca em produto_cod e produto_nome
+          schema:
+            type: string
+            example: rosa
+        - name: model_status
+          in: query
+          description: Filtrar por status do modelo
+          schema:
+            type: string
+            enum: [trained, low_confidence, insufficient_data, error, pending]
+      responses:
+        "200":
+          description: Lista de produtos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/products/{produto_cod}:
+    get:
+      tags: [products]
+      summary: Detalhes de um produto
+      description: Retorna histórico mensal de vendas, métricas do modelo e status. Sem dados pessoais de clientes (LGPD).
+      operationId: getProduct
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: produto_cod
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "147"
+      responses:
+        "200":
+          description: Detalhes do produto
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductDetailResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Produto não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+
+  # ── Forecast ─────────────────────────────────
+  /api/v1/forecast/{produto_cod}:
+    get:
+      tags: [forecast]
+      summary: Previsão de demanda para um produto
+      description: |
+        Retorna previsão mensal para os próximos horizon_months meses.
+        Inclui intervalo de confiança de 95% e marcação de alta temporada.
+      operationId: getForecast
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: produto_cod
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "147"
+        - name: horizon_months
+          in: query
+          schema:
+            type: integer
+            default: 3
+            minimum: 1
+            maximum: 6
+      responses:
+        "200":
+          description: Previsão gerada com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForecastResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Produto não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+        "409":
+          description: Modelo não disponível para este produto
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+              example:
+                detail: "Modelo não treinado para este produto. Status: insufficient_data"
+
+  /api/v1/forecast/batch:
+    get:
+      tags: [forecast]
+      summary: Previsão para os top N produtos
+      description: Retorna previsão do próximo mês para os N produtos de maior volume. Ideal para o dashboard principal.
+      operationId: getForecastBatch
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: top_n
+          in: query
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 50
+        - name: horizon_months
+          in: query
+          schema:
+            type: integer
+            default: 3
+            minimum: 1
+            maximum: 6
+      responses:
+        "200":
+          description: Previsões dos top produtos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForecastBatchResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ── Alerts ───────────────────────────────────
+  /api/v1/alerts:
+    get:
+      tags: [alerts]
+      summary: Alertas de reposição de estoque
+      description: |
+        Produtos cuja previsão do próximo mês supera em ≥20% a média dos últimos 3 meses.
+        Ordenados por variação decrescente. Justificativas em PT-BR sem jargão.
+      operationId: getAlerts
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [all, high, medium]
+            default: all
+      responses:
+        "200":
+          description: Lista de alertas
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ── Simulation ───────────────────────────────
+  /api/v1/simulation:
+    post:
+      tags: [simulation]
+      summary: Simular impacto de promoções ou vendas casadas
+      description: |
+        Aplica cenários de desconto ou bundle sobre a previsão base do produto.
+        Retorna comparativo entre cenário base e cada cenário simulado.
+      operationId: runSimulation
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SimulationRequest"
+      responses:
+        "200":
+          description: Resultado da simulação
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimulationResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Produto não encontrado ou sem modelo treinado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+
+  # ── Reports ──────────────────────────────────
+  /api/v1/reports/export:
+    get:
+      tags: [reports]
+      summary: Exportar relatório de previsões e alertas
+      description: |
+        Gera arquivo PDF ou Excel com previsões dos top N produtos e lista de alertas.
+        **Excel**: abas "Previsões", "Métricas", "Alertas".
+        **PDF**: tabela de previsões + alertas com cabeçalho e rodapé.
+      operationId: exportReport
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: format
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [excel, pdf]
+          example: pdf
+        - name: top_n
+          in: query
+          schema:
+            type: integer
+            default: 10
+        - name: horizon_months
+          in: query
+          schema:
+            type: integer
+            default: 3
+      responses:
+        "200":
+          description: Arquivo gerado para download
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+                example: attachment; filename="previsoes_2026-07-28.pdf"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ── Models ───────────────────────────────────
+  /api/v1/models/status:
+    get:
+      tags: [models]
+      summary: Status dos modelos preditivos
+      description: Retorna data do último retrain, próximo agendado, contagem por status e progresso se em execução.
+      operationId: getModelsStatus
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Status dos modelos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModelStatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/models/retrain:
+    post:
+      tags: [models]
+      summary: Disparar atualização manual dos modelos
+      description: |
+        Inicia retrain assíncrono de todos os modelos dos top N produtos.
+        **Requer perfil admin.**
+        Retorna 409 se já houver retrain em andamento.
+      operationId: triggerRetrain
+      security:
+        - BearerAuth: []
+      responses:
+        "202":
+          description: Retrain iniciado em background
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RetrainResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Perfil insuficiente (requer admin)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+        "409":
+          description: Retrain já em andamento
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+              example:
+                detail: "Atualização já em andamento. Tente novamente em alguns minutos."
+
+  # ─────────────────────────────────────────────
+  # Reusable Responses
+  # ─────────────────────────────────────────────
+  responses:
+    Unauthorized:
+      description: Não autenticado ou token expirado
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorDetail"
+          example:
+            detail: "Autenticação necessária. Faça login para continuar."
+
+security:
+  - BearerAuth: []

@@ -1,3 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# Dados e artefatos gerados em runtime
+ia-predictor/floricultura.db
+ia-predictor/models/*.joblib
+ia-predictor/data/raw/
+ia-predictor/data/processed/contas_a_receber.csv
+
+# Variáveis de ambiente
 .env
-data/raw
-data/processed
+.env.*
+!.env.example
+
+# Frontend
+app-react/node_modules/
+app-react/dist/
+app-react/.next/
+
+# Cliente gerado (pode ser commitado se preferir rastreabilidade)
+# app-react/src/services/api/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/settings.json
+
+# Testes
+.pytest_cache/
+.coverage
+htmlcov/

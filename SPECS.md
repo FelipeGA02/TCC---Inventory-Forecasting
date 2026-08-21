@@ -3,7 +3,8 @@
 > Implementação do zero · Monolito Modular · FastAPI + SARIMAX + React  
 > Segurança: JWT (python-jose) + bcrypt · Perfis: admin / viewer · LGPD  
 > Frontend: cliente TypeScript gerado de openapi.yaml (openapi-typescript-codegen)  
-> Versão: 1.1 · Data: 2026-07-28  
+> Metodologia: ágil/iterativa (software) + CRISP-DM (dados e modelagem)  
+> Versão: 1.2 · Data: 2026-08-21  
 > Autores: Daniel Nunes da Silva, Felipe Gurgel Araújo
 
 ---
@@ -30,7 +31,23 @@
 
 ### 1.1 Problema e Escopo
 
-Sistema de previsão de demanda para rede de floricultura com 3 unidades operacionais. A base de dados cobre Jan/2024–Fev/2026 (324k+ transações, 5.100+ SKUs). O horizonte de previsão é de **2 a 3 semanas** (operacionalmente mapeado para granularidade mensal com previsão de 1–3 meses à frente), alinhado ao ciclo de reposição da empresa.
+Sistema de previsão de demanda para a Floricultura Verde Perto (unidades em Nova Lima —
+Jardim Canadá — e Itabirito/MG), rede com 3 unidades operacionais. A base de dados cobre
+Jan/2024–Fev/2026 (324k+ transações, 5.100+ SKUs). O horizonte de previsão é de **2 a 3
+semanas** (operacionalmente mapeado para granularidade mensal com previsão de 1–3 meses
+à frente), alinhado ao ciclo de reposição da empresa.
+
+### 1.1.1 Metodologia
+
+- **Desenvolvimento de software**: abordagem ágil e iterativa, com entregas parciais
+  orientadas a valor (histórias de usuário → implementação → testes → validação com a
+  entidade parceira a cada ciclo).
+- **Dados e modelagem preditiva**: CRISP-DM (*Cross-Industry Standard Process for Data
+  Mining*), adaptado ao contexto de séries temporais — compreensão do negócio,
+  compreensão dos dados, preparação dos dados, modelagem, avaliação e implantação.
+- **Levantamento de requisitos**: reuniões formais com a entidade parceira (entrevistas
+  com responsáveis operacionais + análise dos relatórios financeiros disponíveis),
+  priorizados por impacto operacional e estratégico (Tabela 1, seção 13).
 
 ### 1.2 Fluxo de Ponta a Ponta
 
@@ -74,11 +91,12 @@ Sistema de previsão de demanda para rede de floricultura com 3 unidades operaci
 | Backend API | FastAPI 0.111 | async, auto-docs OpenAPI, Pydantic nativo |
 | ML / Stats | statsmodels 0.14, scikit-learn 1.4 | SARIMAX estabelecido, RF para importância |
 | Dados | pandas 2.2, numpy 1.26 | pipeline tabulair |
+| EDA / prototipagem | Jupyter Notebooks + matplotlib, seaborn, plotly | análise exploratória (seção 4.2 do artigo); não entram no runtime de produção |
 | Banco | SQLite + SQLAlchemy 2.0 | zero infra, adequado para volume |
 | Scheduler | APScheduler 3.10 | retrain semanal em-processo |
 | Serialização de modelos | joblib | scikit-learn ecosystem |
 | Export | openpyxl (Excel), reportlab (PDF) | REQ-10 |
-| Frontend | React 18 + Recharts + MUI | existente no app-react/ |
+| Frontend | React 18 + Recharts + MUI | existente no app-react/ — decisão pós-prototipagem; o artigo original (seção 6.3) cogitava Streamlit/Dash "a definir" |
 | Controle de versão | Git | já em uso |
 
 ---
@@ -106,11 +124,12 @@ Sistema de previsão de demanda para rede de floricultura com 3 unidades operaci
 | Decisão | Alternativa descartada | Motivo |
 |---|---|---|
 | SARIMAX como modelo central | LSTM, XGBoost | M4 Competition: ARIMA supera ML com N<50 por sazonalidade. 26 meses = ~26 obs mensais |
-| Granularidade mensal | Diária | Ciclo de reposição é semanal/mensal; dados diários têm >70% de zeros por produto |
+| Granularidade mensal (produção) | Diária | Ciclo de reposição é semanal/mensal; dados diários têm >70% de zeros por produto — resultado obtido justamente pela avaliação comparativa exigida como contribuição acadêmica (ii); ver seção 12.5 |
 | RF para ponderação de exógenas | Stepwise AIC, Lasso | Reduz multicolinearidade sem viés de seleção (Breiman 2001) |
 | SQLite | PostgreSQL | Volume adequado; zero infra; fácil backup |
 | APScheduler in-process | Celery+Redis | Não há fila de tarefas; um job semanal não justifica infra adicional |
 | joblib para persistência de modelos | pickle nativo | Mais seguro com arrays NumPy grandes |
+| React (dashboard) | Streamlit, Dash | Artigo original deixava "a definir após prototipagem" (seção 6.3); app-react/ já existia e cobre requisitos de RNF-01 (usabilidade) com mais controle de UI |
 
 ### 2.3 Tratamento de Produtos com Demanda Intermitente
 
@@ -1337,7 +1356,18 @@ Qualquer mudança nos schemas do backend quebra o build TypeScript — erros de 
 | `test_sarimax_pipeline.py` | run_product_pipeline com produto da fixture → result com todas as chaves |
 | `test_api_endpoints.py` | TestClient FastAPI: /health, /upload, /products, /forecast/{id}, /alerts |
 
-### 12.3 Validação Estatística (critérios formais do artigo)
+### 12.3 Validação Estatística (critérios formais do artigo, seção 6.5)
+
+A validação do sistema segue as **três dimensões** definidas na seção 6.5 do artigo:
+
+1. **Validação estatística dos modelos** — MAE, RMSE, MAPE, SMAPE, R² em hold-out (3
+   meses) e walk-forward CV (4 folds). Limiares: MAPE < 20% (alto giro), SMAPE < 30%
+   (top 2 produtos).
+2. **Testes de diagnóstico de resíduos** — Ljung-Box (ausência de autocorrelação) e
+   Shapiro-Wilk (normalidade dos resíduos).
+3. **Testes funcionais do sistema** — upload, processamento, visualização e exportação
+   com dados reais da entidade parceira; consistência, desempenho e usabilidade com
+   usuários não técnicos (T078 em `tasks.md`).
 
 ```python
 # tests/integration/test_model_quality.py
@@ -1348,7 +1378,33 @@ def test_mape_aceitavel_produtos_alto_giro():
 def test_residuos_ljung_box():
     """p-value Ljung-Box > 0.05 (sem autocorrelação residual)"""
     ...
+
+def test_residuos_shapiro_wilk():
+    """p-value Shapiro-Wilk > 0.05 (normalidade dos resíduos)"""
+    ...
 ```
+
+### 12.4 Ferramentas de Modelagem — Diagramas UML (seção 6.4 do artigo)
+
+Entregável acadêmico obrigatório, produzido com ferramenta de modelagem UML compatível
+com os padrões acadêmicos exigidos e versionado em `docs/uml/`:
+
+| Diagrama | Cobertura |
+|---|---|
+| Casos de uso | Atores (admin, viewer) × funcionalidades (upload, forecast, alertas, simulação, export) |
+| Atividades | Fluxo do pipeline ETL → features → SARIMAX → forecast; fluxo de retrain semanal |
+| Classes | Entidades de domínio (Produto, Transação, Modelo, Previsão, Alerta) e suas relações |
+| Modelo de dados | Diagrama ER das tabelas SQLite (seção 9.1) |
+| Arquitetura lógica | As 4 camadas da Clean Architecture (seção 2.1) |
+
+### 12.5 Avaliação Comparativa de Granularidade — Mensal vs. Diária
+
+Contribuição acadêmica (ii) do artigo (seção 3/5): comparação formal, via walk-forward
+CV, entre modelos treinados em granularidade mensal e diária para o **mesmo conjunto de
+produtos perecíveis**. Resultado documentado (relatório + métricas lado a lado) em
+`docs/`; **não altera** a decisão de produção (granularidade mensal — seção 2.2), que já
+se apoia em achado preliminar desta mesma análise (>70% de zeros por produto em base
+diária).
 
 ---
 
@@ -1378,7 +1434,25 @@ def test_residuos_ljung_box():
 
 ## Ordem de Implementação Recomendada
 
+Alinhada ao cronograma oficial do projeto técnico (Tabela 2, seção 8 do artigo):
+
+| Etapa (artigo) | Período | Entrega |
+|---|---|---|
+| Levantamento e refinamento de requisitos | Abr/2026 | Backlog consolidado — `spec.md` |
+| Modelagem e arquitetura do sistema | Mai/2026 | Diagramas UML + modelo de dados (`docs/uml/`) |
+| Implementação do pipeline de ingestão | Jun/2026 | ETL inicial |
+| Engenharia de atributos e análise exploratória | Jun/2026 | Features + relatório de EDA (`docs/eda_report.md`) |
+| Modelagem preditiva SARIMAX | Jul–Ago/2026 | Modelos treinados, avaliados e documentados |
+| Dashboard e módulo de simulações | Set/2026 | Interface funcional e validada |
+| Testes integrados e ajustes finais | Out/2026 | Versão candidata à entrega |
+| Documentação final e entrega | Nov/2026 | Projeto finalizado e documentado |
+
 ```
+Sprint 0 (Mai/2026 — Modelagem e EDA):
+  0a. docs/uml/ — casos de uso, atividades, classes, modelo de dados, arquitetura lógica
+  0b. Análise exploratória em Jupyter Notebook (sazonalidade, tendências, unidade, perfil de demanda)
+      → consolidar em docs/eda_report.md
+
 Sprint 1 (Jun/2026):
   1. backend/config.py + backend/main.py (esqueleto)
   2. infrastructure/database/ (engine + models + migrations)
@@ -1393,20 +1467,28 @@ Sprint 2 (Jul/2026):
   9. domain/models/ (stationarity + order_selection + sarimax_trainer + evaluator + forecaster)
   10. infrastructure/storage/model_registry.py
   11. services/retrain_service.py
-  12. tests/unit/test_*model* + test_evaluator
+  12. tests/unit/test_*model* + test_evaluator (inclui Ljung-Box + Shapiro-Wilk)
 
 Sprint 3 (Ago/2026):
   13. api/router_products + router_forecast + router_alerts
   14. services/forecast_service + alert_service
   15. infrastructure/scheduler/weekly_retrain.py
   16. tests/integration/test_api_endpoints
+  17. Avaliação comparativa mensal vs. diária (seção 12.5) — relatório
 
 Sprint 4 (Set/2026):
-  17. api/router_simulation + services/simulation_service
-  18. api/router_reports + services/report_service (Excel + PDF)
-  19. api/router_models (status + manual retrain)
-  20. Integração com React (app-react/)
-  21. Testes funcionais com usuários da empresa parceira
+  18. api/router_simulation + services/simulation_service
+  19. api/router_reports + services/report_service (Excel + PDF)
+  20. api/router_models (status + manual retrain)
+  21. Integração com React (app-react/)
+
+Sprint 5 (Out/2026 — Testes integrados):
+  22. Testes funcionais com usuários da empresa parceira (percurso guiado das User Stories)
+  23. Ajustes finais → versão candidata à entrega
+
+Sprint 6 (Nov/2026 — Documentação final):
+  24. docs/quickstart.md + documentação técnica consolidada
+  25. Entrega final
 ```
 
 ---

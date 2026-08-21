@@ -2,7 +2,18 @@
 
 **Input**: [spec.md](spec.md) · [plan.md](plan.md)
 
-**Sprint map**: Sprint 1 = Fase 1+2 (Jun/2026) · Sprint 2 = Fase 3+4 (Jul/2026) · Sprint 3 = Fase 5+6 (Ago/2026) · Sprint 4 = Fase 7+8 (Set/2026)
+**Sprint map**: Sprint 0 = Modelagem/UML/EDA (Mai–Jun/2026) · Sprint 1 = Fase 1+2 (Jun/2026) · Sprint 2 = Fase 3+4 (Jul/2026) · Sprint 3 = Fase 5+6 (Ago/2026) · Sprint 4 = Fase 7+8 (Set/2026) · Sprint 5 = testes integrados (Out/2026) · Sprint 6 = documentação final (Nov/2026), conforme cronograma do artigo (seção 8)
+
+---
+
+## Fase 0: Modelagem, EDA e Documentação Acadêmica
+
+**Objetivo**: Diagramas UML e relatório de EDA produzidos, conforme seções 6.4 e 4.2 do artigo — entregáveis acadêmicos que precedem/acompanham a implementação.
+
+- [ ] T000a Produzir diagramas UML em `docs/uml/`: casos de uso, atividades, classes, modelo de dados (ER) e arquitetura lógica (seção 6.4 do artigo)
+- [ ] T000b [P] Realizar análise exploratória (EDA) em Jupyter Notebook com pandas/matplotlib/seaborn/plotly — sazonalidade, tendências, comportamento por unidade operacional, perfil de demanda por produto; consolidar em `docs/eda_report.md`
+
+**Checkpoint**: `docs/uml/` e `docs/eda_report.md` existem e cobrem os itens acima ✅
 
 ---
 
@@ -12,7 +23,7 @@
 
 - [ ] T001 Criar estrutura de diretórios `backend/` conforme `plan.md` (api/, schemas/, services/, domain/, infrastructure/)
 - [ ] T002 [P] Criar `backend/config.py` com `Settings` via pydantic-settings lendo `.env`
-- [ ] T003 [P] Criar `requirements.txt` com todas as dependências do backend (FastAPI, statsmodels, scikit-learn, SQLAlchemy, APScheduler, joblib, openpyxl, reportlab)
+- [ ] T003 [P] Criar `requirements.txt` com todas as dependências do backend (FastAPI, statsmodels, scikit-learn, SQLAlchemy, APScheduler, joblib, openpyxl, reportlab) e `requirements-dev.txt` com dependências de EDA/experimentação (jupyter, matplotlib, seaborn, plotly) — não entram no runtime de produção
 - [ ] T004 Criar `backend/infrastructure/database/engine.py` — engine SQLite + session factory
 - [ ] T005 Criar `backend/infrastructure/database/models.py` — ORM: `products`, `model_artifacts`, `forecasts_cache`, `processing_log`, `retrain_history`, **`users`** (id, email, name, hashed_password, role, is_active)
 - [ ] T006 Criar `backend/infrastructure/database/migrations.py` — `create_tables()` idempotente
@@ -128,6 +139,10 @@ Esta fase DEVE ser concluída antes de qualquer outro endpoint `/api/v1/*`.
 
 **Checkpoint**: `GET /api/v1/forecast/147?horizon_months=3` retorna JSON com datas, previsões e IC 95% ✅
 
+### Avaliação Comparativa de Granularidade (contribuição acadêmica ii)
+
+- [ ] T044a Executar `walk_forward_cv` com os mesmos produtos em granularidade mensal e diária; comparar MAE/RMSE/MAPE/SMAPE lado a lado; documentar resultado (relatório em `docs/`) — não altera a granularidade de produção (SPECS.md seção 12.5)
+
 ---
 
 ## Fase 4: Alertas (User Story 3 — Alerta Automático de Reposição)
@@ -226,7 +241,7 @@ Esta fase DEVE ser concluída antes de qualquer outro endpoint `/api/v1/*`.
 - [ ] T074 [P] Executar todos os testes unitários e corrigir falhas: `pytest tests/unit/ -v`
 - [ ] T075 [P] Executar testes de integração: `pytest tests/integration/ -v`
 - [ ] T076 Validação estatística formal: MAPE < 20% e SMAPE < 30% nos 2 produtos de maior volume
-- [ ] T077 Executar Ljung-Box nos resíduos de todos os modelos treinados; logar resultados
+- [ ] T077 Executar Ljung-Box e Shapiro-Wilk nos resíduos de todos os modelos treinados (diagnóstico de resíduos, seção 6.5 do artigo); logar resultados
 - [ ] T078 Validação com usuários da entidade parceira — percurso guiado dos 5 User Stories
 - [ ] T079 [P] Criar `docs/quickstart.md` — guia de instalação e uso para a entidade parceira
 - [ ] T080 Commit final com toda a documentação e código: `git commit -m "feat: sistema de previsão de estoque v1.0.0"`
@@ -237,6 +252,7 @@ Esta fase DEVE ser concluída antes de qualquer outro endpoint `/api/v1/*`.
 
 ### Dependências entre Fases
 
+- **Fase 0** (Modelagem/EDA/UML): sem dependências de código — pode rodar em paralelo com Fase 1
 - **Fase 1** (Setup): sem dependências — começa imediatamente
 - **Fase 2** (ETL): depende de Fase 1 — bloqueia Fases 3–8
 - **Fase 3** (SARIMAX): depende de Fase 2 — bloqueia Fases 4–7

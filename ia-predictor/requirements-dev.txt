@@ -1,0 +1,8 @@
+# Dependências de análise exploratória (EDA) e prototipagem — NÃO entram no runtime
+# de produção. Ver SPECS.md secao 1.3 e CLAUDE.md.
+-r requirements.txt
+
+jupyter==1.1.1
+matplotlib==3.11.1
+seaborn==0.13.2
+plotly==6.9.0

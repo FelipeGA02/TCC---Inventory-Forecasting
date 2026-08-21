@@ -7,13 +7,18 @@ Leia este arquivo antes de qualquer implementação.
 
 ## O que é este projeto
 
-TCC de Ciência da Computação (Centro Universitário Dom Helder, 2026).
+TCC de Ciência da Computação (Centro Universitário Dom Helder, 2026), em parceria com a
+Floricultura Verde Perto (unidades em Nova Lima — Jardim Canadá — e Itabirito/MG).
 Sistema de previsão de demanda para rede de floricultura com 3 unidades operacionais,
 baseado em modelos SARIMAX com atualização semanal automática e dashboard React.
 
 **Domínio**: floricultura · alta perecibilidade · sazonalidade por datas comemorativas  
 **Dados**: 324k+ transações · Jan/2024–Fev/2026 · 5.100+ SKUs · 3 unidades  
-**Horizonte de previsão**: 1–3 meses (granularidade mensal)
+**Horizonte de previsão**: 2–3 semanas (operacional), mapeado para granularidade mensal
+com previsão de 1–3 meses à frente  
+**Metodologia**: ágil/iterativa para o software; CRISP-DM (compreensão do negócio →
+compreensão dos dados → preparação → modelagem → avaliação → implantação) para o
+pipeline de dados e modelagem preditiva
 
 ---
 
@@ -23,11 +28,12 @@ baseado em modelos SARIMAX com atualização semanal automática e dashboard Rea
 | --- | --- |
 | Backend API | FastAPI 0.111 + Python 3.11 |
 | Modelagem | statsmodels 0.14 (SARIMAX) + scikit-learn 1.4 (RF) |
+| Análise exploratória (EDA) | Jupyter Notebooks + matplotlib, seaborn, plotly (não entram no runtime de produção) |
 | Auth | python-jose (JWT HS256) + passlib (bcrypt) |
 | Banco | SQLite via SQLAlchemy 2.0 |
 | Scheduler | APScheduler 3.10 (segunda-feira 02:00) |
 | Serialização | joblib (modelos), openpyxl (XLSX), reportlab (PDF) |
-| Frontend | React 18 + Recharts + MUI (em `app-react/`) |
+| Frontend | React 18 + Recharts + MUI (em `app-react/`) — decisão pós-prototipagem; o projeto técnico original cogitava Streamlit/Dash |
 | Cliente HTTP | gerado de `openapi.yaml` via openapi-typescript-codegen |
 
 ---
@@ -185,6 +191,8 @@ RETRAIN_HOUR=2
 | Mínimo de observações | 15 meses | abaixo disso: insufficient_data, sem modelo |
 | Hold-out para avaliação | 3 meses | test_pred vs. ts_test |
 | Walk-forward CV | 4 folds | obrigatório antes de status = "trained" |
+| Granularidade de produção | Mensal | ciclo de reposição semanal/mensal; dados diários têm >70% de zeros por produto |
+| Avaliação comparativa mensal vs. diária | walk-forward nos mesmos produtos | contribuição acadêmica (ii) do artigo — relatório, não muda a granularidade de produção |
 
 ---
 
@@ -195,8 +203,12 @@ RETRAIN_HOUR=2
 | MAPE (alto giro) | < 20% | `low_confidence` |
 | SMAPE (top 2 produtos) | < 30% | `low_confidence` |
 | Observações mínimas | ≥ 15 mensais | `insufficient_data` |
+| Ljung-Box (p-value) | > 0.05 | log de aviso; não bloqueia deploy |
+| Shapiro-Wilk (p-value) | > 0.05 | log de aviso; não bloqueia deploy |
 
 `low_confidence` ≠ falha: previsão ainda é gerada, mas com aviso visual no dashboard.
+Ljung-Box e Shapiro-Wilk compõem a dimensão de "diagnóstico de resíduos" da validação
+(seção 6.5 do artigo) — não bloqueiam o deploy, mas MUST ser logados por modelo treinado.
 
 ---
 
@@ -241,5 +253,8 @@ Comandos disponíveis (invocar via Skill tool ou como `/speckit-*`):
 | `specs/001-sistema-previsao-estoque/spec.md` | User Stories e requisitos funcionais |
 | `specs/001-sistema-previsao-estoque/plan.md` | Plano técnico com constitution check |
 | `specs/001-sistema-previsao-estoque/tasks.md` | 80+ tarefas organizadas em 9 fases |
-| `.specify/memory/constitution.md` | 6 princípios governantes (v1.1.0) |
+| `.specify/memory/constitution.md` | 6 princípios governantes (v1.1.1) |
 | `docs/adr/` | Architecture Decision Records |
+| `docs/artigo_tcc.md` / `docs/artigo_tcc.pdf` | Espelho do artigo/projeto técnico acadêmico |
+| `docs/uml/` *(a criar)* | Diagramas de casos de uso, atividades, classes, modelo de dados e arquitetura lógica (seção 6.4 do artigo) |
+| `docs/eda_report.md` *(a criar)* | Relatório de análise exploratória — sazonalidade, tendências, comportamento por unidade, perfil de demanda |

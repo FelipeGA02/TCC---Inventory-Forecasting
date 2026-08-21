@@ -1,36 +1,46 @@
+# NOTA: o alvo documentado do projeto é Python 3.11 (CLAUDE.md). O ambiente de
+# desenvolvimento local disponível só tem Python 3.14, para o qual os pins originais
+# (numpy 1.26 / pandas 2.2 / scikit-learn 1.4 / statsmodels 0.14.2) não têm wheel.
+# Os pins abaixo refletem versões testadas e funcionais em Python 3.14; em CI/produção
+# com Python 3.11 os pins originais (mais conservadores) também são válidos.
+
 # Web
-fastapi==0.111.0
-uvicorn[standard]==0.29.0
-python-multipart==0.0.9
+fastapi==0.141.1
+uvicorn[standard]==0.52.4
+python-multipart==0.0.32
 
 # Auth
-python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
+python-jose[cryptography]==3.5.0
+bcrypt==5.0.0
+# NOTA: passlib 1.7.4 (última release, sem manutenção desde 2020) é incompatível com
+# bcrypt>=4.1 (remoção do atributo `__about__` usado na detecção de backend). Por isso
+# o hashing de senha usa a biblioteca `bcrypt` diretamente (backend/auth/password_handler.py),
+# não `passlib.CryptContext`.
 
 # Database
-sqlalchemy==2.0.30
-alembic==1.13.1
+sqlalchemy==2.0.52
+alembic==1.19.1
 
 # ML / Stats
-statsmodels==0.14.2
-scikit-learn==1.4.2
-pandas==2.2.2
-numpy==1.26.4
-scipy==1.13.0
+statsmodels==0.14.6
+scikit-learn==1.9.0
+pandas==3.0.5
+numpy==2.5.2
+scipy==1.18.0
 
 # Scheduler
-apscheduler==3.10.4
+apscheduler==3.11.3
 
 # Serialização
-joblib==1.4.2
-openpyxl==3.1.2
-reportlab==4.1.0
+joblib==1.5.3
+openpyxl==3.1.5
+reportlab==5.0.1
 
 # Config
-pydantic-settings==2.2.1
-python-dotenv==1.0.1
+pydantic-settings==2.15.0
+python-dotenv==1.2.3
 
 # Dev / Testes
-pytest==8.2.0
-pytest-asyncio==0.23.6
-httpx==0.27.0
+pytest==9.1.1
+pytest-asyncio==1.4.0
+httpx==0.28.1

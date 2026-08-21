@@ -1,7 +1,11 @@
 <!-- Sync Impact Report
-  Version change: 1.0.0 → 1.1.0
-  Added: Princípio VI (Segurança por Padrão), Quality Gate de Auth
-  Modified: Development Workflow — openapi-codegen obrigatório
+  Version change: 1.1.0 → 1.1.1
+  Added: Quality Gate de Shapiro-Wilk (diagnóstico de resíduos, alinhado à seção 6.5
+    do Projeto Técnico revisado — validação tem 3 dimensões: estatística, diagnóstico
+    de resíduos [Ljung-Box + Shapiro-Wilk] e testes funcionais)
+  Modified: Development Workflow — referência à metodologia CRISP-DM adotada para o
+    pipeline de dados (compreensão do negócio → dados → preparação → modelagem →
+    avaliação → implantação), conforme seção 6.1 do artigo
   Templates updated:
     ✅ .specify/templates/spec-template.md (compatible)
     ✅ .specify/templates/plan-template.md (compatible)
@@ -80,6 +84,7 @@ dados operacionais da empresa parceira; evitar acesso não autorizado ao sistema
 | MAPE (alto giro) | < 20% | `status = "low_confidence"` + alerta no dashboard |
 | SMAPE (top 2 produtos) | < 30% | idem |
 | Ljung-Box p-value | > 0.05 | log de aviso; não bloqueia deploy |
+| Shapiro-Wilk p-value | > 0.05 | log de aviso; não bloqueia deploy |
 | Observações mínimas | ≥ 15 mensais | `status = "insufficient_data"` |
 
 ### Critérios de Aceitação da API
@@ -95,6 +100,10 @@ dados operacionais da empresa parceira; evitar acesso não autorizado ao sistema
 
 ## Development Workflow
 
+- O pipeline de dados e modelagem MUST seguir as fases do CRISP-DM (Cross-Industry
+  Standard Process for Data Mining), adaptado a séries temporais: compreensão do
+  negócio, compreensão dos dados, preparação dos dados, modelagem, avaliação e
+  implantação (artigo, seção 6.1).
 - Implementação MUST seguir a ordem dos Sprints definida em `SPECS.md`.
 - Nenhuma funcionalidade de domínio MUST ser implementada sem teste unitário correspondente.
 - Pull Requests que incluam lógica de negócio sem teste unitário MUST ser rejeitados.
@@ -113,4 +122,4 @@ Versionamento semântico: MAJOR = remoção/redefinição de princípio; MINOR =
 PATCH = clarificação ou correção de texto.
 Revisão obrigatória a cada Sprint concluído.
 
-**Version**: 1.1.0 | **Ratified**: 2026-07-28 | **Last Amended**: 2026-07-28
+**Version**: 1.1.1 | **Ratified**: 2026-07-28 | **Last Amended**: 2026-08-21

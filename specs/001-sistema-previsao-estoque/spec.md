@@ -191,6 +191,10 @@ e alertas com dados corretos e formatação legível.
 - **FR-011**: O sistema MUST registrar log de cada upload e retrain, consultável no dashboard.
 - **FR-012**: O sistema MUST sinalizar produtos com dados insuficientes (< 15 meses) sem
   exibir previsão para eles.
+- **FR-013** *(fora do MVP — fase 2)*: O sistema SHOULD identificar produtos que costumam
+  ser comprados juntos na mesma transação (REQ-07 do artigo, prioridade Média — análise
+  de cesta de compras/*market basket*), expondo via `GET /api/v1/products/{id}/bundles`.
+  Não bloqueia a entrega inicial (ver `SPECS.md` seção 13, mapeamento REQ-07).
 
 ### Key Entities
 

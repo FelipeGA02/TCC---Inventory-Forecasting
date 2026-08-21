@@ -21,6 +21,7 @@ O retrain é automatizado semanalmente via scheduler interno.
 **Primary Dependencies**:
 - Backend: FastAPI 0.111, statsmodels 0.14, scikit-learn 1.4, pandas 2.2, SQLAlchemy 2.0, APScheduler 3.10, joblib 1.4, openpyxl 3.1, reportlab 4.2, **python-jose[cryptography] 3.3** (JWT), **passlib[bcrypt] 1.7** (hash de senha)
 - Frontend: React 18, Recharts, Material UI, react-router, react-hook-form (já em app-react/), **openapi-typescript-codegen** (cliente HTTP gerado de openapi.yaml)
+- Dev/EDA (não entram no runtime de produção): Jupyter Notebooks, matplotlib, seaborn, plotly — análise exploratória (seção 4.2 do artigo)
 
 **Storage**: SQLite via SQLAlchemy (modelo de dados relacional); CSV para base transacional; joblib para artefatos de modelo
 
@@ -223,6 +224,12 @@ Código existente em `ia-predictor/src/` foi analisado e servirá de referência
 | RF MDI para ponderação | Breiman 2001 — evita multicolinearidade | Baixo |
 | Grid 36 combinações AIC | Balanceia tempo e qualidade | Médio — ~3min/produto |
 | APScheduler in-process | Volume não justifica Celery | Baixo para ≤ 20 produtos |
+| Granularidade mensal para produção | Comparativo mensal vs. diária (walk-forward) mostrou >70% de zeros por produto em base diária | Baixo — decisão suportada pela contribuição acadêmica (ii) do artigo |
+| React em vez de Streamlit/Dash | Artigo (seção 6.3) deixava em aberto "a definir após prototipagem"; app-react/ já existente cobre RNF-01 | Baixo — decisão já tomada, documentada em `SPECS.md` §2.2 |
+
+**Entregáveis acadêmicos desta fase** (seções 6.4 e 4.2 do artigo, não código): diagramas
+UML (casos de uso, atividades, classes, modelo de dados, arquitetura lógica) em
+`docs/uml/`, e relatório de EDA em `docs/eda_report.md` — ver Fase 0 em `tasks.md`.
 
 ---
 

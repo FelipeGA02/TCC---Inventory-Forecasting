@@ -65,28 +65,33 @@ export function PreVisualizacao() {
     filtros.produto !== "todos" ||
     filtros.unidade !== "todos";
 
-  const filtrados = useMemo(
-    () =>
-      tabelaPreVisualizacao.filter((r) => {
-        const matchBusca =
-          filtros.busca === "" ||
-          r.produto
-            .toLowerCase()
-            .includes(filtros.busca.toLowerCase()) ||
-          r.unidade
-            .toLowerCase()
-            .includes(filtros.busca.toLowerCase()) ||
-          r.data.includes(filtros.busca);
-        const matchProduto =
-          filtros.produto === "todos" ||
-          r.produto.toLowerCase().includes(filtros.produto);
-        const matchUnidade =
-          filtros.unidade === "todos" ||
-          r.unidade.toLowerCase() === filtros.unidade;
-        return matchBusca && matchProduto && matchUnidade;
-      }),
-    [filtros],
-  );
+  const filtrados = useMemo(() => {
+    const nomeProduto = produtos.find(
+      (p) => p.id === filtros.produto,
+    )?.nome;
+    const nomeUnidade = unidades.find(
+      (u) => u.id === filtros.unidade,
+    )?.nome;
+
+    return tabelaPreVisualizacao.filter((r) => {
+      const matchBusca =
+        filtros.busca === "" ||
+        r.produto
+          .toLowerCase()
+          .includes(filtros.busca.toLowerCase()) ||
+        r.unidade
+          .toLowerCase()
+          .includes(filtros.busca.toLowerCase()) ||
+        r.data.includes(filtros.busca);
+      const matchProduto =
+        filtros.produto === "todos" ||
+        r.produto === nomeProduto;
+      const matchUnidade =
+        filtros.unidade === "todos" ||
+        r.unidade === nomeUnidade;
+      return matchBusca && matchProduto && matchUnidade;
+    });
+  }, [filtros]);
 
   const totalPaginas = Math.ceil(filtrados.length / PAGE_SIZE);
   const paginaAtual = Math.min(

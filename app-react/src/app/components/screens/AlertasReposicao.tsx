@@ -46,8 +46,10 @@ export function AlertasReposicao() {
   const [filtroUnidade, setFiltroUnidade] = useState("todos");
   const [filtroGrupo, setFiltroGrupo] = useState("todos");
 
+  const nomeUnidade = unidades.find((u) => u.id === filtroUnidade)?.nome;
+
   const filtrados = alertasReposicao.filter((a) => {
-    const matchUnidade = filtroUnidade === "todos" || a.unidade.toLowerCase().includes(filtroUnidade);
+    const matchUnidade = filtroUnidade === "todos" || a.unidade === nomeUnidade;
     const matchGrupo = filtroGrupo === "todos" || a.grupo === filtroGrupo;
     return matchUnidade && matchGrupo;
   });

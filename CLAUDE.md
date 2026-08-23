@@ -63,6 +63,13 @@ TCC---Inventory-Forecasting/
 │   │   └── processed/
 │   │       └── contas_a_receber.csv   ← base consolidada (sep=";")
 │   ├── models/                  ← artefatos joblib por produto
+│   ├── training_scripts/        ← experimentação pré-produção do SARIMAX (fora do backend)
+│   │   ├── eda/                 ← análise exploratória (sazonalidade, CV, seleção Top-N)
+│   │   ├── baseline/            ← Modelo A0 (SARIMA puro) e A1 (SARIMAX interno)
+│   │   ├── enriched/            ← Modelo B (SARIMAX interno + exógenas externas)
+│   │   ├── alternative_models/  ← ETS, XGBoost, Prophet, rede neural global
+│   │   ├── validation/          ← walk-forward CV, testes de resíduos/significância (compartilhado)
+│   │   └── results/             ← metrics/ e plots/ da experimentação (staging, não é o results/ de produção)
 │   └── tests/
 │       ├── unit/                ← testes de domínio isolado
 │       ├── integration/         ← testes de API e pipeline
@@ -79,7 +86,13 @@ TCC---Inventory-Forecasting/
 │       ├── spec.md              ← especificação funcional (User Stories)
 │       ├── plan.md              ← plano técnico e arquitetura
 │       └── tasks.md             ← 80+ tarefas por fase com TDD
-└── docs/adr/                   ← Architecture Decision Records
+└── docs/                        ← documentação organizada por área (ver docs/README.md)
+    ├── projeto/                 ← projeto técnico (PDF) e estado atual do sistema
+    ├── predicao/                ← ADRs de modelagem + plano de experimentos comparativos
+    ├── backend/                 ← ADRs de arquitetura de serviço/API
+    ├── banco-de-dados/          ← ADRs de persistência
+    ├── frontend/                ← ADRs do dashboard React
+    └── uml/                     ← diagramas UML (caminho fixo, seção 6.4 do artigo)
 ```
 
 ---
@@ -254,7 +267,10 @@ Comandos disponíveis (invocar via Skill tool ou como `/speckit-*`):
 | `specs/001-sistema-previsao-estoque/plan.md` | Plano técnico com constitution check |
 | `specs/001-sistema-previsao-estoque/tasks.md` | 80+ tarefas organizadas em 9 fases |
 | `.specify/memory/constitution.md` | 6 princípios governantes (v1.1.1) |
-| `docs/adr/` | Architecture Decision Records |
-| `docs/artigo_tcc.md` / `docs/artigo_tcc.pdf` | Espelho do artigo/projeto técnico acadêmico |
-| `docs/uml/` *(a criar)* | Diagramas de casos de uso, atividades, classes, modelo de dados e arquitetura lógica (seção 6.4 do artigo) |
+| `docs/README.md` | Índice da documentação por área + convenção de ADRs |
+| `docs/predicao/`, `docs/backend/`, `docs/banco-de-dados/`, `docs/frontend/` | ADRs organizados por área (ver `docs/README.md` para a lista completa) |
+| `docs/projeto/Projeto Tecnico Verde Perto Final...pdf` | Projeto técnico acadêmico original (fonte primária, revisado pelo orientador) |
+| `docs/projeto/estado_atual_dados_e_requisitos.md` | Raio-x do que já foi feito (dados, pré-processamento, modelagem) vs. requisitos do artigo |
+| `docs/predicao/plano_experimentos_modelagem.md` | Plano de experimentos: SARIMAX baseline × enriquecido × redes neurais/outros modelos |
+| `docs/uml/` *(parcial — 2 de 5 diagramas)* | Diagramas de casos de uso, atividades, classes, modelo de dados e arquitetura lógica (seção 6.4 do artigo) |
 | `docs/eda_report.md` *(a criar)* | Relatório de análise exploratória — sazonalidade, tendências, comportamento por unidade, perfil de demanda |

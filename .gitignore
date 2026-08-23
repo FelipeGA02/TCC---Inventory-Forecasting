@@ -43,6 +43,7 @@ ia-predictor/exports/
 htmlcov/
 coverage.xml
 *.cover
+ia-predictor/training_scripts/output/
 
 # ─── Tipagem e linting ────────────────────────────────────────────────────────
 .mypy_cache/

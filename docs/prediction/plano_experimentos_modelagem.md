@@ -9,7 +9,7 @@
 
 **Onde isso roda**: em `ia-predictor/training_scripts/`, não em `backend/domain/`. É uma
 pasta de scripts Python (não notebooks — o `.gitignore` já exclui `*.ipynb`, ver
-`docs/projeto/estado_atual_dados_e_requisitos.md` §2) dedicada a testar, treinar e validar
+`docs/project/current_files_state.md` §2) dedicada a testar, treinar e validar
 o SARIMAX antes de qualquer variante entrar no backend de produção. Os módulos
 `backend/domain/` hoje estão vazios (stubs); não faz sentido implementá-los 3 vezes (uma
 por variante). Prototipa-se tudo em `training_scripts/`, decide-se o vencedor com números,
@@ -59,7 +59,7 @@ Subpastas, uma por etapa da comparação (evita misturar código de fases difere
 ## Fase 2 — Aquisição das bases de enriquecimento externas
 
 Esta é a parte **nova**, fora do que `SPECS.md`/artigo já documentam — precisa de ADR
-próprio (`docs/predicao/ADR-008-variaveis-exogenas-externas.md`) justificando cada fonte.
+próprio (`docs/prediction/ADR-008-variaveis-exogenas-externas.md`) justificando cada fonte.
 Nenhuma delas envolve dado pessoal de cliente → sem conflito com Princípio VI/LGPD.
 
 | Fonte | Dado | API/acesso | Observação |
@@ -78,7 +78,7 @@ Nenhuma delas envolve dado pessoal de cliente → sem conflito com Princípio VI
       e permite rodar offline depois da primeira coleta)
 - [ ] 2.3 Curadoria manual da tabela de feriados municipais (Nova Lima + Itabirito),
       versionada como CSV/JSON no repo
-- [ ] 2.4 `docs/predicao/ADR-008-variaveis-exogenas-externas.md`: por que cada fonte foi
+- [ ] 2.4 `docs/prediction/ADR-008-variaveis-exogenas-externas.md`: por que cada fonte foi
       escolhida, o que foi descartado e por quê
 - [ ] 2.5 Atualizar `SPECS.md` §5.2 com a tabela de variáveis externas (mesmo formato
       da tabela de exógenas internas)
@@ -103,7 +103,7 @@ Jan/2024–Fev/2026, prontas para merge com a série de cada produto.
 - [ ] 3.5 Teste estatístico de significância da diferença (ex.: Diebold-Mariano ou
       Wilcoxon pareado nos erros de A1 vs B) — não basta "SMAPE caiu 2%", precisa
       mostrar que a diferença não é ruído
-- [ ] 3.6 Relatório `docs/predicao/comparacao_enriquecimento.md`: tabela A0 vs A1 vs B por
+- [ ] 3.6 Relatório `docs/prediction/comparacao_enriquecimento.md`: tabela A0 vs A1 vs B por
       produto, com veredito (enriquecimento externo compensa a complexidade adicional
       ou não)
 
@@ -141,9 +141,9 @@ dados entre séries em vez de ajustar 20 modelos com 26 pontos cada.
       (relevante para o requisito de retrain semanal < 2h, RNF-03)
 - [ ] 4.4 Teste de significância pareado (mesmo método da Fase 3) contra o melhor
       SARIMAX (A1 ou B, o que vencer a Fase 3)
-- [ ] 4.5 Relatório final `docs/predicao/comparacao_modelos_final.md`: tabela consolidada
+- [ ] 4.5 Relatório final `docs/prediction/comparacao_modelos_final.md`: tabela consolidada
       A0/A1/B/ETS/XGBoost/Prophet/NN-global, por produto e agregado
-- [ ] 4.6 Atualizar `docs/predicao/ADR-001-sarimax-como-modelo-central.md` com uma seção
+- [ ] 4.6 Atualizar `docs/prediction/ADR-001-sarimax_central_model.md` com uma seção
       "Revisão empírica" — mantém SARIMAX se ele ainda vencer, ou abre ADR-009
       propondo o modelo vencedor caso a evidência mude a decisão (a própria ADR-001 já
       previa essa porta: "Modelos de ML podem ser introduzidos no futuro mediante

@@ -235,15 +235,25 @@ ia-predictor/
 │   └── plots/                       # Gráficos (opcionais em produção)
 │
 ├── training_scripts/                # Experimentação pré-produção do SARIMAX — roda fora do
-│   │                                 # backend, nunca é importado por ele (ver docs/predicao/
+│   │                                 # backend, nunca é importado por ele (ver docs/prediction/
 │   │                                 # plano_experimentos_modelagem.md)
 │   ├── __init__.py
+│   ├── preprocessing/                # XLSX bruto → CSV consolidado/treino (docs/prediction/
+│   │   │                             # pre_processing.md) — parser, dedup, drop de colunas,
+│   │   │                             # discretização; escreve só em training_scripts/output/
+│   │   ├── constants.py
+│   │   ├── helpers.py
+│   │   ├── parser.py
+│   │   ├── build_dataset.py
+│   │   ├── reduce_schema.py
+│   │   └── discretize_fields.py
 │   ├── eda/                         # Fase 1.1 — sazonalidade, tendência, CV por produto, Top-N
 │   ├── baseline/                    # Fase 1 — Modelo A0 (SARIMA puro) e A1 (SARIMAX interno)
 │   ├── enriched/                    # Fase 3 — Modelo B (SARIMAX interno + exógenas externas)
 │   ├── alternative_models/          # Fase 4 — ETS/Holt-Winters, XGBoost, Prophet, NN global
 │   ├── validation/                  # Walk-forward CV, testes de resíduos e de significância
 │   │                                 # (Diebold-Mariano/Wilcoxon) — compartilhado entre fases
+│   ├── output/                      # CSV/JSON gerados por preprocessing/ (gitignored)
 │   └── results/                     # metrics/ e plots/ da experimentação (staging; distinto
 │                                     # do results/ de produção acima — só migra para lá o
 │                                     # pipeline vencedor, na Fase 5)

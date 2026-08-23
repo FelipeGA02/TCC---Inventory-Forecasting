@@ -232,7 +232,7 @@ backend real.
    pasta `ia-predictor/training_scripts/` (scripts Python, com subpastas `eda/`,
    `baseline/`, `enriched/`, `alternative_models/`, `validation/`, `results/`) é o novo
    destino para reaproveitar essa lógica na Fase 1 do
-   [plano de experimentação](../predicao/plano_experimentos_modelagem.md); o `.ipynb`
+   [plano de experimentação](../prediction/plano_experimentos_modelagem.md); o `.ipynb`
    órfão deve ser removido para não confundir.
 5. **Resultados do protótipo (`results/`) não foram preservados** — as métricas por
    produto citadas na seção 3.3 vêm só da memória de sessões anteriores; recomendo
@@ -243,7 +243,7 @@ backend real.
 
 ## 9. Como isso se conecta ao próximo passo
 
-O [plano de experimentos de modelagem](../predicao/plano_experimentos_modelagem.md) (Fase 1 —
+O [plano de experimentos de modelagem](../prediction/plano_experimentos_modelagem.md) (Fase 1 —
 Baseline sem enriquecimento) é exatamente o ponto onde essa lacuna começa a ser
 fechada: ele assume reconstruir `prepare_monthly_series` e as exógenas internas dentro
 da metodologia de notebook → comparação → só então portar para `backend/domain/`. A

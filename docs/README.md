@@ -5,10 +5,10 @@ referência técnica completa e `CLAUDE.md` (raiz) para o guia de desenvolviment
 
 | Pasta | Área | Conteúdo |
 | --- | --- | --- |
-| [`projeto/`](projeto/) | Visão geral / acadêmico | Projeto técnico original (PDF) e o raio-x do estado atual do sistema |
-| [`predicao/`](predicao/) | Modelagem / previsão de demanda | ADRs sobre SARIMAX, plano de experimentos comparativos (baseline × enriquecido × outros modelos) |
+| [`project/`](project/) | Visão geral / acadêmico | Projeto técnico original (PDF) e o raio-x do estado atual do sistema |
+| [`prediction/`](prediction/) | Modelagem / previsão de demanda | ADRs sobre SARIMAX, plano de experimentos comparativos (baseline × enriquecido × outros modelos), pipeline de pré-processamento |
 | [`backend/`](backend/) | API / arquitetura de serviço | ADRs sobre monolito modular, autenticação JWT, scheduler de retrain |
-| [`banco-de-dados/`](banco-de-dados/) | Persistência | ADR sobre a escolha do SQLite |
+| [`database/`](database/) | Persistência | ADR sobre a escolha do SQLite |
 | [`frontend/`](frontend/) | Dashboard React | ADR sobre geração do cliente TypeScript a partir do OpenAPI |
 | [`uml/`](uml/) | Modelagem UML | Diagramas de casos de uso e atividades (entregável acadêmico, seção 6.4 do artigo) — caminho fixo, referenciado em `SPECS.md`/`tasks.md`, não mover |
 
@@ -22,11 +22,11 @@ uma nova ADR, use o próximo número livre (o maior `ADR-0NN` já usado em qualq
 
 | ADR | Área | Decisão |
 | --- | --- | --- |
-| [ADR-001](predicao/ADR-001-sarimax-como-modelo-central.md) | predição | SARIMAX como modelo central de previsão |
+| [ADR-001](prediction/ADR-001-sarimax_central_model.md) | predição | SARIMAX como modelo central de previsão |
 | [ADR-002](backend/ADR-002-monolito-modular.md) | backend | Monolito modular como padrão arquitetural |
-| [ADR-003](backend/ADR-003-jwt-autenticacao.md) | backend | JWT com perfis admin/viewer |
-| [ADR-004](predicao/ADR-004-d0-sarimax-sazonal.md) | predição | D=0 no SARIMAX sazonal |
-| [ADR-005](banco-de-dados/ADR-005-sqlite-vs-postgresql.md) | banco de dados | SQLite como banco de dados |
+| [ADR-003](backend/ADR-003-jwt-autentication.md) | backend | JWT com perfis admin/viewer |
+| [ADR-004](prediction/ADR-004-d0-sarimax-sazonal.md) | predição | D=0 no SARIMAX sazonal |
+| [ADR-005](database/ADR-005-sqlite-vs-postgresql.md) | banco de dados | SQLite como banco de dados |
 | [ADR-006](backend/ADR-006-apscheduler-vs-celery.md) | backend | APScheduler in-process vs. Celery |
 | [ADR-007](frontend/ADR-007-openapi-typescript-codegen.md) | frontend | openapi-typescript-codegen para o cliente TS |
 

@@ -63,8 +63,15 @@ PRODUCT_COLUMNS = {
 
 NET_TOTAL_COLUMN = 5
 
-# Chave composta usada para deduplicar registros entre meses/planilhas.
-DUPLICATE_KEY_FIELDS = ('doc_numero', 'produto_cod')
+# Chave composta usada para deduplicar registros ENTRE arquivos diferentes (sobreposição
+# de datas nas bordas do mês — o mesmo documento pode ser exportado em dois meses
+# consecutivos). Nunca é aplicada dentro do mesmo arquivo: um produto pode legitimamente
+# aparecer em mais de uma linha no mesmo documento (comprovado em
+# docs/prediction/pre_processing.md, seção 3 — o total_liquido_doc só fecha contando as
+# duas linhas). `emissao`, `qtdade` e `vl_total` além de `doc_numero`/`produto_cod`
+# reduzem o risco de colisão acidental entre documentos não relacionados que reaproveitam
+# o mesmo número (confirmado que `doc_numero` se repete entre `doc_tipo` diferentes).
+DUPLICATE_KEY_FIELDS = ('doc_numero', 'produto_cod', 'emissao', 'qtdade', 'vl_total')
 
 # Fase 2 do pipeline (reduce_schema.py) — colunas sem uso analítico para previsão de
 # demanda por produto. Ver docs/prediction/preprocessamento_dados.md para a
@@ -75,5 +82,6 @@ COLUMNS_TO_DROP = [
 ]
 
 # Fase 3 do pipeline (discretize_fields.py) — categóricas nominais convertidas em
-# códigos inteiros para uso como exógenas numéricas.
+# colunas one-hot (indicadores binários) para uso como exógenas, sem impor ordem
+# artificial entre categorias.
 FIELDS_TO_DISCRETIZE = ['pagamento', 'empresa', 'vendedor']

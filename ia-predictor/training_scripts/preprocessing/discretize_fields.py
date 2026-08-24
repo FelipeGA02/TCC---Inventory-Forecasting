@@ -1,42 +1,69 @@
-"""Etapa 3 (opcional) do pipeline: converte categóricas nominais em códigos inteiros.
+"""Etapa 3 (opcional) do pipeline: converte categóricas nominais em colunas one-hot.
 
 Discretiza `pagamento`, `empresa` e `vendedor` — as três colunas categóricas de baixa
-cardinalidade que sobram após `reduce_schema.py` — e salva o mapeamento de/para em
-`output/encodings.py`, gerado automaticamente. Reconstrução de
-`src/data/discretize_fields.py` (deletado no commit `ac4dd9e`).
+cardinalidade que sobram após `reduce_schema.py` — em indicadores binários (0/1), um por
+categoria, e salva as categorias geradas em `output/encodings.py`.
 
-Ressalva registrada em docs/prediction/pre_processing.md: um código inteiro
-sequencial (1, 2, 3...) impõe uma ordem artificial a categorias nominais sem ordem
-natural (ex.: forma de pagamento). Isso é aceitável se o SARIMAX as tratar como
-exógenas numéricas simples, mas vale reavaliar na Fase 1 do plano de experimentos se
-one-hot/dummy encoding não é mais apropriado antes de travar a decisão em produção.
+Por que one-hot e não código inteiro sequencial: um código sequencial (1, 2, 3...)
+impõe ordem artificial a categorias nominais sem ordem natural (não existe "pagamento
+5 > pagamento 3"). Isso quebra a hipótese de linearidade do SARIMAX ao usar essas
+colunas como exógenas — o coeficiente passaria a interpretar a categoria como uma
+escala contínua. One-hot evita isso: cada categoria vira sua própria coluna
+independente. A categoria alfabeticamente mais baixa de cada campo é usada como
+baseline e fica de fora do one-hot (dummy variable trap) — as demais categorias são
+lidas em relação a ela.
+
+Ver docs/prediction/pre_processing.md (seção 5) para a decisão completa.
 
 Uso (a partir de `ia-predictor/`):
     python -m training_scripts.preprocessing.discretize_fields
 """
+import re
+
 import pandas as pd
 
 from .constants import REDUCED_CSV, DISCRETIZED_CSV, ENCODINGS_FILE, FIELDS_TO_DISCRETIZE
 
 
-def _build_encodings(df: pd.DataFrame, fields: list) -> dict:
-    encodings = {}
+def _slugify(value: str) -> str:
+    slug = re.sub(r'[^0-9A-Za-z]+', '_', value.strip()).strip('_').upper()
+    return slug or 'VAZIO'
+
+
+def _one_hot_encode(df: pd.DataFrame, fields: list) -> tuple:
+    categories = {}
     for field in fields:
         if field not in df.columns:
             continue
+
         unique_vals = sorted(df[field].dropna().unique())
-        encodings[field] = {val: i + 1 for i, val in enumerate(unique_vals)}
-    return encodings
+        if len(unique_vals) < 2:
+            continue
+
+        baseline, *dummies = unique_vals
+        categories[field] = {'baseline': baseline, 'dummies': dummies}
+
+        for val in dummies:
+            column = f'{field}_{_slugify(val)}'
+            df[column] = (df[field] == val).astype(int)
+
+        df = df.drop(columns=[field])
+
+    return df, categories
 
 
-def _write_encodings_module(encodings: dict, path: str) -> None:
-    lines = ['# Auto-gerado por discretize_fields.py — mapeamento de/para campos discretizados\n\n']
-    for field, mapping in encodings.items():
-        var_name = f'{field.upper()}_ENCODING'
+def _write_encodings_module(categories: dict, path: str) -> None:
+    lines = [
+        '# Auto-gerado por discretize_fields.py — categorias one-hot por campo original.\n',
+        "# 'baseline' é a categoria de referência, omitida do one-hot (dummy variable trap).\n",
+        "# 'dummies' lista as categorias que viraram coluna própria, na ordem em que foram\n",
+        '# geradas (coluna = f"{campo}_{categoria_normalizada}").\n\n',
+    ]
+    for field, info in categories.items():
+        var_name = f'{field.upper()}_CATEGORIES'
         lines.append(f'{var_name} = {{\n')
-        for val, code in mapping.items():
-            escaped = val.replace('\\', '\\\\').replace("'", "\\'").replace('\n', '\\n').replace('\r', '\\r')
-            lines.append(f"    '{escaped}': {code},\n")
+        lines.append(f"    'baseline': {info['baseline']!r},\n")
+        lines.append(f"    'dummies': {info['dummies']!r},\n")
         lines.append('}\n\n')
     with open(path, 'w', encoding='utf-8') as f:
         f.writelines(lines)
@@ -54,16 +81,17 @@ def discretize_fields(
 
     df = pd.read_csv(input_path, sep=';', dtype=str, low_memory=False)
 
-    encodings = _build_encodings(df, fields)
-    _write_encodings_module(encodings, encodings_path)
+    df, categories = _one_hot_encode(df, fields)
+    _write_encodings_module(categories, encodings_path)
 
     if verbose:
-        print(f'[discretize_fields] Encodings salvos em: {encodings_path}')
-
-    for field, mapping in encodings.items():
-        df[field] = df[field].map(mapping)
-        if verbose:
-            print(f'[discretize_fields] {field} -> código inteiro ({len(mapping)} valores únicos)')
+        print(f'[discretize_fields] Categorias salvas em: {encodings_path}')
+        for field, info in categories.items():
+            n_categorias = len(info['dummies']) + 1
+            print(
+                f"[discretize_fields] {field} -> {len(info['dummies'])} colunas one-hot "
+                f"({n_categorias} categorias, baseline='{info['baseline']}' omitida)"
+            )
 
     df.to_csv(output_path, sep=';', index=False)
 

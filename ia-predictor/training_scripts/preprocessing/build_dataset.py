@@ -1,7 +1,10 @@
 """Orquestra a Etapa 1 do pipeline: XLSX brutos -> CSV consolidado + log JSON.
 
-Lê todas as planilhas de `data/raw/`, faz o parse (parser.py), deduplica por
-(doc_numero, produto_cod) e acrescenta ao CSV consolidado. Cada planilha só é
+Lê todas as planilhas de `data/raw/`, faz o parse (parser.py), deduplica registros que
+aparecem repetidos EM ARQUIVOS DIFERENTES (sobreposição de datas nas bordas do mês) e
+acrescenta ao CSV consolidado. A deduplicação nunca compara linhas dentro do mesmo
+arquivo entre si — um produto pode aparecer mais de uma vez no mesmo documento
+legitimamente (ver docs/prediction/pre_processing.md, seção 3). Cada planilha só é
 reprocessada se for nova ou tiver mudado (controle por hash MD5 em
 `processamento_log.json`) — permite rodar de novo com segurança sem duplicar dados.
 
@@ -90,6 +93,11 @@ def process_pending_files(pending, csv_path=CONSOLIDATED_CSV, verbose=True):
             records, skipped = parse_xlsx(path)
             file_records = 0
             file_duplicates = 0
+            # Chaves só entram em `existing_keys` depois que o arquivo inteiro é
+            # processado (ver loop abaixo) — assim um produto repetido em duas linhas
+            # do MESMO documento nunca é comparado contra si mesmo. A deduplicação só
+            # vale entre arquivos diferentes (o cenário real de sobreposição de mês).
+            keys_found_in_this_file = set()
 
             for rec in records:
                 rec['arquivo_origem'] = name
@@ -98,8 +106,10 @@ def process_pending_files(pending, csv_path=CONSOLIDATED_CSV, verbose=True):
                     file_duplicates += 1
                     continue
                 writer.writerow(rec)
-                existing_keys.add(key)
+                keys_found_in_this_file.add(key)
                 file_records += 1
+
+            existing_keys |= keys_found_in_this_file
 
             total_records += file_records
             total_skipped += len(skipped)

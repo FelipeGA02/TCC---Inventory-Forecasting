@@ -68,7 +68,7 @@ def save_log(log, log_file):
         json.dump(log, f, indent=2, ensure_ascii=False)
 
 
-def load_existing_record_keys(csv_path, key_fields=('doc_numero', 'produto_cod')):
+def load_existing_record_keys(csv_path, key_fields=('doc_numero', 'produto_cod', 'emissao', 'qtdade', 'vl_total')):
     """Monta o conjunto de chaves compostas já presentes no CSV, para deduplicação."""
     keys = set()
     if not os.path.exists(csv_path):

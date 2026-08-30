@@ -1,7 +1,7 @@
 """Caminhos e layout de colunas do pipeline de pré-processamento.
 
 Reconstrução do pipeline legado (`src/data/`, deletado no commit `ac4dd9e` ao migrar
-para a arquitetura limpa em `backend/`). Ver `docs/prediction/preprocessamento_dados.md`
+para a arquitetura limpa em `backend/`). Ver `docs/prediction/01-pre_processing.md`
 para o relato completo das decisões.
 """
 import os
@@ -67,18 +67,24 @@ NET_TOTAL_COLUMN = 5
 # de datas nas bordas do mês — o mesmo documento pode ser exportado em dois meses
 # consecutivos). Nunca é aplicada dentro do mesmo arquivo: um produto pode legitimamente
 # aparecer em mais de uma linha no mesmo documento (comprovado em
-# docs/prediction/pre_processing.md, seção 3 — o total_liquido_doc só fecha contando as
+# docs/prediction/01-pre_processing.md, seção 3 — o total_liquido_doc só fecha contando as
 # duas linhas). `emissao`, `qtdade` e `vl_total` além de `doc_numero`/`produto_cod`
 # reduzem o risco de colisão acidental entre documentos não relacionados que reaproveitam
 # o mesmo número (confirmado que `doc_numero` se repete entre `doc_tipo` diferentes).
 DUPLICATE_KEY_FIELDS = ('doc_numero', 'produto_cod', 'emissao', 'qtdade', 'vl_total')
 
 # Fase 2 do pipeline (reduce_schema.py) — colunas sem uso analítico para previsão de
-# demanda por produto. Ver docs/prediction/preprocessamento_dados.md para a
+# demanda por produto. Ver docs/prediction/01-pre_processing.md (seção 4) para a
 # justificativa de cada uma.
+#
+# `doc_numero` faz parte de DUPLICATE_KEY_FIELDS (dedup da Etapa 1, que roda ANTES desta
+# e não é afetada). `doc_numero` e `cliente_cod` saem aqui por serem identificadores:
+# não entram na matriz de exógenas do SARIMAX (um id não tem magnitude, e one-hot em
+# milhares de clientes é inviável).
 COLUMNS_TO_DROP = [
     'operador', 'obs', 'icms_ret', 'arquivo_origem',
     'cliente_nome', 'produto_nome', 'doc_tipo',
+    'doc_numero', 'cliente_cod',
 ]
 
 # Fase 3 do pipeline (discretize_fields.py) — categóricas nominais convertidas em

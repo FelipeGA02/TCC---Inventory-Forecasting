@@ -239,7 +239,7 @@ ia-predictor/
 │   │                                 # plano_experimentos_modelagem.md)
 │   ├── __init__.py
 │   ├── preprocessing/                # XLSX bruto → CSV consolidado/treino (docs/prediction/
-│   │   │                             # pre_processing.md) — parser, dedup, drop de colunas,
+│   │   │                             # 01-pre_processing.md) — parser, dedup, drop de colunas,
 │   │   │                             # discretização; escreve só em training_scripts/output/
 │   │   ├── constants.py
 │   │   ├── helpers.py

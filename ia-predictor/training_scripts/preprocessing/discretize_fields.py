@@ -13,7 +13,7 @@ independente. A categoria alfabeticamente mais baixa de cada campo é usada como
 baseline e fica de fora do one-hot (dummy variable trap) — as demais categorias são
 lidas em relação a ela.
 
-Ver docs/prediction/pre_processing.md (seção 5) para a decisão completa.
+Ver docs/prediction/01-pre_processing.md (seção 5) para a decisão completa.
 
 Uso (a partir de `ia-predictor/`):
     python -m training_scripts.preprocessing.discretize_fields

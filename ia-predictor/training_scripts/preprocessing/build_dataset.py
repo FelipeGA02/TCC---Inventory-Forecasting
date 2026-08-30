@@ -4,7 +4,7 @@ Lê todas as planilhas de `data/raw/`, faz o parse (parser.py), deduplica regist
 aparecem repetidos EM ARQUIVOS DIFERENTES (sobreposição de datas nas bordas do mês) e
 acrescenta ao CSV consolidado. A deduplicação nunca compara linhas dentro do mesmo
 arquivo entre si — um produto pode aparecer mais de uma vez no mesmo documento
-legitimamente (ver docs/prediction/pre_processing.md, seção 3). Cada planilha só é
+legitimamente (ver docs/prediction/01-pre_processing.md, seção 3). Cada planilha só é
 reprocessada se for nova ou tiver mudado (controle por hash MD5 em
 `processamento_log.json`) — permite rodar de novo com segurança sem duplicar dados.
 

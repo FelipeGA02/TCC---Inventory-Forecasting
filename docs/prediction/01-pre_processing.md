@@ -21,14 +21,14 @@ data/raw/*.xlsx (26 planilhas, jan/2024–fev/2026)
         │
         ▼
 ┌───────────────────────┐
-│ Etapa 2 — reduce_schema.py       │  remove 7 colunas sem uso analítico
-│  → output/contas_a_receber_sem_colunas.csv │  (13 colunas)
+│ Etapa 2 — reduce_schema.py       │  remove 9 colunas sem uso analítico
+│  → output/contas_a_receber_sem_colunas.csv │  (11 colunas)
 └───────────────────────┘
         │
         ▼
 ┌───────────────────────┐
 │ Etapa 3 — discretize_fields.py   │  converte 3 categóricas em one-hot (0/1)
-│  → output/contas_a_receber_discretizado.csv │  (61 colunas)
+│  → output/contas_a_receber_discretizado.csv │  (59 colunas)
 │  → output/encodings.py (categorias geradas) │
 └───────────────────────┘
 ```
@@ -246,6 +246,7 @@ desse produto vai ser vendido"?**
 COLUMNS_TO_DROP = [
     'operador', 'obs', 'icms_ret', 'arquivo_origem',
     'cliente_nome', 'produto_nome', 'doc_tipo',
+    'doc_numero', 'cliente_cod',
 ]
 ```
 
@@ -255,13 +256,15 @@ COLUMNS_TO_DROP = [
 | `obs` | Texto livre do vendedor (ex.: instruções de entrega, forma de pagamento combinada). Sem estrutura, alta cardinalidade textual, **e é o campo com quebras de linha embutidas** que causava a divergência de contagem observada na seção 3 — removê-lo também simplifica qualquer leitura por linha do arquivo. |
 | `icms_ret` | Campo fiscal (ICMS retido). Verificado nos dados reais: é `0` na esmagadora maioria das linhas amostradas — não carrega sinal de demanda, é metadado contábil. |
 | `arquivo_origem` | Artefato do próprio processamento (nome do XLSX de origem) — redundante com `emissao` (a data já localiza o registro no tempo) e não existe no domínio do negócio. |
-| `cliente_nome` | Nome do cliente. Além de não ter uso preditivo por produto, expor nome de cliente violaria o Princípio VI da constituição (API não expõe dados pessoais de clientes) — `cliente_cod` já basta para qualquer segmentação futura por código. |
+| `cliente_nome` | Nome do cliente. Além de não ter uso preditivo por produto, expor nome de cliente violaria o Princípio VI da constituição (API não expõe dados pessoais de clientes). O código do cliente (`cliente_cod`) também sai desta etapa — ver a linha própria abaixo. |
 | `produto_nome` | Texto livre (ex.: "VASO POLIET. CLASSIC CONICO 46"), mesmo produto pode ter grafias levemente diferentes entre meses. `produto_cod` já identifica o produto de forma unívoca e é a chave usada em toda a modelagem (`prepare_monthly_series(df, produto_cod)`, `SPECS.md` §5.1) — manter as duas seria redundante. |
 | `doc_tipo` | Código de tipo de documento interno do sistema de vendas (`C1`, `C7`, `F3`, `NN`, 21 valores distintos nos dados reais). Não corresponde a uma dimensão de negócio com valor preditivo separada da forma de pagamento (`pagamento`), que já é mantida. |
+| `doc_numero` | Identificador do documento de venda. Serve à Etapa 1 (faz parte da chave de deduplicação entre arquivos, `DUPLICATE_KEY_FIELDS`), que roda **antes** desta etapa e não é afetada. Daqui pra frente é só um id: não tem magnitude nem ordem — `doc_numero 44799` não é "maior" que `44798` em nenhum sentido de demanda — então não pode entrar como exógena numérica do SARIMAX, e discretizar em one-hot (dezenas de milhares de valores) é inviável. A rastreabilidade de qual venda originou cada linha fica no CSV da Etapa 1, que preserva as 20 colunas. |
+| `cliente_cod` | Código do cliente. Mesma natureza de `doc_numero`: identificador nominal de altíssima cardinalidade (milhares de clientes), sem ordem nem magnitude. One-hot é inviável nessa cardinalidade e um código sequencial cru imporia uma escala falsa. Se segmentação por cliente vier a ser útil na modelagem, o caminho é uma **feature derivada e agregada** (ex.: nº de clientes distintos do produto no mês, % de vendas para clientes recorrentes) construída na Fase 1.2 — não o id cru. |
 
-**Resultado**: de 20 para **13 colunas**:
-`doc_numero, pagamento, emissao, cliente_cod, empresa, vendedor, produto_cod, qtdade,
-vl_unit, vl_total, vl_desconto, tot_liq, total_liquido_doc`.
+**Resultado**: de 20 para **11 colunas**:
+`pagamento, emissao, empresa, vendedor, produto_cod, qtdade, vl_unit, vl_total,
+vl_desconto, tot_liq, total_liquido_doc`.
 
 Essa é a "planilha consolidada para o treinamento" — sem os campos que atrapalhariam
 (texto livre de alta cardinalidade, PII, metadado de processamento, campo fiscal) — que
@@ -366,8 +369,8 @@ para que dê pra saber depois o que cada coluna do CSV significa.
 | `empresa` | 3 | `FLORICULTURA VERDE PERTO CANADÁ LTDA` | 2 |
 | `vendedor` | 38 | `ADELSON` | 37 |
 
-O CSV final (`contas_a_receber_discretizado.csv`) saiu com **333.019 linhas × 61
-colunas** (13 colunas da Etapa 2, menos as 3 categóricas originais, mais as 51 colunas
+O CSV final (`contas_a_receber_discretizado.csv`) saiu com **333.019 linhas × 59
+colunas** (11 colunas da Etapa 2, menos as 3 categóricas originais, mais as 51 colunas
 one-hot geradas). As categorias em si (baseline e colunas geradas) não mudam com a
 correção da seção 2 — os ~8 mil registros recuperados eram vendas de produtos, formas
 de pagamento e vendedores que já apareciam em outras linhas do dataset.
@@ -399,6 +402,11 @@ era foi perdida antes de chegar aqui).
   `training_scripts/baseline/`.
 - **Dados externos** (feriados, clima, indicadores econômicos) — fora de escopo deste
   pipeline; ver Fase 2 do plano de experimentos.
+- **Segmentação por cliente** — `cliente_cod` e `doc_numero` são identificadores e
+  saem na Etapa 2 (seção 4). Se o comportamento por cliente vier a ter valor preditivo,
+  ele entra como *feature derivada e agregada por produto/mês* (ex.: nº de clientes
+  distintos, participação de clientes recorrentes) construída na Fase 1.2 — nunca o id
+  cru como exógena.
 
 ---
 

@@ -1,9 +1,8 @@
 """Etapa 2 do pipeline: remove colunas sem uso analítico para previsão de demanda.
 
 Gera a planilha consolidada "pronta para treinamento" a partir do CSV bruto da Etapa 1
-(`build_dataset.py`) — mesma decisão de colunas do protótipo original
-(`src/data/drop_columns.py`, deletado no commit `ac4dd9e`). A justificativa de cada
-coluna removida está em `docs/prediction/pre_processing.md`.
+(`build_dataset.py`). A justificativa de cada coluna removida está em
+`docs/prediction/01-pre_processing.md` (seção 4).
 
 Uso (a partir de `ia-predictor/`):
     python -m training_scripts.preprocessing.reduce_schema

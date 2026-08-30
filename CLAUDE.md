@@ -64,7 +64,7 @@ TCC---Inventory-Forecasting/
 │   │       └── contas_a_receber.csv   ← base consolidada (sep=";")
 │   ├── models/                  ← artefatos joblib por produto
 │   ├── training_scripts/        ← experimentação pré-produção do SARIMAX (fora do backend)
-│   │   ├── preprocessing/       ← XLSX bruto → CSV consolidado/treino (docs/prediction/pre_processing.md)
+│   │   ├── preprocessing/       ← XLSX bruto → CSV consolidado/treino (docs/prediction/01-pre_processing.md)
 │   │   ├── eda/                 ← análise exploratória (sazonalidade, CV, seleção Top-N)
 │   │   ├── baseline/            ← Modelo A0 (SARIMA puro) e A1 (SARIMAX interno)
 │   │   ├── enriched/            ← Modelo B (SARIMAX interno + exógenas externas)
@@ -274,6 +274,6 @@ Comandos disponíveis (invocar via Skill tool ou como `/speckit-*`):
 | `docs/project/Projeto Tecnico Verde Perto Final...pdf` | Projeto técnico acadêmico original (fonte primária, revisado pelo orientador) |
 | `docs/project/current_files_state.md` | Raio-x do que já foi feito (dados, pré-processamento, modelagem) vs. requisitos do artigo |
 | `docs/prediction/plano_experimentos_modelagem.md` | Plano de experimentos: SARIMAX baseline × enriquecido × redes neurais/outros modelos |
-| `docs/prediction/pre_processing.md` | O que os scripts de `training_scripts/preprocessing/` fazem e por quê (colunas removidas/discretizadas) |
+| `docs/prediction/01-pre_processing.md` | O que os scripts de `training_scripts/preprocessing/` fazem e por quê (colunas removidas/discretizadas) |
 | `docs/uml/` *(parcial — 2 de 5 diagramas)* | Diagramas de casos de uso, atividades, classes, modelo de dados e arquitetura lógica (seção 6.4 do artigo) |
 | `docs/eda_report.md` *(a criar)* | Relatório de análise exploratória — sazonalidade, tendências, comportamento por unidade, perfil de demanda |

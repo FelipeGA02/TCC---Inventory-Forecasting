@@ -19,18 +19,22 @@ documentação final (Nov/2026).
       modelo de dados (ER) e arquitetura lógica (seção 6.4 do artigo)
 - [ ] T000b [P] EDA em Jupyter Notebook — sazonalidade **semanal** e anual, tendência por
       unidade, **esparsidade da série diária por SKU** (justifica a camada L2), perfil de
-      demanda por categoria; consolidar em `docs/eda_report.md`
-- [ ] T000c Levantamento com a entidade parceira: **validade real (`shelf_life_dias`) por
-      categoria e, se possível, por SKU**; registrar em `docs/prediction/ADR-009-*.md` (§8)
-- [ ] T000d **Taxonomia** (Etapa 3 — `training_scripts/preprocessing/map_taxonomy.py` +
-      `taxonomy/{unidades,categorias}.py`, ver `docs/prediction/01-pre_processing.md` §5):
-      script + tabelas de/para de trabalho já existem (27 pares `unidade × categoria`,
-      9,6% em "Outros"). Falta: refinar regras de `categoria` (reduzir "Outros"), curar
-      `CATEGORIA_POR_SKU` do Top-N, validar com a parceira `empresa → unidade` (as 3 LTDAs
-      = 3 lojas?) e `shelf_life_dias` real
+      demanda por `categoria`/`categoria_fina`; densidade das 9 séries L1; consolidar em
+      `docs/eda_report.md`
+- [x] ~~T000c Levantamento de `shelf_life_dias`~~ — **cancelado por
+      [ADR-011](../../docs/prediction/ADR-011-escopo-previsao-sem-reposicao.md)**: a camada
+      de reposição (L3) saiu de escopo, não há mais uso para validade por categoria.
+- [x] **T000d Taxonomia** (Etapa 3 — `training_scripts/preprocessing/map_taxonomy.py` +
+      `taxonomy/{unidades,categorias}.py`, ver `docs/prediction/01-pre_processing.md` §5).
+      **Fechado com a parceira (2026-08-30 / ADR-011):** `empresa → unidade` = 3 lojas
+      separadas; `categoria` L1 = **3 categorias de demanda** (`Grama` · `Plantas de corte`
+      · `Produtos de jardim`) + `Servico e taxa`. `map_taxonomy.py` emite `categoria` +
+      `categoria_fina`, reporta volume e cobertura ≥ 180 d (9 pares L1, todos ≥ 221 dias).
+      **Resíduo (baixa prioridade):** curadoria fina de SKUs de alto volume em `Outros`
+      (1,3%) — interessa à EDA/L2, não muda o L1.
 
-**Checkpoint**: `docs/uml/` e `docs/eda_report.md` existem; shelf-life confirmada ou com
-defaults; `contas_a_receber_taxonomia.csv` gerado e % de volume em "Outros" aceitável ✅
+**Checkpoint**: `docs/uml/` e `docs/eda_report.md` existem; `contas_a_receber_taxonomia.csv`
+gerado (12 colunas), 9 pares L1 com ≥ 180 dias, % de volume em "Outros" aceitável ✅
 
 ---
 

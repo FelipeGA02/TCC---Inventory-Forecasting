@@ -1,12 +1,8 @@
 """De/para `empresa` (entidade juridica no XLSX) -> `unidade` operacional.
 
-`empresa` tem 3 valores nos dados reais, que sao entidades juridicas (LTDA) e NAO
-necessariamente as 3 lojas fisicas do artigo (Nova Lima / Jardim Canada + Itabirito).
-
-A CONFIRMAR com a entidade parceira (tasks.md T000d):
-  - As 3 LTDAs correspondem 1:1 as 3 unidades operacionais?
-  - Alguns nomes de vendedor trazem "(ITABIRITO)" / "(CANADA)"; se `empresa` nao separar
-    as lojas, a unidade tera de vir de outro campo.
+`empresa` tem 3 valores nos dados reais, um por CNPJ. CONFIRMADO com a parceira
+(2026-08-30): as 3 entidades correspondem 1:1 as 3 lojas e devem ser modeladas
+separadamente. O de/para abaixo e definitivo.
 """
 
 # Mojibake ja observado em algumas exportacoes do sistema de origem (nao na rodada atual).

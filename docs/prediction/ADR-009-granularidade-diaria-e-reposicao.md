@@ -1,6 +1,10 @@
 # ADR-009: Granularidade Diária e Política de Reposição para Produtos Perecíveis
 
-**Status**: Aceito (revisão de escopo — 2026-08-30)
+**Status**: Parcialmente revisado por [ADR-011](ADR-011-escopo-previsao-sem-reposicao.md)
+(2026-08-30) — a **granularidade diária** e as camadas **L1/L2** seguem valendo; a
+**camada L3 (política de reposição)** e o `shelf_life_dias` **saíram de escopo**, e o
+`unidade × categoria` passou a usar **3 categorias de demanda** (ver ADR-011). As seções
+sobre L3 abaixo ficam como registro histórico.
 **Autores**: Daniel Nunes da Silva, Felipe Gurgel Araújo
 **Substitui**: decisão de "granularidade mensal para produção" registrada em
 `SPECS.md` §2.2, `plan.md` (Phase 0), ADR-001 e ADR-004 (todos revisados nesta data)
@@ -123,20 +127,16 @@ parceira*: essas 3 LTDAs correspondem 1:1 às 3 unidades operacionais? Alguns no
 vendedor trazem `(ITABIRITO)`/`(CANADÁ)` — se `empresa` não separar as lojas, a unidade
 precisa vir de outro campo.
 
-**`categoria`** — derivada em cascata: de/para explícito do Top-N (curadoria) → regras
-por palavra-chave em `produto_nome` → fallback `"Outros"`. A EDA valida o % de volume que
-cai em `"Outros"` (alvo: baixo).
+**`categoria`** *(revisado por [ADR-011](ADR-011-escopo-previsao-sem-reposicao.md))* —
+o nível L1 do modelo usa **3 categorias de demanda** (`Grama`, `Plantas de corte`,
+`Produtos de jardim`) + o rótulo `Servico e taxa` (não-produto). São derivadas colapsando
+uma `categoria_fina` (~10 rótulos, produzida por regras sobre `produto_nome`); a fina fica
+no CSV para a EDA e a L2. Ver [01-pre_processing.md](01-pre_processing.md) §5.
 
-**`shelf_life_dias`** — validade por categoria. Enquanto não houver dado da parceira,
-tabela de parâmetros default (por categoria, versionada em configuração / banco):
-
-| Categoria (exemplo) | `shelf_life_dias` padrão |
-| --- | --- |
-| Flor de corte | 4 |
-| Folhagem de corte | 7 |
-| Arranjo / buquê montado | 3 |
-| Planta em vaso | 30 |
-| Insumo (vaso, terra, acessório) | 180 |
+**`shelf_life_dias`** — *removido do escopo* por [ADR-011](ADR-011-escopo-previsao-sem-reposicao.md):
+sem a camada L3, não há uso para a validade por categoria. As subseções abaixo sobre
+cobertura-alvo, estoque de segurança e simulação de perda/ruptura ficam como registro
+histórico.
 
 > **A confirmar com a entidade parceira** (Sprint 0, `tasks.md` T000c/T000d): mapa
 > `empresa → unidade`, mapa `produto → categoria` (ao menos do Top-N), e a validade real

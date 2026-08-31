@@ -3,8 +3,11 @@ openapi: 3.0.3
 info:
   title: Floricultura — API de Previsão de Estoque
   description: |
-    Sistema de previsão de demanda para rede de floricultura com 3 unidades operacionais.
-    Baseado em modelos SARIMAX com ponderação de variáveis exógenas via Random Forest.
+    Sistema de recomendação de reposição diária para rede de floricultura com 3 unidades
+    operacionais. Modelagem hierárquica: SARIMAX na demanda diária agregada por
+    `unidade × categoria` (L1), desagregação proporcional para SKU (L2) e política de
+    reposição perecível-consciente com shelf-life (L3). Ver
+    docs/prediction/ADR-009-granularidade-diaria-e-reposicao.md.
 
     ## Autenticação
     Todos os endpoints `/api/v1/*` exigem JWT via header `Authorization: Bearer <token>`.
@@ -12,8 +15,8 @@ info:
 
     ## Perfis
     - **admin**: upload, retrain, acesso completo
-    - **viewer**: somente visualização (forecast, alerts, simulation, export)
-  version: "1.0.0"
+    - **viewer**: somente visualização (forecast, replenishment, alerts, simulation, export)
+  version: "2.0.0"
   contact:
     name: Daniel Nunes da Silva & Felipe Gurgel Araújo
     email: felipegurgel5@gmail.com
@@ -30,9 +33,11 @@ tags:
   - name: products
     description: Catálogo de produtos e histórico de vendas
   - name: forecast
-    description: Previsões de demanda por produto
+    description: Previsão de demanda diária por produto (horizonte 14 dias)
+  - name: replenishment
+    description: Recomendação de quantidade a repor por produto e por dia
   - name: alerts
-    description: Alertas automáticos de reposição
+    description: Alertas automáticos de pico de demanda e risco de sobra
   - name: simulation
     description: Simulação de promoções e vendas casadas
   - name: reports
@@ -171,19 +176,26 @@ components:
         produto_nome:
           type: string
           example: ROSA VERMELHA 40CM
+        categoria:
+          type: string
+          example: "Flor de corte"
+        unidade:
+          type: string
+          example: "Jardim Canadá"
         total_sold:
           type: number
           format: float
           example: 128450.0
         model_status:
           type: string
+          description: Status do modelo L1 da categoria do produto
           enum: [trained, low_confidence, insufficient_data, error, pending, training]
           example: trained
-        last_mape:
+        last_mase:
           type: number
           format: float
           nullable: true
-          example: 8.3
+          example: 0.82
         last_trained_at:
           type: string
           format: date-time
@@ -201,41 +213,50 @@ components:
           items:
             $ref: "#/components/schemas/ProductSummary"
 
-    MonthlyPoint:
+    DailyPoint:
       type: object
       properties:
         date:
           type: string
           format: date
-          example: "2024-01-01"
+          example: "2026-03-07"
         quantity:
           type: number
           format: float
-          example: 4200.0
+          example: 42.0
 
     ModelMetrics:
+      description: Métricas do modelo L1 da categoria à qual o produto pertence.
       type: object
       properties:
+        MASE:
+          type: number
+          format: float
+          description: Métrica primária — < 1.0 significa que bate a previsão ingênua sazonal semanal
+          example: 0.82
+        RMSSE:
+          type: number
+          format: float
+          example: 0.79
+        IC_coverage_pct:
+          type: number
+          format: float
+          description: Cobertura empírica do intervalo de 95% (esperado entre 90 e 98)
+          example: 94.1
         MAE:
           type: number
           format: float
-          example: 312.4
+          example: 6.4
         RMSE:
           type: number
           format: float
-          example: 418.1
+          example: 9.1
         MAPE_pct:
           type: number
           format: float
-          example: 8.3
-        SMAPE_pct:
-          type: number
-          format: float
-          example: 7.9
-        R2:
-          type: number
-          format: float
-          example: 0.87
+          description: Informativo — instável com contagem baixa; não classifica o modelo
+          nullable: true
+          example: 18.3
         accuracy_label:
           type: string
           description: Rótulo em PT-BR sem jargão técnico
@@ -250,16 +271,28 @@ components:
         produto_nome:
           type: string
           example: ROSA VERMELHA 40CM
+        categoria:
+          type: string
+          example: "Flor de corte"
+        unidade:
+          type: string
+          example: "Jardim Canadá"
+        shelf_life_dias:
+          type: integer
+          description: Validade estimada da categoria (dias)
+          example: 4
         total_sold:
           type: number
           format: float
           example: 128450.0
-        monthly_history:
+        daily_history:
           type: array
+          description: Histórico diário de vendas do SKU
           items:
-            $ref: "#/components/schemas/MonthlyPoint"
+            $ref: "#/components/schemas/DailyPoint"
         model_status:
           type: string
+          description: Status do modelo L1 da categoria (unidade × categoria)
           enum: [trained, low_confidence, insufficient_data, error, pending, training]
         metrics:
           $ref: "#/components/schemas/ModelMetrics"
@@ -270,8 +303,9 @@ components:
           example: "(1,1,1)"
         seasonal_order:
           type: string
+          description: Ordem sazonal semanal (m=7)
           nullable: true
-          example: "(1,0,1,12)"
+          example: "(1,0,1,7)"
         use_log_transform:
           type: boolean
           nullable: true
@@ -281,33 +315,41 @@ components:
           format: date-time
           nullable: true
 
-    # --- Forecast ---
+    # --- Forecast (diário) ---
     ForecastPoint:
       type: object
       properties:
         date:
           type: string
           format: date
-          example: "2026-08-01"
+          example: "2026-03-07"
         predicted:
           type: number
           format: float
-          example: 4850.0
+          example: 48.0
         lower_95:
           type: number
           format: float
-          example: 3920.0
+          example: 31.0
         upper_95:
           type: number
           format: float
-          example: 5780.0
-        month_label:
+          example: 65.0
+        weekday:
           type: string
-          example: Ago/2026
-        is_high_season:
+          description: Dia da semana (PT-BR)
+          example: "sábado"
+        is_weekend:
           type: boolean
-          description: true para meses de alta temporada (mai, out, nov, dez)
+          example: true
+        is_holiday:
+          type: boolean
           example: false
+        commemorative_label:
+          type: string
+          nullable: true
+          description: Data comemorativa próxima, se houver
+          example: "3 dias para o Dia das Mães"
 
     ForecastResponse:
       type: object
@@ -318,9 +360,15 @@ components:
         produto_nome:
           type: string
           example: ROSA VERMELHA 40CM
-        horizon_months:
+        categoria:
+          type: string
+          example: "Flor de corte"
+        unidade:
+          type: string
+          example: "Jardim Canadá"
+        horizon_days:
           type: integer
-          example: 3
+          example: 14
         forecast:
           type: array
           items:
@@ -328,11 +376,11 @@ components:
         generated_at:
           type: string
           format: date-time
-          example: "2026-07-28T14:32:00"
+          example: "2026-03-06T03:00:00"
         model_trained_at:
           type: string
           format: date-time
-          example: "2026-07-21T02:00:00"
+          example: "2026-03-02T02:00:00"
 
     ForecastBatchItem:
       type: object
@@ -343,29 +391,30 @@ components:
         produto_nome:
           type: string
           example: ROSA VERMELHA 40CM
-        next_month_predicted:
+        next_7d_predicted:
           type: number
           format: float
-          example: 4850.0
-        next_month_lower_95:
+          description: Soma da demanda prevista para os próximos 7 dias
+          example: 260.0
+        next_7d_lower_95:
           type: number
           format: float
-          example: 3920.0
-        next_month_upper_95:
+          example: 205.0
+        next_7d_upper_95:
           type: number
           format: float
-          example: 5780.0
-        next_month_date:
+          example: 315.0
+        window_start:
           type: string
           format: date
-          example: "2026-08-01"
+          example: "2026-03-07"
 
     ForecastBatchResponse:
       type: object
       properties:
-        horizon_months:
+        horizon_days:
           type: integer
-          example: 3
+          example: 14
         generated_at:
           type: string
           format: date-time
@@ -373,6 +422,125 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ForecastBatchItem"
+
+    # --- Replenishment (reposição) ---
+    ReplenishmentDay:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+          example: "2026-03-07"
+        forecast_demand:
+          type: number
+          format: float
+          example: 48.0
+        qty_to_order:
+          type: number
+          format: float
+          description: Quantidade sugerida a repor neste dia
+          example: 40.0
+        cover_until:
+          type: string
+          format: date
+          description: Data até a qual a reposição sugerida cobre a demanda
+          example: "2026-03-10"
+        expected_waste:
+          type: number
+          format: float
+          description: Unidades que devem sobrar e perder validade
+          example: 0.0
+        stockout_risk_pct:
+          type: number
+          format: float
+          example: 4.0
+
+    ReplenishmentRecommendation:
+      type: object
+      properties:
+        produto_cod:
+          type: string
+          example: "147"
+        produto_nome:
+          type: string
+          example: ROSA VERMELHA 40CM
+        categoria:
+          type: string
+          example: "Flor de corte"
+        unidade:
+          type: string
+          example: "Jardim Canadá"
+        shelf_life_dias:
+          type: integer
+          example: 4
+        safety_stock_days:
+          type: integer
+          example: 2
+        current_stock:
+          type: number
+          format: float
+          description: Estoque atual informado (0 por padrão — compra "a seco")
+          example: 0.0
+        reorder_in_days:
+          type: integer
+          description: Cadência sugerida — repor a cada N dias
+          example: 3
+        risk_label:
+          type: string
+          enum: [ok, risco_ruptura, risco_perda]
+          example: ok
+        reason:
+          type: string
+          description: Justificativa em PT-BR sem jargão técnico
+          example: "Validade curta (4 dias) — repor 40 unidades cobre até terça sem sobra."
+        days:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReplenishmentDay"
+        generated_at:
+          type: string
+          format: date-time
+          example: "2026-03-06T03:00:00"
+
+    ReplenishmentBatchItem:
+      type: object
+      properties:
+        produto_cod:
+          type: string
+          example: "147"
+        produto_nome:
+          type: string
+          example: ROSA VERMELHA 40CM
+        qty_to_order_today:
+          type: number
+          format: float
+          example: 40.0
+        cover_until:
+          type: string
+          format: date
+          example: "2026-03-10"
+        reorder_in_days:
+          type: integer
+          example: 3
+        risk_label:
+          type: string
+          enum: [ok, risco_ruptura, risco_perda]
+          example: ok
+
+    ReplenishmentBatchResponse:
+      type: object
+      properties:
+        ref_date:
+          type: string
+          format: date
+          example: "2026-03-06"
+        generated_at:
+          type: string
+          format: date-time
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReplenishmentBatchItem"
 
     # --- Alerts ---
     AlertItem:
@@ -384,6 +552,11 @@ components:
         produto_nome:
           type: string
           example: ROSA VERMELHA 40CM
+        kind:
+          type: string
+          enum: [pico_demanda, risco_sobra]
+          description: pico_demanda = previsão 7d acima da média recente; risco_sobra = validade curta com demanda em queda
+          example: pico_demanda
         severity:
           type: string
           enum: [high, medium]
@@ -391,23 +564,28 @@ components:
         reason:
           type: string
           description: Justificativa em PT-BR sem jargão técnico
-          example: "Previsão de Ago/2026 (4850 un) é 38% acima da média recente (3510 un)"
-        predicted_next_month:
+          example: "Previsão dos próximos 7 dias (260 un) é 38% acima da média das últimas 4 semanas (188 un). Pico esperado no sábado (Dia das Mães)."
+        predicted_next_7d:
           type: number
           format: float
-          example: 4850.0
-        recent_avg_3m:
+          example: 260.0
+        recent_avg_4w:
           type: number
           format: float
-          example: 3510.0
+          example: 188.0
         variation_pct:
           type: number
           format: float
           example: 38.2
-        alert_date:
+        peak_date:
           type: string
           format: date
-          example: "2026-08-01"
+          nullable: true
+          example: "2026-05-09"
+        alert_window_start:
+          type: string
+          format: date
+          example: "2026-03-07"
 
     AlertListResponse:
       type: object
@@ -426,7 +604,7 @@ components:
     # --- Simulation ---
     SimulationScenario:
       type: object
-      required: [label, apply_months]
+      required: [label, apply_dates]
       properties:
         label:
           type: string
@@ -445,12 +623,13 @@ components:
           format: float
           nullable: true
           example: 10.0
-        apply_months:
+        apply_dates:
           type: array
+          description: Dias em que o cenário se aplica
           items:
             type: string
             format: date
-          example: ["2026-08-01"]
+          example: ["2026-05-07", "2026-05-08", "2026-05-09"]
 
     SimulationRequest:
       type: object
@@ -459,10 +638,10 @@ components:
         produto_cod:
           type: string
           example: "147"
-        horizon_months:
+        horizon_days:
           type: integer
-          default: 3
-          example: 3
+          default: 14
+          example: 14
         scenarios:
           type: array
           items:
@@ -516,6 +695,7 @@ components:
 
     # --- Model Status ---
     ModelStatusResponse:
+      description: Contagens referem-se aos modelos L1 (um por unidade × categoria).
       type: object
       properties:
         last_retrain_at:
@@ -526,21 +706,30 @@ components:
           type: string
           format: date-time
           nullable: true
-        total_products:
+        last_daily_generation_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Última geração diária de previsão + reposição
+        skus_covered:
           type: integer
-          example: 5134
-        trained_products:
+          description: SKUs com reposição gerada na última rodada diária
+          example: 20
+        total_categories:
           type: integer
-          example: 18
-        low_confidence_products:
+          example: 24
+        trained_categories:
+          type: integer
+          example: 19
+        low_confidence_categories:
           type: integer
           example: 3
-        failed_products:
+        failed_categories:
+          type: integer
+          example: 0
+        insufficient_data_categories:
           type: integer
           example: 2
-        insufficient_data_products:
-          type: integer
-          example: 5111
         is_training:
           type: boolean
           example: false
@@ -552,7 +741,7 @@ components:
         last_retrain_summary:
           type: string
           nullable: true
-          example: "18 modelos atualizados, 2 com erro"
+          example: "19 modelos atualizados, 0 com erro"
 
     RetrainResponse:
       type: object
@@ -588,6 +777,19 @@ components:
                 type: string
               type:
                 type: string
+
+  # ─────────────────────────────────────────────
+  # Reusable Responses
+  # ─────────────────────────────────────────────
+  responses:
+    Unauthorized:
+      description: Não autenticado ou token expirado
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorDetail"
+          example:
+            detail: "Autenticação necessária. Faça login para continuar."
 
 # ─────────────────────────────────────────────
 # Paths
@@ -783,7 +985,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [total_sold, name, mape]
+            enum: [total_sold, name, mase]
             default: total_sold
         - name: search
           in: query
@@ -811,7 +1013,7 @@ paths:
     get:
       tags: [products]
       summary: Detalhes de um produto
-      description: Retorna histórico mensal de vendas, métricas do modelo e status. Sem dados pessoais de clientes (LGPD).
+      description: Retorna histórico diário de vendas do SKU, categoria/unidade, shelf-life e métricas do modelo L1. Sem dados pessoais de clientes (LGPD).
       operationId: getProduct
       security:
         - BearerAuth: []
@@ -838,14 +1040,16 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorDetail"
 
-  # ── Forecast ─────────────────────────────────
+  # ── Forecast (diário) ────────────────────────
   /api/v1/forecast/{produto_cod}:
     get:
       tags: [forecast]
-      summary: Previsão de demanda para um produto
+      summary: Previsão de demanda diária para um produto
       description: |
-        Retorna previsão mensal para os próximos horizon_months meses.
-        Inclui intervalo de confiança de 95% e marcação de alta temporada.
+        Retorna a previsão de demanda **por dia** para os próximos `horizon_days` dias.
+        Obtida do modelo L1 da categoria (`unidade × categoria`) desagregado para o SKU.
+        Inclui intervalo de confiança de 95% e marcação de fim de semana, feriado e
+        proximidade de datas comemorativas.
       operationId: getForecast
       security:
         - BearerAuth: []
@@ -856,13 +1060,13 @@ paths:
           schema:
             type: string
           example: "147"
-        - name: horizon_months
+        - name: horizon_days
           in: query
           schema:
             type: integer
-            default: 3
+            default: 14
             minimum: 1
-            maximum: 6
+            maximum: 28
       responses:
         "200":
           description: Previsão gerada com sucesso
@@ -879,19 +1083,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorDetail"
         "409":
-          description: Modelo não disponível para este produto
+          description: Modelo da categoria não disponível
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorDetail"
               example:
-                detail: "Modelo não treinado para este produto. Status: insufficient_data"
+                detail: "Categoria sem histórico suficiente para previsão. Status: insufficient_data"
 
   /api/v1/forecast/batch:
     get:
       tags: [forecast]
-      summary: Previsão para os top N produtos
-      description: Retorna previsão do próximo mês para os N produtos de maior volume. Ideal para o dashboard principal.
+      summary: Previsão diária resumida para os top N produtos
+      description: Retorna a demanda prevista para os próximos 7 dias (somada) dos N produtos de maior volume. Ideal para o dashboard principal.
       operationId: getForecastBatch
       security:
         - BearerAuth: []
@@ -903,13 +1107,13 @@ paths:
             default: 10
             minimum: 1
             maximum: 50
-        - name: horizon_months
+        - name: horizon_days
           in: query
           schema:
             type: integer
-            default: 3
+            default: 14
             minimum: 1
-            maximum: 6
+            maximum: 28
       responses:
         "200":
           description: Previsões dos top produtos
@@ -920,14 +1124,97 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  # ── Replenishment (reposição) ────────────────
+  /api/v1/replenishment/{produto_cod}:
+    get:
+      tags: [replenishment]
+      summary: Recomendação de reposição diária para um produto
+      description: |
+        Para cada um dos próximos `horizon_days` dias, retorna a quantidade sugerida de
+        reposição considerando a demanda prevista, a validade da categoria
+        (`shelf_life_dias`), um estoque de segurança e o estoque atual (0 por padrão).
+        Inclui cadência sugerida, data-limite de cobertura e risco de perda/ruptura.
+      operationId: getReplenishment
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: produto_cod
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "147"
+        - name: horizon_days
+          in: query
+          schema:
+            type: integer
+            default: 14
+            minimum: 1
+            maximum: 28
+        - name: current_stock
+          in: query
+          description: Estoque atual do produto (unidades). Padrão 0 — compra "a seco".
+          schema:
+            type: number
+            format: float
+            default: 0
+      responses:
+        "200":
+          description: Recomendação gerada com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReplenishmentRecommendation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Produto não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+        "409":
+          description: Categoria sem modelo disponível
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+
+  /api/v1/replenishment/batch:
+    get:
+      tags: [replenishment]
+      summary: Reposição de hoje para os top N produtos
+      description: Lista, por produto de maior volume, a quantidade a repor hoje, a data-limite de cobertura, a cadência sugerida e o selo de risco. É a tela "Reposição de Hoje" do dashboard.
+      operationId: getReplenishmentBatch
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: top_n
+          in: query
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 50
+      responses:
+        "200":
+          description: Reposição dos top produtos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReplenishmentBatchResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   # ── Alerts ───────────────────────────────────
   /api/v1/alerts:
     get:
       tags: [alerts]
-      summary: Alertas de reposição de estoque
+      summary: Alertas de pico de demanda e risco de sobra
       description: |
-        Produtos cuja previsão do próximo mês supera em ≥20% a média dos últimos 3 meses.
-        Ordenados por variação decrescente. Justificativas em PT-BR sem jargão.
+        `pico_demanda`: produtos cuja previsão dos próximos 7 dias supera em ≥20% a média
+        das últimas 4 semanas. `risco_sobra`: produtos de validade curta com demanda em
+        queda. Ordenados por variação decrescente. Justificativas em PT-BR sem jargão.
       operationId: getAlerts
       security:
         - BearerAuth: []
@@ -992,9 +1279,10 @@ paths:
       tags: [reports]
       summary: Exportar relatório de previsões e alertas
       description: |
-        Gera arquivo PDF ou Excel com previsões dos top N produtos e lista de alertas.
-        **Excel**: abas "Previsões", "Métricas", "Alertas".
-        **PDF**: tabela de previsões + alertas com cabeçalho e rodapé.
+        Gera arquivo PDF ou Excel com a reposição sugerida dos top N produtos para os
+        próximos `horizon_days` dias e a lista de alertas.
+        **Excel**: abas "Reposição", "Previsão diária", "Métricas", "Alertas".
+        **PDF**: tabela de reposição + alertas com cabeçalho e rodapé.
       operationId: exportReport
       security:
         - BearerAuth: []
@@ -1011,11 +1299,11 @@ paths:
           schema:
             type: integer
             default: 10
-        - name: horizon_months
+        - name: horizon_days
           in: query
           schema:
             type: integer
-            default: 3
+            default: 14
       responses:
         "200":
           description: Arquivo gerado para download
@@ -1058,11 +1346,11 @@ paths:
   /api/v1/models/retrain:
     post:
       tags: [models]
-      summary: Disparar atualização manual dos modelos
+      summary: Disparar reajuste manual dos modelos
       description: |
-        Inicia retrain assíncrono de todos os modelos dos top N produtos.
+        Inicia reajuste assíncrono de todos os modelos L1 (`unidade × categoria`).
         **Requer perfil admin.**
-        Retorna 409 se já houver retrain em andamento.
+        Retorna 409 se já houver reajuste em andamento.
       operationId: triggerRetrain
       security:
         - BearerAuth: []
@@ -1089,19 +1377,6 @@ paths:
                 $ref: "#/components/schemas/ErrorDetail"
               example:
                 detail: "Atualização já em andamento. Tente novamente em alguns minutos."
-
-  # ─────────────────────────────────────────────
-  # Reusable Responses
-  # ─────────────────────────────────────────────
-  responses:
-    Unauthorized:
-      description: Não autenticado ou token expirado
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/ErrorDetail"
-          example:
-            detail: "Autenticação necessária. Faça login para continuar."
 
 security:
   - BearerAuth: []

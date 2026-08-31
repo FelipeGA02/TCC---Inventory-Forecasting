@@ -3,6 +3,16 @@
 **Levantado em**: 2026-08-23, por inspeção do código, histórico do git e arquivos em
 disco (não é um relatório de execução — é um raio-x do que existe hoje).
 
+> **Atualização 2026-08-30 — revisão de escopo mensal → diário.** O entregável do
+> sistema mudou de *previsão mensal por produto* para *recomendação de reposição diária*
+> (produtos perecíveis), com arquitetura hierárquica L1 (SARIMAX diário por
+> `unidade × categoria`) → L2 (desagregação para SKU) → L3 (política de reposição). Ver
+> [`docs/prediction/ADR-009-granularidade-diaria-e-reposicao.md`](../prediction/ADR-009-granularidade-diaria-e-reposicao.md)
+> e a constituição v2.0.0. Este raio-x continua válido quanto ao **estado do código**
+> (backend/domain ainda são stubs, frontend ainda é mockup); onde ele fala em
+> "granularidade mensal", "MAPE/SMAPE" ou "comparação mensal×diária", leia à luz do
+> ADR-009 (agora: diária, MASE, e comparação SARIMAX hierárquico × demanda intermitente).
+
 ---
 
 ## 1. Resumo executivo
@@ -244,9 +254,9 @@ backend real.
 ## 9. Como isso se conecta ao próximo passo
 
 O [plano de experimentos de modelagem](../prediction/plano_experimentos_modelagem.md) (Fase 1 —
-Baseline sem enriquecimento) é exatamente o ponto onde essa lacuna começa a ser
-fechada: ele assume reconstruir `prepare_monthly_series` e as exógenas internas dentro
-da metodologia de notebook → comparação → só então portar para `backend/domain/`. A
-lógica do protótipo legado (seção 3 deste documento) é o ponto de partida mais rápido
-para isso — é reaproveitável via `git show ac4dd9e~1:src/...`, mesmo não estando mais
-no working tree.
+Baseline L1 sem enriquecimento) é o ponto onde essa lacuna começa a ser fechada: ele
+assume construir `prepare_daily_series(df, unidade, categoria)` e as exógenas de
+calendário, comparar as variantes em `training_scripts/`, e só então portar o vencedor
+para `backend/domain/`. Parte da lógica do protótipo legado (seção 3) ainda é
+reaproveitável via `git show ac4dd9e~1:src/...` (parser, dedup, RF/MDI), mas a série
+alvo e a granularidade mudaram — ver [ADR-009](../prediction/ADR-009-granularidade-diaria-e-reposicao.md).

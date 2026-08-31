@@ -24,19 +24,24 @@ class Settings(BaseSettings):
     VIEWER_EMAIL: str = "gerente@floricultura.com"
     VIEWER_PASSWORD: str = "troque_por_senha_forte"
 
-    # Pipeline ML
-    TOP_N_PRODUCTS: int = 20          # produtos a incluir no pipeline automático
-    TEST_MONTHS: int = 3              # hold-out para avaliação
-    FUTURE_MONTHS: int = 3            # horizonte de previsão futuro
-    MIN_OBSERVATIONS: int = 15        # mínimo para treinar modelo
-    LOG_CV_THRESHOLD: float = 0.7     # limiar (CV = std/mean) para log1p transform
-    ALERT_STOCK_DAYS: int = 21        # janela de reposição (3 semanas)
-    ALERT_VARIATION_THRESHOLD: float = 0.20  # 20% acima da média recente dispara alerta
+    # Pipeline ML — camada L1 (unidade x categoria, diario). Ver ADR-009.
+    TOP_N_PRODUCTS: int = 20              # SKUs com desagregacao (L2) e reposicao (L3) detalhadas
+    FORECAST_HORIZON_DAYS: int = 14       # horizonte da previsao e da recomendacao de reposicao
+    TEST_DAYS: int = 28                   # hold-out para avaliacao
+    MIN_OBSERVATIONS_DAYS: int = 180      # minimo de dias por unidade x categoria para treinar L1
+    SEASONAL_PERIOD: int = 7             # m — sazonalidade semanal do SARIMAX
+    LOG_CV_THRESHOLD: float = 0.7        # limiar (CV = std/mean) para log1p transform
+    ALERT_VARIATION_THRESHOLD: float = 0.20  # previsao 7d 20% acima da media 4 semanas dispara alerta
     MAX_UPLOAD_MB: int = 50
 
+    # Politica de reposicao (L3)
+    SAFETY_STOCK_DAYS: int = 2           # estoque de seguranca em dias de demanda prevista
+    SHELF_LIFE_DEFAULT_DAYS: int = 7     # validade usada quando a categoria nao tem parametro proprio
+
     # Scheduler
-    RETRAIN_DAY_OF_WEEK: str = "mon"  # segunda-feira
-    RETRAIN_HOUR: int = 2             # 02:00
+    RETRAIN_DAY_OF_WEEK: str = "mon"     # reajuste (fit) dos modelos L1
+    RETRAIN_HOUR: int = 2                # 02:00
+    DAILY_FORECAST_HOUR: int = 3         # geracao diaria de previsao + reposicao a partir do cache
 
     # CORS
     CORS_ORIGINS: list[str] = ["http://localhost:5173"]

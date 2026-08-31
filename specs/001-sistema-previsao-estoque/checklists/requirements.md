@@ -31,7 +31,13 @@
 
 ## Notes
 
-- Autenticação (RNF-04) foi explicitamente descartada para fase 2 — documentada em Assumptions.
+- Autenticação e controle de acesso por perfil (JWT, `admin`/`viewer`) são **P1** nesta
+  spec (FR-000, FR-000a, FR-000b, US4) — não estão mais adiados para fase 2.
 - Todos os Success Criteria são mensuráveis e tecnologia-agnósticos.
 - Edge cases cobrem os principais cenários de falha identificados no artigo TCC.
-- **Status**: APROVADO — pronto para `/speckit-plan`.
+- **Revisão de escopo (2026-08-30)**: o entregável passou de previsão mensal por produto
+  para **recomendação de reposição diária** (produtos perecíveis). Ver
+  [ADR-009](../../../docs/prediction/ADR-009-granularidade-diaria-e-reposicao.md). A spec,
+  o plan e o tasks foram reescritos; a constituição foi para v2.0.0. Reexecutar
+  `/speckit-analyze` para reconferir a consistência cruzada.
+- **Status**: revisado — pronto para nova rodada de `/speckit-analyze`.

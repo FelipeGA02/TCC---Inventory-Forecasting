@@ -1,10 +1,11 @@
 # SPECS — Sistema de Previsão de Estoque (Floricultura)
 
-> Implementação do zero · Monolito Modular · FastAPI + SARIMAX + React  
+> Implementação do zero · Monolito Modular · FastAPI + SARIMAX (hierárquico) + React  
 > Segurança: JWT (python-jose) + bcrypt · Perfis: admin / viewer · LGPD  
 > Frontend: cliente TypeScript gerado de openapi.yaml (openapi-typescript-codegen)  
 > Metodologia: ágil/iterativa (software) + CRISP-DM (dados e modelagem)  
-> Versão: 1.2 · Data: 2026-08-21  
+> Versão: 2.0 · Data: 2026-08-30 (revisão de escopo: mensal → diário — ver
+> `docs/prediction/ADR-009-granularidade-diaria-e-reposicao.md`)  
 > Autores: Daniel Nunes da Silva, Felipe Gurgel Araújo
 
 ---
@@ -31,11 +32,17 @@
 
 ### 1.1 Problema e Escopo
 
-Sistema de previsão de demanda para a Floricultura Verde Perto (unidades em Nova Lima —
-Jardim Canadá — e Itabirito/MG), rede com 3 unidades operacionais. A base de dados cobre
-Jan/2024–Fev/2026 (324k+ transações, 5.100+ SKUs). O horizonte de previsão é de **2 a 3
-semanas** (operacionalmente mapeado para granularidade mensal com previsão de 1–3 meses
-à frente), alinhado ao ciclo de reposição da empresa.
+Sistema de **recomendação de reposição diária** para a Floricultura Verde Perto (unidades
+em Nova Lima — Jardim Canadá — e Itabirito/MG), rede com 3 unidades operacionais. A base
+cobre Jan/2024–Fev/2026 (324k+ transações, 5.100+ SKUs). O sistema prevê a demanda
+**por dia** para os próximos **14 dias** e traduz isso em quanto repor de cada produto,
+respeitando a validade (produtos perecíveis — flores de corte duram 3–7 dias).
+
+Modelagem hierárquica (ver `docs/prediction/ADR-009-granularidade-diaria-e-reposicao.md`):
+
+- **L1** — SARIMAX na série **diária** agregada por `unidade × categoria` (densa);
+- **L2** — desagregação proporcional da previsão da categoria para cada SKU do Top-N;
+- **L3** — política de reposição perecível-consciente (shelf-life + estoque de segurança).
 
 ### 1.1.1 Metodologia
 
@@ -54,34 +61,36 @@ semanas** (operacionalmente mapeado para granularidade mensal com previsão de 1
 ```
 [Usuário]
     │
-    ├─► Upload XLSX (mensal, do sistema financeiro)
+    ├─► Upload XLSX (do sistema financeiro)
     │        │
     │        ▼
     │   [ETL Pipeline]
-    │   XLSX → parse → dedup → contas_a_receber.csv
+    │   XLSX → parse → normalize (deriva categoria/unidade) → dedup → contas_a_receber.csv
     │        │
     │        ▼
-    │   [Feature Engineering]
-    │   CSV → séries mensais + variáveis exógenas
+    │   [L1 — Feature Engineering + SARIMAX]  (por unidade × categoria)
+    │   série diária → exógenas de calendário → RF importance → seleção de ordem (AIC, m=7)
+    │   → fit → walk-forward CV (h=14) → persist
     │        │
     │        ▼
-    │   [SARIMAX Pipeline]
-    │   RF importance → ponderação → seleção de ordem (AIC) → fit → persist
+    │   [Model Registry] (SQLite) — ordem, MASE/RMSSE/cobertura, artefato joblib, status
     │        │
     │        ▼
-    │   [Model Registry] (SQLite)
-    │   salva: ordem, métricas, artefato pickle, status
+    │   [L2 — Desagregação]  previsão da categoria → SKU (share móvel × perfil dia-da-semana)
+    │        │
+    │        ▼
+    │   [L3 — Política de reposição]  demanda SKU + shelf-life + estoque de segurança
+    │   → qtd a repor / dia, cadência, risco de perda/ruptura → replenishment_cache
     │        │
     │        ▼
     │   [FastAPI]  ←── requisições do React Dashboard
-    │   /forecast, /alerts, /simulation, /export, /metrics
+    │   /forecast (diário), /replenishment, /alerts, /simulation, /export, /models/status
     │        │
     │        ▼
-    │   [React Dashboard]
-    │   gráficos · alertas · simulações · exportação
+    │   [React Dashboard]  gráficos diários · reposição de hoje · alertas · simulações · exportação
     │
-    └─► Scheduler (APScheduler)
-        toda segunda-feira 02:00 → retrain automático
+    ├─► Scheduler (APScheduler) — segunda 02:00 → reajuste (fit) dos modelos L1
+    └─► Scheduler (APScheduler) — todo dia 03:00 → geração de previsão + reposição (do cache)
 ```
 
 ### 1.3 Stack Tecnológica
@@ -123,17 +132,27 @@ semanas** (operacionalmente mapeado para granularidade mensal com previsão de 1
 
 | Decisão | Alternativa descartada | Motivo |
 |---|---|---|
-| SARIMAX como modelo central | LSTM, XGBoost | M4 Competition: ARIMA supera ML com N<50 por sazonalidade. 26 meses = ~26 obs mensais |
-| Granularidade mensal (produção) | Diária | Ciclo de reposição é semanal/mensal; dados diários têm >70% de zeros por produto — resultado obtido justamente pela avaliação comparativa exigida como contribuição acadêmica (ii); ver seção 12.5 |
+| SARIMAX no L1 (série diária agregada por unidade × categoria) | LSTM, XGBoost por SKU | M4/M5: métodos estatísticos superam ML em séries curtas; a série agregada é densa (~790 pts diários) |
+| Granularidade **diária**, arquitetura hierárquica L1→L2→L3 | Previsão mensal por produto | Produtos perecíveis (validade 3–7 dias): a decisão relevante é "quanto repor hoje". A série diária por SKU é >90% zeros → SKU não é modelado sozinho (L2 desagrega). Ver ADR-009 e seção 12.5 |
+| Croston/TSB/SBA no nível de SKU | Só L2 | Trilha de comparação (contribuição acadêmica ii); SARIMAX inaplicável a série quase toda zero |
 | RF para ponderação de exógenas | Stepwise AIC, Lasso | Reduz multicolinearidade sem viés de seleção (Breiman 2001) |
 | SQLite | PostgreSQL | Volume adequado; zero infra; fácil backup |
 | APScheduler in-process | Celery+Redis | Não há fila de tarefas; um job semanal não justifica infra adicional |
 | joblib para persistência de modelos | pickle nativo | Mais seguro com arrays NumPy grandes |
 | React (dashboard) | Streamlit, Dash | Artigo original deixava "a definir após prototipagem" (seção 6.3); app-react/ já existia e cobre requisitos de RNF-01 (usabilidade) com mais controle de UI |
 
-### 2.3 Tratamento de Produtos com Demanda Intermitente
+### 2.3 Tratamento de Demanda Intermitente e Séries Curtas
 
-Produtos com CV > 0.7 (`std/mean > 0.7`) recebem transformação `log1p` antes do SARIMAX e back-transform `expm1` nas previsões. Produtos com menos de 15 observações mensais são **excluídos** do pipeline automático e sinalizados no banco como `status = 'insufficient_data'`.
+- **L1** (`unidade × categoria`, diário): séries com CV > 0.7 (`std/mean`) recebem
+  `log1p` antes do SARIMAX e back-transform `expm1` nas previsões. `unidade × categoria`
+  com menos de **180 dias** de histórico são sinalizados como `status = 'insufficient_data'`
+  — a categoria inteira fica sem previsão.
+- **L2** (SKU): a série diária por SKU é majoritariamente zero e **não** é modelada
+  diretamente. A previsão da categoria é rateada por participação móvel (últimas 4–8
+  semanas) × perfil de dia-da-semana do SKU. SKU com < 28 dias com venda ou < 8 vendas
+  totais cai no rateio uniforme da categoria.
+- **Comparação**: modelos de demanda intermitente (Croston/TSB/SBA) são avaliados por
+  SKU contra a abordagem hierárquica em `training_scripts/alternative_models/` (seção 12.5).
 
 ---
 
@@ -153,7 +172,8 @@ ia-predictor/
 │   │   ├── __init__.py
 │   │   ├── router_upload.py         # POST /upload
 │   │   ├── router_products.py       # GET /products, GET /products/{id}
-│   │   ├── router_forecast.py       # GET /forecast/{product_id}, GET /forecast/batch
+│   │   ├── router_forecast.py       # GET /forecast/{produto_cod}, GET /forecast/batch  (diário)
+│   │   ├── router_replenishment.py  # GET /replenishment/{produto_cod}, GET /replenishment/batch
 │   │   ├── router_alerts.py         # GET /alerts
 │   │   ├── router_simulation.py     # POST /simulation
 │   │   ├── router_reports.py        # GET /reports/export
@@ -164,7 +184,8 @@ ia-predictor/
 │   │   ├── __init__.py
 │   │   ├── upload.py
 │   │   ├── product.py
-│   │   ├── forecast.py
+│   │   ├── forecast.py              # DailyPoint, ForecastResponse
+│   │   ├── replenishment.py         # ReplenishmentDay, ReplenishmentRecommendation
 │   │   ├── alert.py
 │   │   ├── simulation.py
 │   │   ├── report.py
@@ -173,11 +194,12 @@ ia-predictor/
 │   ├── services/                    # Camada de aplicação — casos de uso
 │   │   ├── __init__.py
 │   │   ├── upload_service.py        # orquestra ETL após upload
-│   │   ├── forecast_service.py      # carrega modelo + gera previsão
-│   │   ├── alert_service.py         # calcula alertas de reposição
+│   │   ├── forecast_service.py      # carrega modelo L1 + gera previsão diária (L1 + L2)
+│   │   ├── replenishment_service.py # aplica política L3 sobre a previsão do SKU
+│   │   ├── alert_service.py         # calcula alertas de pico de demanda / risco de sobra
 │   │   ├── simulation_service.py    # aplica delta de promoção sobre previsão
 │   │   ├── report_service.py        # gera PDF / Excel
-│   │   └── retrain_service.py       # orquestra retrain completo
+│   │   └── retrain_service.py       # orquestra reajuste semanal dos modelos L1
 │   │
 │   ├── domain/                      # Camada de domínio — lógica pura (sem I/O)
 │   │   ├── __init__.py
@@ -185,22 +207,31 @@ ia-predictor/
 │   │   ├── etl/                     # Pipeline de ingestão
 │   │   │   ├── __init__.py
 │   │   │   ├── parser.py            # XLSX → records (migrado do código existente)
-│   │   │   ├── deduplicator.py      # remoção de duplicatas por (doc_numero, produto_cod)
-│   │   │   └── normalizer.py        # cast de tipos, limpeza de strings, parse de datas
+│   │   │   ├── deduplicator.py      # dedup por (doc_numero, produto_cod, emissao, qtdade, vl_total)
+│   │   │   └── normalizer.py        # tipos, limpeza, datas; deriva categoria + unidade
 │   │   │
-│   │   ├── features/                # Engenharia de atributos
+│   │   ├── features/                # Engenharia de atributos (L1)
 │   │   │   ├── __init__.py
-│   │   │   ├── time_series.py       # prepare_monthly_series(df, produto_cod) → pd.Series
-│   │   │   ├── exogenous.py         # build_exogenous_features(df, produto_cod) → pd.DataFrame
+│   │   │   ├── daily_series.py      # prepare_daily_series(df, unidade, categoria) → pd.Series (freq='D')
+│   │   │   ├── calendar_exogenous.py # dia-da-semana, feriados, dias-até-data-comemorativa
 │   │   │   └── importance.py        # compute_rf_importance(), weight_features()
 │   │   │
-│   │   └── models/                  # Modelagem SARIMAX
+│   │   ├── models/                  # Modelagem SARIMAX (L1)
+│   │   │   ├── __init__.py
+│   │   │   ├── stationarity.py      # check_stationarity(), suggest_d()
+│   │   │   ├── order_selection.py   # select_sarimax_order() via grid AIC (m=7)
+│   │   │   ├── sarimax_trainer.py   # fit_sarimax(), run_category_pipeline()
+│   │   │   ├── evaluator.py         # mase(), rmsse(), ic_coverage(), walk_forward_cv(h=14), residual_tests()
+│   │   │   └── forecaster.py        # generate_daily_forecast(model, horizon_days) → ForecastResult
+│   │   │
+│   │   ├── disaggregation/          # L2 — categoria → SKU
+│   │   │   ├── __init__.py
+│   │   │   └── sku_split.py         # disaggregate(previsao_cat, df_hist, produto_cod)
+│   │   │
+│   │   └── replenishment/           # L3 — política de reposição
 │   │       ├── __init__.py
-│   │       ├── stationarity.py      # check_stationarity(), suggest_d()
-│   │       ├── order_selection.py   # select_sarimax_order() via grid AIC/BIC
-│   │       ├── sarimax_trainer.py   # fit_sarimax(), run_product_pipeline()
-│   │       ├── evaluator.py         # evaluate_model(), walk_forward_cv(), residual_tests()
-│   │       └── forecaster.py        # generate_forecast(model_artifact, horizon) → ForecastResult
+│   │       ├── policy.py            # recommend(previsao_sku, shelf_life, safety_stock, estoque)
+│   │       └── simulation.py        # simulate_policy() — perda + ruptura vs. regra ingênua
 │   │
 │   └── infrastructure/              # Camada de infraestrutura — I/O
 │       ├── __init__.py
@@ -215,7 +246,8 @@ ia-predictor/
 │       │   └── model_registry.py    # salva/carrega artefatos + metadados no DB
 │       └── scheduler/
 │           ├── __init__.py
-│           └── weekly_retrain.py    # configura APScheduler, define job de retrain
+│           ├── weekly_retrain.py    # APScheduler — segunda 02:00: reajuste (fit) dos modelos L1
+│           └── daily_generation.py  # APScheduler — todo dia 03:00: previsão diária + reposição
 │
 ├── data/
 │   ├── raw/                         # XLSX brutos (upload do usuário)
@@ -223,12 +255,11 @@ ia-predictor/
 │       ├── contas_a_receber.csv     # base consolidada (sep=";")
 │       └── processamento_log.json
 │
-├── models/                          # Artefatos treinados (joblib)
-│   └── {produto_cod}/
-│       ├── sarimax_result.pkl       # SARIMAXResultsWrapper serializado
-│       ├── importances.pkl          # pd.Series de importâncias RF
-│       ├── scaler.pkl               # StandardScaler (se usado)
-│       └── metadata.json            # ordem, métricas, data de treino
+├── models/                          # Artefatos treinados (joblib) — um por unidade × categoria
+│   └── {unidade}__{categoria}/
+│       ├── sarimax_result.pkl       # SARIMAXResultsWrapper serializado (L1)
+│       ├── importances.pkl          # pd.Series de importâncias RF das exógenas de calendário
+│       └── metadata.json            # ordem, MASE/RMSSE/cobertura, shelf_life_dias, data de treino
 │
 ├── results/
 │   ├── metrics/                     # CSVs de métricas consolidadas
@@ -238,20 +269,22 @@ ia-predictor/
 │   │                                 # backend, nunca é importado por ele (ver docs/prediction/
 │   │                                 # plano_experimentos_modelagem.md)
 │   ├── __init__.py
-│   ├── preprocessing/                # XLSX bruto → CSV consolidado/treino (docs/prediction/
-│   │   │                             # 01-pre_processing.md) — parser, dedup, drop de colunas,
-│   │   │                             # discretização; escreve só em training_scripts/output/
+│   ├── preprocessing/                # XLSX bruto → CSV transacional (docs/prediction/
+│   │   │                             # 01-pre_processing.md) — parser, dedup, drop de colunas;
+│   │   │                             # escreve só em training_scripts/output/
 │   │   ├── constants.py
 │   │   ├── helpers.py
 │   │   ├── parser.py
-│   │   ├── build_dataset.py
-│   │   ├── reduce_schema.py
-│   │   └── discretize_fields.py
-│   ├── eda/                         # Fase 1.1 — sazonalidade, tendência, CV por produto, Top-N
-│   ├── baseline/                    # Fase 1 — Modelo A0 (SARIMA puro) e A1 (SARIMAX interno)
-│   ├── enriched/                    # Fase 3 — Modelo B (SARIMAX interno + exógenas externas)
-│   ├── alternative_models/          # Fase 4 — ETS/Holt-Winters, XGBoost, Prophet, NN global
-│   ├── validation/                  # Walk-forward CV, testes de resíduos e de significância
+│   │   ├── build_dataset.py         # Etapa 1 — parsing + dedup entre arquivos + log
+│   │   ├── reduce_schema.py         # Etapa 2 — 20 → 9 colunas
+│   │   ├── map_taxonomy.py          # Etapa 3 — deriva unidade + categoria
+│   │   └── taxonomy/                # tabelas de/para versionadas (unidades.py, categorias.py)
+│   ├── eda/                         # Fase 1.1 — sazonalidade semanal, esparsidade por SKU, Top-N
+│   ├── baseline/                    # Fase 1 — L1 A0 (SARIMA puro diário) e A1 (SARIMAX + calendário)
+│   ├── enriched/                    # Fase 3 — L1 Modelo B (SARIMAX + exógenas externas)
+│   ├── replenishment/               # Fase 3–4 — L2 desagregação + L3 política + simulação
+│   ├── alternative_models/          # Fase 4 — Croston/TSB/SBA por SKU, ETS, XGBoost, NN global
+│   ├── validation/                  # Walk-forward CV (h=14), MASE/RMSSE, resíduos, significância
 │   │                                 # (Diebold-Mariano/Wilcoxon) — compartilhado entre fases
 │   ├── output/                      # CSV/JSON gerados por preprocessing/ (gitignored)
 │   └── results/                     # metrics/ e plots/ da experimentação (staging; distinto
@@ -262,14 +295,17 @@ ia-predictor/
 │   ├── unit/
 │   │   ├── test_parser.py
 │   │   ├── test_normalizer.py
-│   │   ├── test_time_series.py
-│   │   ├── test_exogenous.py
+│   │   ├── test_daily_series.py
+│   │   ├── test_calendar_exogenous.py
 │   │   ├── test_order_selection.py
-│   │   ├── test_evaluator.py
-│   │   └── test_forecaster.py
+│   │   ├── test_evaluator.py          # mase, rmsse, ic_coverage, walk_forward(h=14)
+│   │   ├── test_forecaster.py
+│   │   ├── test_sku_split.py          # L2
+│   │   └── test_replenishment_policy.py  # L3
 │   ├── integration/
 │   │   ├── test_etl_pipeline.py
-│   │   ├── test_sarimax_pipeline.py
+│   │   ├── test_l1_pipeline.py
+│   │   ├── test_replenishment_pipeline.py
 │   │   └── test_api_endpoints.py
 │   └── fixtures/
 │       ├── sample_data.csv          # 50 linhas de dados reais anonimizados
@@ -317,8 +353,10 @@ vl_total, vl_desconto, tot_liq, icms_ret, total_liquido_doc
 def normalize_records(records: list[dict]) -> pd.DataFrame:
     """
     - Cast de tipos (emissao → datetime, qtdade/vl_* → float)
-    - Strip de strings, upper em produto_cod e cliente_cod
+    - Strip de strings, upper em produto_cod
     - Remove registros com qtdade <= 0 ou emissao nula
+    - Deriva `unidade` (normaliza `empresa`, incl. o "CANAD�" corrompido)
+    - Deriva `categoria` do produto (de/para versionado; "Outros" se ausente)
     Retorna DataFrame com dtypes corretos.
     """
 ```
@@ -329,10 +367,11 @@ def normalize_records(records: list[dict]) -> pd.DataFrame:
 def deduplicate(
     new_df: pd.DataFrame,
     existing_csv: str | Path,
-    key_fields: tuple[str, ...] = ("doc_numero", "produto_cod"),
+    key_fields: tuple[str, ...] = ("doc_numero", "produto_cod", "emissao", "qtdade", "vl_total"),
 ) -> pd.DataFrame:
     """
-    Carrega chaves existentes do CSV, filtra registros novos que já existam.
+    Carrega chaves existentes do CSV, filtra registros novos que já existam
+    (dedup só ENTRE arquivos — nunca dentro do mesmo). Ver docs/prediction/01-pre_processing.md §2.
     Retorna apenas registros genuinamente novos.
     """
 ```
@@ -364,84 +403,60 @@ upload_service.process_upload(file_path: Path) -> UploadResult
 
 ---
 
-## 5. Camada de Modelos — SARIMAX
+## 5. Camada de Modelos — Hierárquica (L1 SARIMAX → L2 desagregação → L3 reposição)
 
-### 5.1 `domain/features/time_series.py`
+### 5.1 `domain/features/daily_series.py` (L1)
 
 ```python
-def prepare_monthly_series(df: pd.DataFrame, produto_cod: str) -> pd.Series:
+def prepare_daily_series(df: pd.DataFrame, unidade: str, categoria: str) -> pd.Series:
     """
-    Agrega qtdade por período mensal (freq='MS').
-    Preenche meses ausentes com 0 (reindex completo do range).
-    Índice: DatetimeIndex com freq='MS'.
-    Levanta ValueError se len(series) < MIN_OBSERVATIONS (15).
+    Soma qtdade por dia (freq='D') para o par (unidade, categoria).
+    Reindex completo do range (dias sem venda = 0).
+    Índice: DatetimeIndex com freq='D'.
+    Levanta ValueError se len(series) < MIN_OBSERVATIONS_DAYS (180).
     """
 
-MIN_OBSERVATIONS = 15
+MIN_OBSERVATIONS_DAYS = 180
 ```
 
-### 5.2 `domain/features/exogenous.py`
+### 5.2 `domain/features/calendar_exogenous.py` (L1)
 
-**Variáveis exógenas construídas** (por período mensal):
+Exógenas **só de calendário** (todas conhecidas para os dias futuros — sem leakage):
 
 | Grupo | Variável | Descrição |
 |---|---|---|
-| Mercado geral | `mkt_qtd_total` | Qtd total vendida (todos produtos) |
-| Mercado geral | `mkt_valor_total` | Faturamento total |
-| Mercado geral | `mkt_desconto_total` | Desconto total concedido |
-| Mercado geral | `mkt_n_pedidos` | Número único de pedidos |
-| Mercado geral | `mkt_n_clientes` | Número único de clientes |
-| Mercado geral | `mkt_preco_medio` | Preço médio geral |
-| Mercado geral | `mkt_taxa_desconto` | `desconto_total / valor_total` |
-| Produto | `prod_preco_medio` | Preço médio do produto |
-| Produto | `prod_desconto_medio` | Desconto médio no produto |
-| Produto | `prod_n_clientes` | Clientes únicos do produto |
-| Produto | `prod_n_pedidos` | Pedidos únicos do produto |
-| Produto | `prod_taxa_desconto` | `desconto_medio / preco_medio` |
-| Calendário | `mes` | Mês numérico (1–12) |
-| Calendário | `trimestre` | Trimestre (1–4) |
-| Calendário | `alta_temporada` | 1 se mês ∈ {5,10,11,12} (Mães, Out/Nov/Natal) |
+| Dia da semana | `dow_1..dow_6` **ou** `dow_sin/dow_cos` | dummies (baseline segunda) ou termos de Fourier `m=7` |
+| Feriado | `feriado` | 1 em feriado nacional ou municipal (Nova Lima / Itabirito) |
+| Feriado | `vespera_feriado` | 1 no dia anterior a um feriado |
+| Data comemorativa | `dias_ate_maes`, `dias_ate_namorados`, `dias_ate_finados`, `dias_ate_natal` | contagem regressiva (clip em ~21 dias); substitui `alta_temporada` binário |
+| Sazonalidade anual | `mes`, `estacao` | aproximação (histórico < 3 ciclos anuais) |
 
 ```python
-def build_exogenous_features(df: pd.DataFrame, produto_cod: str) -> pd.DataFrame:
-    """
-    Constrói DataFrame de exógenas mensais para o produto.
-    Índice: DatetimeIndex com freq='MS'.
-    Preenche NaN com 0 (produto sem venda no mês).
-    """
+def build_calendar_exogenous(idx: pd.DatetimeIndex) -> pd.DataFrame:
+    """DataFrame de exógenas de calendário alinhado a idx (freq='D')."""
 ```
+
+> Exógenas externas (clima, indicadores) são avaliadas na Fase 3 do plano de
+> experimentos; entram aqui se o walk-forward mostrar ganho significativo.
 
 ### 5.3 `domain/features/importance.py`
 
 ```python
-def compute_rf_importance(
-    X_train: pd.DataFrame,
-    y_train: pd.Series,
-    n_estimators: int = 200,
-    random_state: int = 42,
-) -> pd.Series:
-    """
-    Treina RandomForestRegressor, retorna importâncias MDI normalizadas (soma=1).
-    """
+def compute_rf_importance(X_train, y_train, n_estimators=200, random_state=42) -> pd.Series:
+    """RandomForestRegressor → importâncias MDI normalizadas (soma=1)."""
 
 def weight_features(X: pd.DataFrame, importances: pd.Series) -> pd.DataFrame:
-    """
-    Pondera colunas de X pelas importâncias.
-    Aplica clip(lower=0.1) para nunca zerar variável.
-    """
+    """Pondera colunas de X pelas importâncias. clip(lower=0.1) — nunca zera variável."""
 ```
 
 ### 5.4 `domain/models/stationarity.py`
 
 ```python
 def check_stationarity(ts: pd.Series, alpha: float = 0.05) -> StationarityResult:
-    """
-    Executa ADF e KPSS.
-    Retorna dataclass com estatísticas e flag is_stationary.
-    """
+    """ADF + KPSS → dataclass com estatísticas e flag is_stationary."""
 
 def suggest_d(ts: pd.Series, max_d: int = 1) -> int:
-    """Retorna 0 ou 1. Série curta (26 obs): não usar d>1."""
+    """Retorna 0 ou 1 (limita d a 1 para não consumir treino)."""
 ```
 
 ### 5.5 `domain/models/order_selection.py`
@@ -451,8 +466,8 @@ def select_sarimax_order(
     ts_train: pd.Series,
     exog_train: pd.DataFrame,
     d: int,
-    D: int = 0,          # D=0: série curta (<3 ciclos sazonais completos)
-    m: int = 12,
+    D: int = 0,          # D=0: histórico < 3 ciclos anuais
+    m: int = 7,          # sazonalidade SEMANAL
     p_range: range = range(0, 3),
     q_range: range = range(0, 3),
     P_range: range = range(0, 2),
@@ -460,61 +475,60 @@ def select_sarimax_order(
     criterion: str = "aic",
 ) -> tuple[tuple[int,int,int], tuple[int,int,int,int]]:
     """
-    Grid search exaustivo: 3×3×2×2 = 36 combinações.
-    Retorna (order, seasonal_order) com menor AIC/BIC.
-    Falhas individuais são silenciadas; se todas falharem levanta RuntimeError.
+    Grid search: 3×3×2×2 combinações. Retorna (order, seasonal_order) de menor AIC.
+    Falhas individuais silenciadas; se todas falharem, RuntimeError.
     """
 ```
 
-**Nota D=0**: com 26 meses de histórico temos menos de 3 ciclos sazonais completos (3×12=36). D=1 causaria sobrediferenciação. O padrão sazonal é capturado pelos termos AR/MA sazonais (P, Q) com m=12.
+**Nota D=0, m=7**: a sazonalidade dominante da série diária de varejo é a **semanal**
+(fim de semana vende mais). `D=1` semanal amplificaria ruído de alta frequência numa
+série de ~790 pontos com apenas ~26 meses. O padrão semanal é capturado por `P, Q` com
+`m=7`; a sazonalidade anual, por exógenas de calendário (ADR-004, seção "Revisão").
 
 ### 5.6 `domain/models/sarimax_trainer.py`
 
 ```python
-def fit_sarimax(
-    ts_train: pd.Series,
-    exog_train: pd.DataFrame,
-    order: tuple[int,int,int],
-    seasonal_order: tuple[int,int,int,int],
-) -> SARIMAXResultsWrapper:
-    """Ajusta e retorna modelo treinado. maxiter=300."""
+def fit_sarimax(ts_train, exog_train, order, seasonal_order) -> SARIMAXResultsWrapper:
+    """Ajusta e retorna o modelo L1. maxiter=300."""
 
-def run_product_pipeline(
+def run_category_pipeline(
     df: pd.DataFrame,
-    produto_cod: str,
-    test_months: int = 3,
-    future_months: int = 3,
+    unidade: str,
+    categoria: str,
+    test_days: int = 28,
+    horizon_days: int = 14,
     log_cv_threshold: float = 0.7,
-) -> ProductPipelineResult:
+) -> CategoryPipelineResult:
     """
-    Pipeline completo para um produto:
-    1. prepare_monthly_series
-    2. build_exogenous_features
-    3. train/test split (últimos test_months como hold-out)
-    4. compute_rf_importance (apenas em treino)
-    5. weight_features
-    6. suggest_d → select_sarimax_order → fit_sarimax
-    7. generate_forecast (test + future)
-    8. evaluate_model
-    Retorna ProductPipelineResult (dataclass).
+    Pipeline L1 completo para um par (unidade, categoria):
+    1. prepare_daily_series
+    2. build_calendar_exogenous
+    3. train/test split (últimos test_days como hold-out)
+    4. compute_rf_importance (só treino) → weight_features
+    5. suggest_d → select_sarimax_order → fit_sarimax
+    6. generate_daily_forecast (test + futuro)
+    7. evaluate: mase, rmsse, ic_coverage, walk_forward_cv(h=14), residual_tests
+    8. simular política L3 no hold-out vs. regra ingênua de 7 dias
+    Retorna CategoryPipelineResult (dataclass).
     """
 ```
 
-**`ProductPipelineResult`** (dataclass):
+**`CategoryPipelineResult`** (dataclass):
 ```python
 @dataclass
-class ProductPipelineResult:
-    produto_cod: str
+class CategoryPipelineResult:
+    unidade: str
+    categoria: str
     order: tuple
-    seasonal_order: tuple
+    seasonal_order: tuple        # (P, D, Q, 7)
     use_log: bool
-    metrics: dict           # MAE, RMSE, MAPE_%, SMAPE_%, R2
+    metrics: dict                # MASE, RMSSE, IC_coverage_pct, MAE, RMSE, MAPE_% (informativo)
+    replenishment_sim: dict      # perda + ruptura da política vs. regra ingênua
     importances: pd.Series
     ts_train: pd.Series
     ts_test: pd.Series
-    in_sample_pred: pd.Series
     test_pred: pd.Series
-    future_pred: pd.Series  # próximos future_months meses
+    future_pred: pd.Series       # próximos horizon_days dias
     future_idx: pd.DatetimeIndex
     aic: float
     bic: float
@@ -524,58 +538,105 @@ class ProductPipelineResult:
 ### 5.7 `domain/models/evaluator.py`
 
 ```python
-def evaluate_model(y_true: pd.Series, y_pred: np.ndarray) -> dict:
-    """MAE, RMSE, MAPE_%, SMAPE_%, R2."""
+def mase(y_true, y_pred, y_train, m: int = 7) -> float:
+    """Mean Absolute Scaled Error — denominador = MAE da naïve sazonal semanal no treino."""
 
-def walk_forward_cv(
-    df: pd.DataFrame,
-    produto_cod: str,
-    n_splits: int = 4,
-    horizon: int = 1,
-    min_train: int = 14,
-) -> pd.DataFrame:
+def rmsse(y_true, y_pred, y_train, m: int = 7) -> float:
+    """Root Mean Squared Scaled Error (usada na M5)."""
+
+def ic_coverage(y_true, lower, upper) -> float:
+    """% de observações dentro do intervalo de 95% (esperado 90–98)."""
+
+def walk_forward_cv(df, unidade, categoria, n_splits=4, horizon=14, min_train=150) -> pd.DataFrame:
     """
-    Expanding-window CV.
-    Retorna DataFrame com colunas: fold, train_size, MAE, RMSE, MAPE_%, SMAPE_%, R2.
+    Rolling-origin CV, horizonte 14 dias.
+    Colunas: fold, train_size, MASE, RMSSE, IC_coverage_pct, MAE, RMSE.
     """
 
 def residual_tests(result: SARIMAXResultsWrapper) -> dict:
-    """
-    Ljung-Box (lag=min(10, n//5)) e Shapiro-Wilk.
-    Retorna: {ljung_box_pvalue, shapiro_pvalue, residuals_normal, no_autocorrelation}
-    """
+    """Ljung-Box (lag=min(14, n//5)) + Shapiro-Wilk → p-values e flags."""
 ```
 
-**Critérios de aceitação** (do artigo, seção 6.5):
-- MAPE < 20% para produtos de alto giro
-- SMAPE < 30% para pelo menos os 2 produtos de maior volume
+**Critérios de aceitação** (constituição v2.0.0, seção 6.5 do artigo):
+- `MASE < 1.0` (L1 e no SKU após desagregação)
+- cobertura empírica do IC 95% ∈ [90%, 98%]
+- simulação de reposição (perda + ruptura) melhor que a regra ingênua "média dos últimos 7 dias"
 
 ### 5.8 `domain/models/forecaster.py`
 
 ```python
-def generate_forecast(
+def generate_daily_forecast(
     model_result: SARIMAXResultsWrapper,
     importances: pd.Series,
-    last_exog: pd.DataFrame,
-    horizon_months: int,
+    horizon_days: int,
     use_log: bool,
     last_date: pd.Timestamp,
 ) -> ForecastResult:
     """
-    Gera previsão para horizon_months meses futuros.
-    Extrapola variáveis exógenas: replica último mês + ajusta campos calendário.
-    Aplica expm1 se use_log=True.
-    Retorna ForecastResult com datas, valores, intervalo de confiança (±1.96*std).
+    Previsão para horizon_days dias. Exógenas de calendário futuras são DETERMINÍSTICAS
+    (build_calendar_exogenous sobre o índice futuro). expm1 se use_log=True.
+    IC 95% = ±1.96*std.
     """
 
 @dataclass
 class ForecastResult:
-    dates: list[str]           # ISO 8601, primeiro dia do mês
+    dates: list[str]           # ISO 8601, um por dia
     predicted: list[float]
     lower_95: list[float]
     upper_95: list[float]
-    horizon_months: int
-    generated_at: str          # ISO 8601
+    horizon_days: int
+    generated_at: str
+
+```
+
+### 5.9 `domain/disaggregation/sku_split.py` (L2)
+
+```python
+def disaggregate(
+    previsao_categoria: pd.Series,     # previsão diária da (unidade, categoria)
+    df_hist: pd.DataFrame,             # histórico transacional do SKU e da categoria
+    produto_cod: str,
+    lookback_weeks: int = 6,
+) -> pd.Series:
+    """
+    previsao_sku[d] = previsao_categoria[d] * share_movel(sku) * ajuste_dow(sku)
+      share_movel  = participação do SKU na categoria nas últimas lookback_weeks semanas
+      ajuste_dow   = perfil de dia-da-semana do SKU (normalizado, média 1)
+    Fallback (SKU com < 28 dias com venda OU < 8 vendas): rateio uniforme
+      previsao_sku[d] = previsao_categoria[d] / n_skus_ativos_categoria
+    """
+```
+
+### 5.10 `domain/replenishment/policy.py` e `simulation.py` (L3)
+
+```python
+def recommend(
+    previsao_sku: pd.Series,           # demanda diária prevista do SKU (14 dias)
+    shelf_life_dias: int,
+    safety_stock_days: int = 2,
+    current_stock: float = 0.0,
+    horizon_days: int = 14,
+) -> ReplenishmentResult:
+    """
+    Para cada dia t:
+      cobertura   = min(shelf_life_dias, horizon_days)
+      demanda_cob = soma(previsao_sku[t : t+cobertura])
+      safety      = safety_stock_days * media(previsao_sku)
+      qty[t]      = max(0, demanda_cob + safety - current_stock)
+      waste[t]    = max(0, current_stock + qty[t] - soma(previsao_sku[t : t+shelf_life_dias]))
+    Deriva: reorder_in_days (cadência), cover_until, stockout_risk_pct, risk_label.
+    """
+
+def simulate_policy(hold_out: pd.Series, policy, naive_baseline) -> dict:
+    """Roda a política e a regra ingênua sobre o hold-out. Retorna perda e ruptura de cada."""
+
+@dataclass
+class ReplenishmentResult:
+    days: list[dict]           # {date, forecast_demand, qty_to_order, cover_until, expected_waste, stockout_risk_pct}
+    reorder_in_days: int
+    risk_label: str            # ok | risco_ruptura | risco_perda
+    reason: str                # PT-BR sem jargão
+    generated_at: str
 ```
 
 ---
@@ -618,11 +679,15 @@ app.include_router(router_health.router, tags=["health"])
 app.include_router(router_upload.router, prefix="/api/v1", tags=["upload"])
 app.include_router(router_products.router, prefix="/api/v1", tags=["products"])
 app.include_router(router_forecast.router, prefix="/api/v1", tags=["forecast"])
+app.include_router(router_replenishment.router, prefix="/api/v1", tags=["replenishment"])
 app.include_router(router_alerts.router, prefix="/api/v1", tags=["alerts"])
 app.include_router(router_simulation.router, prefix="/api/v1", tags=["simulation"])
 app.include_router(router_reports.router, prefix="/api/v1", tags=["reports"])
 app.include_router(router_models.router, prefix="/api/v1", tags=["models"])
 ```
+
+`startup` também registra os **dois** jobs do APScheduler: `weekly_retrain`
+(segunda 02:00) e `daily_generation` (todo dia 03:00).
 
 ### 6.2 `backend/config.py`
 
@@ -634,14 +699,17 @@ class Settings(BaseSettings):
     MODELS_DIR: str = "models"
     RESULTS_DIR: str = "results"
     DATABASE_URL: str = "sqlite:///./floricultura.db"
-    TOP_N_PRODUCTS: int = 20          # produtos a incluir no pipeline automático
-    TEST_MONTHS: int = 3              # hold-out para avaliação
-    FUTURE_MONTHS: int = 3            # horizonte de previsão futuro
-    RETRAIN_DAY_OF_WEEK: str = "mon"  # segunda-feira
-    RETRAIN_HOUR: int = 2             # 02:00
-    MIN_OBSERVATIONS: int = 15        # mínimo para treinar modelo
-    LOG_CV_THRESHOLD: float = 0.7     # limiar para log-transform
-    ALERT_STOCK_DAYS: int = 21        # janela de reposição (3 semanas)
+    TOP_N_PRODUCTS: int = 20              # SKUs com desagregação (L2) e reposição (L3) detalhadas
+    FORECAST_HORIZON_DAYS: int = 14       # horizonte da previsão e da reposição
+    TEST_DAYS: int = 28                   # hold-out para avaliação
+    MIN_OBSERVATIONS_DAYS: int = 180      # mínimo de dias por unidade×categoria para treinar L1
+    SEASONAL_PERIOD: int = 7             # m — sazonalidade semanal do SARIMAX
+    LOG_CV_THRESHOLD: float = 0.7        # limiar para log-transform
+    SAFETY_STOCK_DAYS: int = 2           # estoque de segurança (dias de demanda) — L3
+    SHELF_LIFE_DEFAULT_DAYS: int = 7     # validade quando a categoria não tem parâmetro próprio
+    RETRAIN_DAY_OF_WEEK: str = "mon"     # reajuste (fit) dos modelos L1
+    RETRAIN_HOUR: int = 2                # 02:00
+    DAILY_FORECAST_HOUR: int = 3         # geração diária de previsão + reposição — 03:00
     MAX_UPLOAD_MB: int = 50
 
     class Config:
@@ -705,6 +773,7 @@ Endpoints públicos: `GET /health`, `POST /auth/login`.
 | `POST /api/v1/models/retrain` | **admin** |
 | `GET /api/v1/products` | viewer |
 | `GET /api/v1/forecast/*` | viewer |
+| `GET /api/v1/replenishment/*` | viewer |
 | `GET /api/v1/alerts` | viewer |
 | `POST /api/v1/simulation` | viewer |
 | `GET /api/v1/reports/export` | viewer |
@@ -759,8 +828,9 @@ Tentativa de acesso acima do perfil retorna `403 Forbidden` com mensagem:
 Query params:
 - `limit: int = 50`
 - `offset: int = 0`
-- `sort_by: str = "total_sold"` (total_sold | name | mape)
+- `sort_by: str = "total_sold"` (total_sold | name | mase)
 - `search: str = ""` (busca em produto_cod e produto_nome)
+- `model_status: str` (opcional — filtra por status do modelo L1 da categoria)
 
 **Response 200** (`ProductListResponse`):
 ```json
@@ -770,16 +840,18 @@ Query params:
     {
       "produto_cod": "147",
       "produto_nome": "ROSA VERMELHA 40CM",
+      "categoria": "Flor de corte",
+      "unidade": "Jardim Canadá",
       "total_sold": 128450.0,
       "model_status": "trained",
-      "last_mape": 8.3,
-      "last_trained_at": "2026-07-21T02:00:00"
+      "last_mase": 0.82,
+      "last_trained_at": "2026-03-02T02:00:00"
     }
   ]
 }
 ```
 
-`model_status`: `"trained"` | `"insufficient_data"` | `"error"` | `"pending"`
+`model_status` (do modelo L1 da categoria): `"trained"` | `"low_confidence"` | `"insufficient_data"` | `"error"` | `"pending"`
 
 ---
 
@@ -790,73 +862,78 @@ Query params:
 {
   "produto_cod": "147",
   "produto_nome": "ROSA VERMELHA 40CM",
+  "categoria": "Flor de corte",
+  "unidade": "Jardim Canadá",
+  "shelf_life_dias": 4,
   "total_sold": 128450.0,
-  "monthly_history": [
-    {"date": "2024-01-01", "quantity": 4200.0},
-    {"date": "2024-02-01", "quantity": 3800.0}
-  ],
-  "top_customers": [
-    {"cliente_cod": "001", "cliente_nome": "ATACADÃO FLORES", "total": 18000.0}
+  "daily_history": [
+    {"date": "2026-02-28", "quantity": 41.0},
+    {"date": "2026-03-01", "quantity": 58.0}
   ],
   "model_status": "trained",
   "metrics": {
-    "MAE": 312.4,
-    "RMSE": 418.1,
-    "MAPE_%": 8.3,
-    "SMAPE_%": 7.9,
-    "R2": 0.87
+    "MASE": 0.82,
+    "RMSSE": 0.79,
+    "IC_coverage_pct": 94.1,
+    "MAE": 6.4,
+    "RMSE": 9.1,
+    "MAPE_%": 18.3
   },
   "sarimax_order": "(1,1,1)",
-  "seasonal_order": "(1,0,1,12)",
+  "seasonal_order": "(1,0,1,7)",
   "use_log_transform": false,
-  "last_trained_at": "2026-07-21T02:00:00"
+  "last_trained_at": "2026-03-02T02:00:00"
 }
 ```
+
+`daily_history` e `metrics` do produto refletem a série do SKU e o modelo L1 da sua
+categoria. Sem dados pessoais de clientes (LGPD).
 
 ---
 
 ### 7.5 `GET /api/v1/forecast/{produto_cod}`
 
 Query params:
-- `horizon_months: int = 3` (1–6)
+- `horizon_days: int = 14` (1–28)
 
 **Response 200** (`ForecastResponse`):
 ```json
 {
   "produto_cod": "147",
   "produto_nome": "ROSA VERMELHA 40CM",
-  "horizon_months": 3,
+  "categoria": "Flor de corte",
+  "unidade": "Jardim Canadá",
+  "horizon_days": 14,
   "forecast": [
     {
-      "date": "2026-08-01",
-      "predicted": 4850.0,
-      "lower_95": 3920.0,
-      "upper_95": 5780.0,
-      "month_label": "Ago/2026"
+      "date": "2026-03-07",
+      "predicted": 48.0,
+      "lower_95": 31.0,
+      "upper_95": 65.0,
+      "weekday": "sábado",
+      "is_weekend": true,
+      "is_holiday": false,
+      "commemorative_label": null
     },
     {
-      "date": "2026-09-01",
-      "predicted": 4200.0,
-      "lower_95": 3310.0,
-      "upper_95": 5090.0,
-      "month_label": "Set/2026"
-    },
-    {
-      "date": "2026-10-01",
-      "predicted": 6100.0,
-      "lower_95": 4980.0,
-      "upper_95": 7220.0,
-      "month_label": "Out/2026"
+      "date": "2026-03-08",
+      "predicted": 44.0,
+      "lower_95": 28.0,
+      "upper_95": 60.0,
+      "weekday": "domingo",
+      "is_weekend": true,
+      "is_holiday": false,
+      "commemorative_label": null
     }
   ],
-  "generated_at": "2026-07-28T14:32:00",
-  "model_trained_at": "2026-07-21T02:00:00"
+  "generated_at": "2026-03-06T03:00:00",
+  "model_trained_at": "2026-03-02T02:00:00"
 }
 ```
 
 **Errors**:
 - `404` — produto não encontrado
-- `409` — modelo não treinado para este produto (`model_status != "trained"`)
+- `409` — modelo da categoria indisponível (`model_status` ∈ {`insufficient_data`, `error`, `pending`})
 
 ---
 
@@ -864,21 +941,21 @@ Query params:
 
 Query params:
 - `top_n: int = 10`
-- `horizon_months: int = 3`
+- `horizon_days: int = 14`
 
 **Response 200** (`ForecastBatchResponse`):
 ```json
 {
-  "horizon_months": 3,
-  "generated_at": "2026-07-28T14:32:00",
+  "horizon_days": 14,
+  "generated_at": "2026-03-06T03:00:00",
   "forecasts": [
     {
       "produto_cod": "147",
       "produto_nome": "ROSA VERMELHA 40CM",
-      "next_month_predicted": 4850.0,
-      "next_month_lower_95": 3920.0,
-      "next_month_upper_95": 5780.0,
-      "next_month_date": "2026-08-01"
+      "next_7d_predicted": 260.0,
+      "next_7d_lower_95": 205.0,
+      "next_7d_upper_95": 315.0,
+      "window_start": "2026-03-07"
     }
   ]
 }
@@ -886,29 +963,100 @@ Query params:
 
 ---
 
-### 7.7 `GET /api/v1/alerts`
+### 7.7 `GET /api/v1/replenishment/{produto_cod}`
+
+Query params:
+- `horizon_days: int = 14` (1–28)
+- `current_stock: float = 0` (estoque atual em unidades; 0 = compra "a seco")
+
+**Modelo (L3)**: para cada dia `t`, `cobertura = min(shelf_life_dias, horizon_days)`;
+`qty_to_order[t] = max(0, Σ previsao_sku[t..t+cobertura-1] + safety_stock − current_stock)`;
+`expected_waste[t] = max(0, current_stock + qty_to_order[t] − Σ previsao_sku[t..t+shelf_life_dias-1])`.
+
+**Response 200** (`ReplenishmentRecommendation`):
+```json
+{
+  "produto_cod": "147",
+  "produto_nome": "ROSA VERMELHA 40CM",
+  "categoria": "Flor de corte",
+  "unidade": "Jardim Canadá",
+  "shelf_life_dias": 4,
+  "safety_stock_days": 2,
+  "current_stock": 0.0,
+  "reorder_in_days": 3,
+  "risk_label": "ok",
+  "reason": "Validade curta (4 dias) — repor 40 unidades cobre até terça sem sobra.",
+  "days": [
+    {
+      "date": "2026-03-07",
+      "forecast_demand": 48.0,
+      "qty_to_order": 40.0,
+      "cover_until": "2026-03-10",
+      "expected_waste": 0.0,
+      "stockout_risk_pct": 4.0
+    }
+  ],
+  "generated_at": "2026-03-06T03:00:00"
+}
+```
+
+**Errors**: `404` produto não encontrado · `409` categoria sem modelo disponível
+
+---
+
+### 7.8 `GET /api/v1/replenishment/batch`
+
+Query params: `top_n: int = 10`
+
+**Response 200** (`ReplenishmentBatchResponse`): "Reposição de Hoje" do dashboard.
+```json
+{
+  "ref_date": "2026-03-06",
+  "generated_at": "2026-03-06T03:00:00",
+  "items": [
+    {
+      "produto_cod": "147",
+      "produto_nome": "ROSA VERMELHA 40CM",
+      "qty_to_order_today": 40.0,
+      "cover_until": "2026-03-10",
+      "reorder_in_days": 3,
+      "risk_label": "ok"
+    }
+  ]
+}
+```
+
+---
+
+### 7.9 `GET /api/v1/alerts`
 
 Query params:
 - `limit: int = 50`
 - `severity: str = "all"` (all | high | medium)
 
-**Lógica de alerta**: previsão do próximo mês × fator de sazonalidade ≥ estoque estimado atual. Como o sistema não tem estoque atual real, o alerta é calculado como: produto com previsão no próximo mês **≥ 20% acima** da média dos últimos 3 meses (indicativo de pico de demanda = necessidade de reposição antecipada).
+**Lógica de alerta**:
+- `pico_demanda` — SKU cuja soma da previsão dos **próximos 7 dias** está **≥ 20% acima**
+  da média das **últimas 4 semanas**. `high` se ≥ 30%, `medium` entre 20–30%.
+- `risco_sobra` — SKU de validade curta (`shelf_life_dias` baixo) com previsão em queda,
+  onde `expected_waste` da política L3 é relevante.
 
 **Response 200** (`AlertListResponse`):
 ```json
 {
-  "generated_at": "2026-07-28T14:32:00",
+  "generated_at": "2026-03-06T03:00:00",
   "total_alerts": 7,
   "items": [
     {
       "produto_cod": "147",
       "produto_nome": "ROSA VERMELHA 40CM",
+      "kind": "pico_demanda",
       "severity": "high",
-      "reason": "Previsão de Ago/2026 (4850 un) é 38% acima da média recente (3510 un)",
-      "predicted_next_month": 4850.0,
-      "recent_avg_3m": 3510.0,
+      "reason": "Previsão dos próximos 7 dias (260 un) é 38% acima da média das últimas 4 semanas (188 un). Pico esperado no sábado (Dia das Mães).",
+      "predicted_next_7d": 260.0,
+      "recent_avg_4w": 188.0,
       "variation_pct": 38.2,
-      "alert_date": "2026-08-01"
+      "peak_date": "2026-05-09",
+      "alert_window_start": "2026-03-07"
     }
   ]
 }
@@ -916,43 +1064,46 @@ Query params:
 
 ---
 
-### 7.8 `POST /api/v1/simulation`
+### 7.10 `POST /api/v1/simulation`
 
 **Request** (`SimulationRequest`):
 ```json
 {
   "produto_cod": "147",
-  "horizon_months": 3,
+  "horizon_days": 14,
   "scenarios": [
     {
       "label": "Promoção 15%",
       "discount_pct": 15.0,
-      "apply_months": ["2026-08-01"]
+      "apply_dates": ["2026-05-07", "2026-05-08", "2026-05-09"]
     },
     {
       "label": "Venda casada com produto 150",
       "bundle_product_cod": "150",
       "expected_uplift_pct": 10.0,
-      "apply_months": ["2026-08-01", "2026-09-01"]
+      "apply_dates": ["2026-05-08", "2026-05-09"]
     }
   ]
 }
 ```
 
-**Modelo de simulação**: o impacto é aplicado como multiplicador sobre a previsão SARIMAX base. O delta de promoção é estimado usando o coeficiente `prod_taxa_desconto` do modelo SARIMAX, escalado pelo percentual informado. Para vendas casadas, aplica-se o `expected_uplift_pct` diretamente como fator multiplicativo (1 + uplift/100).
+**Modelo de simulação**: multiplicador sobre a previsão **diária** base (L1+L2). O delta de
+desconto usa o coeficiente de preço/desconto do modelo L1 da categoria, escalado pelo
+percentual; venda casada aplica `(1 + expected_uplift_pct/100)`. A reposição (L3) é
+recalculada sobre a previsão simulada.
 
 **Response 200** (`SimulationResponse`):
 ```json
 {
   "produto_cod": "147",
   "base_forecast": [
-    {"date": "2026-08-01", "predicted": 4850.0}
+    {"date": "2026-05-08", "predicted": 52.0}
   ],
   "scenarios": [
     {
       "label": "Promoção 15%",
       "forecast": [
-        {"date": "2026-08-01", "predicted": 5680.0, "delta": 830.0, "delta_pct": 17.1}
+        {"date": "2026-05-08", "predicted": 61.0, "delta": 9.0, "delta_pct": 17.3}
       ]
     }
   ]
@@ -961,39 +1112,43 @@ Query params:
 
 ---
 
-### 7.9 `GET /api/v1/reports/export`
+### 7.11 `GET /api/v1/reports/export`
 
 Query params:
 - `format: str` — `"excel"` | `"pdf"`
 - `top_n: int = 10`
-- `horizon_months: int = 3`
+- `horizon_days: int = 14`
 
 **Response 200**: arquivo binário com header `Content-Disposition: attachment`
 
 **Conteúdo do Excel**:
-- Aba "Previsões": tabela com todos os produtos e previsões por mês
-- Aba "Métricas": MAE, RMSE, MAPE, SMAPE, R² por produto
+- Aba "Reposição": qtd a repor por produto/dia, cobre-até, cadência, risco
+- Aba "Previsão diária": previsão + IC 95% por produto/dia
+- Aba "Métricas": MASE, RMSSE, cobertura do IC por `unidade × categoria`
 - Aba "Alertas": lista de alertas gerados
 
 **Conteúdo do PDF**:
 - Cabeçalho com data de geração
-- Tabela de previsões (top N produtos, próximo mês)
+- Tabela de reposição (top N produtos, próximos 14 dias)
 - Lista de alertas
 - Rodapé com disclaimer de confiabilidade
 
 ---
 
-### 7.10 `GET /api/v1/models/status`
+### 7.12 `GET /api/v1/models/status`
 
-**Response 200** (`ModelStatusResponse`):
+**Response 200** (`ModelStatusResponse`) — contagens por `unidade × categoria`:
 ```json
 {
-  "last_retrain_at": "2026-07-21T02:00:00",
-  "next_retrain_at": "2026-07-28T02:00:00",
-  "total_products": 5134,
-  "trained_products": 18,
-  "failed_products": 2,
-  "insufficient_data_products": 5114,
+  "last_retrain_at": "2026-03-02T02:00:00",
+  "next_retrain_at": "2026-03-09T02:00:00",
+  "last_daily_generation_at": "2026-03-06T03:00:00",
+  "skus_covered": 20,
+  "total_categories": 24,
+  "trained_categories": 19,
+  "low_confidence_categories": 3,
+  "failed_categories": 0,
+  "insufficient_data_categories": 2,
   "is_training": false,
   "training_progress_pct": null
 }
@@ -1001,22 +1156,22 @@ Query params:
 
 ---
 
-### 7.11 `POST /api/v1/models/retrain`
+### 7.13 `POST /api/v1/models/retrain`
 
-Dispara retrain manual (assíncrono). Protegido por rate-limit: máximo 1 retrain em execução por vez.
+Dispara reajuste manual dos modelos L1 (assíncrono). Máximo 1 reajuste em execução por vez.
 
 **Request**: corpo vazio
 
 **Response 202**:
 ```json
 {
-  "message": "Retrain iniciado em background.",
-  "started_at": "2026-07-28T15:00:00"
+  "message": "Atualização dos modelos iniciada em segundo plano.",
+  "started_at": "2026-03-06T15:00:00"
 }
 ```
 
 **Errors**:
-- `409` — retrain já em execução
+- `409` — reajuste já em execução
 
 ---
 
@@ -1027,28 +1182,62 @@ Dispara retrain manual (assíncrono). Protegido por rate-limit: máximo 1 retrai
 from pydantic import BaseModel
 from typing import Optional
 
+class DailyPoint(BaseModel):
+    date: str
+    quantity: float
+
 class ForecastPoint(BaseModel):
     date: str
     predicted: float
     lower_95: float
     upper_95: float
-    month_label: str
+    weekday: str
+    is_weekend: bool
+    is_holiday: bool
+    commemorative_label: Optional[str] = None
 
 class ForecastResponse(BaseModel):
     produto_cod: str
     produto_nome: str
-    horizon_months: int
+    categoria: str
+    unidade: str
+    horizon_days: int
     forecast: list[ForecastPoint]
     generated_at: str
     model_trained_at: str
+
+# backend/schemas/replenishment.py
+class ReplenishmentDay(BaseModel):
+    date: str
+    forecast_demand: float
+    qty_to_order: float
+    cover_until: str
+    expected_waste: float
+    stockout_risk_pct: float
+
+class ReplenishmentRecommendation(BaseModel):
+    produto_cod: str
+    produto_nome: str
+    categoria: str
+    unidade: str
+    shelf_life_dias: int
+    safety_stock_days: int
+    current_stock: float
+    reorder_in_days: int
+    risk_label: str           # ok | risco_ruptura | risco_perda
+    reason: str
+    days: list[ReplenishmentDay]
+    generated_at: str
 
 # backend/schemas/product.py
 class ProductSummary(BaseModel):
     produto_cod: str
     produto_nome: str
+    categoria: str
+    unidade: str
     total_sold: float
-    model_status: str   # trained | insufficient_data | error | pending
-    last_mape: Optional[float]
+    model_status: str   # trained | low_confidence | insufficient_data | error | pending
+    last_mase: Optional[float]
     last_trained_at: Optional[str]
 
 class ProductListResponse(BaseModel):
@@ -1059,12 +1248,14 @@ class ProductListResponse(BaseModel):
 class AlertItem(BaseModel):
     produto_cod: str
     produto_nome: str
+    kind: str           # pico_demanda | risco_sobra
     severity: str       # high | medium
     reason: str
-    predicted_next_month: float
-    recent_avg_3m: float
+    predicted_next_7d: float
+    recent_avg_4w: float
     variation_pct: float
-    alert_date: str
+    peak_date: Optional[str] = None
+    alert_window_start: str
 
 class AlertListResponse(BaseModel):
     generated_at: str
@@ -1077,11 +1268,11 @@ class SimulationScenario(BaseModel):
     discount_pct: Optional[float] = None
     bundle_product_cod: Optional[str] = None
     expected_uplift_pct: Optional[float] = None
-    apply_months: list[str]
+    apply_dates: list[str]
 
 class SimulationRequest(BaseModel):
     produto_cod: str
-    horizon_months: int = 3
+    horizon_days: int = 14
     scenarios: list[SimulationScenario]
 
 class SimulationForecastPoint(BaseModel):
@@ -1113,10 +1304,13 @@ class UploadResponse(BaseModel):
 class ModelStatusResponse(BaseModel):
     last_retrain_at: Optional[str]
     next_retrain_at: Optional[str]
-    total_products: int
-    trained_products: int
-    failed_products: int
-    insufficient_data_products: int
+    last_daily_generation_at: Optional[str]
+    skus_covered: int
+    total_categories: int
+    trained_categories: int
+    low_confidence_categories: int
+    failed_categories: int
+    insufficient_data_categories: int
     is_training: bool
     training_progress_pct: Optional[float]
 ```
@@ -1133,42 +1327,70 @@ class Product(Base):
     __tablename__ = "products"
     produto_cod     = Column(String, primary_key=True)
     produto_nome    = Column(String)
+    categoria       = Column(String, index=True)
+    unidade         = Column(String, index=True)
     total_sold      = Column(Float)   # atualizado após cada ETL
     updated_at      = Column(DateTime, default=func.now())
 
-# Tabela: model_artifacts
+# Tabela: categories  (unidade × categoria — unidade de modelagem L1)
+class Category(Base):
+    __tablename__ = "categories"
+    id                = Column(Integer, primary_key=True, autoincrement=True)
+    unidade           = Column(String, index=True)
+    categoria         = Column(String, index=True)
+    shelf_life_dias   = Column(Integer)     # validade (default por config até a parceira confirmar)
+    model_status      = Column(String)      # trained | low_confidence | insufficient_data | error | pending
+    mase              = Column(Float)
+    rmsse             = Column(Float)
+    ic_coverage_pct   = Column(Float)
+    observations_days = Column(Integer)
+    trained_at        = Column(DateTime)
+
+# Tabela: model_artifacts  (um por categoria)
 class ModelArtifact(Base):
     __tablename__ = "model_artifacts"
     id              = Column(Integer, primary_key=True, autoincrement=True)
-    produto_cod     = Column(String, ForeignKey("products.produto_cod"), index=True)
-    status          = Column(String)    # trained | error | insufficient_data | training
+    category_id     = Column(Integer, ForeignKey("categories.id"), index=True)
+    status          = Column(String)    # trained | low_confidence | insufficient_data | error | training
     sarimax_order   = Column(String)    # e.g. "(1,1,1)"
-    seasonal_order  = Column(String)    # e.g. "(1,0,1,12)"
+    seasonal_order  = Column(String)    # e.g. "(1,0,1,7)"
     use_log         = Column(Boolean, default=False)
-    artifact_path   = Column(String)    # caminho do .pkl do modelo
-    importance_path = Column(String)    # caminho do .pkl das importâncias
-    mae             = Column(Float)
-    rmse            = Column(Float)
-    mape            = Column(Float)
-    smape           = Column(Float)
-    r2              = Column(Float)
+    artifact_path   = Column(String)
+    importance_path = Column(String)
+    mase            = Column(Float)
+    rmsse           = Column(Float)
+    ic_coverage_pct = Column(Float)
     aic             = Column(Float)
     bic             = Column(Float)
     error_message   = Column(String, nullable=True)
     trained_at      = Column(DateTime)
-    observations    = Column(Integer)   # número de meses no treino
+    observations_days = Column(Integer)  # dias no treino
 
-# Tabela: forecasts_cache
+# Tabela: forecasts_cache  (previsão diária por SKU — regenerada todo dia)
 class ForecastCache(Base):
     __tablename__ = "forecasts_cache"
     id              = Column(Integer, primary_key=True, autoincrement=True)
     produto_cod     = Column(String, ForeignKey("products.produto_cod"), index=True)
-    forecast_date   = Column(String)    # "2026-08-01"
+    forecast_date   = Column(String)    # "2026-03-07"
     predicted       = Column(Float)
     lower_95        = Column(Float)
     upper_95        = Column(Float)
     generated_at    = Column(DateTime)
     model_id        = Column(Integer, ForeignKey("model_artifacts.id"))
+
+# Tabela: replenishment_cache  (recomendação por SKU/dia)
+class ReplenishmentCache(Base):
+    __tablename__ = "replenishment_cache"
+    id                = Column(Integer, primary_key=True, autoincrement=True)
+    produto_cod       = Column(String, ForeignKey("products.produto_cod"), index=True)
+    ref_date          = Column(String)  # dia da recomendação
+    qty_to_order      = Column(Float)
+    cover_until       = Column(String)
+    reorder_in_days   = Column(Integer)
+    expected_waste    = Column(Float)
+    stockout_risk_pct = Column(Float)
+    risk_label        = Column(String)  # ok | risco_ruptura | risco_perda
+    generated_at      = Column(DateTime)
 
 # Tabela: processing_log
 class ProcessingLog(Base):
@@ -1181,67 +1403,70 @@ class ProcessingLog(Base):
     rows_duplicate  = Column(Integer)
     processed_at    = Column(DateTime, default=func.now())
 
-# Tabela: retrain_history
+# Tabela: retrain_history  (reajuste semanal dos modelos L1)
 class RetrainHistory(Base):
     __tablename__ = "retrain_history"
-    id              = Column(Integer, primary_key=True, autoincrement=True)
-    started_at      = Column(DateTime)
-    finished_at     = Column(DateTime, nullable=True)
-    trigger         = Column(String)    # "scheduled" | "manual"
-    products_trained = Column(Integer)
-    products_failed  = Column(Integer)
-    status          = Column(String)    # running | completed | failed
+    id                 = Column(Integer, primary_key=True, autoincrement=True)
+    started_at         = Column(DateTime)
+    finished_at        = Column(DateTime, nullable=True)
+    trigger            = Column(String)    # "scheduled" | "manual"
+    categories_trained = Column(Integer)
+    categories_failed  = Column(Integer)
+    status             = Column(String)    # running | completed | failed
 ```
 
 ### 9.2 `infrastructure/storage/model_registry.py`
 
 ```python
 class ModelRegistry:
-    def save_artifact(self, result: ProductPipelineResult) -> ModelArtifact:
-        """Serializa model_result e importances com joblib, salva paths no DB."""
+    def save_artifact(self, result: CategoryPipelineResult) -> ModelArtifact:
+        """Serializa model_result e importances com joblib, salva paths + métricas no DB."""
 
-    def load_artifact(self, produto_cod: str) -> tuple[SARIMAXResultsWrapper, pd.Series, ModelArtifact]:
+    def load_artifact(self, unidade: str, categoria: str) -> tuple[SARIMAXResultsWrapper, pd.Series, ModelArtifact]:
         """Carrega pkl e retorna (model_result, importances, metadata)."""
 
-    def get_status(self, produto_cod: str) -> str:
-        """Retorna status do modelo mais recente para o produto."""
+    def get_status(self, unidade: str, categoria: str) -> str:
+        """Status do modelo L1 mais recente para a categoria."""
 
-    def list_trained_products(self) -> list[str]:
-        """Retorna lista de produto_cod com status='trained'."""
+    def list_trained_categories(self) -> list[tuple[str, str]]:
+        """Pares (unidade, categoria) com status ∈ {'trained', 'low_confidence'}."""
 
-    def mark_training(self, produto_cod: str) -> None:
-        """Atualiza status para 'training'."""
-
-    def mark_error(self, produto_cod: str, error: str) -> None:
-        """Atualiza status para 'error' com mensagem."""
+    def mark_training(self, unidade: str, categoria: str) -> None: ...
+    def mark_error(self, unidade: str, categoria: str, error: str) -> None: ...
 ```
 
 ---
 
-## 10. Agendamento — Weekly Retrain
+## 10. Agendamento — Reajuste Semanal + Geração Diária
 
-### 10.1 `infrastructure/scheduler/weekly_retrain.py`
+### 10.1 `infrastructure/scheduler/weekly_retrain.py` + `daily_generation.py`
 
 ```python
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from backend.services.retrain_service import RetrainService
+from backend.services.forecast_service import ForecastService
+from backend.services.replenishment_service import ReplenishmentService
 
 _scheduler = BackgroundScheduler()
 
 def start_scheduler():
     _scheduler.add_job(
-        func=_run_weekly_retrain,
+        func=lambda: RetrainService().run_full_retrain(trigger="scheduled"),
         trigger=CronTrigger(day_of_week="mon", hour=2, minute=0),
-        id="weekly_retrain",
-        replace_existing=True,
-        misfire_grace_time=3600,   # tolera até 1h de atraso
+        id="weekly_retrain", replace_existing=True, misfire_grace_time=3600,
+    )
+    _scheduler.add_job(
+        func=_run_daily_generation,
+        trigger=CronTrigger(hour=3, minute=0),
+        id="daily_generation", replace_existing=True, misfire_grace_time=3600,
     )
     _scheduler.start()
 
-def _run_weekly_retrain():
-    service = RetrainService()
-    service.run_full_retrain(trigger="scheduled")
+def _run_daily_generation():
+    # para cada SKU do Top-N: L1 forecast (cache) → L2 desagregação → L3 reposição
+    ForecastService().regenerate_all()      # popula forecasts_cache
+    ReplenishmentService().regenerate_all()  # popula replenishment_cache
 ```
 
 ### 10.2 `services/retrain_service.py`
@@ -1251,14 +1476,13 @@ class RetrainService:
     def run_full_retrain(self, trigger: str = "manual") -> RetrainSummary:
         """
         1. Carrega contas_a_receber.csv completo
-        2. Seleciona top_N produtos por qtdade total
-        3. Para cada produto:
-           a. run_product_pipeline()
+        2. Agrupa por (unidade, categoria)
+        3. Para cada par:
+           a. run_category_pipeline()          # L1 fit + walk-forward + simulação L3
            b. model_registry.save_artifact()
-           c. Invalida cache de forecasts no DB
-        4. Registra RetrainHistory no DB
-        5. Retorna RetrainSummary
-        Exceções por produto são capturadas e logadas; não abortam o pipeline.
+        4. Invalida forecasts_cache + replenishment_cache
+        5. Registra RetrainHistory no DB
+        Exceções por categoria são capturadas e logadas; não abortam o pipeline.
         """
 ```
 
@@ -1269,10 +1493,10 @@ class RetrainSummary:
     started_at: datetime
     finished_at: datetime
     trigger: str
-    products_trained: int
-    products_failed: int
-    products_insufficient: int
-    errors: list[dict]   # {produto_cod, error_message}
+    categories_trained: int
+    categories_failed: int
+    categories_insufficient: int
+    errors: list[dict]   # {unidade, categoria, error_message}
 ```
 
 ---
@@ -1289,18 +1513,23 @@ RESULTS_DIR=results
 # Banco
 DATABASE_URL=sqlite:///./floricultura.db
 
-# Pipeline
+# Pipeline (L1 — unidade × categoria, diário)
 TOP_N_PRODUCTS=20
-TEST_MONTHS=3
-FUTURE_MONTHS=3
-MIN_OBSERVATIONS=15
+FORECAST_HORIZON_DAYS=14
+TEST_DAYS=28
+MIN_OBSERVATIONS_DAYS=180
+SEASONAL_PERIOD=7
 LOG_CV_THRESHOLD=0.7
-ALERT_STOCK_DAYS=21
 MAX_UPLOAD_MB=50
+
+# Política de reposição (L3)
+SAFETY_STOCK_DAYS=2
+SHELF_LIFE_DEFAULT_DAYS=7
 
 # Scheduler
 RETRAIN_DAY_OF_WEEK=mon
 RETRAIN_HOUR=2
+DAILY_FORECAST_HOUR=3
 ```
 
 **`requirements.txt`** (backend, do zero):
@@ -1346,7 +1575,7 @@ import { AuthApi, ForecastApi, Configuration } from '../services/api'
 const config = new Configuration({ accessToken: localStorage.getItem('token') ?? '' })
 const forecastApi = new ForecastApi(config)
 
-const result = await forecastApi.getForecast({ productoCod: '147', horizonMonths: 3 })
+const result = await forecastApi.getForecast({ produtoCod: '147', horizonDays: 14 })
 ```
 
 Qualquer mudança nos schemas do backend quebra o build TypeScript — erros de contrato detectados em compile time, não em runtime.
@@ -1360,51 +1589,59 @@ Qualquer mudança nos schemas do backend quebra o build TypeScript — erros de 
 | Arquivo | Cobertura |
 |---|---|
 | `test_parser.py` | parse_xlsx com fixture de XLSX mínimo; estrutura de records; campos obrigatórios |
-| `test_normalizer.py` | cast de tipos; linhas com qtdade<=0 removidas; datas inválidas |
-| `test_deduplicator.py` | deduplicação por (doc_numero, produto_cod) |
-| `test_time_series.py` | preenchimento de meses vazios; erro com <15 obs |
-| `test_exogenous.py` | 15 colunas esperadas; alinhamento de índices; alta_temporada=1 em maio |
+| `test_normalizer.py` | cast de tipos; qtdade<=0 removida; deriva categoria/unidade |
+| `test_deduplicator.py` | dedup por (doc_numero, produto_cod, emissao, qtdade, vl_total) só entre arquivos |
+| `test_daily_series.py` | reindex diário completo (dias sem venda = 0); erro com <180 dias |
+| `test_calendar_exogenous.py` | dummies de dia-da-semana; flag de feriado; "dias até Dia das Mães" |
 | `test_importance.py` | importâncias somam 1; weight_features respeita clip(0.1) |
 | `test_stationarity.py` | suggest_d retorna 0 para série estacionária |
-| `test_order_selection.py` | retorna tupla válida; lida com falhas individuais sem abort |
-| `test_evaluator.py` | métricas corretas com arrays conhecidos; walk_forward_cv com n_splits=2 |
-| `test_forecaster.py` | ForecastResult com N datas corretas; back-transform log |
-| `test_alert_service.py` | severity=high se variação>30%; medium se 20–30% |
-| `test_simulation_service.py` | delta = 0 sem cenários; multiplicador correto |
+| `test_order_selection.py` | grid m=7; tupla válida; tolera falhas individuais |
+| `test_evaluator.py` | mase/rmsse/ic_coverage com arrays conhecidos; walk_forward_cv(h=14, n_splits=2) |
+| `test_forecaster.py` | ForecastResult com 14 datas; back-transform expm1 quando use_log |
+| `test_sku_split.py` | shares somam 1 na categoria; fallback uniforme para SKU de baixo giro |
+| `test_replenishment_policy.py` | qty=0 quando estoque cobre; cobertura limitada por shelf_life; waste cresce com validade curta |
+| `test_alert_service.py` | severity=high se variação 7d > 30%; medium 20–30%; flag risco_sobra |
+| `test_simulation_service.py` | delta = 0 sem cenários; multiplicador correto; reposição recalculada |
 
 ### 12.2 Testes de Integração
 
 | Arquivo | Cobertura |
 |---|---|
 | `test_etl_pipeline.py` | upload_service.process_upload com XLSX real (fixture) → CSV atualizado |
-| `test_sarimax_pipeline.py` | run_product_pipeline com produto da fixture → result com todas as chaves |
-| `test_api_endpoints.py` | TestClient FastAPI: /health, /upload, /products, /forecast/{id}, /alerts |
+| `test_l1_pipeline.py` | run_category_pipeline(unidade, categoria) da fixture → result com todas as chaves |
+| `test_replenishment_pipeline.py` | categoria treinada → previsão por SKU (L2) → recomendação por SKU/dia (L3) |
+| `test_api_endpoints.py` | TestClient FastAPI: /health, /upload, /products, /forecast/{id}, /replenishment/{id}, /alerts |
 
 ### 12.3 Validação Estatística (critérios formais do artigo, seção 6.5)
 
 A validação do sistema segue as **três dimensões** definidas na seção 6.5 do artigo:
 
-1. **Validação estatística dos modelos** — MAE, RMSE, MAPE, SMAPE, R² em hold-out (3
-   meses) e walk-forward CV (4 folds). Limiares: MAPE < 20% (alto giro), SMAPE < 30%
-   (top 2 produtos).
+1. **Validação estatística dos modelos** — MASE, RMSSE, cobertura do IC 95% em hold-out
+   (28 dias) e walk-forward CV (≥ 4 folds, origem móvel, horizonte 14 dias). Limiar:
+   `MASE < 1.0` (L1 e SKU). Métrica de negócio: simulação de **perda + ruptura** da
+   política L3 vs. regra ingênua de 7 dias. MAPE/SMAPE são calculados mas informativos.
 2. **Testes de diagnóstico de resíduos** — Ljung-Box (ausência de autocorrelação) e
-   Shapiro-Wilk (normalidade dos resíduos).
+   Shapiro-Wilk (normalidade) nos resíduos dos modelos L1.
 3. **Testes funcionais do sistema** — upload, processamento, visualização e exportação
    com dados reais da entidade parceira; consistência, desempenho e usabilidade com
-   usuários não técnicos (T078 em `tasks.md`).
+   usuários não técnicos.
 
 ```python
 # tests/integration/test_model_quality.py
-def test_mape_aceitavel_produtos_alto_giro():
-    """MAPE < 20% para os 2 produtos de maior volume (REQ validação seção 6.5)"""
+def test_mase_abaixo_de_1_categorias_alto_giro():
+    """MASE < 1.0 nas unidade × categoria de maior volume (constituição v2.0.0)"""
     ...
 
-def test_residuos_ljung_box():
-    """p-value Ljung-Box > 0.05 (sem autocorrelação residual)"""
+def test_cobertura_ic_95():
+    """Cobertura empírica do intervalo de 95% ∈ [90%, 98%]"""
     ...
 
-def test_residuos_shapiro_wilk():
-    """p-value Shapiro-Wilk > 0.05 (normalidade dos resíduos)"""
+def test_politica_reposicao_bate_ingenua():
+    """Perda + ruptura da política L3 < regra 'média dos últimos 7 dias' no hold-out"""
+    ...
+
+def test_residuos_ljung_box_e_shapiro():
+    """p-values > 0.05 (log de aviso; não bloqueia deploy)"""
     ...
 ```
 
@@ -1415,20 +1652,27 @@ com os padrões acadêmicos exigidos e versionado em `docs/uml/`:
 
 | Diagrama | Cobertura |
 |---|---|
-| Casos de uso | Atores (admin, viewer) × funcionalidades (upload, forecast, alertas, simulação, export) |
-| Atividades | Fluxo do pipeline ETL → features → SARIMAX → forecast; fluxo de retrain semanal |
-| Classes | Entidades de domínio (Produto, Transação, Modelo, Previsão, Alerta) e suas relações |
+| Casos de uso | Atores (admin, viewer) × funcionalidades (upload, forecast diário, reposição, alertas, simulação, export) |
+| Atividades | Fluxo ETL → L1 (features + SARIMAX) → reajuste semanal; fluxo de geração diária L1→L2→L3 |
+| Classes | Entidades de domínio (Produto, Categoria, Transação, Modelo, Previsão, Reposição, Alerta) e suas relações |
 | Modelo de dados | Diagrama ER das tabelas SQLite (seção 9.1) |
 | Arquitetura lógica | As 4 camadas da Clean Architecture (seção 2.1) |
 
-### 12.5 Avaliação Comparativa de Granularidade — Mensal vs. Diária
+### 12.5 Avaliação Comparativa — SARIMAX Hierárquico vs. Demanda Intermitente por SKU
 
-Contribuição acadêmica (ii) do artigo (seção 3/5): comparação formal, via walk-forward
-CV, entre modelos treinados em granularidade mensal e diária para o **mesmo conjunto de
-produtos perecíveis**. Resultado documentado (relatório + métricas lado a lado) em
-`docs/`; **não altera** a decisão de produção (granularidade mensal — seção 2.2), que já
-se apoia em achado preliminar desta mesma análise (>70% de zeros por produto em base
-diária).
+Contribuição acadêmica (ii) do artigo: comparação formal, via walk-forward CV (origem
+móvel, horizonte 14 dias, **mesmos splits**), entre duas arquiteturas **diárias** para
+um catálogo perecível de cauda longa:
+
+- **A — SARIMAX hierárquico**: L1 (SARIMAX por `unidade × categoria`) + L2 (desagregação
+  proporcional para SKU);
+- **B — Demanda intermitente por SKU**: Croston / TSB / SBA direto na série diária do SKU.
+
+Métricas lado a lado: MASE e RMSSE no nível de SKU + a simulação de reposição (perda +
+ruptura) de cada abordagem. Relatório em
+`docs/prediction/comparacao_hierarquico_vs_intermitente.md`. Substitui a antiga comparação
+"mensal × diária" (a granularidade diária deixou de ser hipótese e passou a ser a decisão
+de produção — ver ADR-009).
 
 ---
 
@@ -1437,21 +1681,21 @@ diária).
 | Código | Requisito (artigo) | Implementação |
 |---|---|---|
 | REQ-01 | Upload de planilhas XLSX | `POST /api/v1/upload` + `upload_service.py` |
-| REQ-02 | Previsão 2–3 semanas à frente | `GET /api/v1/forecast/{id}` com `horizon_months=3` |
-| REQ-03 | Atualização automática semanal | APScheduler segunda-feira 02:00 → `retrain_service.py` |
-| REQ-04 | Indicadores de desempenho para não-técnicos | `GET /api/v1/models/status` + campos de métricas em `/products/{id}` |
-| REQ-05 | Gráficos de tendência | `monthly_history` em `/products/{id}` + `forecast` em `/forecast/{id}` (dados para Recharts) |
-| REQ-06 | Produtos mais vendidos em períodos especiais | `alta_temporada` na feature exógena; `GET /products?sort_by=total_sold` |
+| REQ-02 | Previsão de curto prazo p/ reposição | `GET /api/v1/forecast/{id}` (diário, `horizon_days=14`) + `GET /api/v1/replenishment/{id}` |
+| REQ-03 | Atualização automática | APScheduler: reajuste L1 segunda 02:00; geração diária 03:00 |
+| REQ-04 | Indicadores de desempenho para não-técnicos | `GET /api/v1/models/status` + métricas (MASE→"precisão") em `/products/{id}` |
+| REQ-05 | Gráficos de tendência | `daily_history` em `/products/{id}` + `forecast` diário (dados para Recharts) |
+| REQ-06 | Produtos mais vendidos em períodos especiais | exógena "dias até data comemorativa" no L1; `GET /products?sort_by=total_sold` |
 | REQ-07 | Produtos comprados juntos | `GET /api/v1/products/{id}/bundles` *(fase 2 — market basket analysis)* |
 | REQ-08 | Simulação de promoções e vendas casadas | `POST /api/v1/simulation` |
-| REQ-09 | Alertas de reposição | `GET /api/v1/alerts` |
+| REQ-09 | Alertas de reposição | `GET /api/v1/alerts` (pico de demanda / risco de sobra) |
 | REQ-10 | Exportação PDF e Excel | `GET /api/v1/reports/export?format=pdf|excel` |
 | REQ-11 | Dashboard centralizado | React app-react/ consome todos os endpoints acima |
 | REQ-12 | Documentação funcional e técnica | Este documento + OpenAPI `/docs` gerado automaticamente |
 | RNF-01 | Usabilidade para não-técnicos | Mensagens de erro em PT-BR; UI sem jargão técnico |
-| RNF-02 | Rastreabilidade e logs | `processing_log` + `retrain_history` no DB; `processamento_log.json` |
-| RNF-03 | Retrain < 2h | top_N=20 produtos; grid 36 combinações por produto; ~3min/produto estimado |
-| RNF-04 | Segurança e LGPD | *(fase 2 — auth por JWT + perfis)* |
+| RNF-02 | Rastreabilidade e logs | `processing_log` + `retrain_history` no DB; log da geração diária |
+| RNF-03 | Reajuste < 2h; geração diária < 15min | ~15–40 pares unidade × categoria; grid m=7 |
+| RNF-04 | Segurança e LGPD | JWT + perfis admin/viewer + bcrypt (P1 — seção 7.0) |
 | RNF-05 | Manutenibilidade | Clean Architecture; sem lógica no router; domínio sem I/O |
 
 ---
@@ -1487,24 +1731,24 @@ Sprint 1 (Jun/2026):
   7. tests/integration/test_etl_pipeline
 
 Sprint 2 (Jul/2026):
-  8. domain/features/ (time_series + exogenous + importance)
-  9. domain/models/ (stationarity + order_selection + sarimax_trainer + evaluator + forecaster)
-  10. infrastructure/storage/model_registry.py
-  11. services/retrain_service.py
-  12. tests/unit/test_*model* + test_evaluator (inclui Ljung-Box + Shapiro-Wilk)
+  8. domain/features/ (daily_series + calendar_exogenous + importance)
+  9. domain/models/ L1 (stationarity + order_selection + sarimax_trainer + evaluator + forecaster)
+  10. domain/disaggregation/ (L2) + domain/replenishment/ (L3, com simulação)
+  11. infrastructure/storage/model_registry.py + services/retrain_service.py
+  12. tests/unit/test_*model* + test_evaluator (mase/rmsse) + test_replenishment_policy
 
 Sprint 3 (Ago/2026):
-  13. api/router_products + router_forecast + router_alerts
-  14. services/forecast_service + alert_service
-  15. infrastructure/scheduler/weekly_retrain.py
+  13. api/router_products + router_forecast + router_replenishment + router_alerts
+  14. services/forecast_service (L1+L2) + replenishment_service (L3) + alert_service
+  15. infrastructure/scheduler/weekly_retrain.py + daily_generation.py
   16. tests/integration/test_api_endpoints
-  17. Avaliação comparativa mensal vs. diária (seção 12.5) — relatório
+  17. Comparação SARIMAX hierárquico × demanda intermitente (seção 12.5) — relatório
 
 Sprint 4 (Set/2026):
   18. api/router_simulation + services/simulation_service
   19. api/router_reports + services/report_service (Excel + PDF)
   20. api/router_models (status + manual retrain)
-  21. Integração com React (app-react/)
+  21. Integração com React (app-react/) — inclui página "Reposição de Hoje"
 
 Sprint 5 (Out/2026 — Testes integrados):
   22. Testes funcionais com usuários da empresa parceira (percurso guiado das User Stories)
@@ -1517,4 +1761,6 @@ Sprint 6 (Nov/2026 — Documentação final):
 
 ---
 
-*Documento gerado em 2026-07-28. Baseado no artigo TCC, código existente em `ia-predictor/` e requisitos validados com a entidade parceira.*
+*Documento gerado em 2026-07-28; revisado em 2026-08-30 (escopo mensal → diário, ver
+`docs/prediction/ADR-009-granularidade-diaria-e-reposicao.md`). Baseado no artigo TCC,
+código existente em `ia-predictor/` e requisitos validados com a entidade parceira.*

@@ -30,9 +30,10 @@ graph LR
     subgraph "Casos de Uso — Sistema de Previsão de Estoque"
         UC0((fazer login))
         UC1((fazer upload<br/>de planilha))
-        UC2((disparar retrain<br/>manual))
-        UC3((visualizar previsão<br/>por produto))
-        UC4((visualizar alertas<br/>de reposição))
+        UC2((disparar reajuste<br/>manual))
+        UC3((visualizar previsão<br/>diária por produto))
+        UC3b((ver reposição<br/>do dia))
+        UC4((visualizar alertas<br/>de pico/sobra))
         UC5((simular<br/>promoção))
         UC6((exportar<br/>relatório))
     end
@@ -43,11 +44,13 @@ graph LR
     admin --> UC1
     admin --> UC2
     admin --> UC3
+    admin --> UC3b
     admin --> UC4
     admin --> UC5
     admin --> UC6
 
     viewer --> UC3
+    viewer --> UC3b
     viewer --> UC4
     viewer --> UC5
     viewer --> UC6
@@ -67,11 +70,12 @@ graph LR
 |---|---|---|---|
 | Fazer login | ✅ | ✅ | US4, FR-000 |
 | Fazer upload de planilha | ✅ | ❌ | US1, FR-001, FR-002 |
-| Disparar retrain manual | ✅ | ❌ | REQ-03, `POST /api/v1/models/retrain` |
-| Visualizar previsão por produto | ✅ | ✅ | US2, FR-003, FR-004 |
-| Visualizar alertas de reposição | ✅ | ✅ | US3, FR-006 |
-| Simular promoção | ✅ | ✅ | US5, FR-008 |
-| Exportar relatório | ✅ | ✅ | US6, FR-009 |
+| Disparar reajuste manual | ✅ | ❌ | FR-005, `POST /api/v1/models/retrain` |
+| Visualizar previsão diária por produto | ✅ | ✅ | US2, FR-003, FR-004 |
+| Ver reposição do dia | ✅ | ✅ | US3, FR-006, `GET /api/v1/replenishment/*` |
+| Visualizar alertas de pico/sobra | ✅ | ✅ | US3, FR-007 |
+| Simular promoção | ✅ | ✅ | US5, FR-009 |
+| Exportar relatório | ✅ | ✅ | US6, FR-010 |
 
 Os casos de uso restritos a **admin** (upload e retrain manual) implementam o
 Princípio VI (Segurança por padrão) da constituição do projeto e o requisito FR-000a:

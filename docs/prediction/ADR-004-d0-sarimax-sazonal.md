@@ -1,6 +1,7 @@
 # ADR-004: D=0 no SARIMAX Sazonal (sem diferenciação sazonal)
 
-**Status**: Aceito  
+**Status**: Aceito — **revisado em 2026-08-30** (ver seção "Revisão" ao final e
+[ADR-009](ADR-009-granularidade-diaria-e-reposicao.md))  
 **Data**: 2026-07-28  
 **Autores**: Daniel Nunes da Silva, Felipe Gurgel Araújo
 
@@ -45,3 +46,21 @@ of the seasonal pattern", cap. 11.3).
 - Se um produto futuro tiver histórico ≥ 36 meses (3 ciclos completos), `D=1` pode
   ser avaliado via ADF sazonal — o código aceita `D` como parâmetro configurável.
 - Modelos com MAPE > 20% terão `status = "low_confidence"` independentemente do motivo.
+
+---
+
+## Revisão — 2026-08-30 (escopo: mensal → diário)
+
+Com a mudança para modelagem **diária** por `unidade × categoria`
+([ADR-009](ADR-009-granularidade-diaria-e-reposicao.md)):
+
+- A sazonalidade dominante deixa de ser a anual (`m=12`) e passa a ser a **semanal
+  (`m=7`)** — fim de semana vende mais. O grid sazonal (`P, Q ∈ {0, 1}`) e a decisão de
+  **manter `D=0`** continuam válidos, agora pelo motivo de que ~26 meses não dão ciclos
+  anuais suficientes e a série diária tem ruído de alta frequência que `D=1` semanal
+  amplificaria.
+- Sazonalidade anual e datas comemorativas entram como **exógenas** (mês/estação,
+  "dias até Dia das Mães/Namorados/Finados/Natal"), não como termo sazonal — mesma
+  lógica de Fourier deste ADR, só que agora no eixo anual em vez do mensal.
+- O limiar de `low_confidence` deixa de ser MAPE > 20% e passa a ser **MASE ≥ 1.0** ou
+  cobertura do IC fora de [90%, 98%] (constituição v2.0.0).

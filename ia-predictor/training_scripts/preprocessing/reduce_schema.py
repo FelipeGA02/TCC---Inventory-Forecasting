@@ -1,9 +1,14 @@
-"""Etapa 2 do pipeline: remove colunas sem uso analítico para previsão de demanda.
+"""Etapa 2 do pipeline: remove colunas sem uso na modelagem hierárquica diária.
 
 Gera a planilha consolidada "pronta para treinamento" a partir do CSV bruto da Etapa 1
-(`build_dataset.py`) — mesma decisão de colunas do protótipo original
-(`src/data/drop_columns.py`, deletado no commit `ac4dd9e`). A justificativa de cada
-coluna removida está em `docs/prediction/pre_processing.md`.
+(`build_dataset.py`). Saída: colunas de data, `empresa` (chave de agrupamento `unidade`
+da camada L1), `produto_cod` e as métricas de venda. `pagamento` e `vendedor` são
+removidos aqui (ADR-009 + ADR-010). A justificativa de cada remoção está em
+`docs/prediction/01-pre_processing.md` (seção 4).
+
+A partir daqui a série alvo é construída no backend/experimentação por
+`prepare_daily_series(df, unidade, categoria)` — soma diária por `unidade × categoria`.
+Esta etapa NÃO agrega; só reduz o schema.
 
 Uso (a partir de `ia-predictor/`):
     python -m training_scripts.preprocessing.reduce_schema

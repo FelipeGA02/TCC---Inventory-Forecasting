@@ -1,288 +1,327 @@
 # Tasks: Sistema de Previsão de Estoque para Floricultura
 
-**Input**: [spec.md](spec.md) · [plan.md](plan.md)
+**Input**: [spec.md](spec.md) · [plan.md](plan.md) · [ADR-009](../../docs/prediction/ADR-009-granularidade-diaria-e-reposicao.md)
 
-**Sprint map**: Sprint 0 = Modelagem/UML/EDA (Mai–Jun/2026) · Sprint 1 = Fase 1+2 (Jun/2026) · Sprint 2 = Fase 3+4 (Jul/2026) · Sprint 3 = Fase 5+6 (Ago/2026) · Sprint 4 = Fase 7+8 (Set/2026) · Sprint 5 = testes integrados (Out/2026) · Sprint 6 = documentação final (Nov/2026), conforme cronograma do artigo (seção 8)
+**Escopo**: recomendação de **reposição diária** (revisão de 2026-08-30). Camadas
+L1 (SARIMAX diário por `unidade × categoria`) → L2 (desagregação para SKU) → L3 (política
+de reposição perecível-consciente).
+
+**Sprint map**: Sprint 0 = Modelagem/UML/EDA (Mai–Jun/2026) · Sprint 1 = Fases 1+2
+(Jun/2026) · Sprint 2 = Fases 3+4 (Jul/2026) · Sprint 3 = Fases 5+6+7 (Ago/2026) ·
+Sprint 4 = Fases 8+9 (Set/2026) · Sprint 5 = testes integrados (Out/2026) · Sprint 6 =
+documentação final (Nov/2026).
 
 ---
 
 ## Fase 0: Modelagem, EDA e Documentação Acadêmica
 
-**Objetivo**: Diagramas UML e relatório de EDA produzidos, conforme seções 6.4 e 4.2 do artigo — entregáveis acadêmicos que precedem/acompanham a implementação.
+- [ ] T000a Produzir diagramas UML em `docs/uml/`: casos de uso, atividades, classes,
+      modelo de dados (ER) e arquitetura lógica (seção 6.4 do artigo)
+- [ ] T000b [P] EDA em Jupyter Notebook — sazonalidade **semanal** e anual, tendência por
+      unidade, **esparsidade da série diária por SKU** (justifica a camada L2), perfil de
+      demanda por categoria; consolidar em `docs/eda_report.md`
+- [ ] T000c Levantamento com a entidade parceira: **validade real (`shelf_life_dias`) por
+      categoria e, se possível, por SKU**; registrar em `docs/prediction/ADR-009-*.md` (§8)
+- [ ] T000d **Taxonomia** (Etapa 3 — `training_scripts/preprocessing/map_taxonomy.py` +
+      `taxonomy/{unidades,categorias}.py`, ver `docs/prediction/01-pre_processing.md` §5):
+      script + tabelas de/para de trabalho já existem (27 pares `unidade × categoria`,
+      9,6% em "Outros"). Falta: refinar regras de `categoria` (reduzir "Outros"), curar
+      `CATEGORIA_POR_SKU` do Top-N, validar com a parceira `empresa → unidade` (as 3 LTDAs
+      = 3 lojas?) e `shelf_life_dias` real
 
-- [ ] T000a Produzir diagramas UML em `docs/uml/`: casos de uso, atividades, classes, modelo de dados (ER) e arquitetura lógica (seção 6.4 do artigo)
-- [ ] T000b [P] Realizar análise exploratória (EDA) em Jupyter Notebook com pandas/matplotlib/seaborn/plotly — sazonalidade, tendências, comportamento por unidade operacional, perfil de demanda por produto; consolidar em `docs/eda_report.md`
-
-**Checkpoint**: `docs/uml/` e `docs/eda_report.md` existem e cobrem os itens acima ✅
+**Checkpoint**: `docs/uml/` e `docs/eda_report.md` existem; shelf-life confirmada ou com
+defaults; `contas_a_receber_taxonomia.csv` gerado e % de volume em "Outros" aceitável ✅
 
 ---
 
 ## Fase 1: Setup e Infraestrutura Base
 
-**Objetivo**: Projeto inicializado, banco criado, FastAPI respondendo, sem lógica de negócio ainda.
-
-- [ ] T001 Criar estrutura de diretórios `backend/` conforme `plan.md` (api/, schemas/, services/, domain/, infrastructure/)
-- [ ] T002 [P] Criar `backend/config.py` com `Settings` via pydantic-settings lendo `.env`
-- [ ] T003 [P] Criar `requirements.txt` com todas as dependências do backend (FastAPI, statsmodels, scikit-learn, SQLAlchemy, APScheduler, joblib, openpyxl, reportlab) e `requirements-dev.txt` com dependências de EDA/experimentação (jupyter, matplotlib, seaborn, plotly) — não entram no runtime de produção
-- [ ] T004 Criar `backend/infrastructure/database/engine.py` — engine SQLite + session factory
-- [ ] T005 Criar `backend/infrastructure/database/models.py` — ORM: `products`, `model_artifacts`, `forecasts_cache`, `processing_log`, `retrain_history`, **`users`** (id, email, name, hashed_password, role, is_active)
-- [ ] T006 Criar `backend/infrastructure/database/migrations.py` — `create_tables()` idempotente
-- [ ] T007 Criar `backend/main.py` — app FastAPI com CORS, routers incluídos e `startup` chamando `create_tables()` + `start_scheduler()`
-- [ ] T008 [P] Criar `backend/api/router_health.py` — `GET /health` retorna status + versão
-- [ ] T009 [P] Criar `.env.example` com todas as variáveis de configuração documentadas
-- [ ] T010 [P] Criar `tests/fixtures/sample.xlsx` e `tests/fixtures/sample_data.csv` com dados mínimos para testes
+- [ ] T001 Criar estrutura `backend/` conforme `plan.md` (api/, schemas/, services/,
+      domain/{etl,features,models,disaggregation,replenishment}, infrastructure/)
+- [ ] T002 [P] `backend/config.py` — `Settings` via pydantic-settings: `TOP_N_PRODUCTS`,
+      `FORECAST_HORIZON_DAYS=14`, `TEST_DAYS=28`, `MIN_OBSERVATIONS_DAYS=180`,
+      `SEASONAL_PERIOD=7`, `SAFETY_STOCK_DAYS=2`, `SHELF_LIFE_DEFAULT_DAYS=7`,
+      `LOG_CV_THRESHOLD=0.7`, `RETRAIN_DAY_OF_WEEK=mon`, `RETRAIN_HOUR=2`, `DAILY_FORECAST_HOUR=3`
+- [ ] T003 [P] `requirements.txt` (FastAPI, statsmodels, scikit-learn, SQLAlchemy,
+      APScheduler, joblib, openpyxl, reportlab, python-jose, passlib) e
+      `requirements-dev.txt` (jupyter, matplotlib, seaborn, plotly, statsforecast)
+- [ ] T004 `backend/infrastructure/database/engine.py` — engine SQLite + session factory
+- [ ] T005 `backend/infrastructure/database/models.py` — ORM: `products` (+`categoria`,
+      `unidade`), `categories` (`shelf_life_dias`, status, métricas L1), `model_artifacts`,
+      `forecasts_cache`, `replenishment_cache`, `processing_log`, `retrain_history`, `users`
+- [ ] T006 `backend/infrastructure/database/migrations.py` — `create_tables()` idempotente
+- [ ] T007 `backend/main.py` — app FastAPI com CORS, routers, `startup` chamando
+      `create_tables()` + `start_weekly_retrain()` + `start_daily_generation()`
+- [ ] T008 [P] `backend/api/router_health.py` — `GET /health`
+- [ ] T009 [P] `.env.example` com todas as variáveis documentadas
+- [ ] T010 [P] `tests/fixtures/sample.xlsx` e `sample_data.csv` (dados mínimos, várias
+      datas e categorias para exercitar a série diária)
 
 **Checkpoint**: `uvicorn backend.main:app --reload` → `GET /health` retorna `{"status": "ok"}` ✅
 
 ---
 
-## Fase 2: Autenticação e Autorização (User Story 4 — Controle de Acesso)
+## Fase 2: Autenticação e Autorização (US4)
 
-**Objetivo**: JWT funcionando, perfis admin/viewer aplicados, login no React.
-Esta fase DEVE ser concluída antes de qualquer outro endpoint `/api/v1/*`.
+Concluir antes de qualquer outro endpoint `/api/v1/*`.
 
-### Testes de Autenticação (escrever ANTES da implementação)
+- [ ] T011 [P] [US4] `tests/unit/test_auth.py` — `hash_password`/`verify_password`
+- [ ] T012 [P] [US4] `tests/unit/test_jwt.py` — `create_access_token`/`decode_token`; expiração
+- [ ] T013 [US4] `tests/integration/test_auth_endpoints.py` — login ok/401; `/api/v1/*` sem
+      token → 401; token viewer em `/api/v1/upload` → 403
+- [ ] T014 [P] [US4] `backend/auth/password_handler.py` — passlib/bcrypt
+- [ ] T015 [P] [US4] `backend/auth/jwt_handler.py` — python-jose
+- [ ] T016 [US4] `backend/auth/dependencies.py` — `get_current_user()`, `require_admin()`
+- [ ] T017 [US4] `backend/auth/seed_users.py` — cria admin/viewer do `.env` (idempotente)
+- [ ] T018 [US4] `backend/schemas/auth.py` — `LoginRequest`, `TokenResponse`, `UserOut`
+- [ ] T019 [US4] `backend/api/router_auth.py` — `/auth/login`, `/auth/refresh`, `/auth/me`;
+      aplicar `get_current_user` em todos os routers `/api/v1/*`
+- [ ] T020 [US4] Aplicar `require_admin` em `POST /api/v1/upload` e `POST /api/v1/models/retrain`
+- [ ] T021 [US4] Integrar `seed_users.py` no startup do `main.py`
+- [ ] T022 [P] [US4] `app-react/src/app/auth/AuthContext.tsx` — token/user/role em localStorage
+- [ ] T023 [P] [US4] `app-react/src/app/auth/LoginPage.tsx` — form email+senha
+- [ ] T024 [US4] `app-react/src/app/auth/PrivateRoute.tsx` — redireciona; prop `requiredRole`
+- [ ] T025 [US4] Interceptor fetch — injeta `Authorization: Bearer`; 401 → `/login`
 
-- [ ] T011 [P] [US4] `tests/unit/test_auth.py` — `hash_password` + `verify_password` corretos; senha errada retorna False
-- [ ] T012 [P] [US4] `tests/unit/test_jwt.py` — `create_access_token` gera token válido; `decode_token` extrai role; token expirado levanta exceção
-- [ ] T013 [US4] `tests/integration/test_auth_endpoints.py` — `POST /auth/login` com credenciais válidas retorna tokens; com senha errada retorna 401; endpoint `/api/v1/products` sem token retorna 401; com token viewer retorna 200; `POST /api/v1/upload` com token viewer retorna 403
-
-### Implementação de Autenticação
-
-- [ ] T014 [P] [US4] Criar `backend/auth/password_handler.py` — `hash_password(plain)` e `verify_password(plain, hashed)` usando passlib/bcrypt
-- [ ] T015 [P] [US4] Criar `backend/auth/jwt_handler.py` — `create_access_token(data, expires_delta)`, `create_refresh_token(data)`, `decode_token(token)` usando python-jose
-- [ ] T016 [US4] Criar `backend/auth/dependencies.py` — `get_current_user(token)` FastAPI dependency; `require_admin(user)` levanta 403 se `user.role != "admin"`
-- [ ] T017 [US4] Adicionar tabela `users` ao `backend/infrastructure/database/models.py` (id, email, name, hashed_password, role, is_active)
-- [ ] T018 [US4] Criar `backend/auth/seed_users.py` — script que lê `ADMIN_EMAIL/PASSWORD` e `VIEWER_EMAIL/PASSWORD` do `.env` e cria usuários iniciais com hash bcrypt (idempotente)
-- [ ] T019 [US4] Criar `backend/schemas/auth.py` — `LoginRequest`, `TokenResponse(access_token, refresh_token, role, expires_in)`, `UserOut(id, email, name, role)`
-- [ ] T020 [US4] Criar `backend/api/router_auth.py` — `POST /auth/login`, `POST /auth/refresh`, `GET /auth/me`; aplicar `get_current_user` dependency em todos os `/api/v1/*` routers
-- [ ] T021 [US4] Aplicar `require_admin` nos endpoints protegidos: `POST /api/v1/upload`, `POST /api/v1/models/retrain`
-- [ ] T022 [US4] Integrar `seed_users.py` no startup do `backend/main.py` (roda antes do scheduler)
-
-### Frontend — Login e Rotas Protegidas
-
-- [ ] T023 [P] [US4] Criar `app-react/src/app/auth/AuthContext.tsx` — React Context com `token`, `user`, `role`; persiste token em `localStorage`; expõe `login()` e `logout()`
-- [ ] T024 [P] [US4] Criar `app-react/src/app/auth/LoginPage.tsx` — formulário email + senha com react-hook-form; chama `AuthApi.login()`; redireciona para Dashboard após sucesso
-- [ ] T025 [US4] Criar `app-react/src/app/auth/PrivateRoute.tsx` — wrapper que redireciona para `/login` se não autenticado; aceita prop `requiredRole` para restringir por perfil
-- [ ] T026 [US4] Configurar axios/fetch com interceptor que injeta `Authorization: Bearer <token>` em todas as requisições e redireciona para `/login` em respostas 401
-
-**Checkpoint**: `POST /auth/login` retorna JWT; `POST /api/v1/upload` com token viewer retorna 403; tela de login funcional no React ✅
+**Checkpoint**: login retorna JWT; upload com token viewer → 403; tela de login no React ✅
 
 ---
 
-## Fase 4: ETL Pipeline (User Story 1 — Upload de Planilha)
+## Fase 3: ETL Pipeline (US1 — Upload de Planilha)
 
-**Objetivo**: Upload de XLSX funcional com deduplicação e log de processamento.
+- [ ] T026 [P] [US1] `tests/unit/test_parser.py` — `parse_xlsx(fixture)`; linhas corrompidas em `skipped`
+- [ ] T027 [P] [US1] `tests/unit/test_normalizer.py` — qtdade ≤ 0 removida; emissao nula; vírgula decimal
+- [ ] T028 [P] [US1] `tests/unit/test_deduplicator.py` — dedup por
+      `(doc_numero, produto_cod, emissao, qtdade, vl_total)` só entre arquivos
+- [ ] T029 [US1] `tests/integration/test_etl_pipeline.py` — `process_upload(fixture.xlsx)`
+      atualiza CSV e grava `processing_log`
+- [ ] T030 [P] [US1] `backend/domain/etl/parser.py` — `parse_xlsx()` → `(records, skipped)`
+- [ ] T031 [P] [US1] `backend/domain/etl/normalizer.py` — `normalize_records()` → DataFrame
+      tipado; deriva `categoria` e `unidade` do produto/empresa
+- [ ] T032 [P] [US1] `backend/domain/etl/deduplicator.py` — `deduplicate(df_new, csv, key_fields)`
+- [ ] T033 [US1] `backend/infrastructure/storage/file_manager.py` — `append_to_csv()`,
+      `load_csv()`, `log_processing()`
+- [ ] T034 [US1] `backend/services/upload_service.py` — parse → normalize → dedup → append →
+      log → agenda reajuste
+- [ ] T035 [US1] `backend/schemas/upload.py` — `UploadResponse`
+- [ ] T036 [US1] `backend/api/router_upload.py` — `POST /api/v1/upload` [admin]; valida
+      extensão e tamanho
 
-### Testes ETL (escrever ANTES da implementação)
-
-- [ ] T027 [P] [US1] Teste unitário `tests/unit/test_parser.py` — `parse_xlsx(fixture)` retorna records com 19 campos; linhas corrompidas vão para `skipped`
-- [ ] T028 [P] [US1] Teste unitário `tests/unit/test_normalizer.py` — qtdade ≤ 0 removida; emissao nula removida; vírgula decimal convertida
-- [ ] T029 [P] [US1] Teste unitário `tests/unit/test_deduplicator.py` — registro com mesma `(doc_numero, produto_cod)` não duplica no CSV
-- [ ] T030 [US1] Teste de integração `tests/integration/test_etl_pipeline.py` — `upload_service.process_upload(fixture.xlsx)` atualiza CSV e grava `processing_log`
-
-### Implementação ETL
-
-- [ ] T031 [P] [US1] Criar `backend/domain/etl/parser.py` — migrar e refatorar `parse_xlsx()` do código existente; retorna `(records, skipped)`
-- [ ] T032 [P] [US1] Criar `backend/domain/etl/normalizer.py` — `normalize_records(records)` → DataFrame com dtypes corretos
-- [ ] T033 [P] [US1] Criar `backend/domain/etl/deduplicator.py` — `deduplicate(df_new, csv_path, key_fields)` → DataFrame só com registros novos
-- [ ] T034 [US1] Criar `backend/infrastructure/storage/file_manager.py` — `append_to_csv()`, `load_csv()`, `log_processing()`
-- [ ] T035 [US1] Criar `backend/services/upload_service.py` — orquestra parse → normalize → dedup → append → log → agenda retrain
-- [ ] T036 [US1] Criar `backend/schemas/upload.py` — `UploadResponse` Pydantic
-- [ ] T037 [US1] Criar `backend/api/router_upload.py` — `POST /api/v1/upload` com `require_admin`; multipart/form-data; valida extensão e tamanho; retorna `UploadResponse`
-
-**Checkpoint**: Upload de XLSX com token admin via `/api/v1/upload` → CSV atualizado + `processing_log` gravado no banco ✅
-
----
-
-## Fase 3: Feature Engineering + SARIMAX (User Story 2 — Previsão por Produto)
-
-**Objetivo**: Modelos treinados e persistidos; endpoint de previsão funcional.
-
-### Testes (escrever ANTES da implementação)
-
-- [ ] T022 [P] [US2] Teste unitário `tests/unit/test_time_series.py` — meses ausentes preenchidos com 0; `ValueError` com < 15 obs
-- [ ] T023 [P] [US2] Teste unitário `tests/unit/test_exogenous.py` — DataFrame com exatamente 15 colunas; `alta_temporada=1` em maio; alinhamento de índices
-- [ ] T024 [P] [US2] Teste unitário `tests/unit/test_importance.py` — importâncias somam 1.0; `weight_features` respeita `clip(lower=0.1)`
-- [ ] T025 [P] [US2] Teste unitário `tests/unit/test_stationarity.py` — `suggest_d` retorna 0 para série já estacionária
-- [ ] T026 [P] [US2] Teste unitário `tests/unit/test_order_selection.py` — retorna tupla válida; não lança exceção quando combinações individuais falham
-- [ ] T027 [P] [US2] Teste unitário `tests/unit/test_evaluator.py` — métricas corretas com arrays conhecidos; `walk_forward_cv` com 2 folds retorna DataFrame
-- [ ] T028 [P] [US2] Teste unitário `tests/unit/test_forecaster.py` — `ForecastResult` tem N=horizon datas corretas; back-transform `expm1` aplicado quando `use_log=True`
-- [ ] T029 [US2] Teste de integração `tests/integration/test_sarimax_pipeline.py` — `run_product_pipeline(df, produto_cod)` com fixture retorna `ProductPipelineResult` com todas as chaves
-
-### Implementação — Feature Engineering
-
-- [ ] T030 [P] [US2] Criar `backend/domain/features/time_series.py` — `prepare_monthly_series(df, produto_cod)` → `pd.Series` com freq='MS'; preenche meses ausentes com 0
-- [ ] T031 [P] [US2] Criar `backend/domain/features/exogenous.py` — `build_exogenous_features(df, produto_cod)` → DataFrame com 15 variáveis (mercado + produto + calendário)
-- [ ] T032 [P] [US2] Criar `backend/domain/features/importance.py` — `compute_rf_importance(X, y, n_estimators=200)` e `weight_features(X, importances, clip=0.1)`
-
-### Implementação — Modelagem SARIMAX
-
-- [ ] T033 [P] [US2] Criar `backend/domain/models/stationarity.py` — `check_stationarity(ts)` com ADF+KPSS; `suggest_d(ts, max_d=1)`
-- [ ] T034 [P] [US2] Criar `backend/domain/models/order_selection.py` — `select_sarimax_order()` grid 36 combinações; D=0; m=12; critério AIC
-- [ ] T035 [US2] Criar `backend/domain/models/sarimax_trainer.py` — `fit_sarimax()` e `run_product_pipeline()` retornando `ProductPipelineResult` dataclass
-- [ ] T036 [US2] Criar `backend/domain/models/evaluator.py` — `evaluate_model()`, `walk_forward_cv(n_splits=4)`, `residual_tests()` (Ljung-Box + Shapiro-Wilk)
-- [ ] T037 [US2] Criar `backend/domain/models/forecaster.py` — `generate_forecast()` extrapolando exógenas futuras; back-transform log; retorna `ForecastResult`
-
-### Implementação — Model Registry + Retrain
-
-- [ ] T038 [US2] Criar `backend/infrastructure/storage/model_registry.py` — `save_artifact()`, `load_artifact()`, `get_status()`, `list_trained_products()`
-- [ ] T039 [US2] Criar `backend/services/retrain_service.py` — `run_full_retrain(trigger)`: carrega CSV, seleciona top_N, itera `run_product_pipeline()`, persiste, grava `retrain_history`
-- [ ] T040 [US2] Criar `backend/infrastructure/scheduler/weekly_retrain.py` — APScheduler com `CronTrigger(day_of_week="mon", hour=2)`; integrar em `main.py startup`
-
-### Implementação — Endpoints de Produto e Previsão
-
-- [ ] T041 [US2] Criar `backend/services/forecast_service.py` — `get_forecast(produto_cod, horizon)`: carrega artefato, chama `generate_forecast()`, popula cache
-- [ ] T042 [US2] Criar `backend/schemas/product.py` e `backend/schemas/forecast.py` — Pydantic models completos com todos os campos de resposta
-- [ ] T043 [US2] Criar `backend/api/router_products.py` — `GET /api/v1/products` (paginado, filtro, sort) e `GET /api/v1/products/{id}` (histórico + métricas)
-- [ ] T044 [US2] Criar `backend/api/router_forecast.py` — `GET /api/v1/forecast/{produto_cod}?horizon_months=3` e `GET /api/v1/forecast/batch?top_n=10`
-
-**Checkpoint**: `GET /api/v1/forecast/147?horizon_months=3` retorna JSON com datas, previsões e IC 95% ✅
-
-### Avaliação Comparativa de Granularidade (contribuição acadêmica ii)
-
-- [ ] T044a Executar `walk_forward_cv` com os mesmos produtos em granularidade mensal e diária; comparar MAE/RMSE/MAPE/SMAPE lado a lado; documentar resultado (relatório em `docs/`) — não altera a granularidade de produção (SPECS.md seção 12.5)
+**Checkpoint**: upload com token admin → CSV atualizado + `processing_log` gravado ✅
 
 ---
 
-## Fase 4: Alertas (User Story 3 — Alerta Automático de Reposição)
+## Fase 4: L1 — SARIMAX Diário por `unidade × categoria` (US2)
 
-**Objetivo**: Lista de alertas gerada automaticamente após cada retrain.
+### Testes (escrever ANTES)
+
+- [ ] T037 [P] [US2] `tests/unit/test_daily_series.py` — `prepare_daily_series(df, unidade,
+      categoria)`: reindex diário completo, dias sem venda = 0; `ValueError` com < 180 dias
+- [ ] T038 [P] [US2] `tests/unit/test_calendar_exogenous.py` — dummies de dia-da-semana;
+      flag de feriado; "dias até Dia das Mães" correto; alinhamento de índice
+- [ ] T039 [P] [US2] `tests/unit/test_importance.py` — importâncias somam 1; `weight_features` clip(0.1)
+- [ ] T040 [P] [US2] `tests/unit/test_stationarity.py` — `suggest_d` retorna 0 para série estacionária
+- [ ] T041 [P] [US2] `tests/unit/test_order_selection.py` — grid m=7; tupla válida; tolera falhas
+- [ ] T042 [P] [US2] `tests/unit/test_evaluator.py` — `mase()`, `rmsse()`, cobertura do IC
+      com arrays conhecidos; `walk_forward_cv(n_splits=2, horizon=14)` retorna DataFrame
+- [ ] T043 [P] [US2] `tests/unit/test_forecaster.py` — `generate_daily_forecast` retorna 14
+      pontos com datas corretas; back-transform `expm1` se `use_log`
+- [ ] T044 [US2] `tests/integration/test_l1_pipeline.py` — `run_category_pipeline(df, unidade,
+      categoria)` retorna `CategoryPipelineResult` com todas as chaves
+
+### Implementação — Features
+
+- [ ] T045 [P] [US2] `backend/domain/features/daily_series.py` — `prepare_daily_series()` → `pd.Series` freq='D'
+- [ ] T046 [P] [US2] `backend/domain/features/calendar_exogenous.py` — dia-da-semana
+      (dummies/Fourier), feriado nacional (BrasilAPI/curadoria), véspera, "dias até data
+      comemorativa" (Mães, Namorados, Finados, Natal)
+- [ ] T047 [P] [US2] `backend/domain/features/importance.py` — `compute_rf_importance()`, `weight_features()`
+
+### Implementação — Modelagem L1
+
+- [ ] T048 [P] [US2] `backend/domain/models/stationarity.py` — ADF+KPSS; `suggest_d(max_d=1)`
+- [ ] T049 [P] [US2] `backend/domain/models/order_selection.py` — grid p,q∈0..2; P,Q∈0..1;
+      D=0; m=7; critério AIC
+- [ ] T050 [US2] `backend/domain/models/sarimax_trainer.py` — `fit_sarimax()`,
+      `run_category_pipeline()` → `CategoryPipelineResult` dataclass
+- [ ] T051 [US2] `backend/domain/models/evaluator.py` — `mase()`, `rmsse()`, `ic_coverage()`,
+      `walk_forward_cv(n_splits=4, horizon=14, origem móvel)`, `residual_tests()` (Ljung-Box + Shapiro-Wilk)
+- [ ] T052 [US2] `backend/domain/models/forecaster.py` — `generate_daily_forecast()`
+      extrapolando exógenas de calendário (determinísticas); IC 95%; back-transform log
+
+### Model Registry + Reajuste semanal
+
+- [ ] T053 [US2] `backend/infrastructure/storage/model_registry.py` — `save_artifact()`,
+      `load_artifact()`, `get_status()`, `list_trained_categories()`
+- [ ] T054 [US2] `backend/services/retrain_service.py` — `run_full_retrain(trigger)`: itera
+      `unidade × categoria`, `run_category_pipeline()`, persiste, grava `retrain_history`
+- [ ] T055 [US2] `backend/infrastructure/scheduler/weekly_retrain.py` — APScheduler
+      `CronTrigger(day_of_week="mon", hour=2)`
+
+**Checkpoint**: reajuste gera artefatos L1 por `unidade × categoria` com MASE/RMSSE/cobertura no banco ✅
+
+---
+
+## Fase 5: L2 + L3 — Desagregação e Política de Reposição (US2 + US3)
 
 ### Testes
 
-- [ ] T045 [P] [US3] Teste unitário `tests/unit/test_alert_service.py` — severity=high se variação > 30%; medium se 20–30%; nenhum alerta se < 20%
-- [ ] T046 [US3] Teste de integração — `GET /api/v1/alerts` retorna lista ordenada por variação após retrain com dados da fixture
+- [ ] T056 [P] [US2] `tests/unit/test_sku_split.py` — share móvel soma 1 na categoria;
+      perfil de dia-da-semana aplicado; SKU de baixo giro cai no rateio uniforme
+- [ ] T057 [P] [US3] `tests/unit/test_replenishment_policy.py` — `qty_to_order` = 0 quando
+      estoque cobre a demanda; cobertura limitada por `shelf_life_dias`; `expected_waste`
+      cresce quando validade < horizonte
+- [ ] T058 [P] [US3] `tests/unit/test_replenishment_simulation.py` — simulação de perda +
+      ruptura sobre série sintética; política bate a regra ingênua de 7 dias
+- [ ] T059 [US3] `tests/integration/test_replenishment_pipeline.py` — categoria treinada →
+      previsão por SKU → recomendação por SKU/dia com todos os campos
 
 ### Implementação
 
-- [ ] T047 [US3] Criar `backend/services/alert_service.py` — calcula variação da previsão próximo mês vs. média 3m; classifica severity; retorna `AlertItem`
-- [ ] T048 [US3] Criar `backend/schemas/alert.py` — `AlertItem` e `AlertListResponse` Pydantic
-- [ ] T049 [US3] Criar `backend/api/router_alerts.py` — `GET /api/v1/alerts?limit=50&severity=all`
+- [ ] T060 [US2] `backend/domain/disaggregation/sku_split.py` — `disaggregate(previsao_cat,
+      df_hist, produto_cod)`: share móvel (4–8 semanas) × perfil de dia-da-semana; fallback uniforme
+- [ ] T061 [US3] `backend/domain/replenishment/policy.py` — `recommend(previsao_sku,
+      shelf_life_dias, safety_stock_days, estoque_atual=0)` → qty, cover_until,
+      reorder_in_days, expected_waste, stockout_risk
+- [ ] T062 [US3] `backend/domain/replenishment/simulation.py` — `simulate_policy(hold_out,
+      policy)` vs. `naive_7d` → perda + ruptura; usado como quality gate no `evaluator`
+- [ ] T063 [US2] `backend/services/forecast_service.py` — `get_forecast(produto_cod)`:
+      carrega modelo L1 da categoria, `generate_daily_forecast()`, aplica L2, popula `forecasts_cache`
+- [ ] T064 [US3] `backend/services/replenishment_service.py` — `get_replenishment(produto_cod)`:
+      consome previsão L2, aplica L3, popula `replenishment_cache`
+- [ ] T065 [US2/US3] `backend/infrastructure/scheduler/daily_generation.py` — APScheduler
+      `CronTrigger(hour=3)`: para cada SKU do Top-N roda L2+L3 a partir do modelo L1 em cache;
+      registra data e contagem de SKUs
+- [ ] T066 [US2] `backend/schemas/forecast.py` — `DailyPoint`, `ForecastResponse`
+- [ ] T067 [US3] `backend/schemas/replenishment.py` — `ReplenishmentDay`,
+      `ReplenishmentRecommendation`, `ReplenishmentBatchResponse`
+- [ ] T068 [US2] `backend/api/router_products.py` — `GET /api/v1/products[/{id}]` (histórico diário)
+- [ ] T069 [US2] `backend/api/router_forecast.py` — `GET /api/v1/forecast/{id}?horizon_days=14`
+      e `GET /api/v1/forecast/batch`
+- [ ] T070 [US3] `backend/api/router_replenishment.py` — `GET /api/v1/replenishment/{id}`
+      e `GET /api/v1/replenishment/batch`
 
-**Checkpoint**: Após retrain, `GET /api/v1/alerts` retorna lista com pelo menos 1 alerta para dados de teste ✅
+**Checkpoint**: `GET /api/v1/replenishment/147` retorna qty por dia, cobre-até, cadência e
+selo de risco ✅
 
----
+### Comparação acadêmica (ii)
 
-## Fase 5: Models Status + Retrain Manual (User Story 3 — complemento)
-
-**Objetivo**: Gestora pode ver status do retrain e disparar manualmente se necessário.
-
-- [ ] T050 [US3] Criar `backend/schemas/model_status.py` — `ModelStatusResponse` Pydantic
-- [ ] T051 [US3] Criar `backend/api/router_models.py` — `GET /api/v1/models/status` (último retrain, próximo, progresso) e `POST /api/v1/models/retrain` (disparo manual assíncrono; 409 se já rodando)
-
-**Checkpoint**: `GET /api/v1/models/status` mostra data do último retrain e status `is_training` correto ✅
-
----
-
-## Fase 6: Simulação (User Story 4 — Simulação de Promoção)
-
-**Objetivo**: Endpoint de simulação de cenários de desconto e venda casada.
-
-### Testes
-
-- [ ] T052 [P] [US4] Teste unitário `tests/unit/test_simulation_service.py` — sem cenário retorna previsão base; desconto 0% retorna delta=0; desconto 15% retorna delta > 0
-
-### Implementação
-
-- [ ] T053 [US4] Criar `backend/services/simulation_service.py` — aplica multiplicador sobre previsão base: desconto usa coeficiente `prod_taxa_desconto` do modelo; bundle usa `expected_uplift_pct` diretamente
-- [ ] T054 [US4] Criar `backend/schemas/simulation.py` — `SimulationRequest` e `SimulationResponse` Pydantic
-- [ ] T055 [US4] Criar `backend/api/router_simulation.py` — `POST /api/v1/simulation`
-
-**Checkpoint**: `POST /api/v1/simulation` com desconto 15% retorna previsão simulada > previsão base ✅
+- [ ] T070a Trilha de comparação em `training_scripts/alternative_models/`: Croston/TSB/SBA
+      por SKU **×** SARIMAX hierárquico (L1+L2), **mesmos splits** de walk-forward
+      (origem móvel, h=14); MASE/RMSSE lado a lado; relatório em
+      `docs/prediction/comparacao_hierarquico_vs_intermitente.md`
 
 ---
 
-## Fase 7: Exportação (User Story 5 — Relatório PDF e Excel)
+## Fase 6: Alertas (US3 — complemento)
 
-**Objetivo**: Exportação de relatórios para reuniões de planejamento.
+- [ ] T071 [P] [US3] `tests/unit/test_alert_service.py` — severity=high se previsão 7d > 30%
+      acima da média 4 semanas; medium se 20–30%; flag de risco de sobra para validade curta
+- [ ] T072 [US3] `tests/integration` — `GET /api/v1/alerts` retorna lista ordenada após geração diária
+- [ ] T073 [US3] `backend/services/alert_service.py` — variação previsão 7d vs. média 4
+      semanas; classifica severity; marca `risco_sobra` quando `shelf_life_dias` curto e
+      previsão em queda; justificativa PT-BR
+- [ ] T074 [US3] `backend/schemas/alert.py` — `AlertItem`, `AlertListResponse`
+- [ ] T075 [US3] `backend/api/router_alerts.py` — `GET /api/v1/alerts?limit=50&severity=all`
 
-### Testes
-
-- [ ] T056 [US5] Teste de integração — `GET /api/v1/reports/export?format=excel` retorna arquivo .xlsx com abas "Previsões", "Métricas", "Alertas"
-- [ ] T057 [US5] Teste de integração — `GET /api/v1/reports/export?format=pdf` retorna arquivo .pdf com conteúdo válido
-
-### Implementação
-
-- [ ] T058 [US5] Criar `backend/services/report_service.py` — `generate_excel(top_n, horizon)` com openpyxl (3 abas); `generate_pdf(top_n, horizon)` com reportlab
-- [ ] T059 [US5] Criar `backend/schemas/report.py` — parâmetros de query validados
-- [ ] T060 [US5] Criar `backend/api/router_reports.py` — `GET /api/v1/reports/export?format=excel|pdf&top_n=10&horizon_months=3`; response com `Content-Disposition: attachment`
-
-**Checkpoint**: Download de PDF via browser com previsões e alertas preenchidos ✅
+**Checkpoint**: após geração diária, `GET /api/v1/alerts` retorna ≥ 1 alerta para a fixture ✅
 
 ---
 
-## Fase 8: Frontend React + Integração (User Stories 1–5)
+## Fase 7: Models Status + Retrain Manual + Exportação
 
-**Objetivo**: Dashboard React consumindo a API; todos os fluxos funcionais no navegador.
+- [ ] T076 [US3] `backend/schemas/model_status.py` — `ModelStatusResponse` (contagem por
+      status de `unidade × categoria`, último reajuste, última geração diária)
+- [ ] T077 [US3] `backend/api/router_models.py` — `GET /api/v1/models/status` e
+      `POST /api/v1/models/retrain` [admin] (409 se já rodando)
+- [ ] T078 [US5] `tests/integration` — export `?format=excel` com abas "Reposição",
+      "Previsão diária", "Métricas", "Alertas"; `?format=pdf` válido
+- [ ] T079 [US5] `backend/services/report_service.py` — `generate_excel()` (openpyxl, 4
+      abas), `generate_pdf()` (reportlab)
+- [ ] T080 [US5] `backend/schemas/report.py` + `backend/api/router_reports.py` —
+      `GET /api/v1/reports/export?format=excel|pdf&top_n=10&horizon_days=14`
 
-- [ ] T061 Gerar `ia-predictor/openapi.yaml` completo com todos os endpoints (OpenAPI 3.0)
-- [ ] T062 [P] Criar `app-react/src/app/services/api.ts` — cliente HTTP tipado consumindo a API (baseURL configurável via env)
-- [ ] T063 [P] [US1] Criar `app-react/src/app/components/UploadPanel.tsx` — formulário de upload com feedback de progresso e resultado
-- [ ] T064 [P] [US2] Criar `app-react/src/app/components/ForecastChart.tsx` — gráfico Recharts com histórico + previsão + faixa IC 95% + marcação de alta temporada
-- [ ] T065 [P] [US2] Criar `app-react/src/app/pages/ProductDetail.tsx` — busca produto, exibe histórico + `ForecastChart` + métricas em linguagem simples
-- [ ] T066 [P] [US3] Criar `app-react/src/app/pages/Alerts.tsx` — lista de alertas com severidade visual (vermelho/amarelo) e justificativa
-- [ ] T067 [P] [US3] Criar `app-react/src/app/components/ModelStatusBadge.tsx` — indicador de status e data do último retrain
-- [ ] T068 [P] [US4] Criar `app-react/src/app/pages/Simulation.tsx` — formulário de cenário + gráfico comparativo base vs. simulado
-- [ ] T069 [P] [US5] Criar `app-react/src/app/components/ExportButton.tsx` — botão de exportação com seleção de formato (PDF/Excel)
-- [ ] T070 Integrar todos os componentes no `Dashboard.tsx` principal com navegação via react-router
-- [ ] T071 Teste de integração manual — percorrer fluxo completo: upload → retrain → ver previsão → ver alerta → exportar PDF
-
-**Checkpoint**: Fluxo completo funcional no navegador sem erros de console ✅
+**Checkpoint**: `GET /api/v1/models/status` mostra data do último reajuste e da última
+geração diária; download de PDF com reposição preenchida ✅
 
 ---
 
-## Fase 9: Polimento e Qualidade
+## Fase 8: Simulação (US5)
 
-**Objetivo**: Garantir qualidade, documentação e entregabilidade.
+- [ ] T081 [P] [US5] `tests/unit/test_simulation_service.py` — sem cenário → previsão base;
+      desconto 0% → delta 0; desconto 15% → delta > 0; reposição recalculada
+- [ ] T082 [US5] `backend/services/simulation_service.py` — multiplicador sobre a previsão
+      diária base (desconto via coeficiente de preço/desconto do modelo L1; bundle via
+      `expected_uplift_pct`); repassa para L3
+- [ ] T083 [US5] `backend/schemas/simulation.py` + `backend/api/router_simulation.py` —
+      `POST /api/v1/simulation`
 
-- [ ] T072 [P] Criar `CLAUDE.md` — guia do projeto para sessões futuras de desenvolvimento com IA
-- [ ] T073 [P] Gerar `ia-predictor/openapi.yaml` final atualizado com todos os schemas reais
-- [ ] T074 [P] Executar todos os testes unitários e corrigir falhas: `pytest tests/unit/ -v`
-- [ ] T075 [P] Executar testes de integração: `pytest tests/integration/ -v`
-- [ ] T076 Validação estatística formal: MAPE < 20% e SMAPE < 30% nos 2 produtos de maior volume
-- [ ] T077 Executar Ljung-Box e Shapiro-Wilk nos resíduos de todos os modelos treinados (diagnóstico de resíduos, seção 6.5 do artigo); logar resultados
-- [ ] T078 Validação com usuários da entidade parceira — percurso guiado dos 5 User Stories
-- [ ] T079 [P] Criar `docs/quickstart.md` — guia de instalação e uso para a entidade parceira
-- [ ] T080 Commit final com toda a documentação e código: `git commit -m "feat: sistema de previsão de estoque v1.0.0"`
+**Checkpoint**: `POST /api/v1/simulation` com desconto 15% → previsão simulada > base e
+reposição ajustada ✅
+
+---
+
+## Fase 9: Frontend React + Integração (US1–US5)
+
+- [ ] T084 Gerar `ia-predictor/openapi.yaml` completo (15 endpoints, schemas `DailyPoint`,
+      `ReplenishmentRecommendation`)
+- [ ] T085 [P] `app-react/src/services/api/` — regenerar cliente (`npm run generate:api`)
+- [ ] T086 [P] [US1] `components/UploadPanel.tsx` — upload com feedback (role=admin)
+- [ ] T087 [P] [US2] `components/ForecastChart.tsx` — Recharts: histórico + previsão **diária**
+      + IC 95% + marcação de fim de semana / feriado / data comemorativa
+- [ ] T088 [P] [US3] `components/ReplenishmentTable.tsx` — por produto: qty sugerida,
+      "cobre até", cadência, selo de risco (perda / ruptura / ok)
+- [ ] T089 [P] [US2] `pages/ProductDetail.tsx` — histórico diário + `ForecastChart` + métricas simples
+- [ ] T090 [P] [US3] `pages/Replenishment.tsx` — "Reposição de Hoje": lista dos top N com `ReplenishmentTable`
+- [ ] T091 [P] [US3] `pages/Alerts.tsx` — alertas com severidade visual e justificativa
+- [ ] T092 [P] [US5] `pages/Simulation.tsx` — cenário + gráfico base vs. simulado + reposição
+- [ ] T093 [P] [US5] `components/ExportButton.tsx` — seleção PDF/Excel
+- [ ] T094 Integrar tudo no `Dashboard.tsx` com react-router
+- [ ] T095 Teste manual — upload → reajuste → previsão diária → reposição do dia → alerta → exportar PDF
+
+**Checkpoint**: fluxo completo funcional no navegador sem erros de console ✅
+
+---
+
+## Fase 10: Polimento e Qualidade
+
+- [ ] T096 [P] Atualizar `CLAUDE.md` e `docs/quickstart.md` (a criar)
+- [ ] T097 [P] `pytest tests/unit/ -v` e `pytest tests/integration/ -v` — corrigir falhas
+- [ ] T098 Validação estatística formal: **MASE < 1.0** nas `unidade × categoria` de maior
+      volume; cobertura do IC ∈ [90%, 98%]
+- [ ] T099 Simulação de reposição vs. regra ingênua de 7 dias para os top 10 produtos —
+      registrar redução de perda + ruptura (SC-003)
+- [ ] T100 Ljung-Box + Shapiro-Wilk nos resíduos de todos os modelos L1 — logar
+- [ ] T101 Validação com usuários da entidade parceira — percurso guiado dos User Stories
+- [ ] T102 Commit final: `feat: sistema de reposição diária v1.0.0`
 
 ---
 
 ## Dependências e Ordem de Execução
 
-### Dependências entre Fases
-
-- **Fase 0** (Modelagem/EDA/UML): sem dependências de código — pode rodar em paralelo com Fase 1
-- **Fase 1** (Setup): sem dependências — começa imediatamente
-- **Fase 2** (ETL): depende de Fase 1 — bloqueia Fases 3–8
-- **Fase 3** (SARIMAX): depende de Fase 2 — bloqueia Fases 4–7
-- **Fase 4** (Alertas): depende de Fase 3
-- **Fase 5** (Model Status): depende de Fase 3 — paralela com Fase 4
-- **Fase 6** (Simulação): depende de Fase 3 — paralela com Fases 4+5
-- **Fase 7** (Exportação): depende de Fases 4+5
-- **Fase 8** (Frontend): depende de Fases 2–7
-- **Fase 9** (Polimento): depende de Fase 8
-
-### Tarefas Paralelas por Fase
-
-- Fase 1: T001–T010 podem rodar em paralelo (arquivos independentes)
-- Fase 3: T022–T028 (testes) podem rodar em paralelo; T030–T033 (features) podem rodar em paralelo
-- Fase 8: T062–T069 (componentes React) podem rodar em paralelo
+- **Fase 0**: sem dependência de código — paralela à Fase 1
+- **Fase 1**: começa imediatamente
+- **Fase 2**: depende da Fase 1 — bloqueia Fases 3–9
+- **Fase 3** (ETL): depende da Fase 2 — bloqueia Fases 4+
+- **Fase 4** (L1): depende da Fase 3 — bloqueia Fase 5
+- **Fase 5** (L2+L3): depende da Fase 4 — bloqueia Fases 6–8
+- **Fase 6** (Alertas), **Fase 7** (Status/Export), **Fase 8** (Simulação): dependem da Fase 5, paralelas entre si
+- **Fase 9** (Frontend): depende das Fases 3–8
+- **Fase 10** (Polimento): depende da Fase 9
 
 ### Estratégia MVP
 
-1. Completar Fase 1 → Fase 2 → Fase 3 (T001–T044)
-2. **MVP**: `POST /upload` + `GET /forecast/{id}` funcionando = core do sistema
-3. Adicionar Fase 4 (alertas) → Fase 5 (status)
-4. Adicionar Fase 6 (simulação) → Fase 7 (exportação)
-5. Fase 8 (frontend) sobre API já estável
+1. Fases 1 → 2 → 3 → 4 → 5 (T001–T070)
+2. **MVP**: `POST /upload` + `GET /replenishment/{id}` funcionando = core do sistema
+3. Fase 6 (alertas) → Fase 7 (status/export) → Fase 8 (simulação)
+4. Fase 9 (frontend) sobre API estável
 
 ---
 
 ## Notas
 
-- `[P]` = tarefa independente, pode ser executada em paralelo com outras `[P]` da mesma fase
-- `[US#]` = rastreabilidade para User Story da spec
-- Testes DEVEM falhar antes de implementação (TDD)
+- `[P]` = tarefa independente, paralelizável com outras `[P]` da mesma fase
+- `[US#]` = rastreabilidade para User Story
+- Testes DEVEM falhar antes da implementação (TDD)
 - Commit após cada Checkpoint validado
-- Não avançar para próxima fase se Checkpoint atual falhou
+- Não avançar de fase com Checkpoint falho

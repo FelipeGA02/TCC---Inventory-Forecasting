@@ -6,7 +6,7 @@ referência técnica completa e `CLAUDE.md` (raiz) para o guia de desenvolviment
 | Pasta | Área | Conteúdo |
 | --- | --- | --- |
 | [`project/`](project/) | Visão geral / acadêmico | Projeto técnico original (PDF) e o raio-x do estado atual do sistema |
-| [`prediction/`](prediction/) | Modelagem / previsão de demanda | ADRs sobre SARIMAX, plano de experimentos comparativos (baseline × enriquecido × outros modelos), pipeline de pré-processamento |
+| [`prediction/`](prediction/) | Modelagem / previsão de demanda | ADRs sobre SARIMAX, **revisão de escopo mensal→diário ([ADR-009](prediction/ADR-009-granularidade-diaria-e-reposicao.md))**, plano de experimentos comparativos, pipeline de pré-processamento |
 | [`backend/`](backend/) | API / arquitetura de serviço | ADRs sobre monolito modular, autenticação JWT, scheduler de retrain |
 | [`database/`](database/) | Persistência | ADR sobre a escolha do SQLite |
 | [`frontend/`](frontend/) | Dashboard React | ADR sobre geração do cliente TypeScript a partir do OpenAPI |
@@ -22,13 +22,15 @@ uma nova ADR, use o próximo número livre (o maior `ADR-0NN` já usado em qualq
 
 | ADR | Área | Decisão |
 | --- | --- | --- |
-| [ADR-001](prediction/ADR-001-sarimax_central_model.md) | predição | SARIMAX como modelo central de previsão |
+| [ADR-001](prediction/ADR-001-sarimax_central_model.md) | predição | SARIMAX como modelo central de previsão *(revisado — ADR-009)* |
 | [ADR-002](backend/ADR-002-monolito-modular.md) | backend | Monolito modular como padrão arquitetural |
 | [ADR-003](backend/ADR-003-jwt-autentication.md) | backend | JWT com perfis admin/viewer |
-| [ADR-004](prediction/ADR-004-d0-sarimax-sazonal.md) | predição | D=0 no SARIMAX sazonal |
+| [ADR-004](prediction/ADR-004-d0-sarimax-sazonal.md) | predição | D=0 no SARIMAX sazonal *(revisado — ADR-009)* |
 | [ADR-005](database/ADR-005-sqlite-vs-postgresql.md) | banco de dados | SQLite como banco de dados |
 | [ADR-006](backend/ADR-006-apscheduler-vs-celery.md) | backend | APScheduler in-process vs. Celery |
 | [ADR-007](frontend/ADR-007-openapi-typescript-codegen.md) | frontend | openapi-typescript-codegen para o cliente TS |
+| [ADR-009](prediction/ADR-009-granularidade-diaria-e-reposicao.md) | predição | Granularidade **diária** e política de reposição perecível (hierárquico L1/L2/L3) — revisa ADR-001 e ADR-004 |
+| [ADR-010](prediction/ADR-010-exogenas-nominais-fora-do-l1.md) | predição | `pagamento`/`vendedor` fora das exógenas; `empresa` vira chave `unidade`; Etapa 3 removida do pipeline |
 
 ## Documentos "a criar" com caminho fixo (não mover ao criar)
 

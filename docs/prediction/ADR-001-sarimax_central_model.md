@@ -1,6 +1,7 @@
 # ADR-001: SARIMAX como Modelo Central de Previsão
 
-**Status**: Aceito  
+**Status**: Aceito — **revisado em 2026-08-30** (ver seção "Revisão" ao final e
+[ADR-009](ADR-009-granularidade-diaria-e-reposicao.md))  
 **Data**: 2026-07-28  
 **Autores**: Daniel Nunes da Silva, Felipe Gurgel Araújo
 
@@ -48,3 +49,26 @@ Candidatos avaliados:
   o modelo ainda é treinado mas o aviso é exibido no dashboard.
 - Modelos de ML podem ser introduzidos no futuro mediante evidência de superioridade
   no dataset específico (ver Princípio II da constituição).
+
+---
+
+## Revisão — 2026-08-30 (escopo: mensal → diário)
+
+O entregável mudou de previsão **mensal por produto** para **recomendação de reposição
+diária** (produtos perecíveis). Ver [ADR-009](ADR-009-granularidade-diaria-e-reposicao.md).
+Impacto nesta decisão:
+
+- **SARIMAX continua central**, mas na **camada agregada L1**: uma série **diária** por
+  `unidade × categoria` (densa), com sazonalidade semanal (`m=7`). Os argumentos de
+  volume de dados, interpretabilidade e uso de exógenas seguem válidos — na verdade
+  reforçados, porque a série agregada tem ~790 pontos diários em vez de ~26 mensais.
+- O **nível de SKU** deixa de ser modelado com SARIMAX: a série diária por SKU é >90%
+  zeros e o SARIMAX é inaplicável. O SKU é atendido por **desagregação proporcional**
+  (L2) e a política de reposição (L3).
+- Modelos de **demanda intermitente** (Croston/TSB/SBA) passam a ser **permitidos** no
+  nível de SKU como **trilha de comparação** formal (contribuição acadêmica ii),
+  substituindo a antiga comparação "mensal × diária". A porta para ML segue a mesma:
+  só com evidência empírica de superioridade sob o mesmo protocolo de validação.
+- O `m=12` do grid de ordens vira `m=7`; a comparação "produto 147 SMAPE 22,5%" etc.
+  do protótipo mensal fica como registro histórico, não como referência de qualidade
+  (a métrica primária agora é MASE — ver constituição v2.0.0).

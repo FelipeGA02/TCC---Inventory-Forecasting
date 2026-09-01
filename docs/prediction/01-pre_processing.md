@@ -409,12 +409,50 @@ Detalhes de implementação:
 
 ### 5.2 `categoria` — dois níveis
 
-**Por que categorizar, e não modelar por SKU.** São 5.166 SKUs; a série diária de quase
-todos é esparsa (muitos zeros), regime em que SARIMAX não se aplica. Agrupar dá séries
-densas com sinal para o L1. (A trilha por SKU com Croston/TSB/SBA existe em paralelo, para
-comparação acadêmica — ADR-009.)
+#### Por que categorizar, se a previsão final é por SKU
 
-**Como o dado se parece.** A amostra dos produtos de maior volume mostrou que a
+Prever "cada SKU" **não quer dizer treinar um modelo de série temporal por SKU** — e não
+daria: são ~5.100 SKUs em ~650 dias, e a série diária de um SKU típico é quase toda zero
+(`0,0,0,2,0,0,0,0,1,0,…`). SARIMAX precisa de uma série **densa e contínua** para estimar
+tendência, autocorrelação e sazonalidade; numa série 90%+ zerada ele não converge, a
+variância explode e não há padrão semanal estável para capturar. A maioria dos SKUs
+cairia em `insufficient_data`.
+
+O sinal que interessa vive no **agregado**: "fim de semana vende mais", pico no Dia das
+Mães e em Finados, tendência — são propriedades da demanda da **categoria**, não de um SKU
+isolado (cujo padrão individual é ruído). Somando por `unidade × categoria` obtém-se uma
+série densa onde o SARIMAX consegue estimar `m=7` e as exógenas de calendário. São **9
+modelos L1** (3 categorias × 3 lojas), cada um com muito dado, em vez de milhares de
+modelos frágeis.
+
+**Como o SKU continua sendo previsto — a camada L2:**
+
+```text
+previsão do SKU = previsão da categoria (L1)  ×  participação do SKU na categoria (L2)
+```
+
+A L2 reparte a previsão da categoria entre os SKUs pela **participação móvel** de cada um
+(share das últimas 4–8 semanas) × o **perfil de dia-da-semana** do SKU. O SKU não precisa
+de um modelo temporal próprio — precisa só de uma estimativa **estável de proporção**
+("este vaso é ~3% de `Produtos de jardim` nesta loja"), que até um SKU esparso fornece se
+tiver vendas suficientes no total. SKU com histórico curto demais (< 28 dias com venda ou
+< 8 vendas) cai no rateio uniforme da categoria.
+
+É **empréstimo de força** (*borrowing strength*): o agregado denso carrega a **dinâmica
+temporal** (quando vende), a desagregação carrega o **mix de produtos** (o que vende) —
+previsão hierárquica top-down, técnica padrão. É também o motivo de a Etapa 3 manter a
+`categoria_fina` no CSV: a L2 pode desagregar em dois passos (3 → ~10 finas → SKU), o que
+dá uma estimativa de share menos ruidosa do que partir direto de 3 baldes.
+
+**Limitação** (e por que existe a comparação acadêmica): o top-down assume que os SKUs de
+uma categoria se movem juntos. Um SKU com timing próprio (uma flor específica só no
+Namorados) o método puro erra. Por isso o TCC compara, nos mesmos splits de walk-forward,
+o **SARIMAX hierárquico (L1+L2)** contra **Croston/TSB/SBA por SKU** — métodos feitos para
+demanda intermitente — para medir qual ganha (ADR-009).
+
+#### Como o dado se parece
+
+A amostra dos produtos de maior volume mostrou que a
 **Verde Perto opera como garden center / jardinagem, não como floricultura de flor de
 corte**: o carro-chefe é **grama plantada** (esmeralda, são carlos, amendoim), seguida de
 mudas em saquinho/sacola/cuia, plantas em vaso (`PT NN`), terra/adubo/argila e insumos de

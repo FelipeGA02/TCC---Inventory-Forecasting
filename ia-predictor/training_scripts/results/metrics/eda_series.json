@@ -1,0 +1,1479 @@
+{
+  "gerado_em": "2026-09-01T21:27:16",
+  "parametros": {
+    "LOG_CV_THRESHOLD": 0.7,
+    "MIN_OBSERVATIONS_DAYS": 180,
+    "SEASONAL_PERIOD": 7
+  },
+  "n_pares_l1": 9,
+  "por_par": {
+    "Garden Center · Grama": {
+      "1_densidade": {
+        "primeiro_dia": "2025-02-13",
+        "ultimo_dia": "2026-02-28",
+        "dias_calendario": 381,
+        "dias_com_venda": 299,
+        "pct_dias_com_venda": 78.4776902887139,
+        "maior_sequencia_zeros": 4,
+        "atende_min_180d": true,
+        "linhas_transacao": 2752,
+        "skus_distintos": 9
+      },
+      "2_distribuicao": {
+        "media": 591.8020997375328,
+        "desvio_padrao": 865.2884551082503,
+        "cv": 1.4621246789965938,
+        "min": 0.0,
+        "max": 6811.5,
+        "razao_max_media": 11.509759771080459,
+        "p50": 288.0,
+        "p90": 1427.0,
+        "p99": 4079.799999999994,
+        "assimetria_skew": 2.936226902190781,
+        "curtose": 11.650381877916598,
+        "pct_dias_zero": 21.522309711286088,
+        "pct_dias_zero_excl_domingo": 8.56269113149847,
+        "cv_somente_dias_com_venda": 1.2093302678989422,
+        "aplicar_log1p": true
+      },
+      "3_sazonalidade_semanal": {
+        "media_por_dia_semana": {
+          "seg": 728.3564814814815,
+          "ter": 1080.5342592592592,
+          "qua": 976.1620370370371,
+          "qui": 512.4045454545454,
+          "sex": 627.9636363636364,
+          "sáb": 224.79090909090908,
+          "dom": 0.0
+        },
+        "indice_dia_semana": {
+          "seg": 1.2307433207900265,
+          "ter": 1.8258371501866615,
+          "qua": 1.649473764067363,
+          "qui": 0.8658376603966079,
+          "sex": 1.0611041032840902,
+          "sáb": 0.3798413510033252,
+          "dom": 0.0
+        },
+        "dia_pico": "ter",
+        "dia_vale_aberto": "sáb",
+        "amplitude_pico_vale_seg_a_sab": 4.8068414493678375,
+        "domingo_pct_da_media": 0.0,
+        "sabado_pct_da_media": 0.3798413510033252,
+        "forca_sazonal_semanal": 0.2733264435333249,
+        "forca_tendencia": 0.13985881738120576
+      },
+      "4_sazonalidade_anual": {
+        "indice_mes": {
+          "1": 0.6451453742156436,
+          "2": 0.44606626888031037,
+          "3": 0.5879526501469733,
+          "4": 1.2694896942742617,
+          "5": 0.9216245685518958,
+          "6": 0.8616337571171466,
+          "7": 1.0570910612768545,
+          "8": 1.0138251811438956,
+          "9": 1.1970076939247798,
+          "10": 1.997957022820164,
+          "11": 1.2846496044378886,
+          "12": 0.9696190346395435
+        },
+        "mes_pico": 10,
+        "mes_vale": 2
+      },
+      "4b_datas_comemorativas": {
+        "Dia da Mulher": {
+          "n_ocorrencias_janela": 3,
+          "razao_vs_media_geral": 0.5824018989110179
+        },
+        "Dia das Mães": {
+          "n_ocorrencias_janela": 3,
+          "razao_vs_media_geral": 0.6023973219393942
+        },
+        "Dia dos Namorados": {
+          "n_ocorrencias_janela": 3,
+          "razao_vs_media_geral": 0.8133349536049417
+        },
+        "Dia dos Pais": {
+          "n_ocorrencias_janela": 3,
+          "razao_vs_media_geral": 0.17967718157893103
+        },
+        "Finados": {
+          "n_ocorrencias_janela": 3,
+          "razao_vs_media_geral": 0.5897241664988739
+        },
+        "Natal": {
+          "n_ocorrencias_janela": 3,
+          "razao_vs_media_geral": 0.8172777130753258
+        }
+      },
+      "5_tendencia": {
+        "inclinacao_unid_por_dia": 0.266264006266232,
+        "inclinacao_pct_da_media_por_ano": 16.422105012854352,
+        "media_primeiros_90d": 469.39,
+        "media_ultimos_90d": 413.39444444444445,
+        "variacao_90d_ini_vs_fim_pct": -11.929430868905504
+      },
+      "6_estacionariedade": {
+        "adf_pvalue": 0.0016636164535453802,
+        "kpss_pvalue": 0.048580380889558496,
+        "kpss_pvalue_no_limite_da_tabela": false,
+        "sugestao_d": 0,
+        "leitura": "testes divergem → começar com d=0, revisar por resíduo"
+      },
+      "7_autocorrelacao": {
+        "acf_lag1": 0.17849409250513687,
+        "acf_lag7": 0.30425487075230406,
+        "acf_lag14": 0.15374631966656258,
+        "pacf_lag1": 0.17896381380120308,
+        "pacf_lag7": 0.2754655580787879,
+        "ljung_box_lag7_pvalue": 2.0317501768240428e-10,
+        "ljung_box_lag14_pvalue": 1.7768081912869604e-15,
+        "autocorrelacao_significativa": true
+      },
+      "8_outliers": {
+        "n_dias_acima_3sigma": 8,
+        "n_dias_acima_iqr3": 11,
+        "top5_dias": {
+          "2025-10-29": 6811.5,
+          "2025-06-24": 4944.5,
+          "2025-09-30": 4648.0,
+          "2025-07-22": 4505.0,
+          "2025-08-11": 3973.5
+        }
+      },
+      "9_veredito_sarimax": {
+        "nivel": "atencao",
+        "observacoes": [
+          "histórico curto (299 dias) — sem ciclo anual completo"
+        ]
+      }
+    },
+    "Garden Center · Plantas de corte": {
+      "1_densidade": {
+        "primeiro_dia": "2025-02-25",
+        "ultimo_dia": "2026-02-28",
+        "dias_calendario": 369,
+        "dias_com_venda": 221,
+        "pct_dias_com_venda": 59.891598915989164,
+        "maior_sequencia_zeros": 33,
+        "atende_min_180d": true,
+        "linhas_transacao": 1765,
+        "skus_distintos": 63
+      },
+      "2_distribuicao": {
+        "media": 12.073170731707316,
+        "desvio_padrao": 22.159010499456517,
+        "cv": 1.8353927888438732,
+        "min": 0.0,
+        "max": 157.0,
+        "razao_max_media": 13.004040404040405,
+        "p50": 3.0,
+        "p90": 34.0,
+        "p99": 105.63999999999999,
+        "assimetria_skew": 3.2532138264060517,
+        "curtose": 13.13600488089947,
+        "pct_dias_zero": 40.10840108401084,
+        "pct_dias_zero_excl_domingo": 30.28391167192429,
+        "cv_somente_dias_com_venda": 1.271402505721925,
+        "aplicar_log1p": true
+      },
+      "3_sazonalidade_semanal": {
+        "media_por_dia_semana": {
+          "seg": 16.846153846153847,
+          "ter": 8.09433962264151,
+          "qua": 7.169811320754717,
+          "qui": 10.132075471698114,
+          "sex": 26.452830188679247,
+          "sáb": 15.679245283018869,
+          "dom": 0.0
+        },
+        "indice_dia_semana": {
+          "seg": 1.3953379953379954,
+          "ter": 0.6704402515723271,
+          "qua": 0.5938631599008958,
+          "qui": 0.8392224128073186,
+          "sex": 2.191042500476463,
+          "sáb": 1.2986849628359063,
+          "dom": 0.0
+        },
+        "dia_pico": "sex",
+        "dia_vale_aberto": "qua",
+        "amplitude_pico_vale_seg_a_sab": 3.6894736842105265,
+        "domingo_pct_da_media": 0.0,
+        "sabado_pct_da_media": 1.2986849628359063,
+        "forca_sazonal_semanal": 0.21543570229607778,
+        "forca_tendencia": 0.1460997644042642
+      },
+      "4_sazonalidade_anual": {
+        "indice_mes": {
+          "1": 0.7935483870967742,
+          "2": 1.0948863636363637,
+          "3": 0.01870316063864451,
+          "4": 0.7095622895622896,
+          "5": 1.0393613554903878,
+          "6": 0.7233670033670033,
+          "7": 0.6546106223525578,
+          "8": 1.2691430433365918,
+          "9": 1.7393939393939395,
+          "10": 1.3653307266210493,
+          "11": 1.258989898989899,
+          "12": 1.3439556858911699
+        },
+        "mes_pico": 9,
+        "mes_vale": 3
+      },
+      "4b_datas_comemorativas": {
+        "Dia da Mulher": {
+          "n_ocorrencias_janela": 3,
+          "razao_vs_media_geral": 0.0
+        },
+        "Dia das Mães": {
+          "n_ocorrencias_janela": 3,
+          "razao_vs_media_geral": 0.0
+        },
+        "Dia dos Namorados": {
+          "n_ocorrencias_janela": 3,
+          "razao_vs_media_geral": 1.2424242424242424
+        },
+        "Dia dos Pais": {
+          "n_ocorrencias_janela": 3,
+          "razao_vs_media_geral": 0.5245791245791246
+        },
+        "Finados": {
+          "n_ocorrencias_janela": 3,
+          "razao_vs_media_geral": 1.6565656565656566
+        },
+        "Natal": {
+          "n_ocorrencias_janela": 3,
+          "razao_vs_media_geral": 0.7454545454545455
+        }
+      },
+      "5_tendencia": {
+        "inclinacao_unid_por_dia": 0.034911104105165625,
+        "inclinacao_pct_da_media_por_ano": 105.54437837046538,
+        "media_primeiros_90d": 5.1,
+        "media_ultimos_90d": 13.577777777777778,
+        "variacao_90d_ini_vs_fim_pct": 166.23093681917214
+      },
+      "6_estacionariedade": {
+        "adf_pvalue": 4.0989189732945416e-05,
+        "kpss_pvalue": 0.01907316272962787,
+        "kpss_pvalue_no_limite_da_tabela": false,
+        "sugestao_d": 0,
+        "leitura": "testes divergem → começar com d=0, revisar por resíduo"
+      },
+      "7_autocorrelacao": {
+        "acf_lag1": 0.23274384862640318,
+        "acf_lag7": 0.20355943534084905,
+        "acf_lag14": 0.07052986172342986,
+        "pacf_lag1": 0.23337630473680093,
+        "pacf_lag7": 0.19640086194600298,
+        "ljung_box_lag7_pvalue": 3.1989143804054393e-10,
+        "ljung_box_lag14_pvalue": 6.580354967478885e-09,
+        "autocorrelacao_significativa": true
+      },
+      "8_outliers": {
+        "n_dias_acima_3sigma": 10,
+        "n_dias_acima_iqr3": 19,
+        "top5_dias": {
+          "2025-09-29": 157.0,
+          "2026-02-27": 155.0,
+          "2026-01-07": 113.0,
+          "2026-02-28": 107.0,
+          "2025-08-22": 105.0
+        }
+      },
+      "9_veredito_sarimax": {
+        "nivel": "atencao",
+        "observacoes": [
+          "histórico curto (221 dias) — sem ciclo anual completo",
+          "30% de dias úteis zerados (intermitência além dos domingos)",
+          "tendência forte (+106%/ano) — avaliar d=1 ou termo de nível/deriva"
+        ]
+      }
+    },
+    "Garden Center · Produtos de jardim": {
+      "1_densidade": {
+        "primeiro_dia": "2025-02-20",
+        "ultimo_dia": "2026-02-28",
+        "dias_calendario": 374,
+        "dias_com_venda": 302,
+        "pct_dias_com_venda": 80.74866310160428,
+        "maior_sequencia_zeros": 3,
+        "atende_min_180d": true,
+        "linhas_transacao": 24891,
+        "skus_distintos": 2420
+      },
+      "2_distribuicao": {
+        "media": 468.76,
+        "desvio_padrao": 624.8171273085229,
+        "cv": 1.3329147694097683,
+        "min": 0.0,
+        "max": 5057.0,
+        "razao_max_media": 10.788036521887534,
+        "p50": 260.5,
+        "p90": 1182.4999999999998,
+        "p99": 2571.5449999999955,
+        "assimetria_skew": 2.9092505007425618,
+        "curtose": 13.535535944033864,
+        "pct_dias_zero": 19.25133689839572,
+        "pct_dias_zero_excl_domingo": 5.919003115264798,
+        "cv_somente_dias_com_venda": 1.1145031485960732,
+        "aplicar_log1p": true
+      },
+      "3_sazonalidade_semanal": {
+        "media_por_dia_semana": {
+          "seg": 585.7924528301887,
+          "ter": 631.7924528301887,
+          "qua": 738.9056603773585,
+          "qui": 424.3803703703704,
+          "sex": 584.7444444444444,
+          "sáb": 317.212962962963,
+          "dom": 0.0
+        },
+        "indice_dia_semana": {
+          "seg": 1.249663906541063,
+          "ter": 1.3477951464079458,
+          "qua": 1.576298447771479,
+          "qui": 0.9053254765132912,
+          "sex": 1.2474282030131505,
+          "sáb": 0.6767065512478945,
+          "dom": 0.0
+        },
+        "dia_pico": "qua",
+        "dia_vale_aberto": "sáb",
+        "amplitude_pico_vale_seg_a_sab": 2.329367795929674,
+        "domingo_pct_da_media": 0.0,
+        "sabado_pct_da_media": 0.6767065512478945,
+        "forca_sazonal_semanal": 0.21166231238025401,
+        "forca_tendencia": 0.21674432302643987
+      },
+      "4_sazonalidade_anual": {
+        "indice_mes": {
+          "1": 0.49530126153007664,
+          "2": 0.4997082584760715,
+          "3": 0.5814585632925853,
+          "4": 1.0115517535625906,
+          "5": 1.0007356402203205,
+          "6": 1.015409449042865,
+          "7": 1.034131228856365,
+          "8": 0.9096064015150472,
+          "9": 1.1644196034929033,
+          "10": 1.9193052913795905,
+          "11": 1.3133728702676564,
+          "12": 1.1681127146706893
+        },
+        "mes_pico": 10,
+        "mes_vale": 1
+      },
+      "4b_datas_comemorativas": {
+        "Dia da Mulher": {
+          "n_ocorrencias_janela": 3,
+          "razao_vs_media_geral": 0.06115425093153569
+        },
+        "Dia das Mães": {
+          "n_ocorrencias_janela": 3,
+          "razao_vs_media_geral": 0.1642631623858691
+        },
+        "Dia dos Namorados": {
+          "n_ocorrencias_janela": 3,
+          "razao_vs_media_geral": 0.824160195693603
+        },
+        "Dia dos Pais": {
+          "n_ocorrencias_janela": 3,
+          "razao_vs_media_geral": 0.30577125465767846
+        },
+        "Finados": {
+          "n_ocorrencias_janela": 3,
+          "razao_vs_media_geral": 0.8554484171004352
+        },
+        "Natal": {
+          "n_ocorrencias_janela": 3,
+          "razao_vs_media_geral": 0.486389623688028
+        }
+      },
+      "5_tendencia": {
+        "inclinacao_unid_por_dia": 0.381314566386145,
+        "inclinacao_pct_da_media_por_ano": 29.69106082663686,
+        "media_primeiros_90d": 297.0527777777778,
+        "media_ultimos_90d": 360.03333333333336,
+        "variacao_90d_ini_vs_fim_pct": 21.201806637428813
+      },
+      "6_estacionariedade": {
+        "adf_pvalue": 5.621363205649602e-07,
+        "kpss_pvalue": 0.1,
+        "kpss_pvalue_no_limite_da_tabela": true,
+        "sugestao_d": 0,
+        "leitura": "estacionária (ADF rejeita raiz unitária, KPSS não rejeita)"
+      },
+      "7_autocorrelacao": {
+        "acf_lag1": 0.27060829779542916,
+        "acf_lag7": 0.282678023196208,
+        "acf_lag14": 0.07283091287125684,
+        "pacf_lag1": 0.27133378921043033,
+        "pacf_lag7": 0.21236220602820344,
+        "ljung_box_lag7_pvalue": 1.0349519316782567e-17,
+        "ljung_box_lag14_pvalue": 4.69080936574001e-16,
+        "autocorrelacao_significativa": true
+      },
+      "8_outliers": {
+        "n_dias_acima_3sigma": 5,
+        "n_dias_acima_iqr3": 4,
+        "top5_dias": {
+          "2025-10-22": 5057.0,
+          "2025-03-31": 4626.0,
+          "2025-07-23": 3220.0,
+          "2025-06-30": 2742.0,
+          "2025-10-15": 2508.5
+        }
+      },
+      "9_veredito_sarimax": {
+        "nivel": "atencao",
+        "observacoes": [
+          "histórico curto (302 dias) — sem ciclo anual completo"
+        ]
+      }
+    },
+    "Itabirito · Grama": {
+      "1_densidade": {
+        "primeiro_dia": "2024-01-02",
+        "ultimo_dia": "2026-02-28",
+        "dias_calendario": 789,
+        "dias_com_venda": 641,
+        "pct_dias_com_venda": 81.24207858048163,
+        "maior_sequencia_zeros": 5,
+        "atende_min_180d": true,
+        "linhas_transacao": 3953,
+        "skus_distintos": 13
+      },
+      "2_distribuicao": {
+        "media": 780.9031685678074,
+        "desvio_padrao": 3504.7416676597604,
+        "cv": 4.4880617837516645,
+        "min": 0.0,
+        "max": 61561.0,
+        "razao_max_media": 78.83307749013767,
+        "p50": 123.0,
+        "p90": 1027.600000000002,
+        "p99": 19289.620000000003,
+        "assimetria_skew": 10.265514343791995,
+        "curtose": 137.13575271061353,
+        "pct_dias_zero": 18.75792141951838,
+        "pct_dias_zero_excl_domingo": 5.465288035450517,
+        "cv_somente_dias_com_venda": 4.022035279575601,
+        "aplicar_log1p": true
+      },
+      "3_sazonalidade_semanal": {
+        "media_por_dia_semana": {
+          "seg": 1182.002232142857,
+          "ter": 1623.05,
+          "qua": 968.5508849557522,
+          "qui": 828.791592920354,
+          "sex": 746.6039823008849,
+          "sáb": 113.16592920353982,
+          "dom": 0.8035714285714286
+        },
+        "indice_dia_semana": {
+          "seg": 1.5136348265953048,
+          "ter": 2.0784267055500716,
+          "qua": 1.2402957548912172,
+          "qui": 1.0613244077884523,
+          "sex": 0.9560775424566046,
+          "sáb": 0.14491672432459005,
+          "dom": 0.0010290282597331438
+        },
+        "dia_pico": "ter",
+        "dia_vale_aberto": "sáb",
+        "amplitude_pico_vale_seg_a_sab": 14.342214228460833,
+        "domingo_pct_da_media": 0.0010290282597331438,
+        "sabado_pct_da_media": 0.14491672432459005,
+        "forca_sazonal_semanal": 0.0,
+        "forca_tendencia": 0.03324317140114719
+      },
+      "4_sazonalidade_anual": {
+        "indice_mes": {
+          "1": 0.7096158994515707,
+          "2": 0.42524290178101654,
+          "3": 0.3574727624875638,
+          "4": 0.6901591921933687,
+          "5": 0.9060879299306257,
+          "6": 0.5555533013510403,
+          "7": 1.2204850531074936,
+          "8": 0.5194615797146221,
+          "9": 0.7961667869870868,
+          "10": 1.0832008807844284,
+          "11": 1.7104500110852763,
+          "12": 3.3718391020730527
+        },
+        "mes_pico": 12,
+        "mes_vale": 3
+      },
+      "4b_datas_comemorativas": {
+        "Dia da Mulher": {
+          "n_ocorrencias_janela": 6,
+          "razao_vs_media_geral": 0.5228988045755085
+        },
+        "Dia das Mães": {
+          "n_ocorrencias_janela": 6,
+          "razao_vs_media_geral": 0.19448634108956417
+        },
+        "Dia dos Namorados": {
+          "n_ocorrencias_janela": 6,
+          "razao_vs_media_geral": 0.6418849611268743
+        },
+        "Dia dos Pais": {
+          "n_ocorrencias_janela": 6,
+          "razao_vs_media_geral": 0.16076470389653136
+        },
+        "Finados": {
+          "n_ocorrencias_janela": 6,
+          "razao_vs_media_geral": 3.325316254974984
+        },
+        "Natal": {
+          "n_ocorrencias_janela": 6,
+          "razao_vs_media_geral": 0.4984612890147348
+        }
+      },
+      "5_tendencia": {
+        "inclinacao_unid_por_dia": 2.0508984309817415,
+        "inclinacao_pct_da_media_por_ano": 95.86053142558548,
+        "media_primeiros_90d": 316.29611111111114,
+        "media_ultimos_90d": 2190.608333333333,
+        "variacao_90d_ini_vs_fim_pct": 592.5814944856523
+      },
+      "6_estacionariedade": {
+        "adf_pvalue": 0.0006024004477648048,
+        "kpss_pvalue": 0.01,
+        "kpss_pvalue_no_limite_da_tabela": true,
+        "sugestao_d": 0,
+        "leitura": "testes divergem → começar com d=0, revisar por resíduo"
+      },
+      "7_autocorrelacao": {
+        "acf_lag1": -0.006443160315357338,
+        "acf_lag7": 0.19032431266673194,
+        "acf_lag14": -1.8784514841859962e-05,
+        "pacf_lag1": -0.006451336914742296,
+        "pacf_lag7": 0.19725072405224828,
+        "ljung_box_lag7_pvalue": 1.7256682232132237e-06,
+        "ljung_box_lag14_pvalue": 1.689536567807186e-14,
+        "autocorrelacao_significativa": true
+      },
+      "8_outliers": {
+        "n_dias_acima_3sigma": 12,
+        "n_dias_acima_iqr3": 55,
+        "top5_dias": {
+          "2025-12-16": 61561.0,
+          "2025-12-03": 31672.0,
+          "2025-12-09": 30360.75,
+          "2025-07-03": 25844.0,
+          "2026-01-02": 23193.0
+        }
+      },
+      "9_veredito_sarimax": {
+        "nivel": "atencao",
+        "observacoes": [
+          "cauda extrema (dia pico = 79× a média) — pedidos B2B pontuais dominam a variância",
+          "ciclo semanal fraco na variância (Fs < 0.1) — dummies de dia da semana farão mais que os termos SARIMA sazonais",
+          "tendência forte (+96%/ano) — avaliar d=1 ou termo de nível/deriva"
+        ]
+      }
+    },
+    "Itabirito · Plantas de corte": {
+      "1_densidade": {
+        "primeiro_dia": "2024-01-02",
+        "ultimo_dia": "2026-02-28",
+        "dias_calendario": 789,
+        "dias_com_venda": 653,
+        "pct_dias_com_venda": 82.76299112801014,
+        "maior_sequencia_zeros": 3,
+        "atende_min_180d": true,
+        "linhas_transacao": 13411,
+        "skus_distintos": 101
+      },
+      "2_distribuicao": {
+        "media": 45.836730038022814,
+        "desvio_padrao": 70.99215757543993,
+        "cv": 1.5488050198290761,
+        "min": 0.0,
+        "max": 820.0,
+        "razao_max_media": 17.889583295313336,
+        "p50": 26.0,
+        "p90": 97.10000000000002,
+        "p99": 324.8800000000001,
+        "assimetria_skew": 4.655330719624926,
+        "curtose": 31.98592037942872,
+        "pct_dias_zero": 17.23700887198986,
+        "pct_dias_zero_excl_domingo": 3.9881831610044314,
+        "cv_somente_dias_com_venda": 1.3464568507143901,
+        "aplicar_log1p": true
+      },
+      "3_sazonalidade_semanal": {
+        "media_por_dia_semana": {
+          "seg": 47.453125,
+          "ter": 37.13362831858407,
+          "qua": 35.683185840707964,
+          "qui": 42.63716814159292,
+          "sex": 89.95221238938053,
+          "sáb": 61.76575221238938,
+          "dom": 5.892857142857143
+        },
+        "indice_dia_semana": {
+          "seg": 1.0352641857444094,
+          "ter": 0.810128215685995,
+          "qua": 0.7784845430969397,
+          "qui": 0.9301965499333009,
+          "sex": 1.962448287972609,
+          "sáb": 1.3475165475624682,
+          "dom": 0.12856190085917688
+        },
+        "dia_pico": "sex",
+        "dia_vale_aberto": "qua",
+        "amplitude_pico_vale_seg_a_sab": 2.520857100342245,
+        "domingo_pct_da_media": 0.12856190085917688,
+        "sabado_pct_da_media": 1.3475165475624682,
+        "forca_sazonal_semanal": 0.16918896926241656,
+        "forca_tendencia": 0.04520864511110245
+      },
+      "4_sazonalidade_anual": {
+        "indice_mes": {
+          "1": 0.5880512812263788,
+          "2": 0.6583725984334037,
+          "3": 0.996816448592889,
+          "4": 0.5485048048979709,
+          "5": 1.300196897643249,
+          "6": 1.1800943614825088,
+          "7": 1.0191326833015588,
+          "8": 0.9653830009970916,
+          "9": 0.8066674906636715,
+          "10": 1.4673751239139683,
+          "11": 1.0967550832043418,
+          "12": 1.68684273015486
+        },
+        "mes_pico": 12,
+        "mes_vale": 4
+      },
+      "4b_datas_comemorativas": {
+        "Dia da Mulher": {
+          "n_ocorrencias_janela": 6,
+          "razao_vs_media_geral": 3.9778870172912177
+        },
+        "Dia das Mães": {
+          "n_ocorrencias_janela": 6,
+          "razao_vs_media_geral": 4.8650939937254565
+        },
+        "Dia dos Namorados": {
+          "n_ocorrencias_janela": 6,
+          "razao_vs_media_geral": 3.603369318222666
+        },
+        "Dia dos Pais": {
+          "n_ocorrencias_janela": 6,
+          "razao_vs_media_geral": 1.1853666980227944
+        },
+        "Finados": {
+          "n_ocorrencias_janela": 6,
+          "razao_vs_media_geral": 5.621401580193988
+        },
+        "Natal": {
+          "n_ocorrencias_janela": 6,
+          "razao_vs_media_geral": 1.1126448147085124
+        }
+      },
+      "5_tendencia": {
+        "inclinacao_unid_por_dia": 0.03594871916403072,
+        "inclinacao_pct_da_media_por_ano": 28.6261312357726,
+        "media_primeiros_90d": 29.4,
+        "media_ultimos_90d": 44.022222222222226,
+        "variacao_90d_ini_vs_fim_pct": 49.735449735449755
+      },
+      "6_estacionariedade": {
+        "adf_pvalue": 1.472563737527443e-05,
+        "kpss_pvalue": 0.01,
+        "kpss_pvalue_no_limite_da_tabela": true,
+        "sugestao_d": 0,
+        "leitura": "testes divergem → começar com d=0, revisar por resíduo"
+      },
+      "7_autocorrelacao": {
+        "acf_lag1": 0.20317550493602796,
+        "acf_lag7": 0.14889016955057177,
+        "acf_lag14": 0.08374246216386026,
+        "pacf_lag1": 0.203433341871226,
+        "pacf_lag7": 0.1452632823640262,
+        "ljung_box_lag7_pvalue": 3.601602565461993e-11,
+        "ljung_box_lag14_pvalue": 1.2345877218938362e-10,
+        "autocorrelacao_significativa": true
+      },
+      "8_outliers": {
+        "n_dias_acima_3sigma": 15,
+        "n_dias_acima_iqr3": 32,
+        "top5_dias": {
+          "2025-10-31": 820.0,
+          "2024-12-04": 553.0,
+          "2024-06-28": 547.0,
+          "2025-10-30": 534.5,
+          "2025-07-01": 512.0
+        }
+      },
+      "9_veredito_sarimax": {
+        "nivel": "ok",
+        "observacoes": [
+          "sem ressalvas para o L1"
+        ]
+      }
+    },
+    "Itabirito · Produtos de jardim": {
+      "1_densidade": {
+        "primeiro_dia": "2024-01-02",
+        "ultimo_dia": "2026-02-28",
+        "dias_calendario": 789,
+        "dias_com_venda": 653,
+        "pct_dias_com_venda": 82.76299112801014,
+        "maior_sequencia_zeros": 3,
+        "atende_min_180d": true,
+        "linhas_transacao": 113756,
+        "skus_distintos": 4030
+      },
+      "2_distribuicao": {
+        "media": 850.6873130544994,
+        "desvio_padrao": 1549.3451942951758,
+        "cv": 1.8212863534217498,
+        "min": 0.0,
+        "max": 18254.0,
+        "razao_max_media": 21.457943147708086,
+        "p50": 534.5,
+        "p90": 1403.5,
+        "p99": 8645.62,
+        "assimetria_skew": 6.2821358280693955,
+        "curtose": 51.82897577931637,
+        "pct_dias_zero": 17.23700887198986,
+        "pct_dias_zero_excl_domingo": 3.9881831610044314,
+        "cv_somente_dias_com_venda": 1.6040410943353172,
+        "aplicar_log1p": true
+      },
+      "3_sazonalidade_semanal": {
+        "media_por_dia_semana": {
+          "seg": 1213.1026785714287,
+          "ter": 798.946017699115,
+          "qua": 1078.7265486725664,
+          "qui": 1106.944336283186,
+          "sex": 1205.935221238938,
+          "sáb": 534.1008849557522,
+          "dom": 12.848214285714286
+        },
+        "indice_dia_semana": {
+          "seg": 1.4260265316707632,
+          "ter": 0.9391770694574005,
+          "qua": 1.2680646955921602,
+          "qui": 1.3012352709347028,
+          "sex": 1.417601041808037,
+          "sáb": 0.627846303523672,
+          "dom": 0.015103333608657172
+        },
+        "dia_pico": "seg",
+        "dia_vale_aberto": "sáb",
+        "amplitude_pico_vale_seg_a_sab": 2.271298761603678,
+        "domingo_pct_da_media": 0.015103333608657172,
+        "sabado_pct_da_media": 0.627846303523672,
+        "forca_sazonal_semanal": 0.0880534375842168,
+        "forca_tendencia": 0.015950346790083225
+      },
+      "4_sazonalidade_anual": {
+        "indice_mes": {
+          "1": 0.6324665903573398,
+          "2": 0.783250397937816,
+          "3": 0.8005414838334831,
+          "4": 0.6578231798520808,
+          "5": 1.2754468474639071,
+          "6": 1.102146055640776,
+          "7": 1.1312759482902264,
+          "8": 0.9645947879964761,
+          "9": 1.2366804079349598,
+          "10": 1.1489258131684514,
+          "11": 1.3325597423057407,
+          "12": 1.20315425986676
+        },
+        "mes_pico": 11,
+        "mes_vale": 1
+      },
+      "4b_datas_comemorativas": {
+        "Dia da Mulher": {
+          "n_ocorrencias_janela": 6,
+          "razao_vs_media_geral": 0.7395392607981238
+        },
+        "Dia das Mães": {
+          "n_ocorrencias_janela": 6,
+          "razao_vs_media_geral": 0.9412976868372549
+        },
+        "Dia dos Namorados": {
+          "n_ocorrencias_janela": 6,
+          "razao_vs_media_geral": 2.210173629974206
+        },
+        "Dia dos Pais": {
+          "n_ocorrencias_janela": 6,
+          "razao_vs_media_geral": 0.4937184245665277
+        },
+        "Finados": {
+          "n_ocorrencias_janela": 6,
+          "razao_vs_media_geral": 2.471628882983742
+        },
+        "Natal": {
+          "n_ocorrencias_janela": 6,
+          "razao_vs_media_geral": 0.44395474209037766
+        }
+      },
+      "5_tendencia": {
+        "inclinacao_unid_por_dia": 0.41627309947621266,
+        "inclinacao_pct_da_media_por_ano": 17.860814305935648,
+        "media_primeiros_90d": 546.5325555555555,
+        "media_ultimos_90d": 798.3833333333333,
+        "variacao_90d_ini_vs_fim_pct": 46.08156919797195
+      },
+      "6_estacionariedade": {
+        "adf_pvalue": 0.0,
+        "kpss_pvalue": 0.062317709345160295,
+        "kpss_pvalue_no_limite_da_tabela": false,
+        "sugestao_d": 0,
+        "leitura": "estacionária (ADF rejeita raiz unitária, KPSS não rejeita)"
+      },
+      "7_autocorrelacao": {
+        "acf_lag1": -0.02084198097849062,
+        "acf_lag7": 0.05524200157836599,
+        "acf_lag14": 0.03936368827231253,
+        "pacf_lag1": -0.020868430192930325,
+        "pacf_lag7": 0.050672462211043746,
+        "ljung_box_lag7_pvalue": 0.4819432042848494,
+        "ljung_box_lag14_pvalue": 0.5981016319405031,
+        "autocorrelacao_significativa": false
+      },
+      "8_outliers": {
+        "n_dias_acima_3sigma": 16,
+        "n_dias_acima_iqr3": 52,
+        "top5_dias": {
+          "2025-12-17": 18254.0,
+          "2025-11-13": 17815.0,
+          "2024-06-28": 14014.0,
+          "2025-05-07": 10297.5,
+          "2024-08-08": 9797.0
+        }
+      },
+      "9_veredito_sarimax": {
+        "nivel": "atencao",
+        "observacoes": [
+          "ciclo semanal fraco na variância (Fs < 0.1) — dummies de dia da semana farão mais que os termos SARIMA sazonais",
+          "sem autocorrelação significativa até lag 7 (Ljung-Box) — parte ARIMA quase inócua; exógenas de calendário carregam o modelo"
+        ]
+      }
+    },
+    "Jardim Canadá · Grama": {
+      "1_densidade": {
+        "primeiro_dia": "2024-01-02",
+        "ultimo_dia": "2026-02-28",
+        "dias_calendario": 789,
+        "dias_com_venda": 645,
+        "pct_dias_com_venda": 81.74904942965779,
+        "maior_sequencia_zeros": 3,
+        "atende_min_180d": true,
+        "linhas_transacao": 10581,
+        "skus_distintos": 11
+      },
+      "2_distribuicao": {
+        "media": 1262.846514575412,
+        "desvio_padrao": 1649.679080170208,
+        "cv": 1.3063179579862523,
+        "min": 0.0,
+        "max": 15347.0,
+        "razao_max_media": 12.152704087843876,
+        "p50": 725.5,
+        "p90": 3137.65,
+        "p99": 7908.56,
+        "assimetria_skew": 2.995048879162057,
+        "curtose": 14.562505851445362,
+        "pct_dias_zero": 18.250950570342205,
+        "pct_dias_zero_excl_domingo": 4.726735598227474,
+        "cv_somente_dias_com_venda": 1.101140647077275,
+        "aplicar_log1p": true
+      },
+      "3_sazonalidade_semanal": {
+        "media_por_dia_semana": {
+          "seg": 1440.65625,
+          "ter": 1830.75,
+          "qua": 1960.2778761061945,
+          "qui": 1642.8141592920354,
+          "sex": 1412.8230088495575,
+          "sáb": 543.0022123893805,
+          "dom": 0.0
+        },
+        "indice_dia_semana": {
+          "seg": 1.1408007492378205,
+          "ter": 1.449701114798995,
+          "qua": 1.552269300727547,
+          "qui": 1.3008818889161478,
+          "sex": 1.1187606669085752,
+          "sáb": 0.4299827462183289,
+          "dom": 0.0
+        },
+        "dia_pico": "qua",
+        "dia_vale_aberto": "sáb",
+        "amplitude_pico_vale_seg_a_sab": 3.610073460806643,
+        "domingo_pct_da_media": 0.0,
+        "sabado_pct_da_media": 0.4299827462183289,
+        "forca_sazonal_semanal": 0.17823277840444152,
+        "forca_tendencia": 0.09299175387367342
+      },
+      "4_sazonalidade_anual": {
+        "indice_mes": {
+          "1": 1.0688047973092598,
+          "2": 0.9371116930167906,
+          "3": 1.0925841843069555,
+          "4": 0.7879355528816696,
+          "5": 0.7912328486706387,
+          "6": 0.9051871995579223,
+          "7": 0.8659935493836015,
+          "8": 0.7751433649902499,
+          "9": 0.874238598217819,
+          "10": 1.6067994848245561,
+          "11": 1.1881722357773228,
+          "12": 1.0889473670987866
+        },
+        "mes_pico": 10,
+        "mes_vale": 8
+      },
+      "4b_datas_comemorativas": {
+        "Dia da Mulher": {
+          "n_ocorrencias_janela": 6,
+          "razao_vs_media_geral": 0.5990764973691418
+        },
+        "Dia das Mães": {
+          "n_ocorrencias_janela": 6,
+          "razao_vs_media_geral": 0.7923897758890406
+        },
+        "Dia dos Namorados": {
+          "n_ocorrencias_janela": 6,
+          "razao_vs_media_geral": 1.296607820323431
+        },
+        "Dia dos Pais": {
+          "n_ocorrencias_janela": 6,
+          "razao_vs_media_geral": 0.17480350735593508
+        },
+        "Finados": {
+          "n_ocorrencias_janela": 6,
+          "razao_vs_media_geral": 0.7137644912478187
+        },
+        "Natal": {
+          "n_ocorrencias_janela": 6,
+          "razao_vs_media_geral": 0.5170857997890175
+        }
+      },
+      "5_tendencia": {
+        "inclinacao_unid_por_dia": -1.2669958874380098,
+        "inclinacao_pct_da_media_por_ano": -36.61992915032572,
+        "media_primeiros_90d": 1767.4277777777777,
+        "media_ultimos_90d": 927.6933333333333,
+        "variacao_90d_ini_vs_fim_pct": -47.511669500875406
+      },
+      "6_estacionariedade": {
+        "adf_pvalue": 0.002470187209065387,
+        "kpss_pvalue": 0.01,
+        "kpss_pvalue_no_limite_da_tabela": true,
+        "sugestao_d": 0,
+        "leitura": "testes divergem → começar com d=0, revisar por resíduo"
+      },
+      "7_autocorrelacao": {
+        "acf_lag1": 0.17833647869147323,
+        "acf_lag7": 0.20116204678624056,
+        "acf_lag14": 0.15465817055255854,
+        "pacf_lag1": 0.1785627940197619,
+        "pacf_lag7": 0.16176022018148314,
+        "ljung_box_lag7_pvalue": 9.70617355000575e-14,
+        "ljung_box_lag14_pvalue": 1.3029335963772148e-22,
+        "autocorrelacao_significativa": true
+      },
+      "8_outliers": {
+        "n_dias_acima_3sigma": 13,
+        "n_dias_acima_iqr3": 11,
+        "top5_dias": {
+          "2025-10-08": 15347.0,
+          "2024-01-18": 12542.5,
+          "2025-11-12": 10924.0,
+          "2024-03-01": 10594.0,
+          "2024-01-02": 10490.0
+        }
+      },
+      "9_veredito_sarimax": {
+        "nivel": "ok",
+        "observacoes": [
+          "sem ressalvas para o L1"
+        ]
+      }
+    },
+    "Jardim Canadá · Plantas de corte": {
+      "1_densidade": {
+        "primeiro_dia": "2024-01-03",
+        "ultimo_dia": "2026-02-28",
+        "dias_calendario": 788,
+        "dias_com_venda": 641,
+        "pct_dias_com_venda": 81.34517766497463,
+        "maior_sequencia_zeros": 4,
+        "atende_min_180d": true,
+        "linhas_transacao": 9281,
+        "skus_distintos": 86
+      },
+      "2_distribuicao": {
+        "media": 43.16497461928934,
+        "desvio_padrao": 153.64771391562198,
+        "cv": 3.5595460270920833,
+        "min": -13.0,
+        "max": 3882.0,
+        "razao_max_media": 89.93402716528489,
+        "p50": 19.0,
+        "p90": 89.9000000000002,
+        "p99": 315.0999999999997,
+        "assimetria_skew": 20.406295762942502,
+        "curtose": 494.57706572210424,
+        "pct_dias_zero": 18.654822335025383,
+        "pct_dias_zero_excl_domingo": 5.177514792899409,
+        "cv_somente_dias_com_venda": 3.1771467428920923,
+        "aplicar_log1p": true
+      },
+      "3_sazonalidade_semanal": {
+        "media_por_dia_semana": {
+          "seg": 38.92857142857143,
+          "ter": 66.16071428571429,
+          "qua": 22.079646017699115,
+          "qui": 54.69911504424779,
+          "sex": 72.88495575221239,
+          "sáb": 47.1858407079646,
+          "dom": 0.0
+        },
+        "indice_dia_semana": {
+          "seg": 0.9018555384757537,
+          "ter": 1.5327407202076457,
+          "qua": 0.5115176416165962,
+          "qui": 1.267210638409692,
+          "sex": 1.6885207600618382,
+          "sáb": 1.0931511282964692,
+          "dom": 0.0
+        },
+        "dia_pico": "sex",
+        "dia_vale_aberto": "qua",
+        "amplitude_pico_vale_seg_a_sab": 3.301002004008016,
+        "domingo_pct_da_media": 0.0,
+        "sabado_pct_da_media": 1.0931511282964692,
+        "forca_sazonal_semanal": 0.02115210350507235,
+        "forca_tendencia": 0.003148655847331261
+      },
+      "4_sazonalidade_anual": {
+        "indice_mes": {
+          "1": 0.6150692959653976,
+          "2": 0.8184740539362685,
+          "3": 1.1964599017103015,
+          "4": 2.085409929244821,
+          "5": 1.243914744782509,
+          "6": 1.1703161443327257,
+          "7": 0.5817889028616301,
+          "8": 0.6423218522923199,
+          "9": 1.1807412634013446,
+          "10": 0.7256480728049362,
+          "11": 0.6301405303698477,
+          "12": 1.3915105165425243
+        },
+        "mes_pico": 4,
+        "mes_vale": 7
+      },
+      "4b_datas_comemorativas": {
+        "Dia da Mulher": {
+          "n_ocorrencias_janela": 6,
+          "razao_vs_media_geral": 4.181631093079321
+        },
+        "Dia das Mães": {
+          "n_ocorrencias_janela": 6,
+          "razao_vs_media_geral": 2.3784716097293273
+        },
+        "Dia dos Namorados": {
+          "n_ocorrencias_janela": 6,
+          "razao_vs_media_geral": 1.6718802061896083
+        },
+        "Dia dos Pais": {
+          "n_ocorrencias_janela": 6,
+          "razao_vs_media_geral": 0.7490641108563142
+        },
+        "Finados": {
+          "n_ocorrencias_janela": 6,
+          "razao_vs_media_geral": 1.1274573214950707
+        },
+        "Natal": {
+          "n_ocorrencias_janela": 6,
+          "razao_vs_media_geral": 2.1738303835675508
+        }
+      },
+      "5_tendencia": {
+        "inclinacao_unid_por_dia": -0.03678701522347237,
+        "inclinacao_pct_da_media_por_ano": -31.10684223724091,
+        "media_primeiros_90d": 33.03333333333333,
+        "media_ultimos_90d": 37.077777777777776,
+        "variacao_90d_ini_vs_fim_pct": 12.243525058863101
+      },
+      "6_estacionariedade": {
+        "adf_pvalue": 0.0,
+        "kpss_pvalue": 0.1,
+        "kpss_pvalue_no_limite_da_tabela": true,
+        "sugestao_d": 0,
+        "leitura": "estacionária (ADF rejeita raiz unitária, KPSS não rejeita)"
+      },
+      "7_autocorrelacao": {
+        "acf_lag1": 0.0014723563576918292,
+        "acf_lag7": 0.011619775824733999,
+        "acf_lag14": 0.0072070739997228935,
+        "pacf_lag1": 0.0014742272043978925,
+        "pacf_lag7": 0.0119347448279232,
+        "ljung_box_lag7_pvalue": 0.999443298782457,
+        "ljung_box_lag14_pvalue": 0.9933748370462886,
+        "autocorrelacao_significativa": false
+      },
+      "8_outliers": {
+        "n_dias_acima_3sigma": 4,
+        "n_dias_acima_iqr3": 19,
+        "top5_dias": {
+          "2024-04-30": 3882.0,
+          "2024-06-29": 1038.0,
+          "2025-09-23": 702.0,
+          "2025-03-07": 542.0
+        }
+      },
+      "9_veredito_sarimax": {
+        "nivel": "atencao",
+        "observacoes": [
+          "cauda extrema (dia pico = 90× a média) — pedidos B2B pontuais dominam a variância",
+          "ciclo semanal fraco na variância (Fs < 0.1) — dummies de dia da semana farão mais que os termos SARIMA sazonais",
+          "sem autocorrelação significativa até lag 7 (Ljung-Box) — parte ARIMA quase inócua; exógenas de calendário carregam o modelo"
+        ]
+      }
+    },
+    "Jardim Canadá · Produtos de jardim": {
+      "1_densidade": {
+        "primeiro_dia": "2024-01-02",
+        "ultimo_dia": "2026-02-28",
+        "dias_calendario": 789,
+        "dias_com_venda": 650,
+        "pct_dias_com_venda": 82.382762991128,
+        "maior_sequencia_zeros": 3,
+        "atende_min_180d": true,
+        "linhas_transacao": 147287,
+        "skus_distintos": 4056
+      },
+      "2_distribuicao": {
+        "media": 1497.5774397972116,
+        "desvio_padrao": 2284.9903980374247,
+        "cv": 1.525791145963602,
+        "min": 0.0,
+        "max": 40406.5,
+        "razao_max_media": 26.981242456130673,
+        "p50": 1204.0,
+        "p90": 2670.800000000001,
+        "p99": 8100.880000000005,
+        "assimetria_skew": 9.36577068566607,
+        "curtose": 129.13643666924284,
+        "pct_dias_zero": 17.61723700887199,
+        "pct_dias_zero_excl_domingo": 3.9881831610044314,
+        "cv_somente_dias_com_venda": 1.3197462519267777,
+        "aplicar_log1p": true
+      },
+      "3_sazonalidade_semanal": {
+        "media_por_dia_semana": {
+          "seg": 1674.8547321428573,
+          "ter": 1666.5054867256638,
+          "qua": 1975.1703539823009,
+          "qui": 2149.9730088495576,
+          "sex": 1896.529203539823,
+          "sáb": 1108.325221238938,
+          "dom": 0.0
+        },
+        "indice_dia_semana": {
+          "seg": 1.1183760436252639,
+          "ter": 1.1128008758941554,
+          "qua": 1.318910329104424,
+          "qui": 1.4356339456747476,
+          "sex": 1.2663980860960578,
+          "sáb": 0.7400787376905312,
+          "dom": 0.0
+        },
+        "dia_pico": "qui",
+        "dia_vale_aberto": "sáb",
+        "amplitude_pico_vale_seg_a_sab": 1.939839469182355,
+        "domingo_pct_da_media": 0.0,
+        "sabado_pct_da_media": 0.7400787376905312,
+        "forca_sazonal_semanal": 0.09680823882056111,
+        "forca_tendencia": 0.04006764682641151
+      },
+      "4_sazonalidade_anual": {
+        "indice_mes": {
+          "1": 1.0496027592778945,
+          "2": 0.8832146624219194,
+          "3": 1.2966538253888085,
+          "4": 1.0909675118734221,
+          "5": 1.039860599398733,
+          "6": 0.9713882754962261,
+          "7": 1.1464251785893953,
+          "8": 0.8451730529177742,
+          "9": 1.0716496460781697,
+          "10": 0.9727333690232112,
+          "11": 0.8530933355315039,
+          "12": 0.7981438730983891
+        },
+        "mes_pico": 3,
+        "mes_vale": 12
+      },
+      "4b_datas_comemorativas": {
+        "Dia da Mulher": {
+          "n_ocorrencias_janela": 6,
+          "razao_vs_media_geral": 0.7804270877359515
+        },
+        "Dia das Mães": {
+          "n_ocorrencias_janela": 6,
+          "razao_vs_media_geral": 0.5856124542840038
+        },
+        "Dia dos Namorados": {
+          "n_ocorrencias_janela": 6,
+          "razao_vs_media_geral": 1.125873887070339
+        },
+        "Dia dos Pais": {
+          "n_ocorrencias_janela": 6,
+          "razao_vs_media_geral": 0.6068690066915
+        },
+        "Finados": {
+          "n_ocorrencias_janela": 6,
+          "razao_vs_media_geral": 0.6543901997700384
+        },
+        "Natal": {
+          "n_ocorrencias_janela": 6,
+          "razao_vs_media_geral": 0.4304173635392217
+        }
+      },
+      "5_tendencia": {
+        "inclinacao_unid_por_dia": -2.001360611072036,
+        "inclinacao_pct_da_media_por_ano": -48.778554192176564,
+        "media_primeiros_90d": 2280.278333333333,
+        "media_ultimos_90d": 834.2244444444444,
+        "variacao_90d_ini_vs_fim_pct": -63.41567464595573
+      },
+      "6_estacionariedade": {
+        "adf_pvalue": 1.5022351497722738e-12,
+        "kpss_pvalue": 0.01,
+        "kpss_pvalue_no_limite_da_tabela": true,
+        "sugestao_d": 0,
+        "leitura": "testes divergem → começar com d=0, revisar por resíduo"
+      },
+      "7_autocorrelacao": {
+        "acf_lag1": 0.04166708256536526,
+        "acf_lag7": 0.12132825119465615,
+        "acf_lag14": 0.08292409117576668,
+        "pacf_lag1": 0.04171995957369695,
+        "pacf_lag7": 0.11989037712822348,
+        "ljung_box_lag7_pvalue": 0.01886048759260697,
+        "ljung_box_lag14_pvalue": 0.020896863096573855,
+        "autocorrelacao_significativa": true
+      },
+      "8_outliers": {
+        "n_dias_acima_3sigma": 8,
+        "n_dias_acima_iqr3": 15,
+        "top5_dias": {
+          "2024-01-31": 40406.5,
+          "2024-03-28": 24975.0,
+          "2024-02-29": 20550.0,
+          "2024-04-30": 17121.5,
+          "2024-07-22": 14569.5
+        }
+      },
+      "9_veredito_sarimax": {
+        "nivel": "atencao",
+        "observacoes": [
+          "ciclo semanal fraco na variância (Fs < 0.1) — dummies de dia da semana farão mais que os termos SARIMA sazonais",
+          "tendência forte (-49%/ano) — avaliar d=1 ou termo de nível/deriva"
+        ]
+      }
+    }
+  },
+  "10_sku_dentro_categoria_L2": {
+    "Garden Center · Grama": {
+      "n_skus": 9,
+      "skus_para_80pct_volume": 2,
+      "share_top1_pct": 49.4,
+      "share_top5_pct": 99.9,
+      "cv_medio_share_mensal_top10": 2.0200719678504444,
+      "leitura_share": "participação instável — janela mais longa / fallback L2 load-bearing"
+    },
+    "Garden Center · Plantas de corte": {
+      "n_skus": 63,
+      "skus_para_80pct_volume": 8,
+      "share_top1_pct": 20.3,
+      "share_top5_pct": 70.8,
+      "cv_medio_share_mensal_top10": 1.050099788912475,
+      "leitura_share": "participação instável — janela mais longa / fallback L2 load-bearing"
+    },
+    "Garden Center · Produtos de jardim": {
+      "n_skus": 2418,
+      "skus_para_80pct_volume": 141,
+      "share_top1_pct": 4.7,
+      "share_top5_pct": 17.5,
+      "cv_medio_share_mensal_top10": 1.071571472284854,
+      "leitura_share": "participação instável — janela mais longa / fallback L2 load-bearing"
+    },
+    "Itabirito · Grama": {
+      "n_skus": 13,
+      "skus_para_80pct_volume": 2,
+      "share_top1_pct": 69.6,
+      "share_top5_pct": 99.9,
+      "cv_medio_share_mensal_top10": 2.03673698087139,
+      "leitura_share": "participação instável — janela mais longa / fallback L2 load-bearing"
+    },
+    "Itabirito · Plantas de corte": {
+      "n_skus": 101,
+      "skus_para_80pct_volume": 11,
+      "share_top1_pct": 25.8,
+      "share_top5_pct": 66.2,
+      "cv_medio_share_mensal_top10": 0.6669050221974848,
+      "leitura_share": "participação instável — janela mais longa / fallback L2 load-bearing"
+    },
+    "Itabirito · Produtos de jardim": {
+      "n_skus": 4028,
+      "skus_para_80pct_volume": 206,
+      "share_top1_pct": 5.1,
+      "share_top5_pct": 16.1,
+      "cv_medio_share_mensal_top10": 1.2601521658483015,
+      "leitura_share": "participação instável — janela mais longa / fallback L2 load-bearing"
+    },
+    "Jardim Canadá · Grama": {
+      "n_skus": 11,
+      "skus_para_80pct_volume": 2,
+      "share_top1_pct": 61.1,
+      "share_top5_pct": 99.8,
+      "cv_medio_share_mensal_top10": 2.0052079134212506,
+      "leitura_share": "participação instável — janela mais longa / fallback L2 load-bearing"
+    },
+    "Jardim Canadá · Plantas de corte": {
+      "n_skus": 86,
+      "skus_para_80pct_volume": 11,
+      "share_top1_pct": 25.5,
+      "share_top5_pct": 63.3,
+      "cv_medio_share_mensal_top10": 0.9775568772794584,
+      "leitura_share": "participação instável — janela mais longa / fallback L2 load-bearing"
+    },
+    "Jardim Canadá · Produtos de jardim": {
+      "n_skus": 4054,
+      "skus_para_80pct_volume": 175,
+      "share_top1_pct": 4.3,
+      "share_top5_pct": 17.2,
+      "cv_medio_share_mensal_top10": 0.7725439874235869,
+      "leitura_share": "participação instável — janela mais longa / fallback L2 load-bearing"
+    }
+  },
+  "sumario": [
+    {
+      "par": "Garden Center · Grama",
+      "dias_com_venda": 299,
+      "pct_dias_com_venda": 78.5,
+      "cv": 1.46,
+      "log1p": true,
+      "Fs_semanal": 0.27,
+      "sugestao_d": 0,
+      "acf_lag7": 0.3,
+      "veredito": "atencao"
+    },
+    {
+      "par": "Garden Center · Plantas de corte",
+      "dias_com_venda": 221,
+      "pct_dias_com_venda": 59.9,
+      "cv": 1.84,
+      "log1p": true,
+      "Fs_semanal": 0.22,
+      "sugestao_d": 0,
+      "acf_lag7": 0.2,
+      "veredito": "atencao"
+    },
+    {
+      "par": "Garden Center · Produtos de jardim",
+      "dias_com_venda": 302,
+      "pct_dias_com_venda": 80.7,
+      "cv": 1.33,
+      "log1p": true,
+      "Fs_semanal": 0.21,
+      "sugestao_d": 0,
+      "acf_lag7": 0.28,
+      "veredito": "atencao"
+    },
+    {
+      "par": "Itabirito · Grama",
+      "dias_com_venda": 641,
+      "pct_dias_com_venda": 81.2,
+      "cv": 4.49,
+      "log1p": true,
+      "Fs_semanal": 0.0,
+      "sugestao_d": 0,
+      "acf_lag7": 0.19,
+      "veredito": "atencao"
+    },
+    {
+      "par": "Itabirito · Plantas de corte",
+      "dias_com_venda": 653,
+      "pct_dias_com_venda": 82.8,
+      "cv": 1.55,
+      "log1p": true,
+      "Fs_semanal": 0.17,
+      "sugestao_d": 0,
+      "acf_lag7": 0.15,
+      "veredito": "ok"
+    },
+    {
+      "par": "Itabirito · Produtos de jardim",
+      "dias_com_venda": 653,
+      "pct_dias_com_venda": 82.8,
+      "cv": 1.82,
+      "log1p": true,
+      "Fs_semanal": 0.09,
+      "sugestao_d": 0,
+      "acf_lag7": 0.06,
+      "veredito": "atencao"
+    },
+    {
+      "par": "Jardim Canadá · Grama",
+      "dias_com_venda": 645,
+      "pct_dias_com_venda": 81.7,
+      "cv": 1.31,
+      "log1p": true,
+      "Fs_semanal": 0.18,
+      "sugestao_d": 0,
+      "acf_lag7": 0.2,
+      "veredito": "ok"
+    },
+    {
+      "par": "Jardim Canadá · Plantas de corte",
+      "dias_com_venda": 641,
+      "pct_dias_com_venda": 81.3,
+      "cv": 3.56,
+      "log1p": true,
+      "Fs_semanal": 0.02,
+      "sugestao_d": 0,
+      "acf_lag7": 0.01,
+      "veredito": "atencao"
+    },
+    {
+      "par": "Jardim Canadá · Produtos de jardim",
+      "dias_com_venda": 650,
+      "pct_dias_com_venda": 82.4,
+      "cv": 1.53,
+      "log1p": true,
+      "Fs_semanal": 0.1,
+      "sugestao_d": 0,
+      "acf_lag7": 0.12,
+      "veredito": "atencao"
+    }
+  ],
+  "graficos": [
+    "ia-predictor/training_scripts/results/plots/eda/10_series_l1_9paineis.png",
+    "ia-predictor/training_scripts/results/plots/eda/11_perfil_dia_semana_l1.png",
+    "ia-predictor/training_scripts/results/plots/eda/12_perfil_mensal_l1.png",
+    "ia-predictor/training_scripts/results/plots/eda/13_acf_l1_9paineis.png",
+    "ia-predictor/training_scripts/results/plots/eda/14_dist_qtd_diaria_l1.png",
+    "ia-predictor/training_scripts/results/plots/eda/15_stl_par_denso.png"
+  ]
+}

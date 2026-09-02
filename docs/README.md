@@ -8,7 +8,8 @@ referência técnica completa e `CLAUDE.md` (raiz) para o guia de desenvolviment
 | [`project/`](project/) | Visão geral / acadêmico | Projeto técnico original (PDF) e o raio-x do estado atual do sistema |
 | [`prediction/`](prediction/) | Modelagem / previsão de demanda | ADRs sobre SARIMAX, **revisão de escopo mensal→diário ([ADR-009](prediction/ADR-009-granularidade-diaria-e-reposicao.md))**, plano de experimentos comparativos, pipeline de pré-processamento |
 | [`backend/`](backend/) | API / arquitetura de serviço | ADRs sobre monolito modular, autenticação JWT, scheduler de retrain |
-| [`database/`](database/) | Persistência | ADR sobre a escolha do SQLite |
+| [`database/`](database/) | Persistência | ADR sobre a escolha do SQLite + **[dicionário de dados da fonte](database/dicionario_dados_fonte.md)** |
+| [`eda_report.md`](eda_report.md) | Análise exploratória | Relatório de EDA (T000b) — dois momentos: base transacional e as 9 séries L1; achados que ajustam pré-processamento e modelagem |
 | [`frontend/`](frontend/) | Dashboard React | ADR sobre geração do cliente TypeScript a partir do OpenAPI |
 | [`uml/`](uml/) | Modelagem UML | Diagramas de casos de uso e atividades (entregável acadêmico, seção 6.4 do artigo) — caminho fixo, referenciado em `SPECS.md`/`tasks.md`, não mover |
 
@@ -39,5 +40,5 @@ Estes caminhos são referenciados literalmente em `SPECS.md`, `specs/001-.../tas
 `specs/001-.../plan.md` como entregáveis — mantenha-os na raiz de `docs/` quando forem
 criados, para não quebrar essas referências:
 
-- `docs/eda_report.md` — relatório de análise exploratória (Fase 0/T000b)
+- ~~`docs/eda_report.md`~~ — **criado** (2026-09-01), relatório de EDA (Fase 0/T000b)
 - `docs/quickstart.md` — guia de instalação/uso para a entidade parceira (T079)

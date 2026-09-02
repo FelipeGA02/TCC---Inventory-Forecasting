@@ -17,10 +17,19 @@ documentação final (Nov/2026).
 
 - [ ] T000a Produzir diagramas UML em `docs/uml/`: casos de uso, atividades, classes,
       modelo de dados (ER) e arquitetura lógica (seção 6.4 do artigo)
-- [ ] T000b [P] EDA em Jupyter Notebook — sazonalidade **semanal** e anual, tendência por
-      unidade, **esparsidade da série diária por SKU** (justifica a camada L2), perfil de
-      demanda por `categoria`/`categoria_fina`; densidade das 9 séries L1; consolidar em
-      `docs/eda_report.md`
+- [x] **T000b EDA** — dois momentos (CRISP-DM): compreensão dos dados (base transacional)
+      + série modelável (9 pares L1). Scripts em `training_scripts/eda/` (`_common.py`,
+      `eda_source.py`, `eda_series.py`, `run_all.py`), métricas em `results/metrics/eda_*.json`,
+      11 figuras em `results/plots/eda/`, consolidado em
+      [`docs/eda_report.md`](../../docs/eda_report.md) + dicionário de dados da fonte em
+      [`docs/database/dicionario_dados_fonte.md`](../../docs/database/dicionario_dados_fonte.md).
+      **Achados que ajustam o plano** (ver §4 do relatório): "fim de semana vende mais" é
+      **falso** (pico ter–qui / sex; sáb fraco; dom fechado); `log1p` para os 9 pares;
+      exógena de data comemorativa tem de ser por par (sinal se inverte entre `Grama` e
+      `Plantas de corte`); `Plantas de corte` é quase ruído branco na parte ARIMA;
+      tendências divergentes por loja (Jardim Canadá −37%/−49%/ano, Itabirito +96%/+29%);
+      share de SKU instável → *fallback* da L2 é caminho principal. **Pendências para a
+      parceira** em §5 do relatório.
 - [x] ~~T000c Levantamento de `shelf_life_dias`~~ — **cancelado por
       [ADR-011](../../docs/prediction/ADR-011-escopo-previsao-sem-reposicao.md)**: a camada
       de reposição (L3) saiu de escopo, não há mais uso para validade por categoria.

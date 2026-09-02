@@ -220,7 +220,7 @@ Ver `docs/prediction/ADR-009-granularidade-diaria-e-reposicao.md` para o raciona
 | Decisão | Valor | Motivo |
 | --- | --- | --- |
 | Alvo | qtd diária somada por `unidade × categoria` | série densa (poucos zeros), ao contrário do SKU |
-| m (período sazonal) | 7 | sazonalidade semanal (fim de semana vende mais) |
+| m (período sazonal) | 7 | sazonalidade semanal. **EDA (2026-09-01, `docs/eda_report.md` §3.3): o padrão é meio de semana (ter–qui) para Grama/Produtos de jardim e sexta para Plantas de corte; sábado fraco; domingo = loja fechada (0).** Não "fim de semana vende mais". Ciclo real mas fraco na variância (Fs ≤ 0.27) — dummies de dia-da-semana como exógenas pesam mais que os termos P/Q |
 | D (diferenciação sazonal) | 0 | histórico < 3 ciclos anuais; P/Q semanais capturam o padrão |
 | d (diferenciação regular) | 0 ou 1 (via ADF) | limitado a 1 para não consumir dados de treino |
 | log1p | se CV > 0.7 | estabiliza variância |
@@ -329,4 +329,5 @@ Comandos disponíveis (invocar via Skill tool ou como `/speckit-*`):
 | `docs/prediction/plano_experimentos_modelagem.md` | Plano de experimentos: L1 baseline × enriquecido × demanda intermitente/outros modelos |
 | `docs/prediction/01-pre_processing.md` | O que os scripts de `training_scripts/preprocessing/` fazem e por quê (série diária por unidade×categoria; colunas removidas) |
 | `docs/uml/` *(parcial — 2 de 5 diagramas)* | Diagramas de casos de uso, atividades, classes, modelo de dados e arquitetura lógica (seção 6.4 do artigo) |
-| `docs/eda_report.md` *(a criar)* | Relatório de análise exploratória — sazonalidade, tendências, comportamento por unidade, perfil de demanda |
+| `docs/eda_report.md` | Relatório de EDA (T000b) — dois momentos: base transacional (§2) e as 9 séries L1 (§3); §4 = ajustes que a EDA impõe ao pré-processamento/modelagem; §5 = questões para a parceira. Scripts em `training_scripts/eda/` |
+| `docs/database/dicionario_dados_fonte.md` | Dicionário campo a campo do relatório "Contas a Receber" (20 colunas, semântica, faixa, etapa de remoção) |

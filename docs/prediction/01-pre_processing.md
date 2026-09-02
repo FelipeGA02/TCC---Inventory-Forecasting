@@ -569,11 +569,18 @@ Resolvido nesta passada (dentro do pré-processamento):
 
 Ainda em aberto:
 
-- **EDA** — a série diária de cada um dos 9 pares é densa o suficiente para SARIMAX?
-  distribuição de `qtdade` por par (define quem recebe `log1p`, CV > 0.7); sazonalidade
-  semanal por categoria; peso de `Plantas de corte` (série pequena — verificar variância).
-- **Parceira** — curadoria fina de SKUs de alto volume que hoje caem em `Outros` (impacto
-  baixo, pois tudo colapsa em `Produtos de jardim`; relevante mais para a EDA e a L2).
+- ✅ **EDA** — feita (2026-09-01), ver **[`docs/eda_report.md`](../eda_report.md)**.
+  Confirmou: as 9 séries são densas o suficiente (78–83% dos dias com venda, zeros
+  quase todos em domingo); **os 9 pares recebem `log1p`** (CV 1,3–4,5); a
+  sazonalidade semanal existe mas é **invertida** em relação ao pressuposto do
+  `CLAUDE.md` ("fim de semana vende mais" é falso — pico ter–qui / sex, sábado
+  fraco); `Plantas de corte` é densa apesar dos 1,9% de volume, mas quase **ruído
+  branco** na parte ARIMA (só calendário prevê). Achados detalhados e ajustes de
+  modelagem na §4 do relatório.
+- **Parceira** — (a) curadoria fina de SKUs de alto volume em `Outros` (impacto
+  baixo no L1); (b) validar a completude da fonte — `fev/2026` fechado?, o
+  relatório captura 100% das saídas?, tratamento de `qtdade` negativa (devolução),
+  queda de Jardim Canadá vs. alta de Itabirito. Lista completa na §5 do relatório.
 
 ---
 

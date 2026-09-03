@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
     "generate:api": "openapi --input ../ia-predictor/openapi.yaml --output ./src/services/api --client fetch --useOptions"
   },
   "dependencies": {

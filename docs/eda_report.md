@@ -524,3 +524,108 @@ python -m training_scripts.eda.run_all
 | `13_acf_l1_9paineis.png` | ACF (lags 0–21) dos 9 pares | 3.7 |
 | `14_dist_qtd_diaria_l1.png` | Histograma da qtd diária por par | 3.2 |
 | `15_stl_par_denso.png` | Decomposição STL do par de maior volume | 3.6 |
+
+---
+
+## 7. Metodologia detalhada por análise
+
+Como cada número/figura dos §2 e §3 foi calculado — técnica, biblioteca e
+parâmetros. Todo o código está em `ia-predictor/training_scripts/eda/`
+(`_common.py` = infraestrutura compartilhada; `eda_source.py` = EDA 1;
+`eda_series.py` = EDA 2); stack: `pandas`/`numpy` para agregação,
+`scipy.stats` para forma da distribuição, `statsmodels` para os testes de
+série temporal, `matplotlib`/`seaborn` para as figuras. Nenhuma análise usa
+amostragem — os 333.019 registros e as 9 séries completas são processados
+inteiros.
+
+### 7.1 Preparação comum (`_common.py`)
+
+- **Carga resiliente** (`_read_csv_resiliente`): tenta decodificar o CSV em
+  `utf-8`, depois `latin-1`, depois `cp1252`; último recurso substitui bytes
+  inválidos (`encoding_errors="replace"`) em vez de falhar — necessário porque
+  o CSV da Etapa 3 do pré-processamento é gravado sem encoding explícito e
+  cai em `cp1252` neste Windows (achado registrado em §2.8/§1.3).
+- **Canonicalização de rótulos** (`_canon`): `unidade` e `categoria` são
+  normalizadas (strip + lowercase) e mapeadas para uma lista fechada de
+  valores; qualquer rótulo fora do dicionário levanta erro imediatamente, em
+  vez de virar categoria fantasma silenciosa.
+- **Conversão numérica** (`_to_num`): trata separador de milhar `.` e decimal
+  `,` (padrão BR) antes de `pd.to_numeric`.
+- **Série-alvo do L1** (`serie_diaria`): soma de `qtdade_n` por dia para o par
+  `(unidade, categoria)`, reindexada com `pd.date_range` no calendário diário
+  contínuo do próprio par (`span="par"` = do primeiro ao último dia em que o
+  par vendeu); dias sem transação viram `0.0` explícito — é essa série,
+  idêntica à que `prepare_daily_series` vai gerar em produção, que alimenta
+  todo o §3.
+- **Calendário de datas comemorativas** (`datas_comemorativas`): Dia das
+  Mães (2º domingo de maio) e Dia dos Pais (2º domingo de agosto) calculados
+  por regra de calendário; Namorados/Finados/Natal/Dia da Mulher são datas
+  fixas — tabela `(evento, ano, data)` para todos os anos cobertos pela base.
+- Cada bloco de análise devolve um `dict` serializado em JSON
+  (`dump_metrics`) — os números citados no relatório vêm diretamente desses
+  arquivos (`results/metrics/eda_source.json`, `eda_series.json`), não de
+  leitura visual de gráfico.
+
+### 7.2 EDA 1 — técnicas por bloco (`eda_source.py`)
+
+| Bloco (relatório) | Como foi calculado |
+| --- | --- |
+| §2.1 Volume/completude | Meses **presentes**: `Series.dt.to_period("M").value_counts()`. Meses **esperados**: `pd.period_range(min, max, freq="M")` — a diferença de conjuntos dá `meses_faltando`. Dias de calendário: `pd.date_range(min, max, freq="D")`; "dias com venda" = `nunique()` das datas normalizadas. |
+| §2.3 Por unidade / §2.4 por categoria | `groupby("unidade"/"categoria")` com `sum` de `qtdade_n`/`tot_liq_n` e `nunique` de `produto_cod`; share = valor do grupo ÷ soma total. |
+| §2.5 Esparsidade por SKU | Por `produto_cod`: dias ativos = `nunique()` de datas distintas com venda; densidade = dias ativos ÷ `span_dias_base` (intervalo entre a 1ª e a última venda **de toda a base**, não do SKU). Regra de *fallback* L2 replicada aqui exatamente como no domínio de produção: `(dias_ativos < 28) OR (n_vendas < 8)`. |
+| §2.6 Pareto de SKU | `qtdade` somada por SKU, ordenada decrescente; `cumsum() / soma_total` dá a curva; o marco "N% do volume" é o menor `k` tal que a acumulada em `k` SKUs ≥ N%. |
+| §2.7 Sazonalidade preliminar | Contagem de **linhas** (não quantidade) por `dayofweek`/mês — nota do relatório já registra que essa contagem mistura 2024+2025+2026 e por isso não serve para sazonalidade anual (só a versão por par em §3.4 serve). Índice fim de semana = média(sáb, dom) ÷ média geral. |
+| §2.8 Qualidade | Nulos: `isna().sum()` por coluna do CSV bruto. Integridade de documento: agrupa por `(doc_numero, doc_tipo)`, compara `soma(tot_liq)` das linhas com `total_liquido_doc` (primeiro valor do grupo); "bate" = diferença absoluta ≤ R$ 0,02. Encoding: inspeção **binária** do arquivo — procura o byte-sequence UTF-8 de "CANADÁ" (`0xC3 0x81`) no CSV fonte e tenta `.decode("utf-8")` no CSV da Etapa 3, sem depender do `pandas` já ter mascarado o problema. |
+| §2.9 Exógenas nominais | `groupby("pagamento"/"vendedor")` para contar categorias e o mix percentual — só para registrar a decisão do ADR-010, sem teste estatístico associado (é uma decisão de design: atributo de transação, não *driver* causal, e desconhecido no horizonte de previsão). |
+
+### 7.3 EDA 2 — técnicas por bloco (`eda_series.py`)
+
+Cada um dos 9 pares `unidade × categoria` passa pela mesma bateria de 9
+análises (`analisa_par`), sobre a série diária reconstruída em `serie_diaria`:
+
+| Bloco (relatório) | Técnica | Detalhe |
+| --- | --- | --- |
+| §3.1 Densidade | Contagem de sequência | Maior corrida de zeros consecutivos via varredura sequencial (contador que zera a cada valor não-zero); "atende_min_180d" = dias com venda ≥ `MIN_OBSERVATIONS_DAYS` (180, mesmo limiar do `config.py` de produção). |
+| §3.2 Distribuição / `log1p` | CV, assimetria, curtose | `CV = desvio_padrão / média` sobre a série completa (incl. zeros); assimetria (`skew`) e curtose via `scipy.stats`; regra de decisão **idêntica à de produção**: `aplicar_log1p = CV > LOG_CV_THRESHOLD` (0,7, de `CLAUDE.md`/`config.py`). `pct_dias_zero_excl_domingo` isola intermitência real de fechamento estrutural. |
+| §3.3 Sazonalidade semanal | Perfil + força STL | Perfil: média por `dayofweek` ÷ média geral = "índice do dia". Força do ciclo: decomposição **STL** (`statsmodels.tsa.seasonal.STL`, `period=7`, `robust=True` — robusto a outliers de pedidos B2B) e `Fs = max(0, 1 − Var(resíduo) / Var(resíduo + sazonal))`, a métrica padrão de Hyndman para "quanto da variância o componente sazonal explica" (0 = ciclo irrelevante, 1 = ciclo domina). |
+| §3.4 Sazonalidade anual / datas comemorativas | Perfil mensal + janela de evento | Perfil mensal: média por mês-do-ano ÷ média geral. Efeito de data comemorativa: janela de **3 dias** (a data + 2 dias antes, `D-2…D`) por evento/ano, comparando a média da série nessa janela com a média geral do par inteiro — não com a média do mês, para isolar o efeito da data em si. |
+| §3.5 Tendência | Regressão linear (OLS) | `numpy.polyfit(x, y, 1)` com `x` = índice sequencial de dias (não a data calendário, para inclinação em "unidade/dia"); "%/ano" = inclinação × 365 ÷ média da série. Segundo indicador, não-paramétrico: razão entre a média dos **primeiros 90 dias** e a dos **últimos 90 dias** da série — usado para checar se a tendência linear é só efeito de outlier isolado (concordância entre os dois valida o achado). |
+| §3.6 Estacionariedade (`d`) | ADF + KPSS | **ADF** (`adfuller`, `autolag="AIC"`) — H0: existe raiz unitária (não-estacionária); rejeita se p < 0,05. **KPSS** (`kpss`, `regression="c"`, `nlags="auto"`) — H0 inversa: a série é estacionária em torno de constante; rejeita se p ≤ 0,05. Os dois são cruzados porque testam hipóteses opostas: ADF+KPSS concordando em "estacionária" → `d=0`; concordando em "não-estacionária" → sugere `d=1`; **divergência** (achado central do §3.6, presente nos pares com tendência forte) → mantém `d=0` mas sinaliza revisão por resíduo. p-valor do KPSS é limitado pela tabela do teste a `[0,01; 0,10]` — o script registra quando o valor bate nesse limite (`kpss_pvalue_no_limite_da_tabela`) para não ler falsa precisão. |
+| §3.7 Autocorrelação (`p,q,P,Q`) | ACF/PACF + Ljung-Box | `acf`/`pacf` (`statsmodels.tsa.stattools`) até `min(21, n/2 − 1)` lags (`fft=True` na ACF, mais estável numericamente para séries longas); leitura nos lags 1 (memória de curto prazo), 7 e 14 (múltiplos da semana). **Ljung-Box** (`acorr_ljungbox`, lags 7 e 14) testa H0 = "os resíduos/série são ruído branco (sem autocorrelação conjunta até aquele lag)"; usado aqui de forma informativa sobre a série bruta (não sobre resíduo de modelo ajustado) para antecipar se a parte ARIMA terá o que capturar. |
+| §3.8 Outliers | Z-score + IQR | Dia é outlier se `z = (x − média)/desvio > 3` (regra dos "3σ", usada para contar e ranquear os picos) **e** reportado também pelo critério robusto `x > Q3 + 3×IQR` (menos sensível à própria cauda pesada que o z-score, que usa média/desvio — enviesados pelos mesmos outliers). Os 5 maiores dias de cada par são listados com data e valor para inspeção manual (todos confirmados como pedidos B2B/datas comemorativas reais, não erro de digitação). |
+| §3.9 Veredito por par | Heurística de regras | Função `_verdito` combina os resultados acima em texto: sinaliza "insuficiente" se dias com venda < 180; acumula ressalvas de "atenção" para histórico curto (< 400 dias, sem ciclo anual), intermitência de dias úteis > 12%, cauda extrema (pico > 30× a média), ciclo semanal fraco (`Fs < 0,1`), ausência de autocorrelação (Ljung-Box não rejeita) e tendência forte (> 40%/ano). Não é um modelo estatístico — é a mesma lógica de threshold que o `evaluator.py` de produção usará para `low_confidence`, aplicada aqui de forma antecipada aos dados brutos. |
+| §3.10 Share de SKU (L2) | Participação mensal + CV | Para cada par, monta uma tabela `mês × SKU` (`pivot_table`, soma de `qtdade`) e calcula o **share mensal** de cada SKU (valor do mês ÷ total do mês). Para os 10 SKUs de maior volume no par, calcula o CV (`desvio/média`) do share **ao longo dos meses**; janela mensal (não semanal) escolhida deliberadamente para alinhar com a janela de 4–8 semanas do rateio L2 do ADR-009 e evitar inflar o CV com semanas estruturalmente zeradas do SKU. CV médio dos top-10 < 0,5 seria lido como "participação estável" — nenhum dos 9 pares atinge esse limiar (§3.10). |
+
+### 7.4 Figuras — como cada uma foi gerada
+
+Todas em `matplotlib` (`Agg`, sem exibição interativa), salvas via `savefig`
+comum (`dpi=130`, `bbox="tight"`). Nenhuma figura usa suavização/estimativa
+além do que está descrito: `10_series_l1_9paineis.png` sobrepõe a série
+diária crua (cinza) com sua média móvel de 28 dias (`rolling(28,
+min_periods=7).mean()`); `13_acf_l1_9paineis.png` usa `plot_acf` do
+`statsmodels` com banda de confiança `alpha=0,05`; `15_stl_par_denso.png`
+plota os 4 componentes (`observado`, `trend`, `seasonal`, `resid`) do mesmo
+objeto `STL` usado para calcular `Fs` em §3.3, aplicado ao par de maior
+volume.
+
+### 7.5 Limitações do método
+
+- **STL com `period=7` fixo**: assume um único ciclo semanal; não captura
+  sazonalidade de múltiplas frequências (ex.: semanal + anual) simultaneamente
+  — por isso a sazonalidade anual (§3.4) foi tratada à parte, por índice
+  mensal simples, não por um segundo componente STL.
+- **Ljung-Box na série bruta, não no resíduo de um modelo ajustado**: é uma
+  leitura preliminar ("há alguma estrutura de autocorrelação a explorar?"),
+  não substitui o diagnóstico de resíduo pós-ajuste do SARIMAX exigido pela
+  Constituição do projeto (`CLAUDE.md` — Ljung-Box/Shapiro-Wilk por modelo
+  treinado).
+- **Efeito de data comemorativa por janela fixa de 3 dias**: não isola o
+  efeito de "véspera" vs. "no dia" nem controla por tendência/mês — é uma
+  razão simples de médias, suficiente para o veredito qualitativo do §3.4 mas
+  não para estimar o coeficiente que a exógena usará no SARIMAX (isso cabe ao
+  próprio ajuste do modelo).
+- **CV do share de SKU calculado só para os top-10 por par**: SKUs de cauda
+  (que já caem no *fallback* por baixo volume/poucos dias) não entram nesse
+  cálculo — a instabilidade medida em §3.10 é, portanto, um piso: entre os
+  SKUs "bons o suficiente" para não cair no fallback, mesmo esses são
+  instáveis.

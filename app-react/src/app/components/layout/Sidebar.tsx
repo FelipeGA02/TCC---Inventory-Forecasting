@@ -4,7 +4,6 @@ import {
   Upload,
   Table2,
   TrendingUp,
-  Bell,
   FlaskConical,
   FileDown,
   Flower2,
@@ -23,7 +22,6 @@ const navItems = [
     icon: TrendingUp,
     label: "Previsão de Compras",
   },
-  { to: "/alertas", icon: Bell, label: "Produtos para Repor" },
   {
     to: "/simulador",
     icon: FlaskConical,

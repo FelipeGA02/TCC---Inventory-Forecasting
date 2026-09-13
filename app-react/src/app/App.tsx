@@ -6,7 +6,6 @@ import { Dashboard } from "./components/screens/Dashboard";
 import { ImportarPlanilha } from "./components/screens/ImportarPlanilha";
 import { PreVisualizacao } from "./components/screens/PreVisualizacao";
 import { PrevisaoSarimax } from "./components/screens/PrevisaoSarimax";
-import { AlertasReposicao } from "./components/screens/AlertasReposicao";
 import { SimuladorCenarios } from "./components/screens/SimuladorCenarios";
 import { ExportarRelatorios } from "./components/screens/ExportarRelatorios";
 
@@ -33,7 +32,6 @@ export default function App() {
           <Route path="/importar" element={<ImportarPlanilha />} />
           <Route path="/pre-visualizacao" element={<PreVisualizacao />} />
           <Route path="/previsao" element={<PrevisaoSarimax />} />
-          <Route path="/alertas" element={<AlertasReposicao />} />
           <Route path="/simulador" element={<SimuladorCenarios />} />
           <Route path="/exportar" element={<ExportarRelatorios />} />
         </Routes>

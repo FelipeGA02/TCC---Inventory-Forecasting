@@ -3,11 +3,10 @@ import { Bell, User, RefreshCw } from "lucide-react";
 import { Button } from "../ui/button";
 
 const routeTitles: Record<string, { title: string; subtitle: string }> = {
-  "/": { title: "Início", subtitle: "Resumo geral das vendas e alertas de hoje" },
+  "/": { title: "Início", subtitle: "Resumo geral das vendas e previsões de hoje" },
   "/importar": { title: "Carregar Planilha de Vendas", subtitle: "Envie os dados de vendas para atualizar as previsões" },
   "/pre-visualizacao": { title: "Conferir Dados Enviados", subtitle: "Verifique se os dados estão corretos antes de calcular" },
   "/previsao": { title: "Previsão de Compras", subtitle: "Veja quanto comprar de cada produto nas próximas semanas" },
-  "/alertas": { title: "Produtos para Repor", subtitle: "Itens com estoque baixo que precisam de atenção" },
   "/simulador": { title: "Simular Promoções", subtitle: "Veja o impacto estimado de descontos e ofertas especiais" },
   "/exportar": { title: "Baixar Relatórios", subtitle: "Gere e salve relatórios em PDF ou Excel" },
 };

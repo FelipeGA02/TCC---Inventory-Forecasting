@@ -25,12 +25,6 @@ const tiposRelatorio = [
     icon: FileText,
   },
   {
-    id: "alertas",
-    nome: "Produtos que precisam de reposição",
-    desc: "Todos os itens com estoque baixo, ordenados do mais urgente ao menos urgente",
-    icon: FileText,
-  },
-  {
     id: "desempenho",
     nome: "Qualidade das previsões do sistema",
     desc: "Indicadores de acerto (MAPE, MAE, RMSE, R²) para cada produto ao longo do tempo",

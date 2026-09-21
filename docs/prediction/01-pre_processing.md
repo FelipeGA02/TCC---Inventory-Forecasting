@@ -479,6 +479,37 @@ proporção histórica perderia esse pico; por isso a desagregação usa também
 data-por-categoria (bloco `4b_datas_comemorativas` de `eda_series.py`, por par), não só o
 share médio.
 
+**Exemplo prático — dia comum.** Sexta-feira em Jardim Canadá, sem data comemorativa por
+perto:
+
+1. **L1 prevê a unidade.** SARIMAX prevê 380 unidades vendidas na unidade nesse dia (soma
+   de Grama, Flores de corte e Produtos de jardim).
+2. **`unidade → categoria`.** Flores de corte tem participação móvel de ~1,4% do volume de
+   Jardim Canadá (share das últimas 4–8 semanas); sexta é o pico semanal da categoria, então
+   o perfil de dia-da-semana pesa um pouco acima da média do nível. Previsão de Flores de
+   corte nessa sexta ≈ `380 × 1,4% × perfil do dia` ≈ 8–9 unidades (o restante do total é
+   repartido entre Grama e Produtos de jardim).
+3. **`categoria → SKU`.** Dentro de Flores de corte, "Rosa vermelha maço" tem participação
+   móvel de ~12% dos SKUs da categoria na unidade. Previsão do SKU ≈ `8,5 × 12%` ≈ 1 unidade
+   nessa sexta.
+
+**Exemplo prático — data comemorativa (por que a % sozinha erraria).** Na véspera do Dia
+das Mães:
+
+- A **unidade inteira cai** para 0,66× o normal (Grama e Produtos de jardim vendem menos
+  perto da data) — L1 prevê, digamos, 250 unidades em vez de 380.
+- Se a desagregação usasse só a participação histórica (1,4%), Flores de corte cairia
+  junto com o total: `250 × 1,4%` ≈ 3,5 unidades.
+- Mas Flores de corte **dispara 2,14×** nessa data especificamente (é o produto mais
+  comprado pra presentear) — o índice de data-por-categoria captura isso mesmo com o
+  agregado da unidade caindo: `8,5 (baseline) × 2,14` ≈ 11 unidades, mais que o dobro do
+  dia comum, apesar do total da unidade ser menor.
+
+Isso ilustra por que a desagregação usa participação móvel **e** perfil de dia-da-semana
+**e** (no passo `unidade → categoria`) o índice de data comemorativa da própria categoria —
+a % de participação é um dos multiplicadores do rateio, não o único, e sozinha perderia
+picos que o agregado da unidade esconde.
+
 **Limitação** (e por que existe a comparação acadêmica): o top-down assume que os SKUs de
 uma categoria se movem juntos, e que as categorias de uma unidade se movem juntas. Um SKU
 com timing próprio (uma flor específica só no Namorados) o método puro erra. Por isso o TCC

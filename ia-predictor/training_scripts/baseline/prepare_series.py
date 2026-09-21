@@ -22,8 +22,8 @@ MIN_OBSERVATIONS_DAYS = 180   # CLAUDE.md — mínimo de dias c/ venda p/ treina
 def carregar_series() -> dict[tuple[str, str], pd.Series]:
     """As 9 séries diárias L1 (uma por par `unidade × categoria`).
 
-    Soma diária negativa por devolução (`qtdade` < 0, ver `docs/eda_report.md`
-    §5 questão 4 — sem definição da parceira ainda) é truncada em 0: um dia com
+    Soma diária negativa por devolução (`qtdade` < 0, ver
+    `docs/prediction/00-eda_report.md` §5 questão 4 — sem definição da parceira ainda) é truncada em 0: um dia com
     "-13 unidades" não é demanda negativa, é ruído de dado para o alvo do L1 e
     quebraria `log1p` (log de número < -1 é indefinido).
     """

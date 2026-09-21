@@ -23,6 +23,8 @@ Uso (a partir de `ia-predictor/`):
 """
 from __future__ import annotations
 
+import json
+import os
 import sys
 import time
 
@@ -39,6 +41,8 @@ for _stream in (sys.stdout, sys.stderr):
         _stream.reconfigure(encoding="utf-8")
     except (AttributeError, ValueError):
         pass
+
+_TRAINING_SCRIPTS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 MASE_LIMIAR = 1.0
 COBERTURA_IC_FAIXA = (90.0, 98.0)
@@ -104,6 +108,32 @@ def rodar_par(nome_par: str, u: str, c: str, y_original: pd.Series) -> list[dict
     return [a0, a1]
 
 
+CHECKPOINT_DIR = os.path.join(_TRAINING_SCRIPTS_DIR, "output", "baseline_checkpoint")
+
+
+def _checkpoint_path(nome_par: str) -> str:
+    slug = "".join(ch if ch.isalnum() else "_" for ch in nome_par.lower())
+    return os.path.join(CHECKPOINT_DIR, f"{slug}.json")
+
+
+def _carregar_checkpoint(nome_par: str) -> list[dict] | None:
+    path = _checkpoint_path(nome_par)
+    if not os.path.exists(path):
+        return None
+    with open(path, encoding="utf-8") as fh:
+        linhas = json.load(fh)
+    for r in linhas:
+        r["order"] = tuple(r["order"])
+        r["seasonal_order"] = tuple(r["seasonal_order"])
+    return linhas
+
+
+def _salvar_checkpoint(nome_par: str, linhas: list[dict]) -> None:
+    os.makedirs(CHECKPOINT_DIR, exist_ok=True)
+    with open(_checkpoint_path(nome_par), "w", encoding="utf-8") as fh:
+        json.dump(linhas, fh, ensure_ascii=False, default=C._json_default)
+
+
 def main() -> pd.DataFrame:
     t_inicio = time.time()
     series = PS.carregar_series()
@@ -116,7 +146,14 @@ def main() -> pd.DataFrame:
             print(f"[baseline] {nome_par}: insufficient_data (< {PS.MIN_OBSERVATIONS_DAYS} "
                   "dias c/ venda) — pulando")
             continue
-        linhas.extend(rodar_par(nome_par, u, c, s))
+        retomado = _carregar_checkpoint(nome_par)
+        if retomado is not None:
+            print(f"[baseline] {nome_par}: retomado do checkpoint")
+            linhas.extend(retomado)
+            continue
+        resultado_par = rodar_par(nome_par, u, c, s)
+        _salvar_checkpoint(nome_par, resultado_par)
+        linhas.extend(resultado_par)
 
     detalhado = pd.DataFrame(linhas)
     resumo_cols = [
@@ -136,7 +173,6 @@ def main() -> pd.DataFrame:
         "tempo_total_s": round(time.time() - t_inicio, 1),
         "linhas": linhas,
     })
-    import os
     resumo_path = os.path.join(C.METRICS_DIR, "baseline_A0_A1.csv")
     resumo.to_csv(resumo_path, sep=";", index=False, encoding="utf-8")
 

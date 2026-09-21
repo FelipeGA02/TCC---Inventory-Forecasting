@@ -1,0 +1,1212 @@
+{
+  "gerado_em": "2026-09-20T22:03:47",
+  "tempo_total_s": 675.2,
+  "linhas": [
+    {
+      "modelo": "A0_sarima_puro",
+      "order": [
+        1,
+        0,
+        2
+      ],
+      "seasonal_order": [
+        1,
+        0,
+        1,
+        7
+      ],
+      "aic_selecao": 1394.8050753292518,
+      "log1p": true,
+      "tempo_selecao_ordem_s": 9.6,
+      "status": "low_confidence",
+      "holdout_mae": 269.081438983652,
+      "holdout_rmse": 420.21542935583346,
+      "holdout_mase": 0.4421509914034921,
+      "holdout_rmsse": 0.4037366583037363,
+      "holdout_mape": null,
+      "holdout_smape": 114.8212855635197,
+      "holdout_cobertura_ic95": 89.28571428571429,
+      "holdout_ljung_box_lag7_pvalue": 0.6219131516680646,
+      "holdout_ljung_box_lag14_pvalue": 0.1434306290124452,
+      "holdout_shapiro_pvalue": 5.5251612985115354e-14,
+      "holdout_aic": 1394.8050753292518,
+      "holdout_convergiu": false,
+      "walk_forward": {
+        "n_folds": 4,
+        "mase_medio": 0.7259302884954588,
+        "rmsse_medio": 0.6308986718532188,
+        "cobertura_ic95_media": 82.14285714285714,
+        "folds": [
+          {
+            "origem": "2025-12-06",
+            "mase": 0.9031650466902067,
+            "rmsse": 0.735510669946629,
+            "cobertura_ic95": 92.85714285714286
+          },
+          {
+            "origem": "2025-12-20",
+            "mase": 0.7586767646722009,
+            "rmsse": 0.629099021511206,
+            "cobertura_ic95": 64.28571428571429
+          },
+          {
+            "origem": "2026-01-03",
+            "mase": 0.5432310934140097,
+            "rmsse": 0.4124187908942945,
+            "cobertura_ic95": 78.57142857142857
+          },
+          {
+            "origem": "2026-01-17",
+            "mase": 0.698648249205418,
+            "rmsse": 0.746566205060746,
+            "cobertura_ic95": 92.85714285714286
+          }
+        ]
+      },
+      "par": "Garden Center · Grama",
+      "unidade": "Garden Center",
+      "categoria": "Grama",
+      "dias_calendario": 381,
+      "dias_com_venda": 299
+    },
+    {
+      "modelo": "A1_sarimax_calendario",
+      "order": [
+        0,
+        0,
+        2
+      ],
+      "seasonal_order": [
+        0,
+        0,
+        1,
+        7
+      ],
+      "aic_selecao": 1331.493076955918,
+      "log1p": true,
+      "tempo_selecao_ordem_s": 22.9,
+      "status": "low_confidence",
+      "holdout_mae": 260.34932682940695,
+      "holdout_rmse": 403.00601246271856,
+      "holdout_mase": 0.42780250248270674,
+      "holdout_rmsse": 0.3872021096356089,
+      "holdout_mape": null,
+      "holdout_smape": 111.38659663138031,
+      "holdout_cobertura_ic95": 89.28571428571429,
+      "holdout_ljung_box_lag7_pvalue": 0.009756540018446268,
+      "holdout_ljung_box_lag14_pvalue": 0.0051114100951423925,
+      "holdout_shapiro_pvalue": 2.5520474643197427e-17,
+      "holdout_aic": 1331.493076955918,
+      "holdout_convergiu": true,
+      "walk_forward": {
+        "n_folds": 4,
+        "mase_medio": 0.5957389703880326,
+        "rmsse_medio": 0.5471868606127488,
+        "cobertura_ic95_media": 87.5,
+        "folds": [
+          {
+            "origem": "2025-12-06",
+            "mase": 0.7782263363678822,
+            "rmsse": 0.7264291561333835,
+            "cobertura_ic95": 92.85714285714286
+          },
+          {
+            "origem": "2025-12-20",
+            "mase": 0.4152117699873923,
+            "rmsse": 0.36943694729087934,
+            "cobertura_ic95": 78.57142857142857
+          },
+          {
+            "origem": "2026-01-03",
+            "mase": 0.48754945316946396,
+            "rmsse": 0.3516009664711784,
+            "cobertura_ic95": 78.57142857142857
+          },
+          {
+            "origem": "2026-01-17",
+            "mase": 0.701968322027392,
+            "rmsse": 0.741280372555554,
+            "cobertura_ic95": 100.0
+          }
+        ]
+      },
+      "par": "Garden Center · Grama",
+      "unidade": "Garden Center",
+      "categoria": "Grama",
+      "dias_calendario": 381,
+      "dias_com_venda": 299
+    },
+    {
+      "modelo": "A0_sarima_puro",
+      "order": [
+        1,
+        0,
+        2
+      ],
+      "seasonal_order": [
+        1,
+        0,
+        1,
+        7
+      ],
+      "aic_selecao": 1059.1014651893886,
+      "log1p": true,
+      "tempo_selecao_ordem_s": 6.0,
+      "status": "low_confidence",
+      "holdout_mae": 14.24921810978422,
+      "holdout_rmse": 35.5445228504567,
+      "holdout_mase": 1.0321489587221708,
+      "holdout_rmsse": 1.3942961311568172,
+      "holdout_mape": null,
+      "holdout_smape": 132.11474512378402,
+      "holdout_cobertura_ic95": 92.85714285714286,
+      "holdout_ljung_box_lag7_pvalue": 0.9184490751149155,
+      "holdout_ljung_box_lag14_pvalue": 0.6317793734221059,
+      "holdout_shapiro_pvalue": 0.0073184860586256425,
+      "holdout_aic": 1059.1014651893886,
+      "holdout_convergiu": true,
+      "walk_forward": {
+        "n_folds": 4,
+        "mase_medio": 1.0994979622391197,
+        "rmsse_medio": 0.9187500812019042,
+        "cobertura_ic95_media": 78.57142857142857,
+        "folds": [
+          {
+            "origem": "2025-12-06",
+            "mase": 1.5405379955133447,
+            "rmsse": 1.1287852345450573,
+            "cobertura_ic95": 85.71428571428571
+          },
+          {
+            "origem": "2025-12-20",
+            "mase": 1.1953369630018078,
+            "rmsse": 0.8554128421351697,
+            "cobertura_ic95": 57.14285714285714
+          },
+          {
+            "origem": "2026-01-03",
+            "mase": 1.1010646266351622,
+            "rmsse": 1.3343768591369147,
+            "cobertura_ic95": 85.71428571428571
+          },
+          {
+            "origem": "2026-01-17",
+            "mase": 0.5610522638061637,
+            "rmsse": 0.3564253889904748,
+            "cobertura_ic95": 85.71428571428571
+          }
+        ]
+      },
+      "par": "Garden Center · Plantas de corte",
+      "unidade": "Garden Center",
+      "categoria": "Plantas de corte",
+      "dias_calendario": 369,
+      "dias_com_venda": 221
+    },
+    {
+      "modelo": "A1_sarimax_calendario",
+      "order": [
+        0,
+        0,
+        2
+      ],
+      "seasonal_order": [
+        1,
+        0,
+        1,
+        7
+      ],
+      "aic_selecao": 1030.386704315384,
+      "log1p": true,
+      "tempo_selecao_ordem_s": 20.6,
+      "status": "low_confidence",
+      "holdout_mae": 16.020406068344894,
+      "holdout_rmse": 32.629203027028325,
+      "holdout_mase": 1.1604458093314236,
+      "holdout_rmsse": 1.2799376076793039,
+      "holdout_mape": null,
+      "holdout_smape": 134.62434327154574,
+      "holdout_cobertura_ic95": 82.14285714285714,
+      "holdout_ljung_box_lag7_pvalue": 0.028762289041632316,
+      "holdout_ljung_box_lag14_pvalue": 0.06689503852980931,
+      "holdout_shapiro_pvalue": 0.4337699782519078,
+      "holdout_aic": 1030.386704315384,
+      "holdout_convergiu": false,
+      "walk_forward": {
+        "n_folds": 4,
+        "mase_medio": 1.0555918511537514,
+        "rmsse_medio": 0.9523114504379999,
+        "cobertura_ic95_media": 75.0,
+        "folds": [
+          {
+            "origem": "2025-12-06",
+            "mase": 1.509040415154625,
+            "rmsse": 1.1355423277890284,
+            "cobertura_ic95": 78.57142857142857
+          },
+          {
+            "origem": "2025-12-20",
+            "mase": 1.1527873213353845,
+            "rmsse": 0.9776929854787972,
+            "cobertura_ic95": 71.42857142857143
+          },
+          {
+            "origem": "2026-01-03",
+            "mase": 1.0231195061007243,
+            "rmsse": 1.281089632950863,
+            "cobertura_ic95": 85.71428571428571
+          },
+          {
+            "origem": "2026-01-17",
+            "mase": 0.5374201620242717,
+            "rmsse": 0.41492085553331126,
+            "cobertura_ic95": 64.28571428571429
+          }
+        ]
+      },
+      "par": "Garden Center · Plantas de corte",
+      "unidade": "Garden Center",
+      "categoria": "Plantas de corte",
+      "dias_calendario": 369,
+      "dias_com_venda": 221
+    },
+    {
+      "modelo": "A0_sarima_puro",
+      "order": [
+        0,
+        0,
+        2
+      ],
+      "seasonal_order": [
+        1,
+        0,
+        1,
+        7
+      ],
+      "aic_selecao": 1279.1682860240398,
+      "log1p": true,
+      "tempo_selecao_ordem_s": 7.5,
+      "status": "low_confidence",
+      "holdout_mae": 300.28565499170026,
+      "holdout_rmse": 394.52391207347665,
+      "holdout_mase": 0.6601503674855231,
+      "holdout_rmsse": 0.5111882529959001,
+      "holdout_mape": null,
+      "holdout_smape": 103.52923311172728,
+      "holdout_cobertura_ic95": 89.28571428571429,
+      "holdout_ljung_box_lag7_pvalue": 0.0033132088573798865,
+      "holdout_ljung_box_lag14_pvalue": 0.05304372197533111,
+      "holdout_shapiro_pvalue": 1.4172536934417866e-11,
+      "holdout_aic": 1279.1682860240398,
+      "holdout_convergiu": true,
+      "walk_forward": {
+        "n_folds": 4,
+        "mase_medio": 0.9890546970362111,
+        "rmsse_medio": 0.7366547606858393,
+        "cobertura_ic95_media": 89.28571428571429,
+        "folds": [
+          {
+            "origem": "2025-12-06",
+            "mase": 0.9387606762429153,
+            "rmsse": 0.7105221735108138,
+            "cobertura_ic95": 92.85714285714286
+          },
+          {
+            "origem": "2025-12-20",
+            "mase": 1.5206420527807036,
+            "rmsse": 1.0660069895511368,
+            "cobertura_ic95": 78.57142857142857
+          },
+          {
+            "origem": "2026-01-03",
+            "mase": 0.6843641252913238,
+            "rmsse": 0.549741792663108,
+            "cobertura_ic95": 100.0
+          },
+          {
+            "origem": "2026-01-17",
+            "mase": 0.8124519338299013,
+            "rmsse": 0.6203480870182985,
+            "cobertura_ic95": 85.71428571428571
+          }
+        ]
+      },
+      "par": "Garden Center · Produtos de jardim",
+      "unidade": "Garden Center",
+      "categoria": "Produtos de jardim",
+      "dias_calendario": 374,
+      "dias_com_venda": 302
+    },
+    {
+      "modelo": "A1_sarimax_calendario",
+      "order": [
+        1,
+        0,
+        2
+      ],
+      "seasonal_order": [
+        0,
+        0,
+        1,
+        7
+      ],
+      "aic_selecao": 1191.9183871485156,
+      "log1p": true,
+      "tempo_selecao_ordem_s": 21.8,
+      "status": "low_confidence",
+      "holdout_mae": 207.85472753956128,
+      "holdout_rmse": 305.47854617637074,
+      "holdout_mase": 0.4569494828936708,
+      "holdout_rmsse": 0.39581135532931505,
+      "holdout_mape": null,
+      "holdout_smape": 103.51809896479101,
+      "holdout_cobertura_ic95": 89.28571428571429,
+      "holdout_ljung_box_lag7_pvalue": 0.6845284174594947,
+      "holdout_ljung_box_lag14_pvalue": 0.19907176356958364,
+      "holdout_shapiro_pvalue": 3.0315437508081877e-12,
+      "holdout_aic": 1191.9183871485156,
+      "holdout_convergiu": false,
+      "walk_forward": {
+        "n_folds": 4,
+        "mase_medio": 0.5300827734427569,
+        "rmsse_medio": 0.45497670128370565,
+        "cobertura_ic95_media": 91.07142857142858,
+        "folds": [
+          {
+            "origem": "2025-12-06",
+            "mase": 0.79124480807044,
+            "rmsse": 0.7521711655454513,
+            "cobertura_ic95": 92.85714285714286
+          },
+          {
+            "origem": "2025-12-20",
+            "mase": 0.5932467977614586,
+            "rmsse": 0.48373274101107144,
+            "cobertura_ic95": 78.57142857142857
+          },
+          {
+            "origem": "2026-01-03",
+            "mase": 0.31221012139263316,
+            "rmsse": 0.24783276668890855,
+            "cobertura_ic95": 100.0
+          },
+          {
+            "origem": "2026-01-17",
+            "mase": 0.42362936654649597,
+            "rmsse": 0.3361701318893912,
+            "cobertura_ic95": 92.85714285714286
+          }
+        ]
+      },
+      "par": "Garden Center · Produtos de jardim",
+      "unidade": "Garden Center",
+      "categoria": "Produtos de jardim",
+      "dias_calendario": 374,
+      "dias_com_venda": 302
+    },
+    {
+      "modelo": "A0_sarima_puro",
+      "order": [
+        0,
+        0,
+        2
+      ],
+      "seasonal_order": [
+        1,
+        0,
+        1,
+        7
+      ],
+      "aic_selecao": 3049.4518153343624,
+      "log1p": true,
+      "tempo_selecao_ordem_s": 16.4,
+      "status": "trained",
+      "holdout_mae": 535.5547591279411,
+      "holdout_rmse": 1337.7834859513346,
+      "holdout_mase": 0.44047467795173617,
+      "holdout_rmsse": 0.29397794049790726,
+      "holdout_mape": null,
+      "holdout_smape": 114.05617851811505,
+      "holdout_cobertura_ic95": 92.85714285714286,
+      "holdout_ljung_box_lag7_pvalue": 0.07997246952035802,
+      "holdout_ljung_box_lag14_pvalue": 0.13696725160864634,
+      "holdout_shapiro_pvalue": 2.4107193379198546e-15,
+      "holdout_aic": 3049.4518153343624,
+      "holdout_convergiu": true,
+      "walk_forward": {
+        "n_folds": 4,
+        "mase_medio": 2.1903710109624512,
+        "rmsse_medio": 1.802632703748722,
+        "cobertura_ic95_media": 85.71428571428571,
+        "folds": [
+          {
+            "origem": "2025-12-06",
+            "mase": 6.87821296013924,
+            "rmsse": 5.5019107603463615,
+            "cobertura_ic95": 78.57142857142857
+          },
+          {
+            "origem": "2025-12-20",
+            "mase": 1.5922641610024755,
+            "rmsse": 1.5767509518677323,
+            "cobertura_ic95": 78.57142857142857
+          },
+          {
+            "origem": "2026-01-03",
+            "mase": 0.13018659445519912,
+            "rmsse": 0.04334376045292725,
+            "cobertura_ic95": 85.71428571428571
+          },
+          {
+            "origem": "2026-01-17",
+            "mase": 0.16082032825288878,
+            "rmsse": 0.08852534232786624,
+            "cobertura_ic95": 100.0
+          }
+        ]
+      },
+      "par": "Itabirito · Grama",
+      "unidade": "Itabirito",
+      "categoria": "Grama",
+      "dias_calendario": 789,
+      "dias_com_venda": 641
+    },
+    {
+      "modelo": "A1_sarimax_calendario",
+      "order": [
+        0,
+        0,
+        2
+      ],
+      "seasonal_order": [
+        0,
+        0,
+        1,
+        7
+      ],
+      "aic_selecao": 2983.404724426853,
+      "log1p": true,
+      "tempo_selecao_ordem_s": 48.8,
+      "status": "low_confidence",
+      "holdout_mae": 525.6433552657497,
+      "holdout_rmse": 1349.8948212611779,
+      "holdout_mase": 0.4323229019664809,
+      "holdout_rmsse": 0.29663940660842314,
+      "holdout_mape": null,
+      "holdout_smape": 110.86800584160974,
+      "holdout_cobertura_ic95": 89.28571428571429,
+      "holdout_ljung_box_lag7_pvalue": 0.1828333009485336,
+      "holdout_ljung_box_lag14_pvalue": 0.047229039324125886,
+      "holdout_shapiro_pvalue": 1.5588129926514267e-14,
+      "holdout_aic": 2983.404724426853,
+      "holdout_convergiu": true,
+      "walk_forward": {
+        "n_folds": 4,
+        "mase_medio": 2.1905784109749,
+        "rmsse_medio": 1.8054687957590514,
+        "cobertura_ic95_media": 91.07142857142858,
+        "folds": [
+          {
+            "origem": "2025-12-06",
+            "mase": 6.90139126292896,
+            "rmsse": 5.509387935453322,
+            "cobertura_ic95": 78.57142857142857
+          },
+          {
+            "origem": "2025-12-20",
+            "mase": 1.5848584903055225,
+            "rmsse": 1.5800897647382044,
+            "cobertura_ic95": 92.85714285714286
+          },
+          {
+            "origem": "2026-01-03",
+            "mase": 0.1194269655161893,
+            "rmsse": 0.04181142678874284,
+            "cobertura_ic95": 92.85714285714286
+          },
+          {
+            "origem": "2026-01-17",
+            "mase": 0.15663692514892927,
+            "rmsse": 0.09058605605593592,
+            "cobertura_ic95": 100.0
+          }
+        ]
+      },
+      "par": "Itabirito · Grama",
+      "unidade": "Itabirito",
+      "categoria": "Grama",
+      "dias_calendario": 789,
+      "dias_com_venda": 641
+    },
+    {
+      "modelo": "A0_sarima_puro",
+      "order": [
+        0,
+        0,
+        2
+      ],
+      "seasonal_order": [
+        1,
+        0,
+        1,
+        7
+      ],
+      "aic_selecao": 2202.9264456977635,
+      "log1p": true,
+      "tempo_selecao_ordem_s": 17.0,
+      "status": "low_confidence",
+      "holdout_mae": 17.59378642499994,
+      "holdout_rmse": 21.92105046985695,
+      "holdout_mase": 0.38681643653665465,
+      "holdout_rmsse": 0.23196758637107906,
+      "holdout_mape": null,
+      "holdout_smape": 83.5782510544887,
+      "holdout_cobertura_ic95": 89.28571428571429,
+      "holdout_ljung_box_lag7_pvalue": 0.013681010494323957,
+      "holdout_ljung_box_lag14_pvalue": 0.04373079890885311,
+      "holdout_shapiro_pvalue": 1.922403048722533e-23,
+      "holdout_aic": 2202.9264456977635,
+      "holdout_convergiu": true,
+      "walk_forward": {
+        "n_folds": 4,
+        "mase_medio": 0.5610163792571738,
+        "rmsse_medio": 0.3893455899868353,
+        "cobertura_ic95_media": 94.64285714285714,
+        "folds": [
+          {
+            "origem": "2025-12-06",
+            "mase": 0.7426580610836727,
+            "rmsse": 0.5910150567739215,
+            "cobertura_ic95": 92.85714285714286
+          },
+          {
+            "origem": "2025-12-20",
+            "mase": 0.7323740863325907,
+            "rmsse": 0.4687134693994984,
+            "cobertura_ic95": 85.71428571428571
+          },
+          {
+            "origem": "2026-01-03",
+            "mase": 0.40879890271758856,
+            "rmsse": 0.2638412183902204,
+            "cobertura_ic95": 100.0
+          },
+          {
+            "origem": "2026-01-17",
+            "mase": 0.3602344668948434,
+            "rmsse": 0.233812615383701,
+            "cobertura_ic95": 100.0
+          }
+        ]
+      },
+      "par": "Itabirito · Plantas de corte",
+      "unidade": "Itabirito",
+      "categoria": "Plantas de corte",
+      "dias_calendario": 789,
+      "dias_com_venda": 653
+    },
+    {
+      "modelo": "A1_sarimax_calendario",
+      "order": [
+        2,
+        0,
+        2
+      ],
+      "seasonal_order": [
+        0,
+        0,
+        1,
+        7
+      ],
+      "aic_selecao": 2118.2455057077836,
+      "log1p": true,
+      "tempo_selecao_ordem_s": 48.0,
+      "status": "trained",
+      "holdout_mae": 15.195195822268511,
+      "holdout_rmse": 21.847135055418036,
+      "holdout_mase": 0.3340810987732896,
+      "holdout_rmsse": 0.23118541672521334,
+      "holdout_mape": null,
+      "holdout_smape": 77.03917419140099,
+      "holdout_cobertura_ic95": 92.85714285714286,
+      "holdout_ljung_box_lag7_pvalue": 0.8137683816472931,
+      "holdout_ljung_box_lag14_pvalue": 0.7442115951699335,
+      "holdout_shapiro_pvalue": 1.7447241732838416e-21,
+      "holdout_aic": 2118.2455057077836,
+      "holdout_convergiu": false,
+      "walk_forward": {
+        "n_folds": 4,
+        "mase_medio": 0.5447100620982753,
+        "rmsse_medio": 0.3808418231443451,
+        "cobertura_ic95_media": 98.21428571428572,
+        "folds": [
+          {
+            "origem": "2025-12-06",
+            "mase": 0.9695875770501461,
+            "rmsse": 0.7013252332626039,
+            "cobertura_ic95": 92.85714285714286
+          },
+          {
+            "origem": "2025-12-20",
+            "mase": 0.6553905968592746,
+            "rmsse": 0.43562423883939083,
+            "cobertura_ic95": 100.0
+          },
+          {
+            "origem": "2026-01-03",
+            "mase": 0.29738677193213076,
+            "rmsse": 0.2096615502617815,
+            "cobertura_ic95": 100.0
+          },
+          {
+            "origem": "2026-01-17",
+            "mase": 0.25647530255154966,
+            "rmsse": 0.17675627021360418,
+            "cobertura_ic95": 100.0
+          }
+        ]
+      },
+      "par": "Itabirito · Plantas de corte",
+      "unidade": "Itabirito",
+      "categoria": "Plantas de corte",
+      "dias_calendario": 789,
+      "dias_com_venda": 653
+    },
+    {
+      "modelo": "A0_sarima_puro",
+      "order": [
+        1,
+        0,
+        1
+      ],
+      "seasonal_order": [
+        1,
+        0,
+        1,
+        7
+      ],
+      "aic_selecao": 2669.0400021635533,
+      "log1p": true,
+      "tempo_selecao_ordem_s": 15.7,
+      "status": "trained",
+      "holdout_mae": 402.91001490818826,
+      "holdout_rmse": 751.0535692245041,
+      "holdout_mase": 0.4921632928165747,
+      "holdout_rmsse": 0.3464427897636976,
+      "holdout_mape": null,
+      "holdout_smape": 77.62541303227614,
+      "holdout_cobertura_ic95": 92.85714285714286,
+      "holdout_ljung_box_lag7_pvalue": 1.110518428094799e-34,
+      "holdout_ljung_box_lag14_pvalue": 1.4605090792281854e-30,
+      "holdout_shapiro_pvalue": 1.0813107544834462e-37,
+      "holdout_aic": 2669.0400021635533,
+      "holdout_convergiu": false,
+      "walk_forward": {
+        "n_folds": 4,
+        "mase_medio": 0.7838437480286727,
+        "rmsse_medio": 0.7658717467617787,
+        "cobertura_ic95_media": 92.85714285714286,
+        "folds": [
+          {
+            "origem": "2025-12-06",
+            "mase": 1.8368543526269125,
+            "rmsse": 2.3151037768920695,
+            "cobertura_ic95": 85.71428571428571
+          },
+          {
+            "origem": "2025-12-20",
+            "mase": 0.3894298592885408,
+            "rmsse": 0.18851805571262711,
+            "cobertura_ic95": 85.71428571428571
+          },
+          {
+            "origem": "2026-01-03",
+            "mase": 0.43635280501722723,
+            "rmsse": 0.23331391043001456,
+            "cobertura_ic95": 100.0
+          },
+          {
+            "origem": "2026-01-17",
+            "mase": 0.4727379751820104,
+            "rmsse": 0.3265512440124037,
+            "cobertura_ic95": 100.0
+          }
+        ]
+      },
+      "par": "Itabirito · Produtos de jardim",
+      "unidade": "Itabirito",
+      "categoria": "Produtos de jardim",
+      "dias_calendario": 789,
+      "dias_com_venda": 653
+    },
+    {
+      "modelo": "A1_sarimax_calendario",
+      "order": [
+        0,
+        0,
+        2
+      ],
+      "seasonal_order": [
+        0,
+        0,
+        1,
+        7
+      ],
+      "aic_selecao": 2507.299874968653,
+      "log1p": true,
+      "tempo_selecao_ordem_s": 51.4,
+      "status": "trained",
+      "holdout_mae": 401.87664069044615,
+      "holdout_rmse": 782.9172404530477,
+      "holdout_mase": 0.4909010038714076,
+      "holdout_rmsse": 0.3611407282395484,
+      "holdout_mape": null,
+      "holdout_smape": 77.61230772850124,
+      "holdout_cobertura_ic95": 92.85714285714286,
+      "holdout_ljung_box_lag7_pvalue": 0.6104531812091119,
+      "holdout_ljung_box_lag14_pvalue": 0.9078474488545486,
+      "holdout_shapiro_pvalue": 2.462602298215534e-35,
+      "holdout_aic": 2507.299874968653,
+      "holdout_convergiu": false,
+      "walk_forward": {
+        "n_folds": 4,
+        "mase_medio": 0.7230506791495621,
+        "rmsse_medio": 0.7473798351599656,
+        "cobertura_ic95_media": 92.85714285714286,
+        "folds": [
+          {
+            "origem": "2025-12-06",
+            "mase": 1.8666746820238496,
+            "rmsse": 2.329271175901895,
+            "cobertura_ic95": 85.71428571428571
+          },
+          {
+            "origem": "2025-12-20",
+            "mase": 0.20984956150373651,
+            "rmsse": 0.1139868858329415,
+            "cobertura_ic95": 85.71428571428571
+          },
+          {
+            "origem": "2026-01-03",
+            "mase": 0.3705699010531677,
+            "rmsse": 0.21670137018775887,
+            "cobertura_ic95": 100.0
+          },
+          {
+            "origem": "2026-01-17",
+            "mase": 0.44510857201749465,
+            "rmsse": 0.32955990871726737,
+            "cobertura_ic95": 100.0
+          }
+        ]
+      },
+      "par": "Itabirito · Produtos de jardim",
+      "unidade": "Itabirito",
+      "categoria": "Produtos de jardim",
+      "dias_calendario": 789,
+      "dias_com_venda": 653
+    },
+    {
+      "modelo": "A0_sarima_puro",
+      "order": [
+        0,
+        0,
+        2
+      ],
+      "seasonal_order": [
+        1,
+        0,
+        1,
+        7
+      ],
+      "aic_selecao": 2954.7034983100725,
+      "log1p": true,
+      "tempo_selecao_ordem_s": 18.4,
+      "status": "trained",
+      "holdout_mae": 459.52549636659796,
+      "holdout_rmse": 728.1122564208493,
+      "holdout_mase": 0.3800023242862895,
+      "holdout_rmsse": 0.34782892565313345,
+      "holdout_mape": null,
+      "holdout_smape": 114.02716501297054,
+      "holdout_cobertura_ic95": 92.85714285714286,
+      "holdout_ljung_box_lag7_pvalue": 7.766819653202923e-05,
+      "holdout_ljung_box_lag14_pvalue": 0.0023016272405458897,
+      "holdout_shapiro_pvalue": 8.786716722788224e-29,
+      "holdout_aic": 2954.7034983100725,
+      "holdout_convergiu": true,
+      "walk_forward": {
+        "n_folds": 4,
+        "mase_medio": 0.7232232835709976,
+        "rmsse_medio": 0.7299985193599374,
+        "cobertura_ic95_media": 94.64285714285714,
+        "folds": [
+          {
+            "origem": "2025-12-06",
+            "mase": 1.5224235378096411,
+            "rmsse": 1.521896392166538,
+            "cobertura_ic95": 92.85714285714286
+          },
+          {
+            "origem": "2025-12-20",
+            "mase": 0.39393609207045754,
+            "rmsse": 0.29739760608554056,
+            "cobertura_ic95": 85.71428571428571
+          },
+          {
+            "origem": "2026-01-03",
+            "mase": 0.47003665089289953,
+            "rmsse": 0.4753347301621139,
+            "cobertura_ic95": 100.0
+          },
+          {
+            "origem": "2026-01-17",
+            "mase": 0.5064968535109925,
+            "rmsse": 0.6253653490255571,
+            "cobertura_ic95": 100.0
+          }
+        ]
+      },
+      "par": "Jardim Canadá · Grama",
+      "unidade": "Jardim Canadá",
+      "categoria": "Grama",
+      "dias_calendario": 789,
+      "dias_com_venda": 645
+    },
+    {
+      "modelo": "A1_sarimax_calendario",
+      "order": [
+        1,
+        0,
+        1
+      ],
+      "seasonal_order": [
+        1,
+        0,
+        0,
+        7
+      ],
+      "aic_selecao": 2818.760906661885,
+      "log1p": true,
+      "tempo_selecao_ordem_s": 53.4,
+      "status": "trained",
+      "holdout_mae": 443.1265103347675,
+      "holdout_rmse": 638.0642209242018,
+      "holdout_mase": 0.36644126432921037,
+      "holdout_rmsse": 0.3048117793714063,
+      "holdout_mape": null,
+      "holdout_smape": 100.35385215283227,
+      "holdout_cobertura_ic95": 92.85714285714286,
+      "holdout_ljung_box_lag7_pvalue": 0.8833704013403415,
+      "holdout_ljung_box_lag14_pvalue": 0.7053358237339222,
+      "holdout_shapiro_pvalue": 4.8935716303809054e-26,
+      "holdout_aic": 2818.760906661885,
+      "holdout_convergiu": false,
+      "walk_forward": {
+        "n_folds": 4,
+        "mase_medio": 0.6499459297275165,
+        "rmsse_medio": 0.6487379353395359,
+        "cobertura_ic95_media": 98.21428571428572,
+        "folds": [
+          {
+            "origem": "2025-12-06",
+            "mase": 1.3186323793512487,
+            "rmsse": 1.3625912444568438,
+            "cobertura_ic95": 92.85714285714286
+          },
+          {
+            "origem": "2025-12-20",
+            "mase": 0.2830111711895972,
+            "rmsse": 0.23659922112780152,
+            "cobertura_ic95": 100.0
+          },
+          {
+            "origem": "2026-01-03",
+            "mase": 0.476132620145223,
+            "rmsse": 0.4278947438505195,
+            "cobertura_ic95": 100.0
+          },
+          {
+            "origem": "2026-01-17",
+            "mase": 0.522007548223997,
+            "rmsse": 0.567866531922979,
+            "cobertura_ic95": 100.0
+          }
+        ]
+      },
+      "par": "Jardim Canadá · Grama",
+      "unidade": "Jardim Canadá",
+      "categoria": "Grama",
+      "dias_calendario": 789,
+      "dias_com_venda": 645
+    },
+    {
+      "modelo": "A0_sarima_puro",
+      "order": [
+        0,
+        0,
+        2
+      ],
+      "seasonal_order": [
+        1,
+        0,
+        1,
+        7
+      ],
+      "aic_selecao": 2397.961525679445,
+      "log1p": true,
+      "tempo_selecao_ordem_s": 20.8,
+      "status": "trained",
+      "holdout_mae": 19.580749029694363,
+      "holdout_rmse": 26.500687300511615,
+      "holdout_mase": 0.37629339303677245,
+      "holdout_rmsse": 0.12002131849326828,
+      "holdout_mape": null,
+      "holdout_smape": 109.59859119332076,
+      "holdout_cobertura_ic95": 92.85714285714286,
+      "holdout_ljung_box_lag7_pvalue": 0.0006201346635185807,
+      "holdout_ljung_box_lag14_pvalue": 0.0010415868974602317,
+      "holdout_shapiro_pvalue": 9.611181141712415e-16,
+      "holdout_aic": 2397.961525679445,
+      "holdout_convergiu": true,
+      "walk_forward": {
+        "n_folds": 4,
+        "mase_medio": 0.6355455525969231,
+        "rmsse_medio": 0.2348312646082975,
+        "cobertura_ic95_media": 91.07142857142858,
+        "folds": [
+          {
+            "origem": "2025-12-06",
+            "mase": 0.6561131268032437,
+            "rmsse": 0.23697645320829475,
+            "cobertura_ic95": 92.85714285714286
+          },
+          {
+            "origem": "2025-12-20",
+            "mase": 1.1008919781604647,
+            "rmsse": 0.36840322308026763,
+            "cobertura_ic95": 78.57142857142857
+          },
+          {
+            "origem": "2026-01-03",
+            "mase": 0.4766205509731095,
+            "rmsse": 0.21404793370563555,
+            "cobertura_ic95": 92.85714285714286
+          },
+          {
+            "origem": "2026-01-17",
+            "mase": 0.3085565544508746,
+            "rmsse": 0.11989744843899203,
+            "cobertura_ic95": 100.0
+          }
+        ]
+      },
+      "par": "Jardim Canadá · Plantas de corte",
+      "unidade": "Jardim Canadá",
+      "categoria": "Plantas de corte",
+      "dias_calendario": 788,
+      "dias_com_venda": 640
+    },
+    {
+      "modelo": "A1_sarimax_calendario",
+      "order": [
+        1,
+        0,
+        1
+      ],
+      "seasonal_order": [
+        0,
+        0,
+        1,
+        7
+      ],
+      "aic_selecao": 2270.6833527779045,
+      "log1p": true,
+      "tempo_selecao_ordem_s": 66.0,
+      "status": "trained",
+      "holdout_mae": 17.801726173285694,
+      "holdout_rmse": 23.6153300647304,
+      "holdout_mase": 0.3421049896251978,
+      "holdout_rmsse": 0.10695356761437436,
+      "holdout_mape": null,
+      "holdout_smape": 102.8418050633298,
+      "holdout_cobertura_ic95": 92.85714285714286,
+      "holdout_ljung_box_lag7_pvalue": 0.2911261893541355,
+      "holdout_ljung_box_lag14_pvalue": 0.46311515643730783,
+      "holdout_shapiro_pvalue": 1.7918341751843747e-12,
+      "holdout_aic": 2270.6833527779045,
+      "holdout_convergiu": false,
+      "walk_forward": {
+        "n_folds": 4,
+        "mase_medio": 0.5555360287016666,
+        "rmsse_medio": 0.21136926253133703,
+        "cobertura_ic95_media": 98.21428571428572,
+        "folds": [
+          {
+            "origem": "2025-12-06",
+            "mase": 0.5933242147749818,
+            "rmsse": 0.21216580029076265,
+            "cobertura_ic95": 92.85714285714286
+          },
+          {
+            "origem": "2025-12-20",
+            "mase": 0.9563479580087466,
+            "rmsse": 0.3359953556081126,
+            "cobertura_ic95": 100.0
+          },
+          {
+            "origem": "2026-01-03",
+            "mase": 0.41889963671252983,
+            "rmsse": 0.19010850391282122,
+            "cobertura_ic95": 100.0
+          },
+          {
+            "origem": "2026-01-17",
+            "mase": 0.253572305310408,
+            "rmsse": 0.10720739031365173,
+            "cobertura_ic95": 100.0
+          }
+        ]
+      },
+      "par": "Jardim Canadá · Plantas de corte",
+      "unidade": "Jardim Canadá",
+      "categoria": "Plantas de corte",
+      "dias_calendario": 788,
+      "dias_com_venda": 640
+    },
+    {
+      "modelo": "A0_sarima_puro",
+      "order": [
+        0,
+        0,
+        2
+      ],
+      "seasonal_order": [
+        1,
+        0,
+        1,
+        7
+      ],
+      "aic_selecao": 2707.2709749041483,
+      "log1p": true,
+      "tempo_selecao_ordem_s": 26.5,
+      "status": "trained",
+      "holdout_mae": 345.1286874081421,
+      "holdout_rmse": 460.70873551460375,
+      "holdout_mase": 0.3001726220547198,
+      "holdout_rmsse": 0.14899209427487106,
+      "holdout_mape": null,
+      "holdout_smape": 84.5188503905638,
+      "holdout_cobertura_ic95": 92.85714285714286,
+      "holdout_ljung_box_lag7_pvalue": 1.903931598607612e-06,
+      "holdout_ljung_box_lag14_pvalue": 4.761362106781453e-05,
+      "holdout_shapiro_pvalue": 6.082415096088181e-39,
+      "holdout_aic": 2707.2709749041483,
+      "holdout_convergiu": true,
+      "walk_forward": {
+        "n_folds": 4,
+        "mase_medio": 0.37930374056838434,
+        "rmsse_medio": 0.1905397971560787,
+        "cobertura_ic95_media": 94.64285714285714,
+        "folds": [
+          {
+            "origem": "2025-12-06",
+            "mase": 0.6047386330280384,
+            "rmsse": 0.3093290003068699,
+            "cobertura_ic95": 92.85714285714286
+          },
+          {
+            "origem": "2025-12-20",
+            "mase": 0.28776236399818034,
+            "rmsse": 0.13290851693108985,
+            "cobertura_ic95": 85.71428571428571
+          },
+          {
+            "origem": "2026-01-03",
+            "mase": 0.2255094617293889,
+            "rmsse": 0.11227725723398799,
+            "cobertura_ic95": 100.0
+          },
+          {
+            "origem": "2026-01-17",
+            "mase": 0.3992045035179296,
+            "rmsse": 0.20764441415236704,
+            "cobertura_ic95": 100.0
+          }
+        ]
+      },
+      "par": "Jardim Canadá · Produtos de jardim",
+      "unidade": "Jardim Canadá",
+      "categoria": "Produtos de jardim",
+      "dias_calendario": 789,
+      "dias_com_venda": 650
+    },
+    {
+      "modelo": "A1_sarimax_calendario",
+      "order": [
+        0,
+        0,
+        2
+      ],
+      "seasonal_order": [
+        0,
+        0,
+        1,
+        7
+      ],
+      "aic_selecao": 2456.4286300996164,
+      "log1p": true,
+      "tempo_selecao_ordem_s": 100.0,
+      "status": "trained",
+      "holdout_mae": 472.24394805366984,
+      "holdout_rmse": 608.3759907933792,
+      "holdout_mase": 0.410729995241186,
+      "holdout_rmsse": 0.19674732859929023,
+      "holdout_mape": null,
+      "holdout_smape": 88.44504322134405,
+      "holdout_cobertura_ic95": 92.85714285714286,
+      "holdout_ljung_box_lag7_pvalue": 0.3117496487622637,
+      "holdout_ljung_box_lag14_pvalue": 0.523527941285785,
+      "holdout_shapiro_pvalue": 2.3810533781162904e-36,
+      "holdout_aic": 2456.4286300996164,
+      "holdout_convergiu": true,
+      "walk_forward": {
+        "n_folds": 4,
+        "mase_medio": 0.3618648139045159,
+        "rmsse_medio": 0.1795510242920781,
+        "cobertura_ic95_media": 98.21428571428572,
+        "folds": [
+          {
+            "origem": "2025-12-06",
+            "mase": 0.4852276265262891,
+            "rmsse": 0.24108443534818388,
+            "cobertura_ic95": 92.85714285714286
+          },
+          {
+            "origem": "2025-12-20",
+            "mase": 0.3365766759208077,
+            "rmsse": 0.1957796853169154,
+            "cobertura_ic95": 100.0
+          },
+          {
+            "origem": "2026-01-03",
+            "mase": 0.24691637368993108,
+            "rmsse": 0.11619746551016448,
+            "cobertura_ic95": 100.0
+          },
+          {
+            "origem": "2026-01-17",
+            "mase": 0.37873857948103584,
+            "rmsse": 0.16514251099304852,
+            "cobertura_ic95": 100.0
+          }
+        ]
+      },
+      "par": "Jardim Canadá · Produtos de jardim",
+      "unidade": "Jardim Canadá",
+      "categoria": "Produtos de jardim",
+      "dias_calendario": 789,
+      "dias_com_venda": 650
+    }
+  ]
+}

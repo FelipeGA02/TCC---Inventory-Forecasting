@@ -56,8 +56,9 @@ modelo L1 (um por `unidade × categoria`).
 - `shelf_life_dias` por categoria é dado externo — default parametrizado até a parceira confirmar
 - Categorias sem dados suficientes DEVEM ter status explícito, nunca silencioso
 
-**Scale/Scope**: ~15–40 pares `unidade × categoria` modelados em L1; 20 SKUs com
-desagregação/reposição detalhadas; 324k transações; 3 unidades; 1–5 usuários simultâneos.
+**Scale/Scope**: 6 pares `unidade × categoria` modelados em L1 (2 unidades × 3 categorias);
+20 SKUs com desagregação/reposição detalhadas; 324k transações; 2 unidades; 1–5 usuários
+simultâneos.
 
 ---
 
@@ -254,7 +255,7 @@ artigo TCC e a revisão de escopo (ADR-009):
 | React em vez de Streamlit/Dash | app-react/ já existente cobre RNF-01 | Baixo |
 
 **Entregáveis acadêmicos desta fase** (seções 6.4 e 4.2 do artigo): diagramas UML em
-`docs/uml/` e relatório de EDA em `docs/eda_report.md` — ver Fase 0 em `tasks.md`.
+`docs/uml/` e relatório de EDA em `docs/prediction/00-eda_report.md` — ver Fase 0 em `tasks.md`.
 Item de levantamento adicional: **confirmar `shelf_life_dias` por categoria com a parceira**.
 
 ---

@@ -1,8 +1,8 @@
 """De/para `empresa` (entidade juridica no XLSX) -> `unidade` operacional.
 
-`empresa` tem 3 valores nos dados reais, um por CNPJ. CONFIRMADO com a parceira
-(2026-08-30): as 3 entidades correspondem 1:1 as 3 lojas e devem ser modeladas
-separadamente. O de/para abaixo e definitivo.
+`empresa` tem 3 valores nos dados reais, um por CNPJ, mas a rede tem 2 unidades
+operacionais (Jardim Canada e Itabirito). CONFIRMADO com o cliente: as vendas do
+Garden Center pertencem a unidade Jardim Canada. O de/para abaixo e definitivo.
 """
 
 # Mojibake ja observado em algumas exportacoes do sistema de origem (nao na rodada atual).
@@ -13,7 +13,7 @@ NORMALIZE_EMPRESA = {
 
 UNIDADE_POR_EMPRESA = {
     "FLORICULTURA VERDE PERTO CANADÁ LTDA": "Jardim Canadá",
-    "GARDEN CENTER VERDE PERTO LTDA":            "Garden Center",
+    "GARDEN CENTER VERDE PERTO LTDA":            "Jardim Canadá",
     "VERDE PERTO JARDINAGEM LTDA":               "Itabirito",
 }
 

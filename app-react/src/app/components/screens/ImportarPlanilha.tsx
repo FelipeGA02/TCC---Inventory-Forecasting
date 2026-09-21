@@ -249,7 +249,7 @@ export function ImportarPlanilha() {
                 Previsões calculadas com sucesso!
               </p>
               <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
-                7 produtos · 3 lojas · Próximas 4 semanas
+                7 produtos · 2 lojas · Próximas 4 semanas
               </p>
             </div>
             <div className="grid grid-cols-3 gap-4 w-full">

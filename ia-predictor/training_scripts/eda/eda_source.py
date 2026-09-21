@@ -8,7 +8,8 @@ qualidade, e o que disso condiciona/valida as escolhas do pré-processamento.
 
 Blocos:
   1. Volume e completude da fonte (arquivos, datas, meses, chaves)
-  2. Perfil por unidade (abertura de loja, volume, faturamento)
+  2. Perfil por unidade (volume, faturamento, histórico; composição de Jardim Canadá
+     por CNPJ)
   3. Perfil por categoria / categoria_fina (share, nº de SKUs)
   4. Esparsidade da série diária por SKU  → justifica a camada L2
   5. Concentração de volume (curva de Pareto por SKU)
@@ -73,6 +74,28 @@ def bloco_por_unidade(df: pd.DataFrame) -> dict:
             "dias_com_venda": int(d["data"].dt.normalize().nunique()),
         }
     return out
+
+
+def _cnpj_jardim_canada(d: pd.DataFrame) -> pd.Series:
+    return pd.Series(np.where(d["empresa"].str.contains("GARDEN", case=False, na=False),
+                              "Garden Center", "Floricultura Canadá"), index=d.index)
+
+
+def bloco_jardim_canada_por_cnpj(df: pd.DataFrame) -> dict:
+    """Jardim Canadá reúne dois CNPJs: as vendas do Garden Center somam-se às da
+    Floricultura. Volume (qtdade) mensal de cada um e da soma."""
+    d = df[(df["unidade"] == "Jardim Canadá") & (df["categoria"] != C.NAO_PRODUTO)].dropna(subset=["data"])
+    piv = (d.assign(mes=d["data"].dt.to_period("M").astype(str), cnpj=_cnpj_jardim_canada(d))
+             .pivot_table(index="mes", columns="cnpj", values="qtdade_n",
+                          aggfunc="sum", fill_value=0.0)
+             .reindex(columns=["Floricultura Canadá", "Garden Center"], fill_value=0.0))
+    piv["soma"] = piv.sum(axis=1)
+    garden = d[_cnpj_jardim_canada(d) == "Garden Center"]
+    return {
+        "primeira_venda_garden_center": garden["data"].min(),
+        "linhas_por_cnpj": {k: int(v) for k, v in _cnpj_jardim_canada(d).value_counts().items()},
+        "volume_mensal": {m: {c: float(v) for c, v in r.items()} for m, r in piv.iterrows()},
+    }
 
 
 def bloco_por_categoria(df: pd.DataFrame) -> dict:
@@ -244,7 +267,7 @@ def graficos(df: pd.DataFrame, plt) -> list[str]:
         if r["evento"] in ("Dia das Mães", "Finados"):
             ax.axvline(r["data"], color="#B71C1C", lw=.7, ls=":", alpha=.5)
     ax.set_title("Transações por mês, por unidade (linhas verticais = Dia das Mães / Finados)")
-    ax.set_ylabel("linhas documento×produto"); ax.legend(frameon=False, ncol=3)
+    ax.set_ylabel("linhas documento×produto"); ax.legend(frameon=False, ncol=2)
     figs.append(C.savefig(fig, "01_transacoes_por_mes_unidade.png"))
 
     # 2. Sazonalidade semanal — qtd média por dia da semana
@@ -292,6 +315,20 @@ def graficos(df: pd.DataFrame, plt) -> list[str]:
     ax.set_xlabel("soma de qtdade")
     figs.append(C.savefig(fig, "05_volume_categoria_fina.png"))
 
+    # 6. Jardim Canadá por CNPJ — a unidade é a soma da Floricultura com o Garden Center
+    d = df[(df["unidade"] == "Jardim Canadá") & (df["categoria"] != C.NAO_PRODUTO)].dropna(subset=["data"])
+    piv = (d.assign(mes=d["data"].dt.to_period("M").dt.to_timestamp(), cnpj=_cnpj_jardim_canada(d))
+             .pivot_table(index="mes", columns="cnpj", values="qtdade_n", aggfunc="sum", fill_value=0.0)
+             .reindex(columns=["Floricultura Canadá", "Garden Center"], fill_value=0.0))
+    fig, ax = plt.subplots(figsize=(11, 4))
+    ax.bar(piv.index, piv["Floricultura Canadá"], width=20, label="Floricultura Canadá",
+           color=C.PALETA["Jardim Canadá"])
+    ax.bar(piv.index, piv["Garden Center"], bottom=piv["Floricultura Canadá"], width=20,
+           label="Garden Center", color="#00838F")
+    ax.set_title("Jardim Canadá: volume mensal por CNPJ (a unidade é a soma dos dois)")
+    ax.set_ylabel("soma de qtdade"); ax.legend(frameon=False)
+    figs.append(C.savefig(fig, "06_jardim_canada_por_cnpj.png"))
+
     return figs
 
 
@@ -308,6 +345,7 @@ def main() -> dict:
         },
         "1_volume_completude": bloco_volume_completude(df),
         "2_por_unidade": bloco_por_unidade(df),
+        "2b_jardim_canada_por_cnpj": bloco_jardim_canada_por_cnpj(df),
         "3_por_categoria": bloco_por_categoria(df),
         "4_esparsidade_sku": bloco_esparsidade_sku(df),
         "5_pareto_sku": bloco_pareto_sku(df),

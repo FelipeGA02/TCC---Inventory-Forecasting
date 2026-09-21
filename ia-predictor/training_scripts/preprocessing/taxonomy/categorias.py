@@ -1,17 +1,23 @@
 """De/para `produto` -> `categoria`.
 
-Dois niveis:
+Tres niveis:
 
   * `categoria_fina` (~10 rotulos) — classificacao detalhada por regras, util para EDA e
     para a desagregacao L2. Produzida por `map_categoria()`.
-  * `categoria` (nivel L1 do modelo) — 3 categorias de demanda + 1 rotulo de nao-produto,
-    definidas com a parceira em 2026-08-30 (ver docs/prediction/01-pre_processing.md §5 e
-    ADR-011). Produzida por `map_categoria_l1()` colapsando a fina via `CATEGORIA_L1`.
+  * `categoria` (nivel L1 do modelo) — 3 categorias de demanda + 1 rotulo de nao-produto
+    (ver docs/prediction/01-pre_processing.md §5 e ADR-011). Produzida por
+    `map_categoria_l1()` colapsando a fina via `CATEGORIA_L1`.
+  * `grupo` de produto — vocabulario do cliente (Grama, Flores de corte, Plantas diversas,
+    Insumos e acessorios) para apresentar a previsao. Produzido por `map_grupo()`
+    colapsando a fina via `GRUPO_PRODUTO`. NAO e unidade de modelagem: os numeros de um
+    grupo vem da desagregacao L2 (a EDA de granularidade, `eda/eda_grupos.py`, mostra que
+    modelar cada grupo direto nao erra menos do que repartir a previsao do L1).
 
-A parceira reconhece o negocio em GRAMA de plantio x "plantas de corte"; o restante do
-catalogo (o maior volume: muda, vaso, substrato, insumo) foi agrupado em "Produtos de
-jardim". `shelf_life_dias` foi REMOVIDO: a recomendacao de reposicao (camada L3) saiu de
-escopo — o entregavel e a previsao de demanda diaria, a loja decide a compra (ADR-011).
+O negocio se organiza em Grama, Flores de corte (as que compoem arranjos e buques) e
+Plantas diversas (todas as plantas, exceto flores de corte e arvores). Plantas e insumos
+formam o L1 "Produtos de jardim". `shelf_life_dias` foi REMOVIDO: a recomendacao de
+reposicao (camada L3) saiu de escopo — o entregavel e a previsao de demanda diaria, a loja
+decide a compra (ADR-011).
 
 Cascata da `categoria_fina` (primeira que casar vence):
   1. CATEGORIA_POR_SKU  — de/para explicito por produto_cod (curadoria, alta confianca)
@@ -77,11 +83,19 @@ CATEGORIA_REGRAS: list[tuple[re.Pattern, str]] = [
                 r"PRESTA[CÇ][AÃ]O\s+DE\s+SERVI[CÇ]O)\b", re.I),
      "Servico e taxa"),
 
-    # Flor de corte e arranjos montados — fatia pequena, mas a mais pericivel.
-    # "MOLIO"/"MOLHO" = venda em maco de hastes (aster, rosa spray) — sempre flor de corte.
+    # Flor de corte e arranjos montados — fatia pequena, mas a mais pericivel. Flor de
+    # corte e a que compoe arranjos e buques. "MOLIO"/"MOLHO" = venda em maco de hastes
+    # (aster, rosa spray) — sempre flor de corte. "COROA" so vale a de flores (funeral):
+    # "COROA DE CRISTO" e planta.
     (re.compile(r"\b(FLOR\s+DE\s+CORTE|ROSA\s+EM\s+CABO|ALSTROEMERIA|ASTROMELIA|"
-                r"BUQU[EÊ]|ARRANJO|COROA|GERBERA|CRISANTEMO|TANGO|LIRIO\s+CORTE|"
+                r"BUQU[EÊ]|ARRANJO|COROA\s+DE\s+FLORES|LIRIO\s+CORTE|"
                 r"MOLIO|MOLHO)\b", re.I),
+     "Flor de corte e arranjo"),
+    # Gerbera, crisantemo e tango soltos so sao flor de corte quando o nome NAO traz sinal
+    # de embalagem: "GERBERA PT 15", "CRISANTEMO VB (VASO BARRO)" sao planta envasada e
+    # seguem a cascata (PT/VB -> Planta em vaso; CACHEPO/VASO -> Insumo e acessorio).
+    (re.compile(r"^(?!.*\b(PT\s?\d{1,2}|VB|POTE|SAQ\w*|SQ|CUIA|VASO|CACHEP\w*)\b)"
+                r".*\b(GERBERA|CRISANTEMO|TANGO)\b", re.I),
      "Flor de corte e arranjo"),
 
     # Hortalicas, ervas e produce (mudas comestiveis / horta). `HORTALIC\w*` cobre o
@@ -105,7 +119,8 @@ CATEGORIA_REGRAS: list[tuple[re.Pattern, str]] = [
     # ferramentas. "POTE PRETO 06", "PRATO 21", "VASO PLAST.PAREDE", "VASOS CERAMICA".
     (re.compile(r"\b(MANTA|BIDIM|SEPARADOR\s+DE\s+GRAMA|TUTOR|REGADOR|FERRAMENTA|"
                 r"VASO\s+PL[AÁ]STICO|VASO\s+PL\b|VASO\s+PLAST|VASOS?\s+(DE\s+)?CER[AÂ]MICA|"
-                r"VASO\s+USADO|VASO\s+POLIET|POLIET|CACHEPOT|CACHEP[OÔ]|PEDRA|SEIXO|"
+                r"VASO\s+USADO|VASO\s+POLIET|VASO\s+BIG|VASO\s+TRANCADO|POLIET|CACHEPOT|"
+                r"CACHEP[OÔ]|PEDRA|SEIXO|"
                 r"PASTILHA|TELA|GRAMPO|ESTACA|MANGUEIRA|PULVERIZADOR|LUVA|SACO\s+PARA|"
                 r"PRATO|POTE\s+(PRETO|PRPL|PLAST|BRANCO|BR\b)|ENFEITE|TRIP[EÉ]|"
                 r"FLORAL\s+(MENOR|MAIOR|MEDIO|F\d)|F1000|SUPORTE|TREL[IÍ][CÇ]A|"
@@ -130,9 +145,9 @@ CATEGORIA_REGRAS: list[tuple[re.Pattern, str]] = [
     (re.compile(r"\d+[.,]?\d*\s*(A|À)\s*\d+[.,]?\d*\s*(CM|MTS?|MT|M)\b", re.I),
      "Arbusto e planta formada"),
 
-    # Planta em vaso — codigo de vaso "PT 11", "PT13"; codigo/volume de pote "P14",
-    # "3L", "8 L", "5 LITROS", "POTE PP". Recipiente rigido = planta envasada.
-    (re.compile(r"\bPT\s?\d{1,2}\b", re.I),
+    # Planta em vaso — codigo de vaso "PT 11", "PT13", "VB" (vaso de barro); codigo/volume
+    # de pote "P14", "3L", "8 L", "5 LITROS", "POTE PP". Recipiente rigido = planta envasada.
+    (re.compile(r"\b(PT\s?\d{1,2}|VB)\b", re.I),
      "Planta em vaso"),
     (re.compile(r"(\bP\s?1\d\b|\b\d+\s?L(ITROS?)?\b|\bPOTE\s?(PP|PM|PG|\d{2})\b)", re.I),
      "Planta em vaso"),
@@ -150,7 +165,8 @@ CATEGORIA_REGRAS: list[tuple[re.Pattern, str]] = [
     # Arbustos topiarios / plantas formadas tipicas vendidas por porte, sem faixa no nome.
     (re.compile(r"\b(BUXINHO|MURTA|PODOCARP[OU]S?|MANACA\s+DA\s+SERRA|"
                 r"AZALEIA\s+TOPIARIA|CLUSIA|IXORA|PITTOSPORUM|PITOSPORO|"
-                r"ESPONJINHA|CALIANDRA|BAMBU|BAMBUSA|EUCALIPTO|OLIVEIRA)\b", re.I),
+                r"ESPONJINHA|CALIANDRA|BAMBU|BAMBUSA|EUCALIPTO|OLIVEIRA|"
+                r"COROA\s+DE\s+CRISTO)\b", re.I),
      "Arbusto e planta formada"),
 
     # Bromelia e orquidea sao sempre comercializadas envasadas.
@@ -165,13 +181,14 @@ CATEGORIA_REGRAS: list[tuple[re.Pattern, str]] = [
 CATEGORIA_DEFAULT = "Outros"
 
 # Colapso `categoria_fina` (~10) -> `categoria` L1 (3 de demanda + 1 nao-produto).
-# Decisao com a parceira (2026-08-30 / ADR-011): o negocio se organiza em GRAMA de
-# plantio x "plantas de corte"; todo o restante do catalogo (o maior volume) vira
-# "Produtos de jardim". "Servico e taxa" (frete, mao de obra) NAO e produto — fica com
-# rotulo proprio para ser excluido da serie de demanda L1.
+# Grama e Flores de corte diferem em dinamica (calendario comemorativo, perfil semanal) e
+# ganham serie L1 (o teste de separacao, eda_separacao.py, nao mostra ganho de acuracia); plantas e insumos sao o par de grupos mais proximo e modelar cada um
+# direto nao erra menos do que repartir a previsao de "Produtos de jardim" (ADR-011,
+# eda_grupos.py), entao formam uma serie L1 so. "Servico e taxa" (frete, mao de obra) NAO
+# e produto — fica com rotulo proprio para ser excluido da serie de demanda L1.
 CATEGORIA_L1: dict[str, str] = {
     "Grama":                    "Grama",
-    "Flor de corte e arranjo":  "Plantas de corte",
+    "Flor de corte e arranjo":  "Flores de corte",
     "Hortalica e erva":         "Produtos de jardim",
     "Muda e forracao":          "Produtos de jardim",
     "Planta em vaso":           "Produtos de jardim",
@@ -183,6 +200,25 @@ CATEGORIA_L1: dict[str, str] = {
 }
 
 CATEGORIA_L1_DEFAULT = "Produtos de jardim"
+
+# Colapso `categoria_fina` -> grupo de produto (vocabulario do cliente). "Outros" (cauda
+# de especies sem palavra-chave) e majoritariamente planta e vai para Plantas diversas.
+# Arvores nao tem regra propria (a lista do grupo no ERP nao esta disponivel): ficam em
+# Plantas diversas (~0,4% a 1,2% do volume por unidade, ver eda_grupos.py).
+GRUPO_PRODUTO: dict[str, str] = {
+    "Grama":                    "Grama",
+    "Flor de corte e arranjo":  "Flores de corte",
+    "Hortalica e erva":         "Plantas diversas",
+    "Muda e forracao":          "Plantas diversas",
+    "Planta em vaso":           "Plantas diversas",
+    "Arbusto e planta formada": "Plantas diversas",
+    "Outros":                   "Plantas diversas",
+    "Substrato e adubo":        "Insumos e acessórios",
+    "Insumo e acessorio":       "Insumos e acessórios",
+    "Servico e taxa":           "Servico e taxa",
+}
+
+GRUPO_PRODUTO_DEFAULT = "Plantas diversas"
 
 
 def map_categoria(produto_cod, produto_nome) -> str:
@@ -200,3 +236,8 @@ def map_categoria(produto_cod, produto_nome) -> str:
 def map_categoria_l1(produto_cod, produto_nome) -> str:
     """`categoria` do nivel L1 do modelo (3 de demanda + "Servico e taxa")."""
     return CATEGORIA_L1.get(map_categoria(produto_cod, produto_nome), CATEGORIA_L1_DEFAULT)
+
+
+def map_grupo(produto_cod, produto_nome) -> str:
+    """Grupo de produto (vocabulario do cliente) — so para apresentacao, nao e serie L1."""
+    return GRUPO_PRODUTO.get(map_categoria(produto_cod, produto_nome), GRUPO_PRODUTO_DEFAULT)

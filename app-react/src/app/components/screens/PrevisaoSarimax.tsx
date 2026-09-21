@@ -69,7 +69,7 @@ const datasComemoratvas = [
 
 export function PrevisaoSarimax() {
   const [produto, setProduto] = useState("rosa-vermelha");
-  const [unidade, setUnidade] = useState("centro");
+  const [unidade, setUnidade] = useState("jardim-canada");
   const [horizonte, setHorizonte] = useState("4");
 
   const chartData = previsaoSarimax.map((d) => ({

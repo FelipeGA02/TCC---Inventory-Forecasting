@@ -12,6 +12,14 @@ disco (não é um relatório de execução — é um raio-x do que existe hoje).
 > (backend/domain ainda são stubs, frontend ainda é mockup); onde ele fala em
 > "granularidade mensal", "MAPE/SMAPE" ou "comparação mensal×diária", leia à luz do
 > ADR-009 (agora: diária, MASE, e comparação SARIMAX hierárquico × demanda intermitente).
+>
+> **Atualização 2026-09-21 — granularidade do L1: `unidade`, não `unidade × categoria`.**
+> O teste de separação (`eda_separacao.py`) mostrou que separar a série L1 por categoria
+> não reduz o erro de previsão; o L1 passa a ser **2 séries** (uma por unidade), e
+> `categoria` vira nível de desagregação (cascata `unidade → categoria → SKU`), como o SKU
+> já era de categoria. Ver [ADR-011 §4](../prediction/ADR-011-escopo-previsao-sem-reposicao.md)
+> e a constituição v3.0.0. Onde este raio-x fala em "L1 por unidade × categoria", leia
+> "L1 por unidade; categoria por desagregação".
 
 ---
 

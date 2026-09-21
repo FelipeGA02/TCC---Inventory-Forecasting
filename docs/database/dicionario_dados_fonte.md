@@ -66,7 +66,7 @@ justifica.
 | --- | --- | --- | --- | --- | --- |
 | 6 | `cliente_cod` | texto (inteiro) | 2.523 (17 nulos) | Código do cliente. `1` = `CONSUMIDOR` (balcão, maioria das linhas). | **Removido na Etapa 2** — cardinalidade alta, sem sinal de demanda agregada. Se segmentação por cliente for útil, entra como feature **derivada agregada** (ex.: % B2B no dia), nunca o id. |
 | 7 | `cliente_nome` | texto | 2.486 | Nome/razão social do cliente. `CONSUMIDOR` para balcão; nomes de empresas (paisagismo, construtoras) no B2B. | **Removido na Etapa 2 — PII** (Princípio VI da constituição). Nunca chega à API. |
-| 8 | `empresa` | texto | **3** | Razão social da entidade jurídica (CNPJ) que emitiu o documento. As 3 são as **3 lojas** (confirmado com a parceira, 2026-08-30). | **Mantido** — é a **chave de agrupamento `unidade`** do L1 (via `taxonomy/unidades.py`), não uma exógena. |
+| 8 | `empresa` | texto | **3** | Razão social da entidade jurídica (CNPJ) que emitiu o documento. As 3 entidades formam **2 unidades**: as vendas do Garden Center pertencem a Jardim Canadá (confirmado com o cliente). | **Mantido** — é a **chave de agrupamento `unidade`** do L1 (via `taxonomy/unidades.py`), não uma exógena. |
 | 9 | `vendedor` | texto | 38 | Vendedor que atendeu (nomes; inclui `PEDRO - VENDEDOR`, `BALCÃO`…). | **Removido na Etapa 2 (ADR-010):** mede desempenho de equipe, não demanda; mix de vendedores de um dia futuro é desconhecido. |
 | 10 | `obs` | texto livre | 3.619 (**89% nulo**) | Observação digitada no PDV (instruções de entrega, combinados de pagamento). Contém quebras de linha embutidas — infla `wc -l` em ~19 mil linhas físicas. | **Removido na Etapa 2** — texto livre sem sinal estruturado; "suja" a leitura ingênua do arquivo. |
 
@@ -81,7 +81,7 @@ justifica.
 
 | # | Campo | Tipo | Faixa observada | Descrição | Uso no pipeline |
 | --- | --- | --- | --- | --- | --- |
-| 13 | `qtdade` | decimal | −55 … 20.000 · **44 negativas, 836 zeros** · 2.279 fracionárias | **Quantidade vendida** do item. Fracionária para grama/terra vendidas por m²/kg. Negativa = devolução/estorno. | **VARIÁVEL-ALVO** — somada por dia × `unidade × categoria` (L1) e por dia × SKU (L2). Linhas `qtdade <= 0` **NÃO** são tratadas neste pipeline — a limpeza é responsabilidade do `domain/etl/normalizer.py` de produção (ver §6 do doc de pré-processamento). |
+| 13 | `qtdade` | decimal | −55 … 20.000 · **44 negativas, 836 zeros** · 2.279 fracionárias | **Quantidade vendida** do item. Fracionária para grama/terra vendidas por m²/kg. Negativa = devolução/estorno. | **VARIÁVEL-ALVO** — somada por dia × `unidade` (L1) e por dia × `unidade × categoria` / SKU (desagregação L2). Linhas `qtdade <= 0` **NÃO** são tratadas neste pipeline — a limpeza é responsabilidade do `domain/etl/normalizer.py` de produção (ver §6 do doc de pré-processamento). |
 | 14 | `vl_unit` | decimal | 0 … 105.378 · 836 zeros | Preço unitário. | Mantido até a Etapa 3 — matéria-prima de features de preço/desconto (Fase 3 do plano de experimentos, **não** obrigatórias no baseline). |
 | 15 | `vl_total` | decimal | −2.200 … 105.378 | `qtdade × vl_unit` antes do desconto. | Idem. Também compõe `DUPLICATE_KEY_FIELDS`. |
 | 16 | `vl_desconto` | decimal | −229 … 13.702 · **74% zeros** | Desconto aplicado à linha. | Idem (feature de preço, Fase 3). |
@@ -110,7 +110,7 @@ justifica.
   (`qtdade` negativa) — ou seja, **não é só venda à vista quitada**.
 
 **Falta confirmar com a parceira** (ver
-[`docs/eda_report.md` §6](../eda_report.md)):
+[`docs/prediction/00-eda_report.md` §5](../prediction/00-eda_report.md)):
 
 1. `fev/2026` (`fev 26.xlsx`) é **mês fechado** ou export parcial? (9.352 linhas —
    compatível com fev/2024 = 9.259 e fev/2025 = 11.437; **aparenta completo**, mas

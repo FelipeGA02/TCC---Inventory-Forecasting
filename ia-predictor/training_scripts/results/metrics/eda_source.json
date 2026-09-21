@@ -1,5 +1,5 @@
 {
-  "gerado_em": "2026-09-01T21:26:55",
+  "gerado_em": "2026-09-21T11:33:57",
   "fonte": {
     "consolidado": "ia-predictor/data/processed/contas_a_receber.csv",
     "taxonomia": "ia-predictor/training_scripts/output/contas_a_receber_taxonomia.csv"
@@ -81,15 +81,6 @@
     }
   },
   "2_por_unidade": {
-    "Garden Center": {
-      "linhas": 29408,
-      "skus_distintos": 2492,
-      "qtd_total": 405247.84,
-      "faturamento_tot_liq": 6120989.91,
-      "data_min": "2025-02-13",
-      "data_max": "2026-02-28",
-      "dias_com_venda": 308
-    },
     "Itabirito": {
       "linhas": 135548,
       "skus_distintos": 4146,
@@ -100,22 +91,161 @@
       "dias_com_venda": 653
     },
     "Jardim Canadá": {
-      "linhas": 168063,
-      "skus_distintos": 4155,
-      "qtd_total": 2212950.5,
-      "faturamento_tot_liq": 26515191.32,
+      "linhas": 197471,
+      "skus_distintos": 4276,
+      "qtd_total": 2618198.34,
+      "faturamento_tot_liq": 32636181.23,
       "data_min": "2024-01-02",
       "data_max": "2026-02-28",
       "dias_com_venda": 650
     }
   },
+  "2b_jardim_canada_por_cnpj": {
+    "primeira_venda_garden_center": "2025-02-13",
+    "linhas_por_cnpj": {
+      "Floricultura Canadá": 167149,
+      "Garden Center": 29408
+    },
+    "volume_mensal": {
+      "2024-01": {
+        "Floricultura Canadá": 140880.75,
+        "Garden Center": 0.0,
+        "soma": 140880.75
+      },
+      "2024-02": {
+        "Floricultura Canadá": 104261.75,
+        "Garden Center": 0.0,
+        "soma": 104261.75
+      },
+      "2024-03": {
+        "Floricultura Canadá": 122121.05,
+        "Garden Center": 0.0,
+        "soma": 122121.05
+      },
+      "2024-04": {
+        "Floricultura Canadá": 116456.0,
+        "Garden Center": 0.0,
+        "soma": 116456.0
+      },
+      "2024-05": {
+        "Floricultura Canadá": 107376.95,
+        "Garden Center": 0.0,
+        "soma": 107376.95
+      },
+      "2024-06": {
+        "Floricultura Canadá": 116033.75,
+        "Garden Center": 0.0,
+        "soma": 116033.75
+      },
+      "2024-07": {
+        "Floricultura Canadá": 113312.0,
+        "Garden Center": 0.0,
+        "soma": 113312.0
+      },
+      "2024-08": {
+        "Floricultura Canadá": 91294.38,
+        "Garden Center": 0.0,
+        "soma": 91294.38
+      },
+      "2024-09": {
+        "Floricultura Canadá": 99670.7,
+        "Garden Center": 0.0,
+        "soma": 99670.7
+      },
+      "2024-10": {
+        "Floricultura Canadá": 125962.85,
+        "Garden Center": 0.0,
+        "soma": 125962.85
+      },
+      "2024-11": {
+        "Floricultura Canadá": 90714.0,
+        "Garden Center": 0.0,
+        "soma": 90714.0
+      },
+      "2024-12": {
+        "Floricultura Canadá": 86309.25,
+        "Garden Center": 0.0,
+        "soma": 86309.25
+      },
+      "2025-01": {
+        "Floricultura Canadá": 80912.0,
+        "Garden Center": 0.0,
+        "soma": 80912.0
+      },
+      "2025-02": {
+        "Floricultura Canadá": 76044.3,
+        "Garden Center": 4471.0,
+        "soma": 80515.3
+      },
+      "2025-03": {
+        "Floricultura Canadá": 87020.5,
+        "Garden Center": 19243.0,
+        "soma": 106263.5
+      },
+      "2025-04": {
+        "Floricultura Canadá": 46676.0,
+        "Garden Center": 37020.85,
+        "soma": 83696.85
+      },
+      "2025-05": {
+        "Floricultura Canadá": 54453.65,
+        "Garden Center": 31839.25,
+        "soma": 86292.9
+      },
+      "2025-06": {
+        "Floricultura Canadá": 42867.75,
+        "Garden Center": 29839.0,
+        "soma": 72706.75
+      },
+      "2025-07": {
+        "Floricultura Canadá": 62494.6,
+        "Garden Center": 34665.79,
+        "soma": 97160.39
+      },
+      "2025-08": {
+        "Floricultura Canadá": 49589.77,
+        "Garden Center": 32292.5,
+        "soma": 81882.26999999999
+      },
+      "2025-09": {
+        "Floricultura Canadá": 65921.75,
+        "Garden Center": 38256.75,
+        "soma": 104178.5
+      },
+      "2025-10": {
+        "Floricultura Canadá": 92104.0,
+        "Garden Center": 65055.75,
+        "soma": 157159.75
+      },
+      "2025-11": {
+        "Floricultura Canadá": 77601.15,
+        "Garden Center": 41733.45,
+        "soma": 119334.59999999999
+      },
+      "2025-12": {
+        "Floricultura Canadá": 76783.0,
+        "Garden Center": 35266.0,
+        "soma": 112049.0
+      },
+      "2026-01": {
+        "Floricultura Canadá": 49410.25,
+        "Garden Center": 19330.25,
+        "soma": 68740.5
+      },
+      "2026-02": {
+        "Floricultura Canadá": 35716.35,
+        "Garden Center": 16234.25,
+        "soma": 51950.6
+      }
+    }
+  },
   "3_por_categoria": {
     "categoria_l1": {
       "Produtos de jardim": {
-        "qtd_total": 2028097.13,
-        "share_qtd_pct": 51.39,
-        "skus_distintos": 5043,
-        "linhas": 285934
+        "qtd_total": 2034205.13,
+        "share_qtd_pct": 51.54,
+        "skus_distintos": 5062,
+        "linhas": 287813
       },
       "Grama": {
         "qtd_total": 1837995.1,
@@ -123,11 +253,11 @@
         "skus_distintos": 14,
         "linhas": 17286
       },
-      "Plantas de corte": {
-        "qtd_total": 74634.18,
-        "share_qtd_pct": 1.89,
-        "skus_distintos": 107,
-        "linhas": 24457
+      "Flores de corte": {
+        "qtd_total": 68526.18,
+        "share_qtd_pct": 1.74,
+        "skus_distintos": 88,
+        "linhas": 22578
       },
       "Servico e taxa": {
         "qtd_total": 5860.0,
@@ -144,16 +274,16 @@
         "linhas": 17286
       },
       "Muda e forracao": {
-        "qtd_total": 935420.54,
-        "share_qtd_pct": 23.7,
-        "skus_distintos": 571,
-        "linhas": 46049
+        "qtd_total": 935987.54,
+        "share_qtd_pct": 23.72,
+        "skus_distintos": 573,
+        "linhas": 46068
       },
       "Planta em vaso": {
-        "qtd_total": 377654.27,
-        "share_qtd_pct": 9.57,
-        "skus_distintos": 877,
-        "linhas": 72555
+        "qtd_total": 383003.27,
+        "share_qtd_pct": 9.7,
+        "skus_distintos": 888,
+        "linhas": 74306
       },
       "Substrato e adubo": {
         "qtd_total": 266314.33,
@@ -162,16 +292,16 @@
         "linhas": 66491
       },
       "Arbusto e planta formada": {
-        "qtd_total": 177208.0,
+        "qtd_total": 177256.0,
         "share_qtd_pct": 4.49,
-        "skus_distintos": 423,
-        "linhas": 20863
+        "skus_distintos": 424,
+        "linhas": 20872
       },
       "Insumo e acessorio": {
-        "qtd_total": 140444.58,
-        "share_qtd_pct": 3.56,
-        "skus_distintos": 1202,
-        "linhas": 35765
+        "qtd_total": 141388.58,
+        "share_qtd_pct": 3.58,
+        "skus_distintos": 1218,
+        "linhas": 36215
       },
       "Hortalica e erva": {
         "qtd_total": 79276.71,
@@ -180,16 +310,16 @@
         "linhas": 19331
       },
       "Flor de corte e arranjo": {
-        "qtd_total": 74634.18,
-        "share_qtd_pct": 1.89,
-        "skus_distintos": 107,
-        "linhas": 24457
+        "qtd_total": 68526.18,
+        "share_qtd_pct": 1.74,
+        "skus_distintos": 88,
+        "linhas": 22578
       },
       "Outros": {
-        "qtd_total": 51778.7,
-        "share_qtd_pct": 1.31,
-        "skus_distintos": 1589,
-        "linhas": 24880
+        "qtd_total": 50978.7,
+        "share_qtd_pct": 1.29,
+        "skus_distintos": 1578,
+        "linhas": 24530
       },
       "Servico e taxa": {
         "qtd_total": 5860.0,
@@ -324,6 +454,7 @@
     "ia-predictor/training_scripts/results/plots/eda/02_sazonalidade_semanal_unidade.png",
     "ia-predictor/training_scripts/results/plots/eda/03_esparsidade_dias_ativos_sku.png",
     "ia-predictor/training_scripts/results/plots/eda/04_pareto_volume_sku.png",
-    "ia-predictor/training_scripts/results/plots/eda/05_volume_categoria_fina.png"
+    "ia-predictor/training_scripts/results/plots/eda/05_volume_categoria_fina.png",
+    "ia-predictor/training_scripts/results/plots/eda/06_jardim_canada_por_cnpj.png"
   ]
 }

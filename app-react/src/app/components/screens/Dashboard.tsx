@@ -26,7 +26,7 @@ const kpis = [
   {
     label: "Produtos Monitorados",
     value: "142",
-    sub: "7 tipos, 3 lojas",
+    sub: "7 tipos, 2 lojas",
     trend: "neutral",
     icon: Package,
     color: "#1a6b3c",

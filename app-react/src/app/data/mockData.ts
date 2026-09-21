@@ -5,7 +5,7 @@
  * consomem este módulo. Os formatos aqui reproduzem o que os endpoints
  * `/api/v1/*` devolverão, para que a troca por chamadas reais seja direta.
  *
- * Cenário: rede de floricultura com 3 unidades · junho/2026.
+ * Cenário: rede de floricultura com 2 unidades · junho/2026.
  */
 
 // ---------------------------------------------------------------------------
@@ -74,7 +74,6 @@ export interface RelatorioGerado {
 // ---------------------------------------------------------------------------
 
 export const unidades: Unidade[] = [
-  { id: "centro", nome: "Centro", cidade: "Nova Lima" },
   { id: "jardim-canada", nome: "Jardim Canadá", cidade: "Nova Lima" },
   { id: "itabirito", nome: "Itabirito", cidade: "Itabirito" },
 ];
@@ -155,7 +154,7 @@ export const dadosSimulacaoBase: PontoSimulacao[] = [
 
 export const historicoRelatorios: RelatorioGerado[] = [
   { id: 1, nome: "Relatório completo — Junho", formato: "PDF", data: "22/06/2026 14:32", tamanho: "1,8 MB", usuario: "Gestora" },
-  { id: 2, nome: "Quanto comprar — Centro", formato: "Excel", data: "22/06/2026 09:05", tamanho: "412 KB", usuario: "Gerente" },
+  { id: 2, nome: "Quanto comprar — Jardim Canadá", formato: "Excel", data: "22/06/2026 09:05", tamanho: "412 KB", usuario: "Gerente" },
   { id: 3, nome: "Quanto comprar — Semana 25", formato: "PDF", data: "21/06/2026 17:48", tamanho: "886 KB", usuario: "Gestora" },
   { id: 4, nome: "Qualidade das previsões", formato: "Excel", data: "19/06/2026 11:20", tamanho: "654 KB", usuario: "Gestora" },
   { id: 5, nome: "Simulações de promoções", formato: "PDF", data: "17/06/2026 16:09", tamanho: "1,1 MB", usuario: "Gerente" },
@@ -166,12 +165,12 @@ export const historicoRelatorios: RelatorioGerado[] = [
 // ---------------------------------------------------------------------------
 // Pré-visualização da planilha importada
 //
-// 63 registros (3 datas × 7 produtos × 3 unidades) gerados de forma
+// 42 registros (3 datas × 7 produtos × 2 unidades) gerados de forma
 // determinística — sem Math.random, para que a tabela e a paginação sejam
 // idênticas a cada recarga da página.
 // ---------------------------------------------------------------------------
 
-/** Volume semanal típico por produto na unidade Centro. */
+/** Volume semanal típico por produto na unidade Jardim Canadá. */
 const VOLUME_BASE: Record<string, number> = {
   "rosa-vermelha": 155,
   "rosa-branca": 92,
@@ -184,9 +183,8 @@ const VOLUME_BASE: Record<string, number> = {
 
 /** Peso de cada unidade sobre o volume base. */
 const PESO_UNIDADE: Record<string, number> = {
-  centro: 1,
-  "jardim-canada": 0.72,
-  itabirito: 0.55,
+  "jardim-canada": 1,
+  itabirito: 0.76,
 };
 
 /** Variação determinística em [-0,18; +0,18] a partir de uma semente inteira. */

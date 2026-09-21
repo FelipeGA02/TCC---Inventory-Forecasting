@@ -1,10 +1,12 @@
 # ADR-009: Granularidade Diária e Política de Reposição para Produtos Perecíveis
 
 **Status**: Parcialmente revisado por [ADR-011](ADR-011-escopo-previsao-sem-reposicao.md)
-(2026-08-30) — a **granularidade diária** e as camadas **L1/L2** seguem valendo; a
-**camada L3 (política de reposição)** e o `shelf_life_dias` **saíram de escopo**, e o
-`unidade × categoria` passou a usar **3 categorias de demanda** (ver ADR-011). As seções
-sobre L3 abaixo ficam como registro histórico.
+(2026-08-30, 2026-09-21) — a **granularidade diária** e as camadas **L1/L2** seguem
+valendo; a **camada L3 (política de reposição)** e o `shelf_life_dias` **saíram de
+escopo**; o grão do L1 passou de `unidade × categoria` (6 séries) para **`unidade`**
+(2 séries), com `categoria` obtida por desagregação (ver seção "Revisão — 2026-09-21" ao
+final e ADR-011 §4). As seções sobre L3 abaixo ficam como registro histórico; a tabela da
+seção 2 e as seções 6 e 8 já refletem a granularidade atual.
 **Autores**: Daniel Nunes da Silva, Felipe Gurgel Araújo
 **Substitui**: decisão de "granularidade mensal para produção" registrada em
 `SPECS.md` §2.2, `plan.md` (Phase 0), ADR-001 e ADR-004 (todos revisados nesta data)
@@ -45,9 +47,9 @@ Para cada produto do Top-N e para os próximos **14 dias**, o sistema entrega:
 
 | Camada | Escopo | Técnica | Papel |
 | --- | --- | --- | --- |
-| **L1 — Demanda agregada** | uma série **diária por `unidade × categoria`** (densa, sem excesso de zeros) | **SARIMAX** sazonal semanal (`m=7`, `D=0`), exógenas de calendário | captura tendência, dia-da-semana, feriados e datas comemorativas |
-| **L2 — Desagregação para SKU** | cada SKU do Top-N dentro da sua categoria/unidade | participação móvel (share das últimas 4–8 semanas) × perfil de dia-da-semana do SKU, com suavização | converte a previsão da categoria em previsão por SKU **sem** ajustar um modelo por SKU |
-| **L3 — Política de reposição** | cada SKU do Top-N | fórmula determinística sobre a demanda prevista + `shelf_life_dias` + estoque de segurança | transforma previsão em decisão de compra perecível-consciente |
+| **L1 — Demanda agregada** | uma série **diária por `unidade`** (2 séries: Jardim Canadá, Itabirito — densa, sem excesso de zeros) | **SARIMAX** sazonal semanal (`m=7`, `D=0`), exógenas de calendário | captura tendência, dia-da-semana, feriados e datas comemorativas |
+| **L2 — Desagregação para categoria e SKU** | dois passos em cascata: `unidade → categoria` (3 categorias), depois `categoria → SKU` do Top-N | participação móvel (share das últimas 4–8 semanas) × perfil de dia-da-semana **do nível** (categoria ou SKU), com suavização | converte a previsão da unidade em previsão por categoria, e a de categoria em previsão por SKU, **sem** ajustar um modelo próprio em nenhum dos dois níveis |
+| **L3 — Política de reposição** *(histórico — fora de escopo, ADR-011)* | cada SKU do Top-N | fórmula determinística sobre a demanda prevista + `shelf_life_dias` + estoque de segurança | transforma previsão em decisão de compra perecível-consciente |
 
 **Fórmula L3** (por SKU, dia `t`):
 
@@ -71,6 +73,11 @@ quando houver contagem manual.
   (série quase toda zero). Eles formam a **trilha de comparação** que substitui a antiga
   comparação "mensal × diária": agora é **SARIMAX hierárquico × demanda intermitente por
   SKU**, ambos em granularidade diária (contribuição acadêmica (ii) — ver `SPECS.md` §12.5).
+  Não é só uma escolha de conveniência: aplicando o critério de classificação de demanda de
+  Syntetos, Boylan & Croston (2005) aos SKUs da base, 99,3% caem nos padrões
+  (intermitente/lumpy) em que a literatura recomenda Croston/TSB/SBA sobre um modelo de
+  série temporal contínua — ver a aplicação completa e as referências em
+  `01-pre_processing.md` §5.2 e `00-eda_report.md` §2.5b.
 - Redes neurais / gradient boosting continuam exigindo evidência empírica de
   superioridade antes de entrar (Princípio II inalterado nesse ponto).
 
@@ -103,8 +110,9 @@ que a regra ingênua. Não bloqueia a previsão; exibe aviso no dashboard.
 
 | Camada | Mínimo | Se não atingir |
 | --- | --- | --- |
-| L1 (`unidade × categoria`, diário) | **180 dias** (~6 meses) de histórico | `insufficient_data` — categoria inteira sem previsão |
-| L2 (SKU) | 28 dias com ≥ 1 venda **ou** ≥ 8 vendas no total | SKU cai no fallback (média móvel da categoria rateada) |
+| L1 (`unidade`, diário) | **180 dias** (~6 meses) de histórico | `insufficient_data` — unidade inteira sem previsão |
+| L2, passo `categoria` | mesmo mínimo aplicado ao par `unidade × categoria`; hoje os 6 pares já atendem | categoria cai no fallback (rateio uniforme entre categorias da unidade) |
+| L2, passo SKU | 28 dias com ≥ 1 venda **ou** ≥ 8 vendas no total | SKU cai no fallback (média móvel da categoria rateada) |
 
 ### 7. Retreino e geração
 
@@ -116,31 +124,35 @@ que a regra ingênua. Não bloqueia a previsão; exibe aviso no dashboard.
 
 ### 8. Dependências de dado novas — taxonomia e `shelf_life_dias`
 
-A camada L1 agrupa por `unidade × categoria`; a base transacional **não tem nenhuma das
-duas colunas**, nem a validade dos produtos. Três dependências, resolvidas por uma nova
-Etapa 3 de pré-processamento (`map_taxonomy.py` — ver
-[01-pre_processing.md](01-pre_processing.md) §5) com tabelas de/para versionadas:
+A camada L1 agrupa por `unidade`; a desagregação L2 usa `categoria` como passo
+intermediário. A base transacional **não tem nenhuma das duas colunas**, nem a validade
+dos produtos. Dependências resolvidas por uma nova Etapa 3 de pré-processamento
+(`map_taxonomy.py` — ver [01-pre_processing.md](01-pre_processing.md) §5) com tabelas
+de/para versionadas:
 
-**`unidade`** — derivada de `empresa` (3 valores: `FLORICULTURA VERDE PERTO CANADÁ LTDA`,
-`GARDEN CENTER VERDE PERTO LTDA`, `VERDE PERTO JARDINAGEM LTDA`). *A confirmar com a
-parceira*: essas 3 LTDAs correspondem 1:1 às 3 unidades operacionais? Alguns nomes de
-vendedor trazem `(ITABIRITO)`/`(CANADÁ)` — se `empresa` não separar as lojas, a unidade
-precisa vir de outro campo.
+**`unidade`** *(fechado por [ADR-011](ADR-011-escopo-previsao-sem-reposicao.md))* —
+derivada de `empresa` (3 valores: `FLORICULTURA VERDE PERTO CANADÁ LTDA`,
+`GARDEN CENTER VERDE PERTO LTDA`, `VERDE PERTO JARDINAGEM LTDA`). As 3 LTDAs formam **2
+unidades operacionais**: as vendas do Garden Center pertencem a Jardim Canadá. É a
+**chave da série L1**.
 
-**`categoria`** *(revisado por [ADR-011](ADR-011-escopo-previsao-sem-reposicao.md))* —
-o nível L1 do modelo usa **3 categorias de demanda** (`Grama`, `Plantas de corte`,
-`Produtos de jardim`) + o rótulo `Servico e taxa` (não-produto). São derivadas colapsando
-uma `categoria_fina` (~10 rótulos, produzida por regras sobre `produto_nome`); a fina fica
-no CSV para a EDA e a L2. Ver [01-pre_processing.md](01-pre_processing.md) §5.
+**`categoria`** *(revisado por [ADR-011](ADR-011-escopo-previsao-sem-reposicao.md) §3 e §4)* —
+**3 categorias de demanda** (`Grama`, `Flores de corte`, `Produtos de jardim`) + o rótulo
+`Servico e taxa` (não-produto). São derivadas colapsando uma `categoria_fina` (~10
+rótulos, produzida por regras sobre `produto_nome`); a fina fica no CSV para a EDA e a L2.
+Desde 2026-09-21, `categoria` **não é mais chave de uma série L1 própria** — é o primeiro
+passo da desagregação L2 (`unidade → categoria`), pelo mesmo motivo por que a `categoria_fina`
+já era só um nível de desagregação: o teste de separação (ADR-011 §4) não mostrou ganho de
+acurácia em modelá-la direto. Ver [01-pre_processing.md](01-pre_processing.md) §5.
 
 **`shelf_life_dias`** — *removido do escopo* por [ADR-011](ADR-011-escopo-previsao-sem-reposicao.md):
 sem a camada L3, não há uso para a validade por categoria. As subseções abaixo sobre
 cobertura-alvo, estoque de segurança e simulação de perda/ruptura ficam como registro
 histórico.
 
-> **A confirmar com a entidade parceira** (Sprint 0, `tasks.md` T000c/T000d): mapa
-> `empresa → unidade`, mapa `produto → categoria` (ao menos do Top-N), e a validade real
-> por categoria / SKU.
+> **A confirmar com a entidade parceira** (Sprint 0, `tasks.md` T000d): mapa
+> `produto → categoria` (ao menos do Top-N). O mapa `empresa → unidade` está fechado
+> (ADR-011).
 
 ## Consequências
 
@@ -166,3 +178,33 @@ histórico.
 - **Contribuição acadêmica (ii)**: deixa de ser "mensal é melhor que diário" e passa a
   ser "qual arquitetura diária (SARIMAX hierárquico vs. demanda intermitente) serve
   melhor um catálogo perecível de cauda longa".
+
+---
+
+## Revisão — 2026-09-21 (L1: `unidade × categoria` → `unidade`)
+
+O teste de separação (`training_scripts/eda/eda_separacao.py`, ver
+[ADR-011 §4](ADR-011-escopo-previsao-sem-reposicao.md)) mostrou que separar a série L1 por
+**categoria** não reduz o erro de previsão — nenhuma das 6 séries `unidade × categoria`
+ganha o mínimo de 5% de MASE ao ser modelada direto em vez de obtida por repartição da
+unidade, com os dois previsores testados (SARIMAX e Holt-Winters). Separar por **unidade**
+tem apoio: Itabirito ganha 17%/11% de MASE com modelo próprio, e a soma dos dois modelos
+de unidade melhora o total da rede em 22% (SARIMAX) — as duas unidades têm tendências
+opostas (§3.5 do relatório de EDA) que um único modelo do total não capturaria.
+
+Impacto nesta decisão:
+
+- **L1 passa a ser 2 séries** (uma por unidade), não 6. A tabela da seção 2 e as seções 6
+  e 8 acima já refletem essa granularidade.
+- **`categoria` vira nível de desagregação**, como o SKU já era de `categoria`: a L2 ganha
+  um passo em cascata a mais (`unidade → categoria → SKU`), pelo mesmo método
+  (participação móvel × perfil de dia-da-semana do nível).
+- A análise por `unidade × categoria` que já existia (`eda_series.py`,
+  `00-eda_report.md` §3) não perde valor — ela é o insumo do novo passo de desagregação
+  `unidade → categoria` (perfil de dia-da-semana e efeito de datas comemorativas *da
+  categoria*). Uma nova análise (`eda_series_unidade.py`, mesmo relatório §3.0) cobre a
+  mesma bateria de diagnóstico para as 2 séries que o SARIMAX do L1 agora ajusta de fato.
+- **Constituição** emendada para v3.0.0 (Princípio II e Quality Gates — grão do L1).
+- Detalhes completos, tabelas de MASE por parte e o racional de por que a desagregação por
+  categoria precisa do efeito de data *da própria categoria* (não só da proporção
+  histórica) estão em [ADR-011 §4](ADR-011-escopo-previsao-sem-reposicao.md).

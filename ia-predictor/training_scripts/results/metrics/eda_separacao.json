@@ -1,0 +1,641 @@
+{
+  "gerado_em": "2026-09-21T11:38:35",
+  "parametros": {
+    "N_FOLDS": 26,
+    "HORIZONTE": 14,
+    "GANHO_MINIMO": 0.05,
+    "PERDA_MAXIMA_TOTAL": 0.02,
+    "regra": "a separação se justifica se o modelo direto ganha ≥ 5% de MASE da melhor repartição do pai, com SARIMAX e com Holt-Winters"
+  },
+  "participacao_no_pai_pct": {
+    "Jardim Canadá ← Total da rede": 66.4,
+    "Itabirito ← Total da rede": 33.6,
+    "Jardim Canadá · Grama ← Jardim Canadá": 46.7,
+    "Jardim Canadá · Flores de corte ← Jardim Canadá": 1.4,
+    "Jardim Canadá · Produtos de jardim ← Jardim Canadá": 52.0,
+    "Itabirito · Grama ← Itabirito": 46.6,
+    "Itabirito · Flores de corte ← Itabirito": 2.5,
+    "Itabirito · Produtos de jardim ← Itabirito": 51.0
+  },
+  "por_previsor": {
+    "sarimax": {
+      "Total da rede": {
+        "nivel": "unidade",
+        "partes": {
+          "Jardim Canadá": {
+            "direto": {
+              "mase": 0.6586270290633204,
+              "wape_pct": 47.26137706114667,
+              "abs_erro_acumulado_14d_pct": 27.683674925126123
+            },
+            "reparticao_nivel": {
+              "mase": 0.8291282937009056,
+              "wape_pct": 59.949896985715355,
+              "abs_erro_acumulado_14d_pct": 45.035152748046876
+            },
+            "reparticao_dow": {
+              "mase": 0.8789841734000934,
+              "wape_pct": 63.534871096563116,
+              "abs_erro_acumulado_14d_pct": 49.67267943941351
+            },
+            "janelas_com_data": {
+              "n_janelas": 7,
+              "mase_direto": 0.5654783190555108,
+              "mase_reparticao": 0.9995619069707209
+            },
+            "janelas_sem_data": {
+              "n_janelas": 19,
+              "mase_direto": 0.6929449748556712,
+              "mase_reparticao": 0.7663369624962367
+            }
+          },
+          "Itabirito": {
+            "direto": {
+              "mase": 1.4336090977652534,
+              "wape_pct": 91.61898338743765,
+              "abs_erro_acumulado_14d_pct": 47.368927086684025
+            },
+            "reparticao_nivel": {
+              "mase": 1.7716858371744395,
+              "wape_pct": 113.93413005738608,
+              "abs_erro_acumulado_14d_pct": 85.48292564944542
+            },
+            "reparticao_dow": {
+              "mase": 1.7363670172708487,
+              "wape_pct": 111.22397808669677,
+              "abs_erro_acumulado_14d_pct": 76.09748853759437
+            },
+            "janelas_com_data": {
+              "n_janelas": 7,
+              "mase_direto": 1.6865401889622682,
+              "mase_reparticao": 1.893459122213104
+            },
+            "janelas_sem_data": {
+              "n_janelas": 19,
+              "mase_direto": 1.3404239589031952,
+              "mase_reparticao": 1.6784909786079127
+            }
+          }
+        },
+        "agregado": {
+          "direto": {
+            "mase": 1.1533745859869726,
+            "wape_pct": 68.756699807416,
+            "abs_erro_acumulado_14d_pct": 49.46315945755386
+          },
+          "soma_das_partes": {
+            "mase": 0.9014865127520999,
+            "wape_pct": 54.01807538170602,
+            "abs_erro_acumulado_14d_pct": 25.778944356966658
+          }
+        }
+      },
+      "Jardim Canadá": {
+        "nivel": "categoria",
+        "partes": {
+          "Jardim Canadá · Grama": {
+            "direto": {
+              "mase": 0.7940355010538149,
+              "wape_pct": 66.62766806359214,
+              "abs_erro_acumulado_14d_pct": 33.38570356566726
+            },
+            "reparticao_nivel": {
+              "mase": 0.8247648850465263,
+              "wape_pct": 69.23362375914205,
+              "abs_erro_acumulado_14d_pct": 33.97468645038442
+            },
+            "reparticao_dow": {
+              "mase": 0.8067192152101138,
+              "wape_pct": 67.78879669641637,
+              "abs_erro_acumulado_14d_pct": 33.37515840520222
+            },
+            "janelas_com_data": {
+              "n_janelas": 7,
+              "mase_direto": 0.6640477983980747,
+              "mase_reparticao": 0.6773115038699259
+            },
+            "janelas_sem_data": {
+              "n_janelas": 19,
+              "mase_direto": 0.8419257072954034,
+              "mase_reparticao": 0.8543957404407094
+            }
+          },
+          "Jardim Canadá · Flores de corte": {
+            "direto": {
+              "mase": 0.6956704773721749,
+              "wape_pct": 81.67943082675974,
+              "abs_erro_acumulado_14d_pct": 55.30762015773166
+            },
+            "reparticao_nivel": {
+              "mase": 0.7065670255688743,
+              "wape_pct": 82.77431557684439,
+              "abs_erro_acumulado_14d_pct": 47.941854868555474
+            },
+            "reparticao_dow": {
+              "mase": 0.6986378078520483,
+              "wape_pct": 81.87010561619263,
+              "abs_erro_acumulado_14d_pct": 49.230225798316205
+            },
+            "janelas_com_data": {
+              "n_janelas": 7,
+              "mase_direto": 0.8549600134693279,
+              "mase_reparticao": 0.7739565718407917
+            },
+            "janelas_sem_data": {
+              "n_janelas": 19,
+              "mase_direto": 0.636984858810066,
+              "mase_reparticao": 0.6708887895404061
+            }
+          },
+          "Jardim Canadá · Produtos de jardim": {
+            "direto": {
+              "mase": 0.550126225890596,
+              "wape_pct": 45.50091016367696,
+              "abs_erro_acumulado_14d_pct": 27.218209985365075
+            },
+            "reparticao_nivel": {
+              "mase": 0.5322889891524998,
+              "wape_pct": 44.10295752993549,
+              "abs_erro_acumulado_14d_pct": 26.616727833224065
+            },
+            "reparticao_dow": {
+              "mase": 0.5440354002199442,
+              "wape_pct": 45.05713373414996,
+              "abs_erro_acumulado_14d_pct": 26.71017116194866
+            },
+            "janelas_com_data": {
+              "n_janelas": 7,
+              "mase_direto": 0.4774333997185143,
+              "mase_reparticao": 0.47131321207983984
+            },
+            "janelas_sem_data": {
+              "n_janelas": 19,
+              "mase_direto": 0.5769077934276786,
+              "mase_reparticao": 0.5547537491266376
+            }
+          }
+        },
+        "agregado": {
+          "direto": {
+            "mase": 0.6586270290633204,
+            "wape_pct": 47.26137706114667,
+            "abs_erro_acumulado_14d_pct": 27.683674925126123
+          },
+          "soma_das_partes": {
+            "mase": 0.6647158736257648,
+            "wape_pct": 47.703475098497634,
+            "abs_erro_acumulado_14d_pct": 28.152300374925257
+          }
+        }
+      },
+      "Itabirito": {
+        "nivel": "categoria",
+        "partes": {
+          "Itabirito · Grama": {
+            "direto": {
+              "mase": 1.7151951994964374,
+              "wape_pct": 109.15611545937057,
+              "abs_erro_acumulado_14d_pct": 89.21864270705598
+            },
+            "reparticao_nivel": {
+              "mase": 1.9910552386803348,
+              "wape_pct": 127.02934804082071,
+              "abs_erro_acumulado_14d_pct": 130.75690764689608
+            },
+            "reparticao_dow": {
+              "mase": 1.885959628698493,
+              "wape_pct": 119.73973101581552,
+              "abs_erro_acumulado_14d_pct": 109.7606274668676
+            },
+            "janelas_com_data": {
+              "n_janelas": 7,
+              "mase_direto": 1.7647357611320413,
+              "mase_reparticao": 2.030436019337774
+            },
+            "janelas_sem_data": {
+              "n_janelas": 19,
+              "mase_direto": 1.6969434136306887,
+              "mase_reparticao": 1.8327314847787581
+            }
+          },
+          "Itabirito · Flores de corte": {
+            "direto": {
+              "mase": 0.8111447403981042,
+              "wape_pct": 65.81077126931162,
+              "abs_erro_acumulado_14d_pct": 29.27696555373048
+            },
+            "reparticao_nivel": {
+              "mase": 0.8930691480004854,
+              "wape_pct": 71.98707157746188,
+              "abs_erro_acumulado_14d_pct": 33.54624189600013
+            },
+            "reparticao_dow": {
+              "mase": 1.1269139278405211,
+              "wape_pct": 91.08473298862705,
+              "abs_erro_acumulado_14d_pct": 49.11153112514562
+            },
+            "janelas_com_data": {
+              "n_janelas": 7,
+              "mase_direto": 1.1838148719897839,
+              "mase_reparticao": 1.0883695856300668
+            },
+            "janelas_sem_data": {
+              "n_janelas": 19,
+              "mase_direto": 0.6738452182327485,
+              "mase_reparticao": 0.8211163551895873
+            }
+          },
+          "Itabirito · Produtos de jardim": {
+            "direto": {
+              "mase": 0.9538969460693613,
+              "wape_pct": 77.64152851530328,
+              "abs_erro_acumulado_14d_pct": 36.01785855970217
+            },
+            "reparticao_nivel": {
+              "mase": 0.8951833410001154,
+              "wape_pct": 72.44302510883351,
+              "abs_erro_acumulado_14d_pct": 37.49998086645706
+            },
+            "reparticao_dow": {
+              "mase": 1.0264025430304795,
+              "wape_pct": 83.41251963471996,
+              "abs_erro_acumulado_14d_pct": 35.56130995162563
+            },
+            "janelas_com_data": {
+              "n_janelas": 7,
+              "mase_direto": 1.2085098702939878,
+              "mase_reparticao": 1.1133015914672193
+            },
+            "janelas_sem_data": {
+              "n_janelas": 19,
+              "mase_direto": 0.8600921845129199,
+              "mase_reparticao": 0.8148239855648667
+            }
+          }
+        },
+        "agregado": {
+          "direto": {
+            "mase": 1.4336090977652534,
+            "wape_pct": 91.61898338743765,
+            "abs_erro_acumulado_14d_pct": 47.368927086684025
+          },
+          "soma_das_partes": {
+            "mase": 1.3665605626309723,
+            "wape_pct": 87.71408185856927,
+            "abs_erro_acumulado_14d_pct": 44.40207153041755
+          }
+        }
+      }
+    },
+    "ets": {
+      "Total da rede": {
+        "nivel": "unidade",
+        "partes": {
+          "Jardim Canadá": {
+            "direto": {
+              "mase": 0.7265812767874678,
+              "wape_pct": 52.23468368103662,
+              "abs_erro_acumulado_14d_pct": 34.95792293456875
+            },
+            "reparticao_nivel": {
+              "mase": 0.6557364871930551,
+              "wape_pct": 47.16691927490099,
+              "abs_erro_acumulado_14d_pct": 24.18167641101243
+            },
+            "reparticao_dow": {
+              "mase": 0.6946504905952569,
+              "wape_pct": 49.956909360091096,
+              "abs_erro_acumulado_14d_pct": 25.00784115446769
+            },
+            "janelas_com_data": {
+              "n_janelas": 7,
+              "mase_direto": 0.6984514604342208,
+              "mase_reparticao": 0.5879978672780607
+            },
+            "janelas_sem_data": {
+              "n_janelas": 19,
+              "mase_direto": 0.7369448933386643,
+              "mase_reparticao": 0.6806928208459478
+            }
+          },
+          "Itabirito": {
+            "direto": {
+              "mase": 1.310695458685944,
+              "wape_pct": 84.41011797191501,
+              "abs_erro_acumulado_14d_pct": 42.40239773639715
+            },
+            "reparticao_nivel": {
+              "mase": 1.476192819574417,
+              "wape_pct": 96.0904994707966,
+              "abs_erro_acumulado_14d_pct": 61.744062522404924
+            },
+            "reparticao_dow": {
+              "mase": 1.4687937416337191,
+              "wape_pct": 95.15665409458823,
+              "abs_erro_acumulado_14d_pct": 54.78249827229968
+            },
+            "janelas_com_data": {
+              "n_janelas": 7,
+              "mase_direto": 1.424409501478502,
+              "mase_reparticao": 1.5735141549933378
+            },
+            "janelas_sem_data": {
+              "n_janelas": 19,
+              "mase_direto": 1.2688008113413172,
+              "mase_reparticao": 1.4302125367117544
+            }
+          }
+        },
+        "agregado": {
+          "direto": {
+            "mase": 0.9190986180949481,
+            "wape_pct": 55.13494311357893,
+            "abs_erro_acumulado_14d_pct": 27.375299906270584
+          },
+          "soma_das_partes": {
+            "mase": 0.921916116511243,
+            "wape_pct": 55.32788709611805,
+            "abs_erro_acumulado_14d_pct": 27.44991159870747
+          }
+        }
+      },
+      "Jardim Canadá": {
+        "nivel": "categoria",
+        "partes": {
+          "Jardim Canadá · Grama": {
+            "direto": {
+              "mase": 0.8413371191905091,
+              "wape_pct": 70.71231360554272,
+              "abs_erro_acumulado_14d_pct": 41.965513063707625
+            },
+            "reparticao_nivel": {
+              "mase": 0.8714572533308236,
+              "wape_pct": 73.2492602868888,
+              "abs_erro_acumulado_14d_pct": 41.01686030980315
+            },
+            "reparticao_dow": {
+              "mase": 0.8596054172622252,
+              "wape_pct": 72.31215545757115,
+              "abs_erro_acumulado_14d_pct": 40.18370775826296
+            },
+            "janelas_com_data": {
+              "n_janelas": 7,
+              "mase_direto": 0.7858931200955349,
+              "mase_reparticao": 0.7926346678978451
+            },
+            "janelas_sem_data": {
+              "n_janelas": 19,
+              "mase_direto": 0.8617638556991837,
+              "mase_reparticao": 0.8842788512385757
+            }
+          },
+          "Jardim Canadá · Flores de corte": {
+            "direto": {
+              "mase": 0.8601135120272568,
+              "wape_pct": 100.95400261078673,
+              "abs_erro_acumulado_14d_pct": 78.56440461933767
+            },
+            "reparticao_nivel": {
+              "mase": 0.7334016210557264,
+              "wape_pct": 85.86624377789775,
+              "abs_erro_acumulado_14d_pct": 48.069690299409906
+            },
+            "reparticao_dow": {
+              "mase": 0.7342245698522772,
+              "wape_pct": 86.06424334429607,
+              "abs_erro_acumulado_14d_pct": 50.58390071237696
+            },
+            "janelas_com_data": {
+              "n_janelas": 7,
+              "mase_direto": 0.939222135506623,
+              "mase_reparticao": 0.8030642696013708
+            },
+            "janelas_sem_data": {
+              "n_janelas": 19,
+              "mase_direto": 0.8309682296927532,
+              "mase_reparticao": 0.7077364347494361
+            }
+          },
+          "Jardim Canadá · Produtos de jardim": {
+            "direto": {
+              "mase": 0.6158783612601721,
+              "wape_pct": 50.996694044961046,
+              "abs_erro_acumulado_14d_pct": 33.85995764915377
+            },
+            "reparticao_nivel": {
+              "mase": 0.602335736208357,
+              "wape_pct": 49.96413322268186,
+              "abs_erro_acumulado_14d_pct": 33.29528380650271
+            },
+            "reparticao_dow": {
+              "mase": 0.6064648894658263,
+              "wape_pct": 50.26027297125347,
+              "abs_erro_acumulado_14d_pct": 33.35672790072599
+            },
+            "janelas_com_data": {
+              "n_janelas": 7,
+              "mase_direto": 0.605293895764134,
+              "mase_reparticao": 0.5981724885804505
+            },
+            "janelas_sem_data": {
+              "n_janelas": 19,
+              "mase_direto": 0.6197779011797653,
+              "mase_reparticao": 0.6038695642817963
+            }
+          }
+        },
+        "agregado": {
+          "direto": {
+            "mase": 0.7265812767874678,
+            "wape_pct": 52.23468368103662,
+            "abs_erro_acumulado_14d_pct": 34.95792293456875
+          },
+          "soma_das_partes": {
+            "mase": 0.7333375088780483,
+            "wape_pct": 52.73779846551978,
+            "abs_erro_acumulado_14d_pct": 36.16676469971851
+          }
+        }
+      },
+      "Itabirito": {
+        "nivel": "categoria",
+        "partes": {
+          "Itabirito · Grama": {
+            "direto": {
+              "mase": 1.7951737878342158,
+              "wape_pct": 115.51789995147314,
+              "abs_erro_acumulado_14d_pct": 102.16878308065633
+            },
+            "reparticao_nivel": {
+              "mase": 1.8550935432479168,
+              "wape_pct": 119.1874244170755,
+              "abs_erro_acumulado_14d_pct": 111.67970931376023
+            },
+            "reparticao_dow": {
+              "mase": 1.7814812547559415,
+              "wape_pct": 113.31281291979951,
+              "abs_erro_acumulado_14d_pct": 92.96138682436006
+            },
+            "janelas_com_data": {
+              "n_janelas": 7,
+              "mase_direto": 1.8187039193647012,
+              "mase_reparticao": 1.818210254645107
+            },
+            "janelas_sem_data": {
+              "n_janelas": 19,
+              "mase_direto": 1.7865047920071948,
+              "mase_reparticao": 1.7679495179546696
+            }
+          },
+          "Itabirito · Flores de corte": {
+            "direto": {
+              "mase": 0.8677989548449835,
+              "wape_pct": 70.19324065470165,
+              "abs_erro_acumulado_14d_pct": 38.42899122339106
+            },
+            "reparticao_nivel": {
+              "mase": 0.9042900704808677,
+              "wape_pct": 72.82628186638958,
+              "abs_erro_acumulado_14d_pct": 38.19330741689716
+            },
+            "reparticao_dow": {
+              "mase": 1.0290024984893242,
+              "wape_pct": 83.22068985028854,
+              "abs_erro_acumulado_14d_pct": 44.37797568997276
+            },
+            "janelas_com_data": {
+              "n_janelas": 7,
+              "mase_direto": 1.1172196881060161,
+              "mase_reparticao": 1.2097004827984823
+            },
+            "janelas_sem_data": {
+              "n_janelas": 19,
+              "mase_direto": 0.7759071057488134,
+              "mase_reparticao": 0.7917704448901679
+            }
+          },
+          "Itabirito · Produtos de jardim": {
+            "direto": {
+              "mase": 0.9049945856204133,
+              "wape_pct": 73.9499459110783,
+              "abs_erro_acumulado_14d_pct": 36.46245988090741
+            },
+            "reparticao_nivel": {
+              "mase": 0.8087479869594524,
+              "wape_pct": 65.59388822734591,
+              "abs_erro_acumulado_14d_pct": 35.14308262821393
+            },
+            "reparticao_dow": {
+              "mase": 0.909665705667665,
+              "wape_pct": 74.18198881900149,
+              "abs_erro_acumulado_14d_pct": 33.195322533713075
+            },
+            "janelas_com_data": {
+              "n_janelas": 7,
+              "mase_direto": 1.0315635281751916,
+              "mase_reparticao": 0.927055394718251
+            },
+            "janelas_sem_data": {
+              "n_janelas": 19,
+              "mase_direto": 0.8583639225739159,
+              "mase_reparticao": 0.7651610472588423
+            }
+          }
+        },
+        "agregado": {
+          "direto": {
+            "mase": 1.310695458685944,
+            "wape_pct": 84.41011797191501,
+            "abs_erro_acumulado_14d_pct": 42.40239773639715
+          },
+          "soma_das_partes": {
+            "mase": 1.372137802269917,
+            "wape_pct": 89.0709177428846,
+            "abs_erro_acumulado_14d_pct": 46.819717222730674
+          }
+        }
+      }
+    }
+  },
+  "3a_ajustes_sarimax": {
+    "sarimax": 390,
+    "sem_convergencia": 3
+  },
+  "veredito_por_parte": {
+    "Jardim Canadá": {
+      "pai": "Total da rede",
+      "nivel": "unidade",
+      "ganho_mase_pct": {
+        "sarimax": 20.6,
+        "ets": -10.8
+      },
+      "separar_se_justifica": false
+    },
+    "Itabirito": {
+      "pai": "Total da rede",
+      "nivel": "unidade",
+      "ganho_mase_pct": {
+        "sarimax": 17.4,
+        "ets": 10.8
+      },
+      "separar_se_justifica": true
+    },
+    "Jardim Canadá · Grama": {
+      "pai": "Jardim Canadá",
+      "nivel": "categoria",
+      "ganho_mase_pct": {
+        "sarimax": 1.6,
+        "ets": 2.1
+      },
+      "separar_se_justifica": false
+    },
+    "Jardim Canadá · Flores de corte": {
+      "pai": "Jardim Canadá",
+      "nivel": "categoria",
+      "ganho_mase_pct": {
+        "sarimax": 0.4,
+        "ets": -17.3
+      },
+      "separar_se_justifica": false
+    },
+    "Jardim Canadá · Produtos de jardim": {
+      "pai": "Jardim Canadá",
+      "nivel": "categoria",
+      "ganho_mase_pct": {
+        "sarimax": -3.4,
+        "ets": -2.2
+      },
+      "separar_se_justifica": false
+    },
+    "Itabirito · Grama": {
+      "pai": "Itabirito",
+      "nivel": "categoria",
+      "ganho_mase_pct": {
+        "sarimax": 9.1,
+        "ets": -0.8
+      },
+      "separar_se_justifica": false
+    },
+    "Itabirito · Flores de corte": {
+      "pai": "Itabirito",
+      "nivel": "categoria",
+      "ganho_mase_pct": {
+        "sarimax": 9.2,
+        "ets": 4.0
+      },
+      "separar_se_justifica": false
+    },
+    "Itabirito · Produtos de jardim": {
+      "pai": "Itabirito",
+      "nivel": "categoria",
+      "ganho_mase_pct": {
+        "sarimax": -6.6,
+        "ets": -11.9
+      },
+      "separar_se_justifica": false
+    }
+  },
+  "graficos": [
+    "ia-predictor/training_scripts/results/plots/eda/23_separacao_teste_previsao_mase.png"
+  ]
+}

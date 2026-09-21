@@ -9,13 +9,13 @@ Leia este arquivo antes de qualquer implementação.
 
 TCC de Ciência da Computação (Centro Universitário Dom Helder, 2026), em parceria com a
 Floricultura Verde Perto (unidades em Nova Lima — Jardim Canadá — e Itabirito/MG).
-Sistema de **recomendação de reposição diária** para rede de floricultura com 3 unidades
+Sistema de **recomendação de reposição diária** para rede de floricultura com 2 unidades
 operacionais, baseado em modelagem hierárquica (SARIMAX na demanda agregada +
 desagregação para SKU + política de reposição perecível-consciente) e dashboard React.
 
 **Domínio**: floricultura · alta perecibilidade (flores de corte duram 3–7 dias) ·
 sazonalidade semanal + datas comemorativas  
-**Dados**: 324k+ transações · Jan/2024–Fev/2026 · 5.100+ SKUs · 3 unidades  
+**Dados**: 324k+ transações · Jan/2024–Fev/2026 · 5.100+ SKUs · 2 unidades  
 **Entregável**: quantidade sugerida de reposição por produto **por dia**, horizonte de
 **14 dias**, com risco de perda (murcha) e de ruptura  
 **Granularidade**: diária. Ver `docs/prediction/ADR-009-granularidade-diaria-e-reposicao.md`
@@ -59,19 +59,19 @@ TCC---Inventory-Forecasting/
 │   │   ├── services/            ← casos de uso (orquestração)
 │   │   ├── domain/              ← lógica pura SEM I/O
 │   │   │   ├── etl/             ← parser, normalizer, deduplicator
-│   │   │   ├── features/        ← daily_series (unidade×categoria), calendar_exogenous, importance
+│   │   │   ├── features/        ← daily_series (unidade), calendar_exogenous, importance
 │   │   │   ├── models/          ← L1: stationarity, order_selection, trainer, evaluator, forecaster
-│   │   │   ├── disaggregation/  ← L2: rateio categoria→SKU (share móvel × perfil dia-da-semana)
+│   │   │   ├── disaggregation/  ← L2: rateio em cascata unidade→categoria→SKU (share móvel × perfil dia-da-semana)
 │   │   │   └── replenishment/   ← L3: política de reposição (shelf-life, estoque de segurança)
 │   │   └── infrastructure/      ← DB, storage, scheduler
 │   ├── data/
 │   │   ├── raw/                 ← XLSX brutos (upload)
 │   │   └── processed/
 │   │       └── contas_a_receber.csv   ← base consolidada (sep=";")
-│   ├── models/                  ← artefatos joblib por unidade×categoria (L1) + params L2/L3
+│   ├── models/                  ← artefatos joblib por unidade (L1) + params de desagregação L2 (categoria/SKU)
 │   ├── training_scripts/        ← experimentação pré-produção (fora do backend)
-│   │   ├── preprocessing/       ← XLSX bruto → série diária por unidade×categoria (docs/prediction/01-pre_processing.md)
-│   │   ├── eda/                 ← análise exploratória (sazonalidade semanal, esparsidade por SKU, Top-N)
+│   │   ├── preprocessing/       ← XLSX bruto → série diária por unidade (L1) e por unidade×categoria (desagregação) (docs/prediction/01-pre_processing.md)
+│   │   ├── eda/                 ← análise exploratória (base transacional, séries do L1, granularidade das categorias, classificação de demanda)
 │   │   ├── baseline/            ← L1: A0 (SARIMA puro) e A1 (SARIMAX + exógenas de calendário) diário
 │   │   ├── enriched/            ← L1 Modelo B (SARIMAX + exógenas externas: clima, feriados municipais)
 │   │   ├── alternative_models/  ← Croston/TSB/SBA por SKU, ETS, XGBoost, rede neural global
@@ -106,14 +106,17 @@ TCC---Inventory-Forecasting/
 
 ---
 
-## Regras Invioláveis (Constituição v2.0.0)
+## Regras Invioláveis (Constituição v3.0.0)
 
 Consulte `.specify/memory/constitution.md` para o texto completo. Resumo:
 
 1. **Domínio Puro**: `backend/domain/` NUNCA importa FastAPI, SQLAlchemy ou APScheduler.
 2. **Estatística antes de ML**: SARIMAX é o modelo central da camada agregada L1
-   (`unidade × categoria`, diário). Croston/TSB/SBA são permitidos no nível de SKU
-   (série quase toda zero, SARIMAX inaplicável). NN/boosting só com evidência empírica.
+   (`unidade`, diário — 2 séries). `categoria` e SKU são obtidos por desagregação em
+   cascata (participação móvel × perfil de dia-da-semana do nível), não por modelo
+   próprio: o teste de separação (ADR-011 §4) não mostrou ganho de acurácia em modelar
+   categoria direto. Croston/TSB/SBA são permitidos no nível de SKU (série quase toda
+   zero, SARIMAX inaplicável). NN/boosting só com evidência empírica.
 3. **Validação obrigatória**: walk-forward CV (≥4 folds, origem móvel, h=14 dias) +
    `MASE < 1.0` + simulação de perda/ruptura melhor que regra ingênua, antes de `status = "trained"`.
 4. **Linguagem do usuário**: mensagens de erro e alertas em PT-BR sem jargão técnico.
@@ -176,11 +179,11 @@ ADMIN_PASSWORD=<senha_forte>
 VIEWER_EMAIL=gerente@floricultura.com
 VIEWER_PASSWORD=<senha_forte>
 
-# Pipeline ML — camada agregada L1 (unidade × categoria, diário)
+# Pipeline ML — camada agregada L1 (unidade, diário — 2 séries)
 TOP_N_PRODUCTS=20               # SKUs com desagregação (L2) e reposição (L3) detalhadas
 FORECAST_HORIZON_DAYS=14        # horizonte da previsão e da recomendação de reposição
 TEST_DAYS=28                    # hold-out para avaliação
-MIN_OBSERVATIONS_DAYS=180       # mínimo de dias por unidade×categoria para treinar L1
+MIN_OBSERVATIONS_DAYS=180       # mínimo de dias por unidade para treinar L1
 SEASONAL_PERIOD=7              # sazonalidade semanal do SARIMAX (m=7)
 LOG_CV_THRESHOLD=0.7           # log1p acima deste CV
 
@@ -202,8 +205,8 @@ DAILY_FORECAST_HOUR=3          # geração diária de previsão + reposição a 
 | --- | --- |
 | `users` | Usuários com e-mail, hash bcrypt, role (admin/viewer) |
 | `products` | Catálogo com `categoria`, `unidade`, `total_sold`, `updated_at` |
-| `categories` | Categoria × unidade: `shelf_life_dias`, status e métricas do modelo L1 |
-| `model_artifacts` | Ordem, métricas (MASE/RMSSE/cobertura), paths de artefatos, status por `unidade × categoria` |
+| `categories` | Categoria × unidade: participação (share) e métricas da desagregação L2 |
+| `model_artifacts` | Ordem, métricas (MASE/RMSSE/cobertura), paths de artefatos, status por `unidade` |
 | `forecasts_cache` | Previsão diária por SKU (regenerada todo dia às 03:00) |
 | `replenishment_cache` | Recomendação de reposição por SKU/dia (qtd, cadência, risco de perda/ruptura) |
 | `processing_log` | Log de cada upload XLSX (filename, hash, rows) |
@@ -215,12 +218,12 @@ DAILY_FORECAST_HOUR=3          # geração diária de previsão + reposição a 
 
 Ver `docs/prediction/ADR-009-granularidade-diaria-e-reposicao.md` para o racional completo.
 
-### L1 — SARIMAX na demanda agregada (`unidade × categoria`, série diária)
+### L1 — SARIMAX na demanda agregada (`unidade`, série diária — 2 séries)
 
 | Decisão | Valor | Motivo |
 | --- | --- | --- |
-| Alvo | qtd diária somada por `unidade × categoria` | série densa (poucos zeros), ao contrário do SKU |
-| m (período sazonal) | 7 | sazonalidade semanal. **EDA (2026-09-01, `docs/eda_report.md` §3.3): o padrão é meio de semana (ter–qui) para Grama/Produtos de jardim e sexta para Plantas de corte; sábado fraco; domingo = loja fechada (0).** Não "fim de semana vende mais". Ciclo real mas fraco na variância (Fs ≤ 0.27) — dummies de dia-da-semana como exógenas pesam mais que os termos P/Q |
+| Alvo | qtd diária somada por `unidade` (todas as categorias) | série densa (poucos zeros), ao contrário de SKU e categoria isolados; separar por categoria não reduz o erro (ADR-011 §4, `eda_separacao.py`) |
+| m (período sazonal) | 7 | sazonalidade semanal. **EDA (2026-09-21, `docs/prediction/00-eda_report.md` §3.3): o padrão é de dia útil — pico em ter–qui para Grama e para Produtos de jardim em Jardim Canadá (em Itabirito, Produtos de jardim tem semana mais uniforme) — e sexta para Flores de corte; sábado fraco; domingo = loja fechada (0).** Não "fim de semana vende mais". Ciclo real mas fraco na variância (Fs ≤ 0.29) — dummies de dia-da-semana como exógenas pesam mais que os termos P/Q |
 | D (diferenciação sazonal) | 0 | histórico < 3 ciclos anuais; P/Q semanais capturam o padrão |
 | d (diferenciação regular) | 0 ou 1 (via ADF) | limitado a 1 para não consumir dados de treino |
 | log1p | se CV > 0.7 | estabiliza variância |
@@ -228,16 +231,16 @@ Ver `docs/prediction/ADR-009-granularidade-diaria-e-reposicao.md` para o raciona
 | Critério de seleção | AIC | ajuste vs. parcimônia |
 | Exógenas | dummies/Fourier de dia-da-semana, feriado nacional/municipal, véspera, "dias até data comemorativa" | ponderadas por RF MDI, clip(lower=0.1) |
 | Datas comemorativas | Dia das Mães (2º dom. maio), Namorados (12/jun), Finados (2/nov), Natal | exógena "dias até a data", substitui o `alta_temporada` binário |
-| Mínimo de observações | 180 dias | abaixo disso: `insufficient_data` para a categoria inteira |
+| Mínimo de observações | 180 dias | abaixo disso: `insufficient_data` para a unidade inteira |
 | Hold-out para avaliação | 28 dias | |
 | Walk-forward CV | ≥4 folds, origem móvel, horizonte 14 dias | obrigatório antes de `status = "trained"` |
 
-### L2 — Desagregação categoria → SKU
+### L2 — Desagregação em cascata: `unidade` → `categoria` → SKU
 
 | Decisão | Valor | Motivo |
 | --- | --- | --- |
-| Método | participação móvel (share das últimas 4–8 semanas) × perfil de dia-da-semana do SKU | evita modelar série quase toda zero por SKU |
-| Fallback | SKU com < 28 dias com venda ou < 8 vendas → rateio uniforme da categoria | |
+| Método | participação móvel (share das últimas 4–8 semanas) × perfil de dia-da-semana **do nível**, aplicado 2×: `unidade→categoria`, depois `categoria→SKU` | evita modelar com SARIMAX uma série (categoria ou SKU) que não ganha acurácia por isso (categoria: ADR-011 §4) ou é quase toda zero (SKU) |
+| Fallback | categoria com histórico curto → rateio uniforme entre categorias da unidade; SKU com < 28 dias com venda ou < 8 vendas → rateio uniforme da categoria | |
 
 ### L3 — Política de reposição
 
@@ -263,7 +266,7 @@ diária" — relatório em `docs/`.
 | MASE (L1 e SKU) | < 1.0 (bate a naïve sazonal semanal) | `low_confidence` |
 | Cobertura empírica do IC 95% | ∈ [90%, 98%] | `low_confidence` |
 | Simulação de reposição (perda + ruptura) | melhor que regra ingênua de 7 dias | `low_confidence` |
-| Observações mínimas L1 (`unidade × categoria`) | ≥ 180 dias | `insufficient_data` |
+| Observações mínimas L1 (`unidade`) | ≥ 180 dias | `insufficient_data` |
 | Observações mínimas SKU | ≥ 28 dias com venda ou ≥ 8 vendas | fallback de rateio da categoria |
 | Ljung-Box (p-value, resíduos L1) | > 0.05 | log de aviso; não bloqueia deploy |
 | Shapiro-Wilk (p-value, resíduos L1) | > 0.05 | log de aviso; não bloqueia deploy |
@@ -320,14 +323,14 @@ Comandos disponíveis (invocar via Skill tool ou como `/speckit-*`):
 | `specs/001-sistema-previsao-estoque/spec.md` | User Stories e requisitos funcionais |
 | `specs/001-sistema-previsao-estoque/plan.md` | Plano técnico com constitution check |
 | `specs/001-sistema-previsao-estoque/tasks.md` | Tarefas organizadas por fase (TDD) |
-| `.specify/memory/constitution.md` | 6 princípios governantes (v2.0.0) |
+| `.specify/memory/constitution.md` | 6 princípios governantes (v3.0.0) |
 | `docs/prediction/ADR-009-granularidade-diaria-e-reposicao.md` | **Espinha da revisão de escopo mensal→diário** — arquitetura L1/L2/L3, validação, shelf-life |
 | `docs/README.md` | Índice da documentação por área + convenção de ADRs |
 | `docs/prediction/`, `docs/backend/`, `docs/database/`, `docs/frontend/` | ADRs organizados por área (ver `docs/README.md` para a lista completa) |
 | `docs/project/Projeto Tecnico Verde Perto Final...pdf` | Projeto técnico acadêmico original (fonte primária, revisado pelo orientador) |
 | `docs/project/current_files_state.md` | Raio-x do que já foi feito (dados, pré-processamento, modelagem) vs. requisitos do artigo |
 | `docs/prediction/plano_experimentos_modelagem.md` | Plano de experimentos: L1 baseline × enriquecido × demanda intermitente/outros modelos |
-| `docs/prediction/01-pre_processing.md` | O que os scripts de `training_scripts/preprocessing/` fazem e por quê (série diária por unidade×categoria; colunas removidas) |
+| `docs/prediction/01-pre_processing.md` | O que os scripts de `training_scripts/preprocessing/` fazem e por quê (série diária por unidade — L1 — e por unidade×categoria — desagregação; colunas removidas) |
 | `docs/uml/` *(parcial — 2 de 5 diagramas)* | Diagramas de casos de uso, atividades, classes, modelo de dados e arquitetura lógica (seção 6.4 do artigo) |
-| `docs/eda_report.md` | Relatório de EDA (T000b) — dois momentos: base transacional (§2) e as 9 séries L1 (§3); §4 = ajustes que a EDA impõe ao pré-processamento/modelagem; §5 = questões para a parceira. Scripts em `training_scripts/eda/` |
+| `docs/prediction/00-eda_report.md` | Relatório de EDA (T000b) — as 2 séries do L1 por unidade (§3.0, `16_series_l1_unidade.png` a `19_stl_unidade.png`), as 6 séries de desagregação `unidade×categoria` (§3.1–3.9, `10_series_l1_paineis.png` a `15_stl_par_denso.png`), granularidade das categorias (§3.10) e separação unidade/categoria (§3.11); §4 = ajustes de modelagem; §5 = questões para o cliente. Scripts em `training_scripts/eda/` |
 | `docs/database/dicionario_dados_fonte.md` | Dicionário campo a campo do relatório "Contas a Receber" (20 colunas, semântica, faixa, etapa de remoção) |

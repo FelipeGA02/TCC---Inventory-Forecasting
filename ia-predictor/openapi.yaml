@@ -3,7 +3,7 @@ openapi: 3.0.3
 info:
   title: Floricultura — API de Previsão de Estoque
   description: |
-    Sistema de recomendação de reposição diária para rede de floricultura com 3 unidades
+    Sistema de recomendação de reposição diária para rede de floricultura com 2 unidades
     operacionais. Modelagem hierárquica: SARIMAX na demanda diária agregada por
     `unidade × categoria` (L1), desagregação proporcional para SKU (L2) e política de
     reposição perecível-consciente com shelf-life (L3). Ver
@@ -178,7 +178,7 @@ components:
           example: ROSA VERMELHA 40CM
         categoria:
           type: string
-          example: "Flor de corte"
+          example: "Flores de corte"
         unidade:
           type: string
           example: "Jardim Canadá"
@@ -273,7 +273,7 @@ components:
           example: ROSA VERMELHA 40CM
         categoria:
           type: string
-          example: "Flor de corte"
+          example: "Flores de corte"
         unidade:
           type: string
           example: "Jardim Canadá"
@@ -362,7 +362,7 @@ components:
           example: ROSA VERMELHA 40CM
         categoria:
           type: string
-          example: "Flor de corte"
+          example: "Flores de corte"
         unidade:
           type: string
           example: "Jardim Canadá"
@@ -466,7 +466,7 @@ components:
           example: ROSA VERMELHA 40CM
         categoria:
           type: string
-          example: "Flor de corte"
+          example: "Flores de corte"
         unidade:
           type: string
           example: "Jardim Canadá"

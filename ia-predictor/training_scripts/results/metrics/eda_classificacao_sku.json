@@ -1,0 +1,94 @@
+{
+  "gerado_em": "2026-09-21T11:43:53",
+  "referencia": "Syntetos, A.A.; Boylan, J.E.; Croston, J.D. (2005). On the categorization of demand patterns. Journal of the Operational Research Society, 56(5), 495-503. https://doi.org/10.1057/palgrave.jors.2601841",
+  "cortes": {
+    "ADI": 1.32,
+    "CV2": 0.49
+  },
+  "n_skus_total": 5162,
+  "n_skus_um_unico_dia_de_venda_nao_classificavel": 692,
+  "pct_skus_um_unico_dia_de_venda": 13.4,
+  "distribuicao_skus_classificaveis_pct": {
+    "intermitente": 52.2,
+    "lumpy": 47.1,
+    "erratico": 0.5,
+    "suave": 0.2
+  },
+  "distribuicao_volume_classificaveis_pct": {
+    "erratico": 53.7,
+    "intermitente": 1.4,
+    "lumpy": 44.9,
+    "suave": 0.0
+  },
+  "series_l1_unidade": [
+    {
+      "unidade": "Jardim Canadá",
+      "dias_com_venda": 650,
+      "span_dias": 789,
+      "adi": 1.2138461538461538,
+      "cv2": 0.6725519513706717,
+      "classe": "erratico"
+    },
+    {
+      "unidade": "Itabirito",
+      "dias_com_venda": 653,
+      "span_dias": 789,
+      "adi": 1.2082695252679938,
+      "cv2": 4.578590969184855,
+      "classe": "erratico"
+    }
+  ],
+  "series_desagregacao_unidade_x_categoria": [
+    {
+      "par": "Itabirito · Flores de corte",
+      "dias_com_venda": 653,
+      "span_dias": 789,
+      "adi": 1.2082695252679938,
+      "cv2": 1.6218179063528753,
+      "classe": "erratico"
+    },
+    {
+      "par": "Itabirito · Grama",
+      "dias_com_venda": 641,
+      "span_dias": 789,
+      "adi": 1.2308892355694228,
+      "cv2": 16.202043989822887,
+      "classe": "erratico"
+    },
+    {
+      "par": "Itabirito · Produtos de jardim",
+      "dias_com_venda": 653,
+      "span_dias": 789,
+      "adi": 1.2082695252679938,
+      "cv2": 2.5638755590361484,
+      "classe": "erratico"
+    },
+    {
+      "par": "Jardim Canadá · Flores de corte",
+      "dias_com_venda": 647,
+      "span_dias": 788,
+      "adi": 1.2179289026275115,
+      "cv2": 9.020012000889423,
+      "classe": "erratico"
+    },
+    {
+      "par": "Jardim Canadá · Grama",
+      "dias_com_venda": 650,
+      "span_dias": 789,
+      "adi": 1.2138461538461538,
+      "cv2": 0.9201826617749472,
+      "classe": "erratico"
+    },
+    {
+      "par": "Jardim Canadá · Produtos de jardim",
+      "dias_com_venda": 650,
+      "span_dias": 789,
+      "adi": 1.2138461538461538,
+      "cv2": 1.328866087777423,
+      "classe": "erratico"
+    }
+  ],
+  "graficos": [
+    "ia-predictor/training_scripts/results/plots/eda/24_classificacao_demanda_sku.png"
+  ]
+}

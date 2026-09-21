@@ -50,19 +50,18 @@ METRICS_DIR = os.path.join(_TRAINING_SCRIPTS_DIR, "results", "metrics")
 # Rótulos canônicos (defesa contra o mojibake de encoding — ver §Qualidade do
 # relatório: o CSV da Etapa 3 é gravado em cp1252 neste ambiente Windows).
 # --------------------------------------------------------------------------- #
-UNIDADES = ["Jardim Canadá", "Itabirito", "Garden Center"]
-CATEGORIAS_L1 = ["Grama", "Plantas de corte", "Produtos de jardim"]
+UNIDADES = ["Jardim Canadá", "Itabirito"]
+CATEGORIAS_L1 = ["Grama", "Flores de corte", "Produtos de jardim"]
 NAO_PRODUTO = "Servico e taxa"
 
 _UNIDADE_FIX = {
     "jardim canada": "Jardim Canadá",
     "jardim canadá": "Jardim Canadá",
     "itabirito": "Itabirito",
-    "garden center": "Garden Center",
 }
 _CATEGORIA_FIX = {
     "grama": "Grama",
-    "plantas de corte": "Plantas de corte",
+    "flores de corte": "Flores de corte",
     "produtos de jardim": "Produtos de jardim",
     "servico e taxa": "Servico e taxa",
     "serviço e taxa": "Servico e taxa",
@@ -121,6 +120,18 @@ def feriados_fixos(anos) -> pd.DatetimeIndex:
     return pd.DatetimeIndex(sorted(out))
 
 
+def feriados_moveis(anos) -> pd.DatetimeIndex:
+    """Carnaval (segunda e terça), Sexta-feira Santa e Corpus Christi — datas que
+    dependem da Páscoa e fecham o comércio."""
+    from dateutil.easter import easter
+    out = []
+    for a in anos:
+        pascoa = pd.Timestamp(easter(a))
+        out += [pascoa - pd.Timedelta(days=48), pascoa - pd.Timedelta(days=47),
+                pascoa - pd.Timedelta(days=2), pascoa + pd.Timedelta(days=60)]
+    return pd.DatetimeIndex(sorted(out))
+
+
 # --------------------------------------------------------------------------- #
 # Carregamento
 # --------------------------------------------------------------------------- #
@@ -167,8 +178,10 @@ def load_transacoes() -> pd.DataFrame:
 
 def serie_diaria(df_trans: pd.DataFrame, unidade: str, categoria: str,
                  span: str = "par") -> pd.Series:
-    """Reconstrói a série-alvo do L1: soma de `qtdade` por dia para o par
-    (unidade, categoria), reindexada no range diário contínuo (dias sem venda = 0).
+    """Reconstrói a série `unidade × categoria`: soma de `qtdade` por dia para o par,
+    reindexada no range diário contínuo (dias sem venda = 0). **Revisão 2026-09-21
+    (ADR-011):** não é mais a série-alvo do L1 — é o insumo da desagregação
+    `unidade → categoria`. A série-alvo do L1 é `serie_unidade()`, abaixo.
 
     span="par"    → primeiro ao último dia com venda do próprio par
     span="global" → primeiro ao último dia com venda em toda a base
@@ -186,7 +199,32 @@ def serie_diaria(df_trans: pd.DataFrame, unidade: str, categoria: str,
     return s.reindex(idx, fill_value=0.0).rename(f"{unidade} · {categoria}")
 
 
+def serie_unidade(df_trans: pd.DataFrame, unidade: str, span: str = "par") -> pd.Series:
+    """Série-alvo do L1 (ADR-011, 2026-09-21): soma de `qtdade` por dia de TODAS as
+    categorias de produto de uma unidade (exclui `Servico e taxa`), reindexada no range
+    diário contínuo (dias sem venda = 0). `categoria` deixou de ser série L1 própria — vira
+    nível de desagregação (`serie_diaria()` acima), como o SKU já era da `categoria`.
+
+    span="par"    → primeiro ao último dia com venda da própria unidade
+    span="global" → primeiro ao último dia com venda em toda a base
+    """
+    m = (df_trans["unidade"] == unidade) & (df_trans["categoria"] != NAO_PRODUTO)
+    s = (df_trans.loc[m].dropna(subset=["data"])
+         .groupby("data")["qtdade_n"].sum().sort_index())
+    if s.empty:
+        return s
+    if span == "global":
+        lo, hi = df_trans["data"].min(), df_trans["data"].max()
+    else:
+        lo, hi = s.index.min(), s.index.max()
+    idx = pd.date_range(lo.normalize(), hi.normalize(), freq="D")
+    return s.reindex(idx, fill_value=0.0).rename(unidade)
+
+
 def pares_l1(df_trans: pd.DataFrame) -> list[tuple[str, str]]:
+    """Pares `unidade × categoria` — a série de desagregação (ver `serie_diaria()`),
+    não mais o alvo do L1 (ADR-011). Nome mantido por compatibilidade com os módulos
+    que já a consomem (`eda_series.py`, `eda_grupos.py`)."""
     d = df_trans[df_trans["categoria"] != NAO_PRODUTO]
     return sorted(map(tuple, d[["unidade", "categoria"]].drop_duplicates().values))
 
@@ -210,12 +248,11 @@ def setup_plotting():
 
 PALETA = {
     "Grama": "#2E7D32",
-    "Plantas de corte": "#C2185B",
+    "Flores de corte": "#C2185B",
     "Produtos de jardim": "#F9A825",
     "Servico e taxa": "#90A4AE",
     "Jardim Canadá": "#1565C0",
     "Itabirito": "#6A1B9A",
-    "Garden Center": "#00838F",
 }
 
 

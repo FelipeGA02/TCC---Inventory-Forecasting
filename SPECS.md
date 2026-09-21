@@ -33,7 +33,7 @@
 ### 1.1 Problema e Escopo
 
 Sistema de **recomendação de reposição diária** para a Floricultura Verde Perto (unidades
-em Nova Lima — Jardim Canadá — e Itabirito/MG), rede com 3 unidades operacionais. A base
+em Nova Lima — Jardim Canadá — e Itabirito/MG), rede com 2 unidades operacionais. A base
 cobre Jan/2024–Fev/2026 (324k+ transações, 5.100+ SKUs). O sistema prevê a demanda
 **por dia** para os próximos **14 dias** e traduz isso em quanto repor de cada produto,
 respeitando a validade (produtos perecíveis — flores de corte duram 3–7 dias).
@@ -840,7 +840,7 @@ Query params:
     {
       "produto_cod": "147",
       "produto_nome": "ROSA VERMELHA 40CM",
-      "categoria": "Flor de corte",
+      "categoria": "Flores de corte",
       "unidade": "Jardim Canadá",
       "total_sold": 128450.0,
       "model_status": "trained",
@@ -862,7 +862,7 @@ Query params:
 {
   "produto_cod": "147",
   "produto_nome": "ROSA VERMELHA 40CM",
-  "categoria": "Flor de corte",
+  "categoria": "Flores de corte",
   "unidade": "Jardim Canadá",
   "shelf_life_dias": 4,
   "total_sold": 128450.0,
@@ -901,7 +901,7 @@ Query params:
 {
   "produto_cod": "147",
   "produto_nome": "ROSA VERMELHA 40CM",
-  "categoria": "Flor de corte",
+  "categoria": "Flores de corte",
   "unidade": "Jardim Canadá",
   "horizon_days": 14,
   "forecast": [
@@ -978,7 +978,7 @@ Query params:
 {
   "produto_cod": "147",
   "produto_nome": "ROSA VERMELHA 40CM",
-  "categoria": "Flor de corte",
+  "categoria": "Flores de corte",
   "unidade": "Jardim Canadá",
   "shelf_life_dias": 4,
   "safety_stock_days": 2,
@@ -1709,7 +1709,7 @@ Alinhada ao cronograma oficial do projeto técnico (Tabela 2, seção 8 do artig
 | Levantamento e refinamento de requisitos | Abr/2026 | Backlog consolidado — `spec.md` |
 | Modelagem e arquitetura do sistema | Mai/2026 | Diagramas UML + modelo de dados (`docs/uml/`) |
 | Implementação do pipeline de ingestão | Jun/2026 | ETL inicial |
-| Engenharia de atributos e análise exploratória | Jun/2026 | Features + relatório de EDA (`docs/eda_report.md`) |
+| Engenharia de atributos e análise exploratória | Jun/2026 | Features + relatório de EDA (`docs/prediction/00-eda_report.md`) |
 | Modelagem preditiva SARIMAX | Jul–Ago/2026 | Modelos treinados, avaliados e documentados |
 | Dashboard e módulo de simulações | Set/2026 | Interface funcional e validada |
 | Testes integrados e ajustes finais | Out/2026 | Versão candidata à entrega |
@@ -1719,7 +1719,7 @@ Alinhada ao cronograma oficial do projeto técnico (Tabela 2, seção 8 do artig
 Sprint 0 (Mai/2026 — Modelagem e EDA):
   0a. docs/uml/ — casos de uso, atividades, classes, modelo de dados, arquitetura lógica
   0b. Análise exploratória em Jupyter Notebook (sazonalidade, tendências, unidade, perfil de demanda)
-      → consolidar em docs/eda_report.md
+      → consolidar em docs/prediction/00-eda_report.md
 
 Sprint 1 (Jun/2026):
   1. backend/config.py + backend/main.py (esqueleto)

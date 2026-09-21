@@ -3,13 +3,17 @@
 Documenta o pipeline em [`ia-predictor/training_scripts/preprocessing/`](../../ia-predictor/training_scripts/preprocessing/):
 como os XLSX brutos de "Contas a Receber" viram a base transacional consolidada, e como
 essa base é preparada para alimentar a modelagem: **L1 SARIMAX** da demanda diária por
-`unidade × categoria` → **L2** desagregação para SKU (ver
-[ADR-009](ADR-009-granularidade-diaria-e-reposicao.md)).
+`unidade` → **L2** desagregação em cascata (`unidade → categoria → SKU`) — ver
+[ADR-009](ADR-009-granularidade-diaria-e-reposicao.md) e
+[ADR-011](ADR-011-escopo-previsao-sem-reposicao.md) §4.
 
-> Escopo de 2026-08-30 (diário). Reescrito por inteiro para o pipeline diário (a versão
-> mensal está no histórico do git). Revisado na reunião com a parceira de 2026-08-30
-> ([ADR-011](ADR-011-escopo-previsao-sem-reposicao.md)): 3 lojas separadas, **3 categorias
-> de demanda**, e **sem camada de reposição L3** — o entregável é a previsão de demanda.
+> Escopo de 2026-08-30 (diário), revisado em 2026-09-21 (granularidade do L1). Reescrito
+> por inteiro para o pipeline diário (a versão mensal está no histórico do git). Unidades,
+> categorias e escopo definidos com o cliente ([ADR-011](ADR-011-escopo-previsao-sem-reposicao.md)):
+> **2 unidades** (Jardim Canadá e Itabirito), **3 categorias de demanda**, e **sem camada
+> de reposição L3** — o entregável é a previsão de demanda. O L1 ajusta uma série por
+> **unidade** (2 séries); `categoria` é obtida por desagregação, não é mais série L1
+> própria ([ADR-011](ADR-011-escopo-previsao-sem-reposicao.md) §4).
 
 Este documento é deliberadamente verboso no **porquê**: cada decisão de parsing, cada
 coluna removida, cada regra de taxonomia e cada valor default está justificado, porque o
@@ -20,10 +24,12 @@ dos dados → preparação) ficam gravadas em código.
 
 ## 1. Visão geral
 
-O alvo do modelo L1 é uma **série temporal diária**: para cada par `(unidade, categoria)`,
-a soma de `qtdade` vendida por dia. O pré-processamento não constrói essa série (isso é
-`prepare_daily_series()`, no backend/experimentação) — ele entrega a **base transacional
-limpa e enriquecida** de onde a série é somada.
+O alvo do modelo L1 é uma **série temporal diária por unidade**: para cada `unidade`, a
+soma de `qtdade` vendida por dia, de todas as categorias de produto. `categoria` (e depois
+SKU) são obtidos por desagregação em cascata, não por um modelo próprio (ver §5.2). O
+pré-processamento não constrói nenhuma dessas séries (isso é `prepare_daily_series()`, no
+backend/experimentação) — ele entrega a **base transacional limpa e enriquecida** de onde
+as séries são somadas.
 
 ```
 data/raw/*.xlsx  (26 planilhas mensais, jan/2024–fev/2026)
@@ -43,12 +49,13 @@ data/raw/*.xlsx  (26 planilhas mensais, jan/2024–fev/2026)
         │
         ▼
 ┌──────────────────────────────────────────────┐
-│ Etapa 3 — map_taxonomy.py                     │  deriva `unidade`, `categoria` (L1) e `categoria_fina`
+│ Etapa 3 — map_taxonomy.py                     │  deriva `unidade` (L1), `categoria` e `categoria_fina` (desagregação)
 │  → output/contas_a_receber_taxonomia.csv     │  12 colunas · pronto para prepare_daily_series
 └──────────────────────────────────────────────┘
         │
         ▼
-   prepare_daily_series(df, unidade, categoria)   ← FORA deste pipeline
+   prepare_daily_series(df, unidade)             ← alvo do L1 — FORA deste pipeline
+   prepare_daily_series(df, unidade, categoria)  ← perfil de desagregação (L2)
    (training_scripts/baseline/ — Fase 1 do plano de experimentos)
 ```
 
@@ -347,7 +354,7 @@ COLUMNS_TO_DROP = [
 | `emissao` | **Eixo temporal** da série diária. |
 | `empresa` | Entra na Etapa 3 para derivar `unidade`. É **chave de agrupamento** do L1, não uma exógena — por isso não sai junto com `pagamento`/`vendedor`. |
 | `produto_cod` | Entra na Etapa 3 para derivar `categoria`; e é a chave da desagregação L2. |
-| `qtdade` | **Variável alvo** — somada por dia por `unidade × categoria`. |
+| `qtdade` | **Variável alvo** — somada por dia por `unidade` (L1) e por `unidade × categoria` (desagregação). |
 | `vl_unit`, `vl_total`, `vl_desconto`, `tot_liq` | Matéria-prima de features de preço/desconto, avaliadas na Fase 3 do plano de experimentos (não obrigatórias no L1 baseline). Mantidas agora para não ter de reprocessar depois. |
 | `total_liquido_doc` | Reconferência de integridade — o teste do documento `995` (seção 2) depende dele; útil também para validar futuras mudanças no parser. |
 
@@ -355,19 +362,26 @@ COLUMNS_TO_DROP = [
 
 ## 5. Etapa 3 — `map_taxonomy.py`: derivar `unidade`, `categoria` e `categoria_fina`
 
-O modelo L1 agrupa por `unidade × categoria`. **Nenhuma coluna de agrupamento existe na
-base transacional** — a origem só tem `empresa`, `produto_cod` e `produto_nome`. Derivá-las
+O modelo L1 agrupa por `unidade`; a desagregação (L2) usa `categoria` como passo
+intermediário. **Nenhuma coluna de agrupamento existe na base transacional** — a origem só
+tem `empresa`, `produto_cod` e `produto_nome`. Derivá-las
 é o principal trabalho novo do pré-processamento no escopo diário, e é uma decisão
 metodológica: define *quantos* modelos L1 existem e *o que* cada um agrega.
 
-> **Decisões da reunião com a parceira (2026-08-30) — ver [ADR-011](ADR-011-escopo-previsao-sem-reposicao.md):**
+> **Definições com o cliente — ver [ADR-011](ADR-011-escopo-previsao-sem-reposicao.md):**
 >
-> 1. **As 3 empresas (CNPJ) são as 3 lojas** e devem ser modeladas separadas. `unidades.py`
->    está **fechado**.
-> 2. **O modelo L1 usa 3 categorias de demanda** — `Grama`, `Plantas de corte`,
->    `Produtos de jardim` — mais o rótulo `Servico e taxa` (não é produto). O negócio se
->    organiza em "grama de plantio × plantas de corte"; todo o resto do catálogo (o maior
->    volume: muda, vaso, substrato, insumo) foi agrupado em `Produtos de jardim`.
+> 1. **A rede tem 2 unidades** — Jardim Canadá e Itabirito — e cada uma é modelada
+>    separadamente. As 3 empresas (CNPJ) do relatório viram 2 unidades porque as vendas do
+>    Garden Center pertencem a Jardim Canadá. `unidades.py` está **fechado**.
+> 2. **O modelo L1 usa 3 categorias de demanda** — `Grama`, `Flores de corte`,
+>    `Produtos de jardim` — mais o rótulo `Servico e taxa` (não é produto). O cliente
+>    organiza o catálogo em Grama, Flores de corte (as que compõem arranjos e buquês) e
+>    Plantas diversas (todas as plantas, exceto flores de corte e árvores), além de
+>    insumos e acessórios de jardinagem. Plantas e insumos formam `Produtos de jardim` no
+>    L1: a EDA de granularidade ([relatório §3.10](00-eda_report.md)) mostra que modelar
+>    Plantas diversas e Insumos e acessórios em separado não erra menos do que repartir a
+>    previsão de `Produtos de jardim`. Os grupos do cliente aparecem na apresentação, via
+>    `categoria_fina` e L2 (`GRUPO_PRODUTO`), e não como séries L1.
 > 3. **A recomendação de reposição (camada L3) saiu de escopo.** O entregável é a
 >    **previsão de demanda diária** por 14 dias; a loja decide a compra. Logo
 >    `shelf_life_dias` foi **removido** do pré-processamento.
@@ -390,14 +404,18 @@ volume nessa situação entram no `CATEGORIA_POR_SKU` explícito, que independe 
 
 ### 5.1 `unidade` — a partir de `empresa` (fechado)
 
-`empresa` tem 3 valores, um por CNPJ. **Confirmado com a parceira**: cada um é uma loja e
-as três são modeladas separadamente. De/para em `taxonomy/unidades.py`:
+`empresa` tem 3 valores, um por CNPJ, mas a rede tem 2 unidades. **Confirmado com o
+cliente**: as vendas do Garden Center pertencem a Jardim Canadá; Jardim Canadá e Itabirito
+são modeladas separadamente. De/para em `taxonomy/unidades.py`:
 
 | `empresa` | `unidade` | linhas |
 | --- | --- | --- |
 | `FLORICULTURA VERDE PERTO CANADÁ LTDA` | `Jardim Canadá` | 168.063 |
+| `GARDEN CENTER VERDE PERTO LTDA` | `Jardim Canadá` | 29.408 |
 | `VERDE PERTO JARDINAGEM LTDA` | `Itabirito` | 135.548 |
-| `GARDEN CENTER VERDE PERTO LTDA` | `Garden Center` | 29.408 |
+
+`Jardim Canadá` soma, portanto, 197.471 linhas: a série diária da unidade é a soma das
+vendas dos dois CNPJs (o Garden Center só registra vendas a partir de 13/02/2025).
 
 Detalhes de implementação:
 
@@ -407,9 +425,9 @@ Detalhes de implementação:
 - **`UNIDADE_DEFAULT = "Desconhecida"`** para `empresa` nula/inesperada — falha visível
   (aparece nas contagens), não silenciosa.
 
-### 5.2 `categoria` — dois níveis
+### 5.2 `categoria` — desagregação, não série L1
 
-#### Por que categorizar, se a previsão final é por SKU
+#### Por que o L1 é só `unidade`, com categoria e SKU por desagregação
 
 Prever "cada SKU" **não quer dizer treinar um modelo de série temporal por SKU** — e não
 daria: são ~5.100 SKUs em ~650 dias, e a série diária de um SKU típico é quase toda zero
@@ -419,36 +437,181 @@ variância explode e não há padrão semanal estável para capturar. A maioria 
 cairia em `insufficient_data`.
 
 O sinal que interessa vive no **agregado**: "fim de semana vende mais", pico no Dia das
-Mães e em Finados, tendência — são propriedades da demanda da **categoria**, não de um SKU
-isolado (cujo padrão individual é ruído). Somando por `unidade × categoria` obtém-se uma
-série densa onde o SARIMAX consegue estimar `m=7` e as exógenas de calendário. São **9
-modelos L1** (3 categorias × 3 lojas), cada um com muito dado, em vez de milhares de
-modelos frágeis.
+Mães e em Finados, tendência — são propriedades da demanda que aparecem melhor quanto mais
+se agrega. Mas agregar não precisa parar em `categoria`: o teste de separação
+(`eda_separacao.py`, ver [ADR-011 §4](ADR-011-escopo-previsao-sem-reposicao.md)) mostrou
+que agregar até `unidade` — sem abrir por categoria — já captura o sinal, e abrir mais uma
+vez em categoria não reduz o erro de previsão (nenhuma das 6 séries ganha o mínimo de 5% de
+MASE ao ser modelada direto). Por isso o L1 ajusta **2 modelos** — um por unidade, somando
+todas as categorias —, cada um com muito dado, em vez de 6 modelos mais finos sem ganho de
+acurácia.
 
-**Como o SKU continua sendo previsto — a camada L2:**
+**Como a categoria e o SKU continuam sendo previstos — a camada L2, em cascata:**
 
 ```text
-previsão do SKU = previsão da categoria (L1)  ×  participação do SKU na categoria (L2)
+previsão da categoria = previsão da unidade (L1)  ×  participação da categoria na unidade
+previsão do SKU        = previsão da categoria     ×  participação do SKU na categoria
 ```
 
-A L2 reparte a previsão da categoria entre os SKUs pela **participação móvel** de cada um
-(share das últimas 4–8 semanas) × o **perfil de dia-da-semana** do SKU. O SKU não precisa
-de um modelo temporal próprio — precisa só de uma estimativa **estável de proporção**
-("este vaso é ~3% de `Produtos de jardim` nesta loja"), que até um SKU esparso fornece se
-tiver vendas suficientes no total. SKU com histórico curto demais (< 28 dias com venda ou
-< 8 vendas) cai no rateio uniforme da categoria.
+A L2 reparte a previsão de cada nível para o nível abaixo pela **participação móvel** (share
+das últimas 4–8 semanas) × o **perfil de dia-da-semana do nível** — o mesmo método aplicado
+duas vezes: primeiro de `unidade` para `categoria`, depois de `categoria` para SKU. Nenhum
+dos dois níveis precisa de um modelo temporal próprio — precisam só de uma estimativa
+**estável de proporção** ("Flores de corte é ~1,4% de Jardim Canadá"; "este vaso é ~3% de
+`Produtos de jardim` nesta unidade"), que até uma série esparsa fornece se tiver vendas
+suficientes no total. Categoria ou SKU com histórico curto demais (< 28 dias com venda ou
+< 8 vendas, no caso do SKU) cai no rateio uniforme do nível acima.
 
-É **empréstimo de força** (*borrowing strength*): o agregado denso carrega a **dinâmica
-temporal** (quando vende), a desagregação carrega o **mix de produtos** (o que vende) —
-previsão hierárquica top-down, técnica padrão. É também o motivo de a Etapa 3 manter a
-`categoria_fina` no CSV: a L2 pode desagregar em dois passos (3 → ~10 finas → SKU), o que
-dá uma estimativa de share menos ruidosa do que partir direto de 3 baldes.
+É **empréstimo de força** (*borrowing strength*), agora em dois passos: a série `unidade`
+carrega a **dinâmica temporal** (quando vende), e cada passo de desagregação carrega o
+**mix** do nível abaixo (o que vende) — previsão hierárquica top-down, técnica padrão. É
+também o motivo de a Etapa 3 manter `categoria` e `categoria_fina` no CSV mesmo sem série L1
+própria: a L2 desagrega em três passos (`unidade` → 3 categorias → ~10 finas → SKU), o que
+dá uma estimativa de share menos ruidosa do que pular direto de `unidade` para SKU.
+
+**Por que a desagregação por categoria precisa do efeito de data *da categoria*, não só da
+proporção histórica.** A série `unidade` dilui sinais de categorias pequenas: em Jardim
+Canadá, a série da unidade **cai** 0,66× no Dia das Mães (`00-eda_report.md` §3.0), mas
+isso esconde Flores de corte **disparando** 2,14× nessa mesma data (§3.4) — o pico só não
+aparece no agregado porque Flores de corte é 1,4% do volume da unidade e Grama/Produtos de
+jardim (que caem no Dia das Mães) dominam a média. Repartir a previsão da unidade só pela
+proporção histórica perderia esse pico; por isso a desagregação usa também o índice de
+data-por-categoria (bloco `4b_datas_comemorativas` de `eda_series.py`, por par), não só o
+share médio.
 
 **Limitação** (e por que existe a comparação acadêmica): o top-down assume que os SKUs de
-uma categoria se movem juntos. Um SKU com timing próprio (uma flor específica só no
-Namorados) o método puro erra. Por isso o TCC compara, nos mesmos splits de walk-forward,
-o **SARIMAX hierárquico (L1+L2)** contra **Croston/TSB/SBA por SKU** — métodos feitos para
-demanda intermitente — para medir qual ganha (ADR-009).
+uma categoria se movem juntos, e que as categorias de uma unidade se movem juntas. Um SKU
+com timing próprio (uma flor específica só no Namorados) o método puro erra. Por isso o TCC
+compara, nos mesmos splits de walk-forward, o **SARIMAX hierárquico (L1+L2)** contra
+**Croston/TSB/SBA por SKU** — métodos feitos para demanda intermitente — para medir qual
+ganha (ADR-009).
+
+#### Referências de literatura — por que agregar, e como desagregar
+
+A decisão acima ("SKU isolado não sustenta SARIMAX, agregar até `unidade` sim") não é só
+uma leitura visual do gráfico de esparsidade — é o resultado esperado pelo critério padrão
+da área para classificar séries de demanda, aplicado aos nossos dados:
+
+**O que são SES, ARIMA/SARIMAX e Croston.** Os três são famílias de método de previsão de
+série temporal, do mais simples ao mais específico:
+
+- **SES** (*Simple Exponential Smoothing*, suavização exponencial simples) — a previsão do
+  próximo dia é uma média dos dias passados que dá peso cada vez menor a quem é mais
+  antigo. Não usa sazonalidade nem tendência; é o piso da família.
+- **ARIMA** (*AutoRegressive Integrated Moving Average*) generaliza o SES: modela quanto o
+  valor de hoje se explica pelos valores e erros de previsão de dias anteriores (a parte
+  "autorregressiva"), e pode diferenciar a série para remover tendência (a parte
+  "integrada"). **SARIMAX** — o modelo deste projeto — é o ARIMA com dois acréscimos: um
+  componente **sazonal** (o "S", aqui `m=7`, o ciclo semanal) e **exógenas** (o "X": dia da
+  semana, feriado, proximidade de data comemorativa).
+- **Croston (1972)** — pensado para série com muitos dias de venda zero, onde SES e ARIMA
+  se confundem: como eles suavizam a série bruta, ficam "no meio do caminho" entre acertar
+  o dia de venda e acertar o zero, errando os dois. Croston separa a série em duas —
+  **quanto** vende quando vende, e **de quanto em quanto tempo** vende — suaviza cada uma
+  com SES separadamente, e divide uma pela outra para estimar a demanda média por dia.
+
+**Como a literatura decide qual usar — a classificação de Syntetos, Boylan & Croston
+(2005).** O artigo deriva, a partir do erro quadrático médio de SES e do método de
+Croston, dois cortes numéricos que separam quatro padrões de demanda:
+
+- **ADI** (*average inter-demand interval*, intervalo médio entre vendas) =
+  (dias do período) ÷ (dias com venda). ADI = 3, por exemplo, quer dizer "em média, uma
+  venda a cada 3 dias".
+- **CV²** (coeficiente de variação ao quadrado) = (desvio-padrão do tamanho da venda ÷
+  média do tamanho da venda)², calculado **só nos dias em que houve venda**. CV² alto
+  quer dizer que o tamanho do pedido varia muito de uma venda para outra (um dia vende 2,
+  outro vende 200).
+
+Com ADI < 1,32 e CV² < 0,49 a série é **suave** (venda quase todo dia, tamanho estável —
+SES/SARIMAX bastam); ADI < 1,32 e CV² ≥ 0,49 é **errática** (venda quase todo dia, mas
+tamanho instável — SARIMAX ainda serve, com suavização como o `log1p`); ADI ≥ 1,32 e
+CV² < 0,49 é **intermitente** (vende pouco, mas quando vende é sempre uma quantidade
+parecida); ADI ≥ 1,32 e CV² ≥ 0,49 é **lumpy** — o pior caso, vende pouco **e** em
+quantidade imprevisível quando vende. Para os dois últimos quadrantes (ADI alto) o artigo
+mostra que Croston erra menos que SES/ARIMA — é exatamente aí que entram TSB e SBA
+(variações do método de Croston explicadas mais abaixo).
+
+Aplicamos o critério (script `training_scripts/eda/eda_classificacao_sku.py`,
+`00-eda_report.md` gráfico `24_classificacao_demanda_sku.png`) aos 5.162 produtos físicos
+da base (exclui `Servico e taxa`),
+usando o próprio período de venda de cada SKU (do 1º ao último dia com venda). 692 SKUs
+(13,4%) venderam em um único dia — CV² indefinido, não classificável. Dos 4.470 restantes:
+
+| Classe | % dos SKUs | % do volume |
+| --- | --- | --- |
+| Suave | 0,2% | 0,0% |
+| Errático | 0,5% | 53,7% |
+| Intermitente | 52,2% | 1,4% |
+| **Lumpy** | **47,1%** | **44,9%** |
+
+**99,3% dos SKUs classificáveis caem em intermitente ou lumpy** — o par de quadrantes em
+que a própria literatura desaconselha SES/ARIMA em favor de Croston/TSB/SBA. É a mesma
+conclusão a que o projeto já tinha chegado olhando dias ativos e % de fallback L2 (§5.2
+acima), agora obtida pelo instrumento de diagnóstico padrão da área, não por um limiar
+específico deste projeto. Aplicando o **mesmo** critério às **2 séries `unidade`** que o L1
+de fato ajusta (span do 1º ao último dia com venda da unidade): Jardim Canadá (ADI 1,21,
+CV² 0,67) e Itabirito (ADI 1,21, CV² 4,58) caem as duas em **errática** — vendem quase todo
+dia útil, mas em quantidade muito variável, dados os pedidos grandes das seções 3.2/3.7 do
+relatório de EDA —, exatamente o quadrante em que SARIMAX (com `log1p` para estabilizar o
+CV² alto) é apropriado. As 6 séries de desagregação `unidade × categoria` também caem todas
+em errática (ADI 1,21–1,23; CV² 0,92–16,2), então subir de categoria para unidade não muda
+o quadrante — reforça o que o teste de separação (ADR-011 §4) já mostrava por outro
+caminho: agregar até `unidade` já move a série do quadrante errado (SKU) para o quadrante
+certo, e agregar mais um nível (categoria) não muda nada.
+
+**Por que agregar e desagregar em vez de modelar cada SKU** (arquitetura hierárquica
+top-down, e a escolha do nível de agregação):
+
+- Fliedner, G. (2001). "Hierarchical forecasting: issues and use guidelines." *Industrial
+  Management & Data Systems*, 101(1), 5–12. https://doi.org/10.1108/02635570110365952 —
+  contrapõe *top-down* (prevê o agregado, desagrega por proporção histórica — o que a L2
+  faz) a *bottom-up* (prevê cada série da base e soma); *top-down* exige um único modelo
+  bem alimentado por dado, ao custo de perder a dinâmica própria de cada parte — o
+  trade-off explícito na seção "Limitação" acima.
+- Zotteri, G.; Kalchschmidt, M. (2007). "A model for selecting the appropriate level of
+  aggregation in forecasting processes." *International Journal of Production Economics*,
+  108(1–2), 74–83. — modela o erro de previsão como troca entre erro de especificação
+  (agregado demais, perde padrão) e erro de amostragem (agregado de menos, dado
+  insuficiente); com poucas observações por série — nosso caso, 26 meses — a agregação
+  reduz mais erro de amostragem do que introduz de especificação, o que empiricamente
+  favorece `unidade × categoria` sobre SKU aqui.
+- Gross, C.W.; Sohl, J.E. (1990). "Disaggregation methods to expedite product line
+  forecasting." *Journal of Forecasting*, 9(3), 233–254. — avalia 21 esquemas de
+  desagregação por proporção e conclui que a **proporção média histórica** (a série
+  desagregada como fração média do agregado ao longo do tempo) é o método mais simples e,
+  ao mesmo tempo, um dos mais precisos — o fundamento acadêmico da participação móvel da L2
+  (§5.2 acima), aqui com janela móvel de 4–8 semanas em vez de média de todo o histórico,
+  por causa da instabilidade de share documentada na EDA (`00-eda_report.md` §3.9).
+- Huber, J.; Gossmann, A.; Stuckenschmidt, H. (2017). "Cluster-based hierarchical demand
+  forecasting for perishable goods." *Expert Systems with Applications*, 76, 140–151.
+  https://doi.org/10.1016/j.eswa.2017.01.022 — aplicação mais próxima do nosso domínio:
+  um varejista de produtos perecíveis (padaria industrial) com séries de venda por item
+  esparsas demais para prever direto monta uma hierarquia (item → cluster → loja) e prevê
+  nos níveis agregados, com o mesmo racional de "o sinal está no agregado, o item herda a
+  proporção".
+- Babai, M.Z.; Boylan, J.E.; Rostami-Tabar, B. (2022). "Demand forecasting in supply
+  chains: a review of aggregation and hierarchical approaches." *International Journal of
+  Production Research*, 60(1), 324–348. — revisão que organiza esse campo (agregação
+  temporal, cruzada e hierárquica) e serve de referência guarda-chuva para a arquitetura
+  L1→L2 como um todo.
+
+**Croston/TSB/SBA — a trilha de comparação no nível de SKU** (citados por nome desde o
+`CLAUDE.md`, aqui com a referência completa):
+
+- Croston, J.D. (1972). "Forecasting and Stock Control for Intermittent Demands." *Journal
+  of the Operational Research Society*, 23(3), 289–303.
+  https://doi.org/10.1057/jors.1972.50 — o método original, explicado acima.
+- Syntetos, A.A.; Boylan, J.E. (2005). "The accuracy of intermittent demand estimates."
+  *International Journal of Forecasting*, 21(2), 303–314.
+  https://doi.org/10.1016/j.ijforecast.2004.10.001 — mostra que o método de Croston
+  superestima a demanda sistematicamente (15–20%) e propõe a correção **SBA**
+  (multiplicar por `1 - α/2`).
+- Teunter, R.H.; Syntetos, A.A.; Babai, M.Z. (2011). "Intermittent demand: Linking
+  forecasting to inventory obsolescence." *European Journal of Operational Research*,
+  214(3), 606–615. — propõe **TSB**: atualiza a probabilidade de venda a cada período (em
+  vez do intervalo), o que faz a previsão decair mais rápido quando a venda para de
+  acontecer — mais adequado a SKU que pode sair de linha, o que a cauda de "Outros"
+  (§5.2) sugere ser comum aqui.
 
 #### Como o dado se parece
 
@@ -456,7 +619,7 @@ A amostra dos produtos de maior volume mostrou que a
 **Verde Perto opera como garden center / jardinagem, não como floricultura de flor de
 corte**: o carro-chefe é **grama plantada** (esmeralda, são carlos, amendoim), seguida de
 mudas em saquinho/sacola/cuia, plantas em vaso (`PT NN`), terra/adubo/argila e insumos de
-jardim. Flor de corte (`ROSA EM CABO`, `ALSTROEMERIA`) é fatia pequena (~2%).
+jardim. Flor de corte (`ROSA EM CABO`, `ALSTROEMERIA`) é fatia pequena (~1,7%).
 
 **`categoria_fina` — a cascata detalhada** (`map_categoria()` em `taxonomy/categorias.py`),
 **primeira que casar vence**:
@@ -476,13 +639,18 @@ jardim. Flor de corte (`ROSA EM CABO`, `ALSTROEMERIA`) é fatia pequena (~2%).
    - `Servico e taxa` **antes de tudo** — `FRETE`, `TAXA DE …`, `PRESTAÇÃO DE SERVIÇO` não
      são produto físico; rótulo próprio para serem **excluídos da série de demanda**.
    - `Flor de corte e arranjo` no topo das categorias de produto (inclui `MOLIO`/`MOLHO`,
-     venda em maço de hastes).
+     venda em maço de hastes). Flor de corte é a que compõe arranjos e buquês:
+     `GERBERA PT 15`, `CRISANTEMO VB` e `COROA DE CRISTO` são plantas envasadas e seguem a
+     cascata (`GERBERA`/`CRISANTEMO` só entram aqui sem sinal de embalagem no nome; a
+     `COROA` que vale é a de flores, de funeral).
    - `Hortalica e erva`, `Substrato e adubo`, `Insumo e acessório` **antes das plantas
      ornamentais vivas**: `"TERRA PARA ROSAS"` deve virar substrato, não flor.
    - `GRAMA PRETA` / `PELO DE URSO` **antes** de `\bGRAMA\b`: são forração (Ophiopogon),
      não grama de plantio.
    - Faixa de altura no nome (`0,20 A 0,30CM`, `0,80 A 1,20MT`) → `Arbusto e planta formada`.
-   - `PT\s?\d{1,2}`, depois código/volume de pote (`P14`, `3L`, `POTE PP`) → `Planta em vaso`.
+   - `PT\s?\d{1,2}` ou `VB` (vaso de barro), depois código/volume de pote (`P14`, `3L`,
+     `POTE PP`) → `Planta em vaso`. Vasos vazios (`VASO BIG`, `VASO TRANCADO`, cachepô) já
+     foram para `Insumo e acessório` antes, na regra de acessórios.
    - `SAQ*`, `SACOLA`, `CUIA`, `BANDEJA`, `C21`, `CAPIM` → `Muda e forração`.
    - Só então o **fallback por espécie**: `BUXINHO|MURTA|IXORA|CALIANDRA|BAMBU|…` →
      `Arbusto e planta formada`; `BROMÉLIA|ORQUÍDEA` → `Planta em vaso`.
@@ -493,56 +661,90 @@ jardim. Flor de corte (`ROSA EM CABO`, `ALSTROEMERIA`) é fatia pequena (~2%).
    2026-08-30, `"Outros"` caiu de 9,6% → **1,3%** do volume; o resíduo é uma cauda longa
    de espécies sem palavra-chave estrutural. Colapsa em `Produtos de jardim`.
 
-**`categoria` — o colapso L1** (`CATEGORIA_L1` + `map_categoria_l1()`):
+**`categoria` — o colapso de desagregação** (`CATEGORIA_L1` + `map_categoria_l1()` — nome
+mantido por compatibilidade, embora `categoria` não seja mais série L1):
 
-| `categoria_fina` | → `categoria` (L1) |
+| `categoria_fina` | → `categoria` (nível de desagregação) |
 | --- | --- |
 | `Grama` | **Grama** |
-| `Flor de corte e arranjo` | **Plantas de corte** |
+| `Flor de corte e arranjo` | **Flores de corte** |
 | `Hortalica e erva`, `Muda e forracao`, `Planta em vaso`, `Arbusto e planta formada`, `Substrato e adubo`, `Insumo e acessorio`, `Outros` | **Produtos de jardim** |
-| `Servico e taxa` | `Servico e taxa` (não-produto — excluído da série L1) |
+| `Servico e taxa` | `Servico e taxa` (não-produto — excluído de qualquer série de demanda) |
 
-Por que **3** e não as ~10: a parceira reconhece o negócio como "grama de plantio ×
-plantas de corte"; o restante do catálogo é o grosso do volume mas não tem, para ela, um
-recorte de gestão mais fino. Manter a `categoria_fina` no CSV preserva a opção de
-subdividir depois (na EDA ou na L2) sem reprocessar. Não há mais `shelf_life_dias` — a
-camada L3 saiu de escopo (ADR-011); o que a categoria alimenta agora é só a série de
-demanda do L1.
+Por que **3** e não as ~10: `Grama` e `Flores de corte` têm dinâmica própria (efeito de
+datas comemorativas de sinal oposto, perfil semanal distinto) — mas isso justifica um
+passo de desagregação com perfil próprio para cada uma, não um SARIMAX próprio: o teste de
+separação (`00-eda_report.md` [§3.11](00-eda_report.md)) mostra que nenhuma categoria ganha
+o mínimo de acurácia exigido ao ser modelada direto (ADR-011 §4). Plantas e insumos são o
+par de grupos mais próximo dentro de `Produtos de jardim`, e modelar cada um direto também
+não erra menos do que repartir (EDA de granularidade, [relatório §3.10](00-eda_report.md)).
+Manter a `categoria_fina` no CSV preserva a opção de subdividir depois (na EDA ou na L2)
+sem reprocessar. Não há mais `shelf_life_dias` — a camada L3 saiu de escopo (ADR-011); o
+que a categoria alimenta agora é o passo de desagregação `unidade → categoria` (§5.2), não
+uma série de demanda própria.
 
-### 5.3 Execução real (2026-08-30, taxonomia de 3 categorias)
+#### Grupos de produto do cliente (apresentação)
+
+O cliente organiza o catálogo em grupos próprios. Eles são funções puras da
+`categoria_fina` (`GRUPO_PRODUTO` / `map_grupo()` em `taxonomy/categorias.py`), por isso
+não viram coluna do CSV nem série L1 — a previsão de um grupo é a soma da previsão dos
+SKUs dele (L2):
+
+| Grupo do cliente | `categoria_fina` | `categoria` (desagregação) |
+| --- | --- | --- |
+| **Grama** | `Grama` | Grama |
+| **Flores de corte** — as que compõem arranjos e buquês (inclui os arranjos montados) | `Flor de corte e arranjo` | Flores de corte |
+| **Plantas diversas** — todas as plantas, exceto flores de corte e árvores | `Hortalica e erva`, `Muda e forracao`, `Planta em vaso`, `Arbusto e planta formada`, `Outros` | Produtos de jardim |
+| **Insumos e acessórios** — substrato, adubo, vasos, seixos, ferramentas | `Substrato e adubo`, `Insumo e acessorio` | Produtos de jardim |
+
+Limitações: **árvores** não têm regra própria (a lista do grupo no sistema do cliente não
+está disponível) e ficam em `Plantas diversas` — estimativa por palavra-chave: 0,4% (Jardim
+Canadá) a 1,2% (Itabirito) do volume da unidade; e o rótulo `Insumos e acessórios` é
+provisório até o cliente confirmar o nome do grupo (§5.5).
+
+### 5.3 Execução real (2026-09-21)
 
 ```text
 [map_taxonomy] 333.019 linhas x 12 colunas
 [map_taxonomy] Linhas por unidade:
-  Jardim Canadá  168.063 | Itabirito  135.548 | Garden Center  29.408
+  Jardim Canadá  197.471 | Itabirito  135.548
 [map_taxonomy] Volume (qtdade) por categoria L1:
-  Produtos de jardim        2.028.097
+  Produtos de jardim        2.034.205
   Grama                     1.837.995
-  Plantas de corte             74.634
+  Flores de corte              68.526
   Servico e taxa                5.860
 [map_taxonomy] Volume (qtdade) por categoria_fina:
-  Grama 1.837.995 · Muda e forracao 935.421 · Planta em vaso 377.654 ·
-  Substrato e adubo 266.314 · Arbusto e planta formada 177.208 ·
-  Insumo e acessorio 140.445 · Hortalica e erva 79.277 ·
-  Flor de corte e arranjo 74.634 · Outros 51.779 · Servico e taxa 5.860
+  Grama 1.837.995 · Muda e forracao 935.988 · Planta em vaso 383.003 ·
+  Substrato e adubo 266.314 · Arbusto e planta formada 177.256 ·
+  Insumo e acessorio 141.389 · Hortalica e erva 79.277 ·
+  Flor de corte e arranjo 68.526 · Outros 50.979 · Servico e taxa 5.860
+[map_taxonomy] Volume (qtdade) por grupo de produto (cliente):
+  Grama 1.837.995 · Plantas diversas 1.626.502 · Insumos e acessórios 407.703 ·
+  Flores de corte 68.526 · Servico e taxa 5.860
 [map_taxonomy] Volume em "Outros" (categoria_fina): 1.3%
-[map_taxonomy] Pares unidade x categoria (modelos L1, sem Servico e taxa): 9
-[map_taxonomy] Dias com venda por par: min=221, max=653, pares < 180 dias: 0
+[map_taxonomy] Modelos L1 (series por unidade, sem Servico e taxa): 2
+[map_taxonomy] Pares unidade x categoria (nivel de desagregacao, informativo): 6
+[map_taxonomy] Dias com venda por unidade: min=650, max=653, unidades < 180 dias: 0
+[map_taxonomy] Dias com venda por par unidade x categoria (desagregacao): min=641, max=653, pares < 180 dias: 0
 ```
 
 **Leitura**:
 
-- **9 modelos L1** — 3 categorias de demanda × 3 lojas. `Servico e taxa` (0,1% do volume)
-  não vira modelo: é excluído da série.
-- O volume se divide quase meio a meio entre **`Produtos de jardim`** (51%) e **`Grama`**
-  (47%); **`Plantas de corte`** é só **1,9%** — série pequena, mas com venda em ≥ 221 dias
-  por par, densa o suficiente para o L1 avaliar (a EDA confirma).
-- `"Outros"` (na `categoria_fina`) caiu de **9,6% → 1,3%** com o refino de 5.2 e some de
-  vista no L1 ao colapsar em `Produtos de jardim`. A `categoria_fina` fica no CSV para a
-  EDA e a L2.
-- **Todos os 9 pares têm ≥ 180 dias com venda** (mín. 221) — nenhum cai em
-  `insufficient_data`. Garden Center tem histórico mais curto (abre no CSV só em 2025),
-  mas acima do mínimo.
+- **2 modelos L1** — uma série por unidade (Jardim Canadá, Itabirito), somando todas as
+  categorias. `Servico e taxa` (0,1% do volume) não entra na série de demanda em nenhum
+  nível; `categoria` (6 pares, linha "nível de desagregação, informativo") não vira modelo
+  próprio — é o primeiro passo da desagregação L2 (§5.2).
+- O volume se divide quase meio a meio entre **`Produtos de jardim`** (51,5%) e **`Grama`**
+  (46,6%); **`Flores de corte`** é só **1,7%** — série pequena, mas densa o suficiente para
+  a desagregação (a EDA confirma). Dentro de `Produtos de jardim`, `Plantas diversas`
+  responde por 41,2% do volume total e `Insumos e acessórios` por 10,3%.
+- `"Outros"` (na `categoria_fina`) é **1,3%** do volume e some de vista ao colapsar em
+  `Produtos de jardim`. A `categoria_fina` fica no CSV para a EDA e a L2.
+- **As 2 unidades têm ≥ 180 dias com venda** (mín. 650) — nenhuma cai em
+  `insufficient_data`. Jardim Canadá soma os dois CNPJs, então a série da unidade cobre
+  todo o período (o Garden Center só entra a partir de 13/02/2025). Os 6 pares de
+  desagregação também atendem o mínimo (≥ 641 dias) — nenhum cai no fallback de rateio
+  uniforme entre categorias.
 
 As estatísticas — incluindo o diagnóstico de cobertura por par — são impressas pelo
 próprio `map_taxonomy.py` (converte `qtdade` vírgula→ponto; `emissao` com `dayfirst=True`),
@@ -551,36 +753,47 @@ para que cada rodada entregue o raio-x sem análise externa.
 ### 5.4 Saída
 
 `output/contas_a_receber_taxonomia.csv` — **12 colunas** (as 9 da Etapa 2 + `unidade` +
-`categoria` + `categoria_fina`). É o arquivo que `prepare_daily_series(df, unidade,
-categoria)` consome: filtra por par (usando `categoria` L1, ignorando `Servico e taxa`),
-soma `qtdade` por dia, reindexa o range diário completo (dias sem venda = 0) e exige
-≥ 180 dias.
+`categoria` + `categoria_fina`). É o arquivo que `prepare_daily_series()` consome, em dois
+usos: `prepare_daily_series(df, unidade)` — filtra por unidade (ignorando `Servico e
+taxa`), soma `qtdade` por dia, reindexa o range diário completo (dias sem venda = 0) e
+exige ≥ 180 dias — é a **série-alvo do L1**; e `prepare_daily_series(df, unidade,
+categoria)` — o mesmo filtro incluindo `categoria`, usado para construir o perfil de
+desagregação (participação móvel × perfil de dia-da-semana da categoria), não para treinar
+um modelo próprio.
 
-### 5.5 O que ainda depende da parceira e da EDA
+### 5.5 O que ainda depende do cliente e da EDA
 
-Resolvido nesta passada (dentro do pré-processamento):
+Resolvido (dentro do pré-processamento):
 
-- ✅ `empresa → unidade` **fechado** — 3 lojas, modeladas separadas.
-- ✅ **Estrutura de categorias fechada** — 3 de demanda (`Grama` · `Plantas de corte` ·
+- ✅ `empresa → unidade` **fechado** — 2 unidades (Jardim Canadá e Itabirito), modeladas
+  separadas; as vendas do Garden Center são de Jardim Canadá.
+- ✅ **Estrutura de categorias fechada** — 3 de demanda (`Grama` · `Flores de corte` ·
   `Produtos de jardim`) + `Servico e taxa`. `shelf_life_dias` removido (L3 fora de escopo).
-- ✅ `"Outros"` (na `categoria_fina`) reduzido de 9,6% para 1,3%.
-- ✅ Cobertura de histórico por par verificada — os 9 pares têm ≥ 180 dias com venda; o
-  script reporta isso a cada rodada.
+- ✅ **Grupos do cliente mapeados** — Plantas diversas e Insumos e acessórios saem de
+  `categoria_fina` (`GRUPO_PRODUTO`), sem série L1 própria.
+- ✅ **Granularidade do L1 fechada** — uma série por `unidade` (2 séries); `categoria` e
+  `categoria_fina` são níveis de desagregação, não modelos próprios (ADR-011 §4).
+- ✅ `"Outros"` (na `categoria_fina`) em 1,3% do volume.
+- ✅ Cobertura de histórico verificada — as 2 unidades têm ≥ 180 dias com venda; os 6 pares
+  de desagregação também; o script reporta isso a cada rodada.
 
 Ainda em aberto:
 
-- ✅ **EDA** — feita (2026-09-01), ver **[`docs/eda_report.md`](../eda_report.md)**.
-  Confirmou: as 9 séries são densas o suficiente (78–83% dos dias com venda, zeros
-  quase todos em domingo); **os 9 pares recebem `log1p`** (CV 1,3–4,5); a
-  sazonalidade semanal existe mas é **invertida** em relação ao pressuposto do
-  `CLAUDE.md` ("fim de semana vende mais" é falso — pico ter–qui / sex, sábado
-  fraco); `Plantas de corte` é densa apesar dos 1,9% de volume, mas quase **ruído
-  branco** na parte ARIMA (só calendário prevê). Achados detalhados e ajustes de
-  modelagem na §4 do relatório.
-- **Parceira** — (a) curadoria fina de SKUs de alto volume em `Outros` (impacto
-  baixo no L1); (b) validar a completude da fonte — `fev/2026` fechado?, o
-  relatório captura 100% das saídas?, tratamento de `qtdade` negativa (devolução),
-  queda de Jardim Canadá vs. alta de Itabirito. Lista completa na §5 do relatório.
+- ✅ **EDA** — feita (2026-09-21), ver **[`docs/prediction/00-eda_report.md`](00-eda_report.md)**.
+  Confirmou: as 2 séries do L1 e as 6 séries de desagregação são densas o suficiente
+  (81–83% dos dias com venda, zeros quase todos em domingo); **todas recebem `log1p`**
+  (CV 1,01–2,39 nas 2 unidades; 1,15–4,49 nos 6 pares); a sazonalidade semanal existe mas é
+  **invertida** em relação ao pressuposto do `CLAUDE.md` ("fim de semana vende mais" é
+  falso — pico ter–qui / sex, sábado fraco); `Flores de corte` é densa apesar dos 1,7% de
+  volume, mas em Jardim Canadá é quase **ruído branco** na parte ARIMA (só calendário
+  prevê); separar por categoria não melhora a previsão, separar por unidade sim (§3.11).
+  Achados detalhados e ajustes de modelagem na §4 do relatório; a granularidade das
+  categorias na §3.10; a granularidade unidade × categoria na §3.11.
+- **Cliente** — (a) confirmar os nomes dos grupos de produto (`Insumos e acessórios`) e
+  fornecer a lista de produtos do grupo Árvores; (b) curadoria fina de SKUs de alto
+  volume em `Outros` (impacto baixo no L1); (c) validar a completude da fonte —
+  `fev/2026` fechado?, o relatório captura 100% das saídas?, tratamento de `qtdade`
+  negativa (devolução). Lista completa na §5 do relatório.
 
 ---
 
@@ -622,11 +835,11 @@ ia-predictor/training_scripts/
 │   ├── parser.py               # parse_xlsx() — extrai registros do XLSX por posição de coluna fixa
 │   ├── build_dataset.py        # Etapa 1 — parsing + dedup entre arquivos + log + idempotência por hash
 │   ├── reduce_schema.py        # Etapa 2 — remove 11 colunas → CSV de 9 colunas
-│   ├── map_taxonomy.py         # Etapa 3 — deriva unidade + categoria (L1) + categoria_fina + diagnóstico (% "Outros", cobertura ≥180d por par)
+│   ├── map_taxonomy.py         # Etapa 3 — deriva unidade (L1) + categoria/categoria_fina (desagregação) + diagnóstico (% "Outros", cobertura ≥180d por unidade e por par)
 │   └── taxonomy/               # tabelas de/para versionadas (curadas à mão)
 │       ├── __init__.py
-│       ├── unidades.py         # empresa → unidade (3 lojas, fechado) (+ NORMALIZE_EMPRESA)
-│       └── categorias.py       # produto → categoria_fina (cascata) + CATEGORIA_L1 (colapso p/ 3 categorias)
+│       ├── unidades.py         # empresa → unidade (2 unidades, fechado) (+ NORMALIZE_EMPRESA)
+│       └── categorias.py       # produto → categoria_fina (cascata) + CATEGORIA_L1 (3 categorias) + GRUPO_PRODUTO (grupos do cliente)
 └── output/                      # gerado ao rodar os scripts — não versionado (.gitignore)
     ├── contas_a_receber.csv               # Etapa 1 (20 colunas)
     ├── processamento_log.json

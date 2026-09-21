@@ -9,7 +9,7 @@ referência técnica completa e `CLAUDE.md` (raiz) para o guia de desenvolviment
 | [`prediction/`](prediction/) | Modelagem / previsão de demanda | ADRs sobre SARIMAX, **revisão de escopo mensal→diário ([ADR-009](prediction/ADR-009-granularidade-diaria-e-reposicao.md))**, plano de experimentos comparativos, pipeline de pré-processamento |
 | [`backend/`](backend/) | API / arquitetura de serviço | ADRs sobre monolito modular, autenticação JWT, scheduler de retrain |
 | [`database/`](database/) | Persistência | ADR sobre a escolha do SQLite + **[dicionário de dados da fonte](database/dicionario_dados_fonte.md)** |
-| [`eda_report.md`](eda_report.md) | Análise exploratória | Relatório de EDA (T000b) — dois momentos: base transacional e as 9 séries L1; achados que ajustam pré-processamento e modelagem |
+| [`prediction/00-eda_report.md`](prediction/00-eda_report.md) | Análise exploratória | Relatório de EDA (T000b) — base transacional, as 2 séries do L1 (por unidade) e as 6 séries de desagregação (por categoria); achados que ajustam pré-processamento e modelagem |
 | [`frontend/`](frontend/) | Dashboard React | ADR sobre geração do cliente TypeScript a partir do OpenAPI |
 | [`uml/`](uml/) | Modelagem UML | Diagramas de casos de uso e atividades (entregável acadêmico, seção 6.4 do artigo) — caminho fixo, referenciado em `SPECS.md`/`tasks.md`, não mover |
 
@@ -32,7 +32,7 @@ uma nova ADR, use o próximo número livre (o maior `ADR-0NN` já usado em qualq
 | [ADR-007](frontend/ADR-007-openapi-typescript-codegen.md) | frontend | openapi-typescript-codegen para o cliente TS |
 | [ADR-009](prediction/ADR-009-granularidade-diaria-e-reposicao.md) | predição | Granularidade **diária** e política de reposição perecível (hierárquico L1/L2/L3) — revisa ADR-001 e ADR-004; **L3 revisado por ADR-011** |
 | [ADR-010](prediction/ADR-010-exogenas-nominais-fora-do-l1.md) | predição | `pagamento`/`vendedor` fora das exógenas; `empresa` vira chave `unidade`; Etapa 3 removida do pipeline |
-| [ADR-011](prediction/ADR-011-escopo-previsao-sem-reposicao.md) | predição | Escopo: **previsão de demanda diária, sem camada de reposição L3**; 3 lojas separadas; 3 categorias de demanda — revisa ADR-009 |
+| [ADR-011](prediction/ADR-011-escopo-previsao-sem-reposicao.md) | predição | Escopo: **previsão de demanda diária, sem camada de reposição L3**; 2 unidades (Jardim Canadá e Itabirito); L1 por **unidade** (2 séries) — categoria e grupos do cliente via desagregação L2 — revisa ADR-009 |
 
 ## Documentos "a criar" com caminho fixo (não mover ao criar)
 
@@ -40,5 +40,5 @@ Estes caminhos são referenciados literalmente em `SPECS.md`, `specs/001-.../tas
 `specs/001-.../plan.md` como entregáveis — mantenha-os na raiz de `docs/` quando forem
 criados, para não quebrar essas referências:
 
-- ~~`docs/eda_report.md`~~ — **criado** (2026-09-01), relatório de EDA (Fase 0/T000b)
+- ~~`docs/eda_report.md`~~ — **criado**, relatório de EDA (Fase 0/T000b), em `docs/prediction/00-eda_report.md`
 - `docs/quickstart.md` — guia de instalação/uso para a entidade parceira (T079)

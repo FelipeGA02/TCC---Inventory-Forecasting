@@ -4,11 +4,12 @@
 ("Estatística Antes de Machine Learning") e o ADR-001, comparando, **em granularidade
 diária** (ver [ADR-009](ADR-009-granularidade-diaria-e-reposicao.md)):
 
-1. **L1 SARIMAX sem enriquecimento** — série diária por `unidade × categoria`, só com
+1. **L1 SARIMAX sem enriquecimento** — série diária por `unidade` (2 séries), só com
    exógenas de calendário derivadas dos próprios dados (dia-da-semana);
 2. **L1 SARIMAX enriquecido** — mais feriados precisos, clima e datas comemorativas;
 3. **Demanda intermitente por SKU** (Croston, TSB, SBA) contra a abordagem hierárquica
-   (L1 SARIMAX + L2 desagregação), usando os mesmos protocolos de validação;
+   (L1 SARIMAX por unidade + L2 desagregação em cascata unidade→categoria→SKU), usando
+   os mesmos protocolos de validação;
 4. **Redes neurais / outros modelos** (modelo global), como teto de comparação.
 
 **Onde isso roda**: em `ia-predictor/training_scripts/`, não em `backend/domain/`. É uma
@@ -22,9 +23,9 @@ Subpastas, uma por etapa da comparação:
 | Subpasta | Fase | Conteúdo |
 | --- | --- | --- |
 | `eda/` | 1.1 | Sazonalidade **semanal** e anual, tendência por unidade, **esparsidade da série diária por SKU** (justifica L2), seleção do Top-N |
-| `baseline/` | 1 | **L1** — Modelo A0 (SARIMA puro diário) e A1 (SARIMAX + exógenas de calendário) por `unidade × categoria` |
+| `baseline/` | 1 | **L1** — Modelo A0 (SARIMA puro diário) e A1 (SARIMAX + exógenas de calendário) por `unidade` |
 | `enriched/` | 3 | **L1** Modelo B (SARIMAX + exógenas externas: clima, feriados municipais, datas comemorativas) |
-| `replenishment/` | 3–4 | **L2** desagregação categoria→SKU + **L3** política de reposição; simulação de perda/ruptura |
+| `replenishment/` | 3–4 | **L2** desagregação em cascata unidade→categoria→SKU + **L3** política de reposição; simulação de perda/ruptura |
 | `alternative_models/` | 4 | Croston/TSB/SBA por SKU; ETS/Holt-Winters; XGBoost; rede neural global |
 | `validation/` | 1, 3, 4 | Walk-forward CV (origem móvel, horizonte 14 dias), MASE/RMSSE, cobertura do IC, testes de resíduos (Ljung-Box, Shapiro-Wilk) e de significância (Diebold-Mariano/Wilcoxon) — compartilhado entre fases |
 | `results/` | todas | `metrics/*.csv` e `plots/` — staging; só o pipeline vencedor migra para `ia-predictor/results/` (produção) na Fase 5 |
@@ -38,7 +39,7 @@ Subpastas, uma por etapa da comparação:
 - [ ] 1.1 EDA (`tasks.md` T000b, em `training_scripts/eda/`): sazonalidade semanal/anual,
       tendência, **% de zeros da série diária por SKU** (prova de que o SKU não pode ser
       modelado sozinho), perfil de demanda por categoria, seleção do Top-N →
-      `docs/eda_report.md`
+      `docs/prediction/00-eda_report.md`
 - [ ] 1.1b **Taxonomia** (Etapa 3 — `map_taxonomy.py` + `taxonomy/{unidades,categorias}.py`,
       ver [01-pre_processing.md](01-pre_processing.md) §5): o script e as tabelas de/para de
       trabalho já existem (rodada 2026-08-30: 27 pares `unidade × categoria`, 9,6% em
@@ -46,8 +47,9 @@ Subpastas, uma por etapa da comparação:
       caem em "Outros", curar o `CATEGORIA_POR_SKU` do Top-N, e validar com a parceira o
       mapa `empresa → unidade` e o `shelf_life_dias` real
 - [ ] 1.2 `prepare_daily_series()` (`training_scripts/baseline/`): a partir do CSV com
-      taxonomia — série **diária** somada por `unidade × categoria`, freq='D', reindex
-      completo (dias sem venda = 0), ≥ 180 dias
+      taxonomia — série **diária** somada por `unidade` (alvo do L1) e por
+      `unidade × categoria` (perfil de desagregação), freq='D', reindex completo
+      (dias sem venda = 0), ≥ 180 dias
 - [ ] 1.3 `build_calendar_exogenous()`: dummies/Fourier de dia-da-semana; flag de feriado
       nacional; véspera de feriado
 - [ ] 1.4 **Modelo A0 — SARIMA puro diário** (`training_scripts/baseline/`, sem exógena):
@@ -59,9 +61,9 @@ Subpastas, uma por etapa da comparação:
       (≥ 4 folds, origem móvel, horizonte 14 dias); métricas MASE, RMSSE, cobertura do IC,
       MAE/RMSE; diagnóstico de resíduos Ljung-Box + Shapiro-Wilk
 - [ ] 1.8 Consolidar `training_scripts/results/metrics/baseline_A0_A1.csv` por
-      `unidade × categoria`
+      `unidade`
 
-**Checkpoint**: scorecard A0 vs A1 por `unidade × categoria`, provando que a exógena de
+**Checkpoint**: scorecard A0 vs A1 por `unidade`, provando que a exógena de
 calendário ajuda antes de qualquer dado externo.
 
 ---
@@ -89,14 +91,14 @@ Nenhuma envolve dado pessoal de cliente → sem conflito com Princípio VI/LGPD.
 - [ ] 2.5 Atualizar `SPECS.md` §5.2 com a tabela de exógenas externas **diárias**
 
 **Checkpoint**: `data/external/` populado com séries **diárias** alinhadas ao período
-Jan/2024–Fev/2026, prontas para merge com a série de cada `unidade × categoria`.
+Jan/2024–Fev/2026, prontas para merge com a série de cada `unidade`.
 
 ---
 
 ## Fase 3 — L1 SARIMAX enriquecido vs. baseline + camadas L2/L3
 
 - [ ] 3.1 `domain/features/external_exogenous.py` (lógica **pura**): merge diário das
-      séries externas com o índice de cada `unidade × categoria`
+      séries externas com o índice de cada `unidade`
 - [ ] 3.2 **Modelo B — SARIMAX + calendário + externo** (`training_scripts/enriched/`)
 - [ ] 3.3 Reaplicar RF/MDI para ponderar o conjunto ampliado (mitiga multicolinearidade
       entre exógenas)
@@ -104,12 +106,13 @@ Jan/2024–Fev/2026, prontas para merge com a série de cada `unidade × categor
       folds + resíduos) — **mesmas categorias, mesmos splits** que A0/A1
 - [ ] 3.5 Teste de significância pareado (Diebold-Mariano ou Wilcoxon nos erros de A1 vs B)
 - [ ] 3.6 **L2** — `disaggregation/sku_split.py`: share móvel (4–8 semanas) × perfil de
-      dia-da-semana do SKU; fallback uniforme; avaliar MASE no nível de SKU
+      dia-da-semana do nível, em cascata (unidade→categoria→SKU); fallback uniforme;
+      avaliar MASE no nível de categoria e de SKU
 - [ ] 3.7 **L3** — `replenishment/policy.py` + `replenishment/simulation.py`: rodar a
       política sobre o hold-out e medir **perda (murcha) + ruptura** contra a regra
       ingênua "repor a média dos últimos 7 dias"
 - [ ] 3.8 Relatório `docs/prediction/comparacao_enriquecimento.md`: A0 vs A1 vs B por
-      `unidade × categoria`, e o efeito na simulação de reposição
+      `unidade`, e o efeito na simulação de reposição
 
 **Checkpoint**: decisão documentada — variáveis externas entram ou não na versão de
 produção do L1; a política L3 bate a regra ingênua.
@@ -134,9 +137,8 @@ Duas comparações distintas:
 ### 4B — Teto de ML (modelo global)
 
 O artigo (M4/M5, Makridakis et al.) argumenta que ML overfita com séries curtas **por
-série**. A forma justa de testar é um **modelo global** (uma rede só, todas as séries de
-`unidade × categoria` empilhadas, categoria como embedding), como venceram a M5
-(LightGBM global, N-BEATS, DeepAR).
+série**. A forma justa de testar é um **modelo global** (uma rede só, as 2 séries de
+`unidade` empilhadas), como venceram a M5 (LightGBM global, N-BEATS, DeepAR).
 
 | Modelo | Papel |
 | --- | --- |
@@ -144,7 +146,7 @@ série**. A forma justa de testar é um **modelo global** (uma rede só, todas a
 | LightGBM global (lags + exógenas) | Árvore com features tabulares, todas as séries juntas |
 | N-BEATS / DeepAR simplificado | Rede global multi-série |
 
-- [ ] 4B.1 Dataset "long format" (`unidade × categoria × dia × exógenas`)
+- [ ] 4B.1 Dataset "long format" (`unidade × dia × exógenas`)
 - [ ] 4B.2 Treinar cada candidato com **os mesmos splits** de walk-forward
 - [ ] 4B.3 Métricas + tempo de treino/inferência (relevante para RNF-03)
 - [ ] 4B.4 Teste de significância pareado contra o melhor SARIMAX da Fase 3

@@ -17,33 +17,39 @@ documentação final (Nov/2026).
 
 - [ ] T000a Produzir diagramas UML em `docs/uml/`: casos de uso, atividades, classes,
       modelo de dados (ER) e arquitetura lógica (seção 6.4 do artigo)
-- [x] **T000b EDA** — dois momentos (CRISP-DM): compreensão dos dados (base transacional)
-      + série modelável (9 pares L1). Scripts em `training_scripts/eda/` (`_common.py`,
-      `eda_source.py`, `eda_series.py`, `run_all.py`), métricas em `results/metrics/eda_*.json`,
-      11 figuras em `results/plots/eda/`, consolidado em
-      [`docs/eda_report.md`](../../docs/eda_report.md) + dicionário de dados da fonte em
+- [x] **T000b EDA** — três momentos (CRISP-DM): compreensão dos dados (base transacional)
+      + série modelável (6 pares L1) + granularidade das categorias. Scripts em
+      `training_scripts/eda/` (`_common.py`, `eda_source.py`, `eda_series.py`,
+      `eda_grupos.py`, `eda_separacao.py`, `eda_classificacao_sku.py`, `run_all.py`), métricas em `results/metrics/eda_*.json`,
+      17 figuras em `results/plots/eda/`, consolidado em
+      [`docs/prediction/00-eda_report.md`](../../docs/prediction/00-eda_report.md) + dicionário de dados da fonte em
       [`docs/database/dicionario_dados_fonte.md`](../../docs/database/dicionario_dados_fonte.md).
       **Achados que ajustam o plano** (ver §4 do relatório): "fim de semana vende mais" é
-      **falso** (pico ter–qui / sex; sáb fraco; dom fechado); `log1p` para os 9 pares;
+      **falso** (pico ter–qui / sex; sáb fraco; dom fechado); `log1p` para os 6 pares;
       exógena de data comemorativa tem de ser por par (sinal se inverte entre `Grama` e
-      `Plantas de corte`); `Plantas de corte` é quase ruído branco na parte ARIMA;
-      tendências divergentes por loja (Jardim Canadá −37%/−49%/ano, Itabirito +96%/+29%);
-      share de SKU instável → *fallback* da L2 é caminho principal. **Pendências para a
-      parceira** em §5 do relatório.
+      `Flores de corte`); `Flores de corte` em Jardim Canadá é quase ruído branco na parte
+      ARIMA; tendências divergentes por unidade (Jardim Canadá −3% a −23%/ano, Itabirito
+      +18% a +96%/ano); share de SKU instável → *fallback* da L2 é caminho principal;
+      abrir `Produtos de jardim` em Plantas diversas × Insumos e acessórios não reduz o erro
+      (§3.10) → L1 segue com 3 categorias; separar por unidade tem apoio, por categoria não
+      melhora a acurácia (§3.11, decisão em aberto). **Pendências para o cliente** em §5 do relatório.
 - [x] ~~T000c Levantamento de `shelf_life_dias`~~ — **cancelado por
       [ADR-011](../../docs/prediction/ADR-011-escopo-previsao-sem-reposicao.md)**: a camada
       de reposição (L3) saiu de escopo, não há mais uso para validade por categoria.
 - [x] **T000d Taxonomia** (Etapa 3 — `training_scripts/preprocessing/map_taxonomy.py` +
       `taxonomy/{unidades,categorias}.py`, ver `docs/prediction/01-pre_processing.md` §5).
-      **Fechado com a parceira (2026-08-30 / ADR-011):** `empresa → unidade` = 3 lojas
-      separadas; `categoria` L1 = **3 categorias de demanda** (`Grama` · `Plantas de corte`
-      · `Produtos de jardim`) + `Servico e taxa`. `map_taxonomy.py` emite `categoria` +
-      `categoria_fina`, reporta volume e cobertura ≥ 180 d (9 pares L1, todos ≥ 221 dias).
+      **Fechado com o cliente (ADR-011):** `empresa → unidade` = 2 unidades (as vendas do
+      Garden Center são de Jardim Canadá); `categoria` L1 = **3 categorias de demanda**
+      (`Grama` · `Flores de corte` · `Produtos de jardim`) + `Servico e taxa`; grupos do
+      cliente (Plantas diversas, Insumos e acessórios) via `GRUPO_PRODUTO`, sem série L1
+      própria. `map_taxonomy.py` emite `categoria` + `categoria_fina`, reporta volume e
+      cobertura ≥ 180 d (6 pares L1, todos ≥ 641 dias).
       **Resíduo (baixa prioridade):** curadoria fina de SKUs de alto volume em `Outros`
       (1,3%) — interessa à EDA/L2, não muda o L1.
 
-**Checkpoint**: `docs/uml/` e `docs/eda_report.md` existem; `contas_a_receber_taxonomia.csv`
-gerado (12 colunas), 9 pares L1 com ≥ 180 dias, % de volume em "Outros" aceitável ✅
+**Checkpoint**: `docs/uml/` e `docs/prediction/00-eda_report.md` existem;
+`contas_a_receber_taxonomia.csv` gerado (12 colunas), 6 pares L1 com ≥ 180 dias, % de
+volume em "Outros" aceitável ✅
 
 ---
 

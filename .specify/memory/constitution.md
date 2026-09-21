@@ -1,25 +1,28 @@
 <!-- Sync Impact Report
-  Version change: 1.1.1 → 2.0.0
-  Motivação: revisão de escopo de 2026-08-30 — o entregável passou de previsão MENSAL
-    por produto para RECOMENDAÇÃO DE REPOSIÇÃO DIÁRIA para catálogo perecível
-    (ver docs/prediction/ADR-009-granularidade-diaria-e-reposicao.md).
-  MAJOR porque redefine o escopo do Princípio II e os limiares do Princípio III.
+  Version change: 2.0.0 → 3.0.0
+  Motivação: EDA de separação (docs/prediction/ADR-011-escopo-previsao-sem-reposicao.md
+    §4, training_scripts/eda/eda_separacao.py) mostrou que separar a série L1 por
+    categoria não reduz o erro de previsão (nenhuma das 6 séries unidade×categoria ganha
+    o mínimo de 5% de MASE ao ser modelada direto; a soma das 3 categorias por unidade
+    fica a menos de 5% do modelo da própria unidade); separar por unidade tem apoio
+    (Itabirito ganha 17%/11% de MASE com modelo próprio nos dois previsores testados).
+  MAJOR porque redefine o escopo (a granularidade) do Princípio II.
   Modified:
-    - Princípio II — SARIMAX permanece central, mas na camada AGREGADA (unidade ×
-      categoria, série diária). Modelos de demanda intermitente (Croston/TSB/SBA)
-      passam a ser PERMITIDOS no nível de SKU, onde SARIMAX é inaplicável (série
-      quase toda zero). ML (NN/boosting) continua exigindo evidência empírica.
-    - Princípio III — limiares mensais (MAPE < 20% / SMAPE < 30%) substituídos por
-      MASE < 1.0 + simulação de perda/ruptura; walk-forward com horizonte de 14 dias,
-      origem móvel.
-    - Quality Gates — tabela de métricas mensal → diária.
-    - Observações mínimas — 15 mensais → 180 diárias (camada L1).
+    - Princípio II — a camada agregada L1 passa a ser uma série por `unidade` (2 séries:
+      Jardim Canadá, Itabirito), não mais por `unidade × categoria` (6 séries).
+      `categoria` e SKU passam a ser obtidos por desagregação proporcional em CASCATA
+      (unidade→categoria→SKU, dois passos pelo mesmo método), não um por SARIMAX
+      próprio e outro por desagregação. Croston/TSB/SBA continuam permitidos no SKU.
+    - Quality Gates — "Observações mínimas L1" muda de `unidade × categoria` para
+      `unidade`.
   Templates updated:
     ✅ .specify/templates/spec-template.md (compatible)
     ✅ .specify/templates/plan-template.md (compatible)
     ✅ .specify/templates/tasks-template.md (compatible)
   Follow-up TODOs:
-    - Confirmar shelf-life real por categoria/SKU com a entidade parceira (Sprint 0).
+    - Propagar a granularidade `unidade` do L1 a SPECS.md, openapi.yaml e
+      specs/001-sistema-previsao-estoque/{spec,plan,tasks}.md (ver ADR-011, seção
+      "Pendente").
 -->
 
 # Sistema de Previsão de Estoque — Floricultura Constitution
@@ -37,16 +40,18 @@ framework ou scheduler sem tocar na lógica de previsão.
 ### II. Estatística Antes de Machine Learning
 
 O modelo central da **camada de demanda agregada (L1)** — uma série diária por
-`unidade × categoria` — MUST ser SARIMAX (statsmodels), com sazonalidade semanal (`m=7`)
-e exógenas de calendário.
+`unidade` — MUST ser SARIMAX (statsmodels), com sazonalidade semanal (`m=7`) e exógenas
+de calendário.
 
-Para a **camada de SKU**, onde a série diária individual é majoritariamente composta de
-zeros e o SARIMAX é matematicamente inaplicável, são PERMITIDOS:
+`categoria` e SKU MUST ser obtidos por **desagregação proporcional em cascata**
+(`unidade` → `categoria` → SKU), cada passo pela participação móvel × perfil de
+dia-da-semana do nível — não por um SARIMAX próprio: o teste de separação (ADR-011 §4)
+não mostrou redução de erro em modelar `categoria` direto.
 
-- desagregação proporcional da previsão da categoria (participação móvel × perfil de
-  dia-da-semana) — método padrão da camada L2;
-- modelos de **demanda intermitente** (Croston, TSB, SBA) como trilha de comparação
-  formal contra a abordagem hierárquica.
+Para a **camada de SKU** especificamente, onde a série diária individual é
+majoritariamente composta de zeros e o SARIMAX é matematicamente inaplicável, também são
+PERMITIDOS modelos de **demanda intermitente** (Croston, TSB, SBA) como trilha de
+comparação formal contra a abordagem hierárquica.
 
 Modelos de ML (redes neurais, gradient boosting) MUST NOT ser introduzidos em nenhuma
 camada sem evidência quantitativa de superioridade sobre a abordagem vigente no conjunto
@@ -121,7 +126,7 @@ dados operacionais da empresa parceira; evitar acesso não autorizado ao sistema
 | Simulação de reposição (perda + ruptura) | melhor que regra ingênua de 7 dias | idem |
 | Ljung-Box p-value (resíduos L1) | > 0.05 | log de aviso; não bloqueia deploy |
 | Shapiro-Wilk p-value (resíduos L1) | > 0.05 | log de aviso; não bloqueia deploy |
-| Observações mínimas L1 (`unidade × categoria`) | ≥ 180 dias | `status = "insufficient_data"` |
+| Observações mínimas L1 (`unidade`) | ≥ 180 dias | `status = "insufficient_data"` |
 | Observações mínimas SKU | ≥ 28 dias com venda ou ≥ 8 vendas | SKU cai no fallback de rateio da categoria |
 
 ### Critérios de Aceitação da API
@@ -160,4 +165,4 @@ Versionamento semântico: MAJOR = remoção/redefinição de princípio; MINOR =
 PATCH = clarificação ou correção de texto.
 Revisão obrigatória a cada Sprint concluído.
 
-**Version**: 2.0.0 | **Ratified**: 2026-07-28 | **Last Amended**: 2026-08-30
+**Version**: 3.0.0 | **Ratified**: 2026-07-28 | **Last Amended**: 2026-09-21

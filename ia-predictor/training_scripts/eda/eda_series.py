@@ -1,12 +1,19 @@
-"""EDA 2 — Análise da série modelável (depois da preparação).
+"""EDA 2b — Análise da série de desagregação `unidade × categoria`.
 
-Objeto: as 9 séries diárias `unidade × categoria` (soma de `qtdade` por dia,
-reindexada no calendário contínuo) que são o alvo do modelo L1 (SARIMAX).
+Objeto: as séries diárias `unidade × categoria` (soma de `qtdade` por dia,
+reindexada no calendário contínuo). **Revisão 2026-09-21 (ADR-011, `eda_separacao.py`):**
+essas 6 séries não são mais o alvo direto do L1 — o teste de separação mostrou que
+modelar cada categoria com SARIMAX próprio não erra menos do que repartir a previsão da
+unidade (`eda_series_unidade.py`, o alvo real do L1 agora). Este módulo continua existindo
+porque os blocos abaixo (perfil de dia da semana, efeito de datas, tendência) são
+exatamente o que a desagregação `unidade → categoria` precisa — o mesmo "participação
+móvel × perfil de dia-da-semana" que a L2 já usa de `categoria → SKU`, um nível acima.
 
-Responde: essas séries sustentam um SARIMAX? com quais parâmetros? Cada bloco
-alimenta uma decisão concreta de modelagem (Fase 1 do plano de experimentos).
+Responde: como cada categoria se comporta dentro de sua unidade — insumo direto da
+desagregação, não mais parâmetros de um SARIMAX próprio. Cada bloco alimenta uma decisão
+concreta da L2 estendida (Fase 1 do plano de experimentos).
 
-Blocos por par (× 9):
+Blocos por par (unidade × categoria):
   1. Densidade / cobertura (dias com venda, zeros, maior sequência de zeros)
   2. Distribuição de qtdade diária → log1p se CV > LOG_CV_THRESHOLD (0.7)
   3. Sazonalidade semanal (perfil por dia da semana, força do ciclo m=7)
@@ -130,11 +137,21 @@ def _perfil_dow(s: pd.Series) -> dict:
 def _perfil_mensal(s: pd.Series) -> dict:
     by = s.groupby(s.index.month).mean().reindex(range(1, 13))
     media = s.mean()
+    # Um pico mensal só é sazonalidade se se repete: há apenas ~2 ciclos anuais, então o
+    # índice é também aberto por ano e recalculado sem o maior dia da série.
+    por_ano = s.groupby([s.index.year, s.index.month]).mean() / media
+    s2 = s.copy()
+    s2[s.idxmax()] = s.median()
+    by2 = s2.groupby(s2.index.month).mean().reindex(range(1, 13)) / s2.mean()
     return {
         "indice_mes": {int(m): (float(v / media) if media else None)
                        for m, v in by.items()},
         "mes_pico": int(by.idxmax()),
         "mes_vale": int(by.idxmin()),
+        "indice_mes_por_ano": {int(a): {int(m): float(v) for (_, m), v in g.items()}
+                               for a, g in por_ano.groupby(level=0)},
+        "indice_mes_sem_maior_dia": {int(m): float(v) for m, v in by2.items()},
+        "mes_pico_sem_maior_dia": int(by2.idxmax()),
     }
 
 
@@ -218,18 +235,33 @@ def _densidade(s: pd.Series, df_par: pd.DataFrame) -> dict:
     }
 
 
-def _outliers(s: pd.Series) -> dict:
+def _outliers(s: pd.Series, df_par: pd.DataFrame) -> dict:
     x = s.astype(float)
     z = (x - x.mean()) / x.std()
     q1, q3 = x.quantile(.25), x.quantile(.75)
     iqr = q3 - q1
     lim = q3 + 3 * iqr
     top = x[z > 3].sort_values(ascending=False).head(5)
-    return {
+    out = {
         "n_dias_acima_3sigma": int((z > 3).sum()),
         "n_dias_acima_iqr3": int((x > lim).sum()),
         "top5_dias": {d.date().isoformat(): float(v) for d, v in top.items()},
     }
+    if len(top):
+        # Composição do maior dia: pedido grande (poucos documentos, linhas enormes) ou
+        # erro de registro? Uma linha de milhares de unidades de um mesmo item é pedido real.
+        d = df_par[df_par["data"].dt.normalize() == top.index[0]]
+        docs = d["doc_numero"].astype(str) + "|" + d["doc_tipo"].astype(str)
+        maior = float(d["qtdade_n"].max())
+        out["maior_dia"] = {
+            "data": top.index[0].date().isoformat(),
+            "qtd": float(top.iloc[0]),
+            "documentos": int(docs.nunique()),
+            "linhas": int(len(d)),
+            "maior_linha_qtd": maior,
+            "maior_linha_pct_do_dia": round(maior / float(top.iloc[0]) * 100, 1),
+        }
+    return out
 
 
 def _verdito(dens, dist, saz, acp, est, tend) -> dict:
@@ -262,10 +294,12 @@ def _verdito(dens, dist, saz, acp, est, tend) -> dict:
 
 
 # --------------------------------------------------------------------------- #
-def analisa_par(df: pd.DataFrame, unidade: str, categoria: str) -> dict:
-    s = C.serie_diaria(df, unidade, categoria, span="par")
-    df_par = df[(df["unidade"] == unidade) & (df["categoria"] == categoria)]
-    dens = _densidade(s, df_par)
+def analisa_serie(s: pd.Series, df_serie: pd.DataFrame) -> dict:
+    """Bateria completa de diagnóstico (blocos 1–9) para qualquer série diária de
+    demanda + o recorte transacional que a origina — reaproveitada por `analisa_par()`
+    (série `unidade × categoria`, este módulo) e por `eda_series_unidade.analisa_unidade()`
+    (série `unidade`, o alvo real do L1)."""
+    dens = _densidade(s, df_serie)
     dist = _distribuicao(s)
     saz_sem = _perfil_dow(s) | _forca_sazonal_semanal(s)
     saz_ano = _perfil_mensal(s)
@@ -273,7 +307,7 @@ def analisa_par(df: pd.DataFrame, unidade: str, categoria: str) -> dict:
     tend = _tendencia(s)
     est = _adf_kpss(s)
     acp = _acf_pacf(s)
-    out = _outliers(s)
+    out = _outliers(s, df_serie)
     return {
         "1_densidade": dens,
         "2_distribuicao": dist,
@@ -286,6 +320,12 @@ def analisa_par(df: pd.DataFrame, unidade: str, categoria: str) -> dict:
         "8_outliers": out,
         "9_veredito_sarimax": _verdito(dens, dist, saz_sem, acp, est, tend),
     }
+
+
+def analisa_par(df: pd.DataFrame, unidade: str, categoria: str) -> dict:
+    s = C.serie_diaria(df, unidade, categoria, span="par")
+    df_par = df[(df["unidade"] == unidade) & (df["categoria"] == categoria)]
+    return analisa_serie(s, df_par)
 
 
 def bloco_sku_dentro_categoria(df: pd.DataFrame) -> dict:
@@ -329,33 +369,47 @@ def bloco_sku_dentro_categoria(df: pd.DataFrame) -> dict:
 # --------------------------------------------------------------------------- #
 # Gráficos
 # --------------------------------------------------------------------------- #
+def _grade(pares: list) -> tuple[int, int]:
+    """Uma linha por unidade, uma coluna por categoria (os pares formam grade completa)."""
+    n_u = len({u for u, _ in pares})
+    return n_u, len(pares) // n_u
+
+
+def _estilo_unidade(pares: list) -> dict:
+    """Categoria define a cor; unidade define o traço (sólido / tracejado)."""
+    unidades = sorted({u for u, _ in pares})
+    return {u: ("-", "--", ":")[i % 3] for i, u in enumerate(unidades)}
+
+
 def graficos(df: pd.DataFrame, series: dict, plt) -> list[str]:
     figs = []
     pares = C.pares_l1(df)
+    n_lin, n_col = _grade(pares)
+    traco = _estilo_unidade(pares)
 
-    # 1. As 9 séries diárias + média móvel 28d
-    fig, axes = plt.subplots(3, 3, figsize=(15, 9), sharex=True)
+    # 1. Séries diárias + média móvel 28d
+    fig, axes = plt.subplots(n_lin, n_col, figsize=(5 * n_col, 3 * n_lin + 0.5), sharex=True)
     for ax, (u, c) in zip(axes.ravel(), pares):
         s = series[(u, c)]
         ax.plot(s.index, s.values, lw=.5, color="#B0BEC5")
         ax.plot(s.index, s.rolling(28, min_periods=7).mean(), lw=1.4,
                 color=C.PALETA.get(c, "#333"))
         ax.set_title(f"{u} · {c}  (CV={s.std()/s.mean():.2f})", fontsize=9)
-    fig.suptitle("Série diária L1 (cinza) + média móvel 28d — 9 pares unidade × categoria")
+    fig.suptitle(f"Série diária L1 (cinza) + média móvel 28d — {len(pares)} pares unidade × categoria")
     fig.tight_layout()
-    figs.append(C.savefig(fig, "10_series_l1_9paineis.png"))
+    figs.append(C.savefig(fig, "10_series_l1_paineis.png"))
 
-    # 2. Perfil de dia da semana (índice vs média) — 9 pares
+    # 2. Perfil de dia da semana (índice vs média)
     dias_pt = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"]
     fig, ax = plt.subplots(figsize=(9, 5))
     for (u, c) in pares:
         s = series[(u, c)]
         by = s.groupby(s.index.weekday).mean().reindex(range(7)) / s.mean()
-        ax.plot(dias_pt, by.values, marker="o", lw=1,
-                label=f"{u[:4]}·{c[:8]}", color=C.PALETA.get(c, "#333"), alpha=.7)
+        ax.plot(dias_pt, by.values, marker="o", lw=1, ls=traco[u],
+                label=f"{u} · {c}", color=C.PALETA.get(c, "#333"), alpha=.8)
     ax.axhline(1, color="#999", lw=.8, ls=":")
     ax.set_title("Índice de demanda por dia da semana (1.0 = média do par)")
-    ax.set_ylabel("demanda relativa"); ax.legend(fontsize=7, ncol=3, frameon=False)
+    ax.set_ylabel("demanda relativa"); ax.legend(fontsize=7, ncol=2, frameon=False)
     figs.append(C.savefig(fig, "11_perfil_dia_semana_l1.png"))
 
     # 3. Perfil mensal (sazonalidade anual)
@@ -363,28 +417,28 @@ def graficos(df: pd.DataFrame, series: dict, plt) -> list[str]:
     for (u, c) in pares:
         s = series[(u, c)]
         by = s.groupby(s.index.month).mean().reindex(range(1, 13)) / s.mean()
-        ax.plot(range(1, 13), by.values, marker="o", lw=1,
-                label=f"{u[:4]}·{c[:8]}", color=C.PALETA.get(c, "#333"), alpha=.7)
+        ax.plot(range(1, 13), by.values, marker="o", lw=1, ls=traco[u],
+                label=f"{u} · {c}", color=C.PALETA.get(c, "#333"), alpha=.8)
     ax.axhline(1, color="#999", lw=.8, ls=":")
     ax.axvline(5, color="#B71C1C", lw=.7, ls="--", alpha=.5)   # maio - Dia das Mães
     ax.axvline(11, color="#B71C1C", lw=.7, ls="--", alpha=.5)  # nov - Finados
-    ax.set_title("Índice de demanda por mês (1.0 = média do par) — tracejado: maio / nov")
+    ax.set_title("Índice de demanda por mês (1.0 = média do par) — tracejado vermelho: maio / nov")
     ax.set_xlabel("mês"); ax.set_ylabel("demanda relativa")
-    ax.legend(fontsize=7, ncol=3, frameon=False)
+    ax.legend(fontsize=7, ncol=2, frameon=False)
     figs.append(C.savefig(fig, "12_perfil_mensal_l1.png"))
 
-    # 4. ACF das 9 séries
+    # 4. ACF das séries
     from statsmodels.graphics.tsaplots import plot_acf
-    fig, axes = plt.subplots(3, 3, figsize=(15, 9))
+    fig, axes = plt.subplots(n_lin, n_col, figsize=(5 * n_col, 3 * n_lin + 0.5))
     for ax, (u, c) in zip(axes.ravel(), pares):
         plot_acf(series[(u, c)].astype(float).values, lags=21, ax=ax, alpha=.05)
         ax.set_title(f"{u} · {c}", fontsize=9)
     fig.suptitle("ACF (lags 0–21) — pico em múltiplos de 7 ⇒ sazonalidade semanal")
     fig.tight_layout()
-    figs.append(C.savefig(fig, "13_acf_l1_9paineis.png"))
+    figs.append(C.savefig(fig, "13_acf_l1_paineis.png"))
 
-    # 5. Distribuição de qtdade diária (hist) — 9 pares
-    fig, axes = plt.subplots(3, 3, figsize=(15, 9))
+    # 5. Distribuição de qtdade diária (hist)
+    fig, axes = plt.subplots(n_lin, n_col, figsize=(5 * n_col, 3 * n_lin + 0.5))
     for ax, (u, c) in zip(axes.ravel(), pares):
         s = series[(u, c)]
         ax.hist(s.values, bins=40, color=C.PALETA.get(c, "#333"), alpha=.8)

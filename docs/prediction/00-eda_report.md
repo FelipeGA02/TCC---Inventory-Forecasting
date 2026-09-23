@@ -1,14 +1,14 @@
 # Relatório de Análise Exploratória (EDA)
 
 **Projeto**: Sistema de Previsão de Estoque · Floricultura Verde Perto
-**Data**: 2026-09-21
+**Data**: 2026-09-21 · atualizado em 2026-09-23 (seção 3.12 — encomendas grandes)
 **Base analisada**: 333.019 transações · 02/01/2024 – 28/02/2026 · 5.166 produtos · 2 unidades
 
 ---
 
-## 0. Por que a análise foi feita em quatro etapas
+## 0. Por que a análise foi feita em cinco etapas
 
-A compreensão dos dados aconteceu em quatro momentos, com perguntas diferentes:
+A compreensão dos dados aconteceu em cinco momentos, com perguntas diferentes:
 
 - **Primeira etapa**: análise da base bruta de vendas, como ela chega da floricultura — o que
   existe, com que qualidade, e quais informações fazem sentido usar.
@@ -18,10 +18,14 @@ A compreensão dos dados aconteceu em quatro momentos, com perguntas diferentes:
   finos (Plantas diversas × Insumos e acessórios) ou se basta mostrá-los como grupos do painel.
 - **Quarta etapa**: teste de separação — se prever cada unidade e cada categoria com o seu
   próprio modelo erra menos do que prever o total e repartir.
+- **Quinta etapa** *(2026-09-23)*: encomendas grandes — se tirar da série as linhas de venda
+  enormes (obra/paisagismo) e limitar os picos restantes resolve o erro alto de Itabirito
+  (seção 3.12).
 
 A primeira etapa orientou as regras de limpeza e organização dos dados; a segunda confirmou
 (ou contestou) as premissas de modelagem — sazonalidade, tendência, e quais fatores explicam
-melhor o comportamento das vendas; a terceira e a quarta mediram se abrir mais séries melhora a previsão.
+melhor o comportamento das vendas; a terceira e a quarta mediram se abrir mais séries melhora a previsão;
+a quinta separou dois tipos de venda que estavam misturados na mesma série.
 
 ---
 
@@ -53,6 +57,11 @@ melhor o comportamento das vendas; a terceira e a quarta mediram se abrir mais s
   categoria não melhora a previsão, mesmo em torno das datas comemorativas — então o modelo
   prevê 2 séries (uma por loja), e a categoria de cada produto é obtida repartindo essa
   previsão, do mesmo jeito que já se fazia para chegar no produto individual (seção 3.11).
+- **O modelo prevê a venda de balcão; as encomendas grandes ficam de fora.** Em Itabirito,
+  80 linhas de venda (36% do volume, a maioria Grama de obra paga por boleto) faziam o erro
+  ficar pior do que o de uma previsão ingênua (MASE 1,43). Separando essas encomendas e
+  limitando os picos restantes, o erro cai para 0,80. Em Jardim Canadá, onde encomendas são
+  1,3% do volume, quase nada muda (seção 3.12, ADR-012).
 
 ### 1.2 O que a análise contrariou — pontos a corrigir
 
@@ -73,6 +82,8 @@ Flores de corte em Jardim Canadá) têm dias de pico de 79 e 86 vezes a venda m�
 comum. Em cinco das seis séries, uma única linha de venda concentra de 31% a 96% do volume
 do dia de pico — o padrão de um pedido grande isolado (seção 3.7). Mesmo com a suavização,
 essas duas combinações têm boa chance de gerar previsões de confiança reduzida.
+*Atualização 2026-09-23*: esses pedidos grandes agora são separados da série antes do
+treino (seção 3.12), o que resolve o caso de Itabirito.
 
 **Para Flores de corte, em Jardim Canadá, a previsibilidade vem quase inteiramente do
 calendário, não do histórico recente de vendas.**
@@ -95,6 +106,9 @@ Itabirito vem crescendo (altas de 18% a 96% ao ano). Isso pode ser deslocamento 
 demanda entre as unidades, mudança de mix de produtos, ou uma mudança na forma como as
 vendas são registradas — é uma pergunta em aberto para a floricultura (seção 5). Na prática,
 as previsões das combinações com tendência forte precisam levar essa tendência em conta.
+*Atualização 2026-09-23*: em Itabirito, a maior parte do crescimento vem das encomendas
+grandes, que saltaram de 68 mil unidades em 2024 para 377 mil em 2025. A venda de balcão
+cresce cerca de +8% ao ano (seção 3.12).
 
 **A participação de cada produto dentro de sua categoria varia bastante mês a mês**, mesmo
 entre os produtos mais vendidos. Isso significa que a distribuição da previsão da categoria
@@ -329,6 +343,10 @@ alimentam o passo de desagregação da previsão da unidade para cada categoria.
   semanal fraco na variância (Fs = 0,07), e tendência de alta forte (+54%/ano, de 892
   unidades/dia nos primeiros 90 dias para 3.033 nos últimos 90) — recomenda-se avaliar
   `d=1` ou um termo de nível/deriva na modelagem.
+  **Atualização 2026-09-23 (seção 3.12)**: a cauda extrema e a maior parte da tendência
+  vêm de encomendas grandes. Sem elas, o CV cai de 2,40 para 1,25, a tendência do balcão é
+  de +8%/ano (774 → 910 unidades/dia) e o MASE cai de 1,434 para 0,796. A recomendação de
+  `d=1` perde força e fica para ser reavaliada sobre a série de balcão.
 
 ### 3.1 Regularidade das vendas — desagregação `unidade → categoria`
 
@@ -489,8 +507,9 @@ Nos maiores dias de cada série, a maior linha de venda sozinha responde por:
 Em cinco das seis séries, uma única linha concentra de 31% a 96% do dia — o padrão de um
 pedido grande isolado (paisagista, obra ou compra coletiva), e não de muitas vendas
 pequenas. Um valor digitado errado teria a mesma assinatura, então a confirmação com a
-floricultura é uma pergunta em aberto (seção 5). Enquanto isso, esses dias não foram
-removidos da base, apenas tratados com a suavização mencionada na seção 3.2.
+floricultura é uma pergunta em aberto (seção 5). Esses dias continuam na base; o que muda
+(seção 3.12) é que as linhas de encomenda saem da série que o modelo prevê e ficam como um
+registro à parte.
 
 ### 3.8 Situação de cada combinação unidade×categoria
 
@@ -672,7 +691,8 @@ Leitura:
   0,77 em Jardim Canadá e 1,18 × 1,09 em Itabirito). As diferenças de dinâmica entre
   categorias (seção 3.4) existem, mas com dois anos de dados não viram previsão melhor.
 - **Cuidados**: em Itabirito vários valores passam de 1 (Grama, 1,7), ou seja, pior do que
-  repetir a semana anterior, por causa dos pedidos gigantes (seção 3.7); diferenças de até
+  repetir a semana anterior, por causa dos pedidos gigantes (seção 3.7; tratados na seção
+  3.12, que leva Itabirito a 0,80); diferenças de até
   cerca de 10% estão dentro do ruído; 2 dos 234 ajustes SARIMAX não convergiram; o SARIMAX do
   teste tem ordem fixa.
 
@@ -682,6 +702,138 @@ séries, com 4 modelos a menos para ajustar e validar. As 6 séries `unidade × 
 (seção 3.1) não deixam de existir — elas viram o insumo do passo de desagregação
 `unidade → categoria`, pelo mesmo motivo por que a `categoria_fina` já era só um nível de
 desagregação para o SKU (seção 2.5).
+
+### 3.12 Encomendas grandes — por que Itabirito errava tanto, e a correção
+
+*(adicionada em 2026-09-23 · decisão registrada no
+[ADR-012](ADR-012-encomendas-grandes-fora-do-l1.md) · script `eda_encomendas.py` ·
+gráficos `25_encomendas_series.png` e `26_encomendas_mase.png`)*
+
+**O problema.** Com a previsão por unidade (seção 3.11), Itabirito ficou com MASE 1,434,
+pior do que simplesmente repetir a semana anterior. Jardim Canadá ficou em 0,659. A
+diferença não está no modelo, está no tipo de venda. Em Itabirito, a Grama vende cerca de
+200 m² num dia comum, mas algumas linhas de venda sozinhas têm 12.800, 19.200 ou 20.000 m².
+Os 10 maiores dias concentram 43,6% de toda a Grama vendida ali (8,6% em Jardim Canadá), e
+um único cliente responde por 32 das 40 maiores linhas, todas pagas por boleto. São
+**encomendas** de obra ou paisagismo, combinadas com antecedência. Não são a venda de
+balcão que o calendário explica, e nenhum modelo de série temporal consegue adivinhar em
+que dia uma delas vai cair.
+
+**A regra.** Uma linha de venda é considerada encomenda quando, sozinha, vale mais do que
+**5 dias típicos** de venda daquela unidade e categoria. O dia típico é a mediana do volume
+diário, de segunda a sábado. Na Grama de Itabirito, por exemplo, o limite é de 1.015 m² por
+linha. A regra não usa percentil das linhas porque, em Produtos de jardim, linhas de 60 a
+100 mudas são comuns: o 99º percentil marcaria quase metade do volume como encomenda.
+
+| Unidade · categoria | Limite por linha | Linhas marcadas | Parte do volume |
+| --- | --- | --- | --- |
+| Itabirito · Grama | 1.015 | 68 | 67,7% |
+| Itabirito · Produtos de jardim | 3.079 | 8 | 9,1% |
+| Itabirito · Flores de corte | 155 | 4 | 4,2% |
+| Jardim Canadá · Flores de corte | 160 | 12 | 17,8% |
+| Jardim Canadá · Grama | 7.014 | 1 | 1,2% |
+| Jardim Canadá · Produtos de jardim | 8.265 | 1 | 1,0% |
+
+No total, as encomendas são **36,3% do volume de Itabirito** (80 linhas) e só 1,3% do de
+Jardim Canadá (14 linhas). O perfil confirma que se trata de outra demanda: em Itabirito,
+65% das linhas de encomenda são pagas por boleto, contra 1,4% no balcão, e só 7,5% são de
+"CONSUMIDOR", contra 90,5% no balcão. Cliente e forma de pagamento serviram apenas para
+conferir a regra; a regra em si usa só quantidade, unidade, categoria e data.
+
+**A solução (duas camadas).** (1) As encomendas saem da série que o modelo prevê e ficam
+como um registro à parte. (2) Nos picos que sobram na venda de balcão, os dias acima do
+99º percentil são rebaixados a esse valor, só no treino do modelo. Tanto o limite das
+encomendas quanto o teto são recalculados em cada janela do teste, usando só o passado.
+
+| MASE (26 janelas de 14 dias) | Itabirito SARIMAX | Itabirito suav. exp. | Jardim Canadá SARIMAX | Jardim Canadá suav. exp. |
+| --- | --- | --- | --- | --- |
+| Como era (total) | 1,434 | 1,311 | 0,659 | 0,727 |
+| Só o teto | 1,401 | 1,283 | 0,648 | 0,713 |
+| Só separar as encomendas | 0,810 | 0,699 | 0,656 | 0,724 |
+| **Separar + teto** | **0,796** | **0,688** | **0,646** | **0,710** |
+
+**Antes × depois, por unidade.** "Antes" é a série total que o L1 usava. "Depois" é a
+série de balcão, sem as encomendas, com e sem o teto. As características da série vêm do
+mesmo diagnóstico do EDA 2 (`eda_series.analisa_serie`). O erro de previsão vem das 26
+janelas de 14 dias. Na coluna "com teto", o erro é medido contra a venda de balcão real,
+já que o teto só altera o treino.
+
+*Itabirito*
+
+| Indicador | Antes (total) | Depois: balcão | Depois: balcão + teto |
+| --- | --- | --- | --- |
+| Veredito do diagnóstico para SARIMAX | atenção | **ok** | **ok** |
+| Venda média por dia | 1.677 | 1.069 | 1.043 |
+| Variação diária (CV) | 2,39 | 1,25 | 1,11 |
+| Maior dia ÷ média | 37,2 | 13,4 | 7,2 |
+| Curtose (peso da cauda) | 82,6 | 29,0 | 12,7 |
+| Força do ciclo semanal (0 a 1) | 0,07 | 0,20 | 0,24 |
+| Tendência | +54%/ano | +8%/ano | +10%/ano |
+| Média dos primeiros → últimos 90 dias | 892 → 3.033 | 774 → 910 | 773 → 910 |
+| CV² dos dias com venda (classe de demanda) | 4,58 (errática) | 1,11 (errática) | 0,84 (errática) |
+| **MASE SARIMAX** | **1,434** | 0,810 | **0,796** |
+| WAPE SARIMAX | 91,6% | 62,4% | 61,3% |
+| Erro acumulado em 14 dias, SARIMAX (média absoluta) | 47,4% | 32,2% | 30,4% |
+| MASE suavização exponencial (Holt-Winters) | 1,311 | 0,699 | 0,688 |
+| WAPE suavização exponencial | 84,4% | 53,8% | 53,0% |
+
+*Jardim Canadá*
+
+| Indicador | Antes (total) | Depois: balcão | Depois: balcão + teto |
+| --- | --- | --- | --- |
+| Veredito do diagnóstico para SARIMAX | ok | ok | ok |
+| Venda média por dia | 3.317 | 3.273 | 3.191 |
+| Variação diária (CV) | 1,01 | 1,00 | 0,84 |
+| Maior dia ÷ média | 13,9 | 14,1 | 4,4 |
+| Curtose (peso da cauda) | 40,2 | 43,9 | 2,7 |
+| Força do ciclo semanal (0 a 1) | 0,25 | 0,25 | 0,38 |
+| Tendência | −13%/ano | −13%/ano | −8%/ano |
+| CV² dos dias com venda (classe de demanda) | 0,67 (errática) | 0,64 (errática) | 0,40 (**suave**) |
+| **MASE SARIMAX** | **0,659** | 0,656 | **0,646** |
+| WAPE SARIMAX | 47,3% | 46,7% | 46,0% |
+| Erro acumulado em 14 dias, SARIMAX (média absoluta) | 27,7% | 27,0% | 25,4% |
+| MASE suavização exponencial (Holt-Winters) | 0,727 | 0,724 | 0,710 |
+| WAPE suavização exponencial | 52,2% | 51,6% | 50,6% |
+
+Leitura do antes × depois:
+
+- **Itabirito muda de natureza.** Tirar as encomendas corta a variação diária pela metade
+  (CV 2,39 → 1,25) e reduz o peso da cauda de 82,6 para 29,0. O ciclo semanal, que estava
+  escondido pelos picos, fica três vezes mais forte (0,07 → 0,20), e é justamente o que o
+  SARIMAX usa para prever. Por isso o veredito passa de "atenção" para "ok" e o erro
+  percentual (WAPE) cai de 92% para 61%.
+- **Em Jardim Canadá, quem ajuda é o teto, não a separação.** Quase não há encomenda ali. O
+  teto reduz o maior dia de 14 para 4,4 vezes a média e torna a série "suave" na
+  classificação de demanda (CV² < 0,49), mas o ganho de previsão é pequeno (MASE 0,659 →
+  0,646).
+- **A tendência muda de figura.** Em Itabirito, os +54%/ano eram quase todos encomenda: a
+  média dos últimos 90 dias do balcão (910) é só 18% maior que a dos primeiros 90 (774).
+
+Leitura do teste por variante:
+
+- **Itabirito passa a bater a previsão ingênua** com os dois modelos (0,80 e 0,69). Quem
+  resolve é a separação; o teto sozinho quase não ajuda e, depois da separação, acrescenta
+  de 1% a 2%.
+- **Jardim Canadá praticamente não muda**, o que é esperado com 1,3% de encomendas. A
+  regra não estraga a série que já estava boa.
+- **O resultado não depende do número 5**: com limite de 3 ou 10 dias típicos, o MASE de
+  Itabirito fica entre 0,79 e 0,80.
+- **A "tendência de alta" de Itabirito era, em boa parte, encomenda.** Sem elas, a venda de
+  balcão cresce cerca de +8% ao ano, e não +54%. As encomendas saltaram de 68 mil unidades
+  em 2024 para 377 mil em 2025 (seções 3.0 e 3.5).
+- **Limite honesto**: o sistema passa a prever a venda de balcão, não as encomendas.
+  Comparada à venda total, a previsão de Itabirito volta a ter MASE 1,26, porque a
+  encomenda continua imprevisível pelo histórico. Para prevê-la seria preciso a carteira de
+  pedidos já combinados (pergunta 9 da seção 5).
+
+**Apoio na literatura.** Separar a demanda regular da gerada por poucos clientes grandes, e
+tratar esta com a informação do próprio pedido, é a recomendação de Bartezzaghi e Verganti
+(1995), Bartezzaghi, Verganti e Zotteri (1999) e Kalchschmidt, Zotteri e Verganti (2003,
+2006). Que picos distorcem o ajuste e as previsões do ARIMA é mostrado por Chen e Liu (1993).
+Hyndman e Athanasopoulos (2021, §13.9) alertam para não apagar picos sem entender a causa.
+Nenhum desses trabalhos usa exatamente o limite "5 dias típicos": ele é uma escolha deste
+projeto, próxima dos filtros robustos baseados em mediana (filtro de Hampel). As referências
+completas estão no [ADR-012](ADR-012-encomendas-grandes-fora-do-l1.md).
 
 ---
 
@@ -700,6 +852,7 @@ desagregação para o SKU (seção 2.5).
 | 9 | Apresentar Plantas diversas e Insumos e acessórios como grupos do painel (não como série própria), somando a previsão dos produtos de cada um; reavaliar Insumos e acessórios com mais histórico | Média |
 | 10 | **Decidido**: o L1 ajusta 2 séries (por unidade), não 6 — a separação por categoria não melhora a acurácia (seção 3.11), a por unidade é apoiada; `categoria` passa a nível de desagregação (seção 3.0) | Alta |
 | 11 | Definir com a floricultura a regra de tratamento das vendas com quantidade negativa (devoluções) | Baixa |
+| 12 | **Decidido (ADR-012)**: separar da série do L1 as linhas de encomenda (linha > 5 dias típicos da unidade × categoria, limite calculado no treino) e limitar ao 99º percentil os picos restantes do balcão, só no treino. A participação da desagregação passa a ser calculada sobre o balcão; o painel informa que encomendas não estão incluídas. Substitui, para Itabirito, os itens 2, 5 e 8 (seção 3.12) | Alta |
 
 ---
 
@@ -732,6 +885,12 @@ desagregação para o SKU (seção 2.5).
 8. **Vale revisar manualmente a categorização dos produtos que caíram em "Outros"** (1,3% do
    volume)? Isso afeta apenas a distribuição da previsão entre produtos, não a previsão
    agregada por categoria.
+9. **As vendas grandes de Grama em Itabirito são encomendas sob pedido?** (seção 3.12) São 80
+   linhas (36% do volume da unidade), a maioria paga por boleto e concentrada em poucos
+   clientes. Elas saem do estoque da loja ou são pedidas ao fornecedor depois de fechadas
+   com o cliente? Existe algum registro dessas encomendas **antes** da venda (orçamento,
+   pedido, agenda de entrega)? Se existir, ele permitiria incluir as encomendas já
+   combinadas na previsão.
 
 ---
 

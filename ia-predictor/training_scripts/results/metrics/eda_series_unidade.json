@@ -1,5 +1,5 @@
 {
-  "gerado_em": "2026-09-21T11:34:17",
+  "gerado_em": "2026-09-23T09:40:01",
   "nota": "L1 = 2 séries por unidade (ADR-011, 2026-09-21); categoria e SKU são obtidos por desagregação (eda_series.py e o L2 original).",
   "n_series_l1": 2,
   "por_unidade": {

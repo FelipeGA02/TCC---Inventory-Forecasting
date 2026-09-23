@@ -853,6 +853,18 @@ pertence ao backend de produção, ou porque depende de decisões de modelagem a
   As colunas cruas já ficam no CSV para não reprocessar depois.
 - **Desagregação para SKU (L2)** — usa `produto_cod` do CSV da Etapa 3 + histórico; fora
   deste pipeline.
+- **Separação das encomendas grandes e teto de picos** ([ADR-012](ADR-012-encomendas-grandes-fora-do-l1.md),
+  2026-09-23). O código fica em `preprocessing/encomendas.py`, mas é aplicado **ao montar
+  a série**, não gravado como coluna no CSV da Etapa 3. O motivo é que o limiar depende do
+  período de treino: uma linha é encomenda quando `qtdade` > 5 × a mediana do volume
+  diário (seg–sáb) da sua `unidade × categoria`, **calculada só com o treino**. Gravar uma
+  marca fixa no CSV, calculada com a base inteira, vazaria informação do futuro para o
+  walk-forward. Pelo mesmo motivo, o teto (winsorização no p99 dos dias abertos) só é
+  aplicado à série de balcão do treino. Por que isso é necessário: em Itabirito, 80
+  linhas (36% do volume, quase todas Grama de obra faturada por boleto) levavam o MASE a
+  1,434; separadas, ele cai para 0,796 (`00-eda_report.md` §3.12). A regra usa só
+  `qtdade`, `unidade`, `categoria` e `data`, colunas que já saem da Etapa 3, então não é
+  preciso manter `cliente_cod` nem `pagamento` no schema reduzido.
 
 ---
 
@@ -867,6 +879,7 @@ ia-predictor/training_scripts/
 │   ├── build_dataset.py        # Etapa 1 — parsing + dedup entre arquivos + log + idempotência por hash
 │   ├── reduce_schema.py        # Etapa 2 — remove 11 colunas → CSV de 9 colunas
 │   ├── map_taxonomy.py         # Etapa 3 — deriva unidade (L1) + categoria/categoria_fina (desagregação) + diagnóstico (% "Outros", cobertura ≥180d por unidade e por par)
+│   ├── encomendas.py           # funções puras (ADR-012): limiar de encomenda por unidade × categoria, marcação das linhas, teto p99 — aplicadas ao montar a série, com o treino
 │   └── taxonomy/               # tabelas de/para versionadas (curadas à mão)
 │       ├── __init__.py
 │       ├── unidades.py         # empresa → unidade (2 unidades, fechado) (+ NORMALIZE_EMPRESA)

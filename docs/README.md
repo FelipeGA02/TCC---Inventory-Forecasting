@@ -33,6 +33,7 @@ uma nova ADR, use o próximo número livre (o maior `ADR-0NN` já usado em qualq
 | [ADR-009](prediction/ADR-009-granularidade-diaria-e-reposicao.md) | predição | Granularidade **diária** e política de reposição perecível (hierárquico L1/L2/L3) — revisa ADR-001 e ADR-004; **L3 revisado por ADR-011** |
 | [ADR-010](prediction/ADR-010-exogenas-nominais-fora-do-l1.md) | predição | `pagamento`/`vendedor` fora das exógenas; `empresa` vira chave `unidade`; Etapa 3 removida do pipeline |
 | [ADR-011](prediction/ADR-011-escopo-previsao-sem-reposicao.md) | predição | Escopo: **previsão de demanda diária, sem camada de reposição L3**; 2 unidades (Jardim Canadá e Itabirito); L1 por **unidade** (2 séries) — categoria e grupos do cliente via desagregação L2 — revisa ADR-009 |
+| [ADR-012](prediction/ADR-012-encomendas-grandes-fora-do-l1.md) | predição | Encomendas grandes (linha > 5 dias típicos da unidade × categoria) **fora da série do L1** + teto p99 nos picos do balcão, só no treino — Itabirito MASE 1,434 → 0,796 |
 
 ## Documentos "a criar" com caminho fixo (não mover ao criar)
 

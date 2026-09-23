@@ -1,0 +1,364 @@
+{
+  "gerado_em": "2026-09-23T11:09:22",
+  "parametros": {
+    "N_FOLDS": 26,
+    "HORIZONTE": 14,
+    "K_DIAS_TIPICOS": 5,
+    "QUANTIL_TETO": 0.99,
+    "regra_encomenda": "linha com qtdade > K × mediana do volume diário (dias com venda, seg–sáb) da unidade × categoria, calculada no treino",
+    "regra_teto": "série de balcão do treino limitada ao p99 dos dias abertos"
+  },
+  "1_perfil": {
+    "k_dias_tipicos": 5,
+    "por_par": {
+      "Itabirito · Flores de corte": {
+        "limiar_qtd_linha": 155.0,
+        "linhas_encomenda": 4,
+        "pct_volume_encomenda": 4.2,
+        "dias_com_encomenda": 4
+      },
+      "Itabirito · Grama": {
+        "limiar_qtd_linha": 1015.0,
+        "linhas_encomenda": 68,
+        "pct_volume_encomenda": 67.7,
+        "dias_com_encomenda": 49
+      },
+      "Itabirito · Produtos de jardim": {
+        "limiar_qtd_linha": 3078.8,
+        "linhas_encomenda": 8,
+        "pct_volume_encomenda": 9.1,
+        "dias_com_encomenda": 8
+      },
+      "Jardim Canadá · Flores de corte": {
+        "limiar_qtd_linha": 160.0,
+        "linhas_encomenda": 12,
+        "pct_volume_encomenda": 17.8,
+        "dias_com_encomenda": 7
+      },
+      "Jardim Canadá · Grama": {
+        "limiar_qtd_linha": 7013.8,
+        "linhas_encomenda": 1,
+        "pct_volume_encomenda": 1.2,
+        "dias_com_encomenda": 1
+      },
+      "Jardim Canadá · Produtos de jardim": {
+        "limiar_qtd_linha": 8265.0,
+        "linhas_encomenda": 1,
+        "pct_volume_encomenda": 1.0,
+        "dias_com_encomenda": 1
+      }
+    },
+    "por_unidade": {
+      "Itabirito": {
+        "linhas_encomenda": 80,
+        "pct_volume_encomenda": 36.3,
+        "dias_com_encomenda": 58,
+        "clientes_distintos_encomenda": 25,
+        "pct_volume_encomenda_maior_cliente": 70.7,
+        "pct_linhas_boleto": {
+          "encomenda": 65.0,
+          "balcao": 1.4
+        },
+        "pct_linhas_consumidor_final": {
+          "encomenda": 7.5,
+          "balcao": 90.5
+        },
+        "cv": {
+          "total": 2.4,
+          "balcao": 1.25,
+          "balcao_teto": 1.11
+        }
+      },
+      "Jardim Canadá": {
+        "linhas_encomenda": 14,
+        "pct_volume_encomenda": 1.3,
+        "dias_com_encomenda": 9,
+        "clientes_distintos_encomenda": 7,
+        "pct_volume_encomenda_maior_cliente": 43.1,
+        "pct_linhas_boleto": {
+          "encomenda": 7.1,
+          "balcao": 3.6
+        },
+        "pct_linhas_consumidor_final": {
+          "encomenda": 21.4,
+          "balcao": 74.2
+        },
+        "cv": {
+          "total": 1.02,
+          "balcao": 1.0,
+          "balcao_teto": 0.84
+        }
+      }
+    }
+  },
+  "2_teste_previsao": {
+    "Jardim Canadá · sarimax": {
+      "original": {
+        "mase": 0.6586270290633204,
+        "wape_pct": 47.26137706114667,
+        "abs_erro_acumulado_14d_pct": 27.683674925126123
+      },
+      "so_teto": {
+        "mase": 0.6484489930386015,
+        "wape_pct": 46.52323932300979,
+        "abs_erro_acumulado_14d_pct": 26.044272592361814
+      },
+      "so_separar": {
+        "mase": 0.6557019891395998,
+        "wape_pct": 46.67172059409857,
+        "abs_erro_acumulado_14d_pct": 26.967651058645625
+      },
+      "separar_teto": {
+        "mase": 0.6457789478351844,
+        "wape_pct": 45.95754620358158,
+        "abs_erro_acumulado_14d_pct": 25.35241527786957
+      },
+      "separar_teto_vs_total": {
+        "mase": 0.6458884371331561,
+        "wape_pct": 46.3365982745076,
+        "abs_erro_acumulado_14d_pct": 25.844310379558262
+      }
+    },
+    "Jardim Canadá · ets": {
+      "original": {
+        "mase": 0.7265812767874678,
+        "wape_pct": 52.23468368103662,
+        "abs_erro_acumulado_14d_pct": 34.95792293456875
+      },
+      "so_teto": {
+        "mase": 0.7133002810174489,
+        "wape_pct": 51.267567968873394,
+        "abs_erro_acumulado_14d_pct": 32.97585125048603
+      },
+      "so_separar": {
+        "mase": 0.7236102558945476,
+        "wape_pct": 51.59378679750398,
+        "abs_erro_acumulado_14d_pct": 33.77850002289884
+      },
+      "separar_teto": {
+        "mase": 0.7102172317534247,
+        "wape_pct": 50.626224686520814,
+        "abs_erro_acumulado_14d_pct": 31.817826012800317
+      },
+      "separar_teto_vs_total": {
+        "mase": 0.7087365662137408,
+        "wape_pct": 50.93530022180519,
+        "abs_erro_acumulado_14d_pct": 32.22442249487488
+      }
+    },
+    "Itabirito · sarimax": {
+      "original": {
+        "mase": 1.4336090977652534,
+        "wape_pct": 91.61898338743765,
+        "abs_erro_acumulado_14d_pct": 47.368927086684025
+      },
+      "so_teto": {
+        "mase": 1.4006963386869944,
+        "wape_pct": 89.42718716162823,
+        "abs_erro_acumulado_14d_pct": 45.854550703412656
+      },
+      "so_separar": {
+        "mase": 0.8098340853688792,
+        "wape_pct": 62.37645473702425,
+        "abs_erro_acumulado_14d_pct": 32.17044418455735
+      },
+      "separar_teto": {
+        "mase": 0.7957191593037437,
+        "wape_pct": 61.28434123013184,
+        "abs_erro_acumulado_14d_pct": 30.420158603882058
+      },
+      "separar_teto_vs_total": {
+        "mase": 1.257583211966409,
+        "wape_pct": 79.74699315110483,
+        "abs_erro_acumulado_14d_pct": 39.681720577335795
+      }
+    },
+    "Itabirito · ets": {
+      "original": {
+        "mase": 1.310695458685944,
+        "wape_pct": 84.41011797191501,
+        "abs_erro_acumulado_14d_pct": 42.40239773639715
+      },
+      "so_teto": {
+        "mase": 1.2826765224358945,
+        "wape_pct": 82.53266517575798,
+        "abs_erro_acumulado_14d_pct": 40.41558071804205
+      },
+      "so_separar": {
+        "mase": 0.6985268029856843,
+        "wape_pct": 53.80996430850521,
+        "abs_erro_acumulado_14d_pct": 21.471327083139144
+      },
+      "separar_teto": {
+        "mase": 0.6879653245280389,
+        "wape_pct": 52.99232321167956,
+        "abs_erro_acumulado_14d_pct": 20.805440203676504
+      },
+      "separar_teto_vs_total": {
+        "mase": 1.197367673355824,
+        "wape_pct": 76.51506194724449,
+        "abs_erro_acumulado_14d_pct": 40.13180098376892
+      }
+    }
+  },
+  "2a_sensibilidade_k_sarimax": {
+    "Jardim Canadá": {
+      "3": {
+        "mase": 0.6567601992000491,
+        "wape_pct": 44.80021696875182,
+        "abs_erro_acumulado_14d_pct": 26.172613243684438
+      },
+      "5": {
+        "mase": 0.6457789478351844,
+        "wape_pct": 45.95754620358158,
+        "abs_erro_acumulado_14d_pct": 25.35241527786957
+      },
+      "10": {
+        "mase": 0.640441061472132,
+        "wape_pct": 46.11402476259186,
+        "abs_erro_acumulado_14d_pct": 25.682624954301506
+      }
+    },
+    "Itabirito": {
+      "3": {
+        "mase": 0.795346775003677,
+        "wape_pct": 56.169528705140394,
+        "abs_erro_acumulado_14d_pct": 29.80617210102434
+      },
+      "5": {
+        "mase": 0.7957191593037437,
+        "wape_pct": 61.28434123013184,
+        "abs_erro_acumulado_14d_pct": 30.420158603882058
+      },
+      "10": {
+        "mase": 0.7893729047804852,
+        "wape_pct": 65.28864099956392,
+        "abs_erro_acumulado_14d_pct": 31.960414900871676
+      }
+    }
+  },
+  "3_antes_depois": {
+    "Jardim Canadá": {
+      "antes_total": {
+        "media_diaria": 3317.1563244613435,
+        "cv": 1.0143790180977545,
+        "p99": 14441.040000000003,
+        "razao_max_media": 13.884935015077774,
+        "assimetria": 4.3761090144308366,
+        "curtose": 40.247667833243014,
+        "forca_sazonal_semanal": 0.24866675499436997,
+        "acf_lag7": 0.27627134800782543,
+        "ljung_box_lag7_pvalue": 1.9901246100312033e-18,
+        "tendencia_pct_ano": -13.149159551223741,
+        "media_primeiros_90d": 4080.706111111111,
+        "media_ultimos_90d": 2586.001111111111,
+        "dias_acima_3sigma": 11,
+        "adi": 1.2138461538461538,
+        "cv2": 0.6725519513706717,
+        "classe_sbc": "erratico",
+        "veredito_sarimax": "ok"
+      },
+      "depois_balcao": {
+        "media_diaria": 3273.0435234474016,
+        "cv": 0.9958638323369434,
+        "p99": 13591.320000000003,
+        "razao_max_media": 14.072070740901093,
+        "assimetria": 4.471735130467552,
+        "curtose": 43.91643459786353,
+        "forca_sazonal_semanal": 0.2531697952273507,
+        "acf_lag7": 0.27762311673482587,
+        "ljung_box_lag7_pvalue": 4.262281702436465e-19,
+        "tendencia_pct_ano": -13.373747507800646,
+        "media_primeiros_90d": 4080.706111111111,
+        "media_ultimos_90d": 2586.001111111111,
+        "dias_acima_3sigma": 9,
+        "adi": 1.2138461538461538,
+        "cv2": 0.6418418243241681,
+        "classe_sbc": "erratico",
+        "veredito_sarimax": "ok"
+      },
+      "depois_balcao_teto": {
+        "media_diaria": 3190.940177439797,
+        "cv": 0.8354662990985589,
+        "p99": 13591.320000000003,
+        "razao_max_media": 4.435614337137486,
+        "assimetria": 1.3302012593992292,
+        "curtose": 2.684172318554756,
+        "forca_sazonal_semanal": 0.38350054448565296,
+        "acf_lag7": 0.37635569824421417,
+        "ljung_box_lag7_pvalue": 5.490959731289925e-36,
+        "tendencia_pct_ano": -7.808370209858924,
+        "media_primeiros_90d": 3464.4796666666666,
+        "media_ultimos_90d": 2586.001111111111,
+        "dias_acima_3sigma": 12,
+        "adi": 1.2138461538461538,
+        "cv2": 0.3994771391546897,
+        "classe_sbc": "suave",
+        "veredito_sarimax": "ok"
+      }
+    },
+    "Itabirito": {
+      "antes_total": {
+        "media_diaria": 1677.4272116603297,
+        "cv": 2.394153196743998,
+        "p99": 20947.440000000002,
+        "razao_max_media": 37.23321021970342,
+        "assimetria": 7.6383475183949265,
+        "curtose": 82.59675442152152,
+        "forca_sazonal_semanal": 0.06708420781249336,
+        "acf_lag7": 0.18649884556448348,
+        "ljung_box_lag7_pvalue": 4.184858435615982e-06,
+        "tendencia_pct_ano": 54.46667877813295,
+        "media_primeiros_90d": 892.2286666666666,
+        "media_ultimos_90d": 3033.0138888888887,
+        "dias_acima_3sigma": 16,
+        "adi": 1.2082695252679938,
+        "cv2": 4.578590969184855,
+        "classe_sbc": "erratico",
+        "veredito_sarimax": "atencao"
+      },
+      "depois_balcao": {
+        "media_diaria": 1068.6008491761725,
+        "cv": 1.2448660887888399,
+        "p99": 7165.920000000002,
+        "razao_max_media": 13.392278333891394,
+        "assimetria": 4.4755854704841065,
+        "curtose": 28.957382604549554,
+        "forca_sazonal_semanal": 0.19520518124901232,
+        "acf_lag7": 0.1673756879690863,
+        "ljung_box_lag7_pvalue": 0.0002163350427305183,
+        "tendencia_pct_ano": 8.259952969434433,
+        "media_primeiros_90d": 773.6508888888889,
+        "media_ultimos_90d": 910.125,
+        "dias_acima_3sigma": 16,
+        "adi": 1.2082695252679938,
+        "cv2": 1.1119037776264395,
+        "classe_sbc": "erratico",
+        "veredito_sarimax": "ok"
+      },
+      "depois_balcao_teto": {
+        "media_diaria": 1043.0437300380229,
+        "cv": 1.105258357414091,
+        "p99": 7165.920000000002,
+        "razao_max_media": 7.246694249074733,
+        "assimetria": 3.0987219392828123,
+        "curtose": 12.673179003266018,
+        "forca_sazonal_semanal": 0.23509073212127962,
+        "acf_lag7": 0.21429735189356006,
+        "ljung_box_lag7_pvalue": 2.304627887550223e-07,
+        "tendencia_pct_ano": 9.81577856193947,
+        "media_primeiros_90d": 773.0144333333333,
+        "media_ultimos_90d": 910.125,
+        "dias_acima_3sigma": 19,
+        "adi": 1.2082695252679938,
+        "cv2": 0.8399456180163932,
+        "classe_sbc": "erratico",
+        "veredito_sarimax": "ok"
+      }
+    }
+  },
+  "graficos": [
+    "ia-predictor/training_scripts/results/plots/eda/25_encomendas_series.png",
+    "ia-predictor/training_scripts/results/plots/eda/26_encomendas_mase.png"
+  ]
+}

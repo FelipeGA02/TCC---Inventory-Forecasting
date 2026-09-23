@@ -41,6 +41,11 @@ def main() -> None:
     print("EDA 5 — classificação de demanda por SKU (Syntetos, Boylan & Croston, 2005)")
     print("=" * 72)
     eda_classificacao_sku.main()
+    print()
+    print("=" * 72)
+    print("EDA 6 — encomendas grandes: separar do balcão + teto (ADR-012)")
+    print("=" * 72)
+    eda_encomendas.main()
 
 
 if __name__ == "__main__":

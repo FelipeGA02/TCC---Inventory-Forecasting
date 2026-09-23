@@ -222,7 +222,8 @@ Ver `docs/prediction/ADR-009-granularidade-diaria-e-reposicao.md` para o raciona
 
 | Decisão | Valor | Motivo |
 | --- | --- | --- |
-| Alvo | qtd diária somada por `unidade` (todas as categorias) | série densa (poucos zeros), ao contrário de SKU e categoria isolados; separar por categoria não reduz o erro (ADR-011 §4, `eda_separacao.py`) |
+| Alvo | qtd diária somada por `unidade` (todas as categorias) **de balcão** — sem as linhas de encomenda | série densa (poucos zeros), ao contrário de SKU e categoria isolados; separar por categoria não reduz o erro (ADR-011 §4, `eda_separacao.py`) |
+| Encomendas grandes | linha com `qtdade` > 5 × mediana diária (seg–sáb) da `unidade × categoria`, limiar do treino → sai da série do L1 (fluxo à parte, não previsto); balcão restante com teto no p99 dos dias abertos, só no treino | Itabirito: 36% do volume em 80 linhas (Grama de obra, boleto) → MASE 1,434 → 0,796. ADR-012, `preprocessing/encomendas.py`, `eda_encomendas.py` |
 | m (período sazonal) | 7 | sazonalidade semanal. **EDA (2026-09-21, `docs/prediction/00-eda_report.md` §3.3): o padrão é de dia útil — pico em ter–qui para Grama e para Produtos de jardim em Jardim Canadá (em Itabirito, Produtos de jardim tem semana mais uniforme) — e sexta para Flores de corte; sábado fraco; domingo = loja fechada (0).** Não "fim de semana vende mais". Ciclo real mas fraco na variância (Fs ≤ 0.29) — dummies de dia-da-semana como exógenas pesam mais que os termos P/Q |
 | D (diferenciação sazonal) | 0 | histórico < 3 ciclos anuais; P/Q semanais capturam o padrão |
 | d (diferenciação regular) | 0 ou 1 (via ADF) | limitado a 1 para não consumir dados de treino |

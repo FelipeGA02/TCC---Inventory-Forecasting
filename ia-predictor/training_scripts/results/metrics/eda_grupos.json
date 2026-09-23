@@ -1,5 +1,5 @@
 {
-  "gerado_em": "2026-09-21T11:38:31",
+  "gerado_em": "2026-09-23T10:22:44",
   "parametros": {
     "N_FOLDS": 26,
     "HORIZONTE": 14,
@@ -715,7 +715,7 @@
     "menor_ganho_pct": -4.8,
     "mediana_ganho_pct": 3.4,
     "abrir_em_4_categorias": false,
-    "conclusao": "manter 3 categorias no L1; Plantas diversas e Insumos e acessórios saem da desagregação (categoria_fina)"
+    "conclusao": "manter 3 categorias na desagregação da unidade (o L1 prevê a unidade — ADR-011); Plantas diversas e Insumos e acessórios ficam só como categoria_fina, sem nível próprio"
   },
   "3c_veredito_robustez_ets": {
     "regra": "abrir em 4 categorias se séries viáveis (≥ 180 dias e ≤ 12% de dias úteis zerados) E modelo direto ganha ≥ 5% de MASE da melhor repartição em cada filho/unidade/previsor E soma dos filhos não piora o pai em mais de 2%",
@@ -731,7 +731,7 @@
     "menor_ganho_pct": -4.0,
     "mediana_ganho_pct": -0.6,
     "abrir_em_4_categorias": false,
-    "conclusao": "manter 3 categorias no L1; Plantas diversas e Insumos e acessórios saem da desagregação (categoria_fina)"
+    "conclusao": "manter 3 categorias na desagregação da unidade (o L1 prevê a unidade — ADR-011); Plantas diversas e Insumos e acessórios ficam só como categoria_fina, sem nível próprio"
   },
   "4_arvores": {
     "skus_estimados": 299,

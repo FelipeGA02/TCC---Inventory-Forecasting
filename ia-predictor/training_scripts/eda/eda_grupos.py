@@ -354,8 +354,9 @@ def _veredito(viab: dict, testes: dict) -> dict:
         "abrir_em_4_categorias": abrir,
         "conclusao": ("abrir Produtos de jardim em Plantas diversas e Insumos e acessórios"
                       if abrir else
-                      "manter 3 categorias no L1; Plantas diversas e Insumos e acessórios saem "
-                      "da desagregação (categoria_fina)"),
+                      "manter 3 categorias na desagregação da unidade (o L1 prevê a unidade — "
+                      "ADR-011); Plantas diversas e Insumos e acessórios ficam só como "
+                      "categoria_fina, sem nível próprio"),
     }
 
 

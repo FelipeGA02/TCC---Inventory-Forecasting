@@ -5,7 +5,7 @@
 
 > **Resumo em uma frase:** com os dados como estavam antes do estudo (EDA), o modelo
 > aprendeu o ritmo da semana, mas é só um pouco melhor que "repetir a semana passada",
-> não enxerga as encomendas grandes nem o Natal, e dá uma faixa de segurança larga demais
+> não enxerga as encomendas grandes nem as mudanças de temporada, e dá uma faixa de segurança larga demais
 > para ser usada. Pelas regras formais do projeto ele "passaria", mas por um erro de
 > régua. Este é o **ponto zero** contra o qual vamos medir as melhorias.
 
@@ -135,7 +135,12 @@ dezembro:
 - ele previu **99 mil** unidades, e foram vendidas **295 mil** (34%);
 - **53%** do que foi vendido em dezembro veio de encomendas grandes, e nenhuma foi prevista;
 - mesmo **sem as encomendas**, o modelo previu cerca de 28% a menos que o balcão vendeu.
-  Ele não sabe que dezembro é época de Natal, porque não recebeu calendário;
+  **Não é efeito de Natal**: o EDA (§3.4) mostra que grama e produtos de jardim até vendem
+  menos em volta do Natal. O que houve foram duas coisas. Primeiro, o fim de 2025 foi uma
+  temporada alta (balcão de 5,8 a 7,0 mil por dia de setembro a dezembro, contra 3,5 mil em
+  janeiro), e o modelo puxa a previsão para o nível médio do histórico. Segundo, 27% do
+  balcão de dezembro veio de 35 vendas médias (500 unidades ou mais), grandes, mas abaixo do
+  limite que define encomenda;
 - a regra simples de "repetir a semana passada" se saiu **igual** ao modelo.
 
 É o mês em que a floricultura mais precisa de uma boa previsão, e é onde o modelo falha.
@@ -194,20 +199,41 @@ Em ordem de impacto esperado:
 2. **Pôr um teto nos dias fora do comum** que sobram no balcão, só na hora de ensinar o
    modelo. Na hora de medir o erro, os valores reais continuam intactos.
 3. **Ensinar o calendário ao modelo.** Feriados, véspera de feriado e datas comemorativas
-   (Natal, Dia das Mães, Namorados, Finados). Resolve a falha de dezembro no balcão.
-4. **Uma previsão por loja** (Jardim Canadá, com o Garden Center incluído, e Itabirito). As
+   (Dia das Mães, Namorados, Finados, Natal). Atenção: o efeito muda de sentido conforme o
+   tipo de produto (EDA §3.4), e o calendário **não** resolve a falha de dezembro de 2025,
+   que foi temporada alta e vendas médias, não Natal (§4.3).
+4. **Acompanhar mudanças de nível.** O modelo demora a perceber quando a loja entra numa
+   fase de venda mais alta ou mais baixa, como no fim de 2025. Vale testar dar mais peso às
+   semanas recentes, ou incluir tendência (EDA §4, item 5).
+5. **Uma previsão por loja** (Jardim Canadá, com o Garden Center incluído, e Itabirito). As
    lojas têm tamanhos e comportamentos diferentes, e é por loja que a reposição é feita.
-5. **Corrigir um detalhe do teste.** A escolha da melhor configuração do modelo foi feita
+6. **Corrigir um detalhe do teste.** A escolha da melhor configuração do modelo foi feita
    uma vez só, com os dados até 31/01. Por isso, nas rodadas 1 e 2, essa escolha já tinha
    "visto" os dias que depois foram testados. O modelo em si não viu as respostas, e o
    efeito deve ser pequeno, mas o certo é refazer a escolha dentro de cada rodada.
-6. **Medir de um jeito justo e igual para todos os treinos:**
+7. **Medir de um jeito justo e igual para todos os treinos:**
    - modelo × regra simples **no mesmo período** (e em quantas rodadas o modelo ganha);
    - **largura da faixa de segurança**, e não só quantas vezes ela acerta;
    - incluir **dezembro** entre os testes, porque um modelo que só funciona em mês calmo não
      serve;
    - como os próximos treinos preveem por loja, **somar as previsões das lojas** e comparar
      com este total, nas mesmas datas.
+
+### O que disso já estava previsto no EDA
+
+| Problema | Previsto no EDA? | Onde |
+| --- | --- | --- |
+| Encomendas grandes misturadas à venda do dia a dia | **Sim**, com a regra de separação já decidida | EDA §3.7 e §3.12; ADR-012 |
+| Picos restantes do balcão | **Sim** (teto no 99º percentil, só no treino) | EDA §3.2 e §4, itens 2 e 12 |
+| Uma previsão por loja, Garden Center junto de Jardim Canadá | **Sim** | EDA §3.0, §3.11 e §4, item 10 |
+| Calendário e datas comemorativas | **Sim**, com o efeito calculado por categoria | EDA §3.3, §3.4 e §4, itens 3 e 4 |
+| Encomendas continuam imprevisíveis mesmo depois | **Sim** (o "limite honesto": para prevê-las seria preciso a carteira de pedidos) | EDA §3.12; §5, pergunta 9 |
+| Mudança de nível no fim de 2025 | **Em parte** (o EDA sugere ajuste de tendência, mas não fala da temporada alta de set–dez/2025) | EDA §3.5 e §4, item 5 |
+| Vendas médias (500 ou mais) abaixo do limite de encomenda | **Em parte** (o teto do balcão atenua; ninguém mediu o peso delas em dezembro) | este documento, §4.3 |
+| MASE inflado pela escala do treino | **Não** (o EDA mede com MASE, WAPE e erro acumulado; só um aviso indireto no "limite honesto") | este documento, §4.4 |
+| Faixa de segurança (IC 95%) larga demais | **Não** (o EDA não avaliou a faixa) | este documento, §4.5 |
+| Escolha da configuração dentro de cada rodada | **Não se aplica ao EDA**: lá a configuração foi fixada de antemão, sem escolha | este documento, §5, item 6 |
+| Testar também em dezembro | **Sim** (o EDA usa 26 rodadas cobrindo um ano inteiro) | `eda_grupos.py`, `N_FOLDS = 26` |
 
 ---
 

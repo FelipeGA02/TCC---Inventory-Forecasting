@@ -20,6 +20,14 @@ disco (não é um relatório de execução — é um raio-x do que existe hoje).
 > já era de categoria. Ver [ADR-011 §4](../prediction/ADR-011-escopo-previsao-sem-reposicao.md)
 > e a constituição v3.0.0. Onde este raio-x fala em "L1 por unidade × categoria", leia
 > "L1 por unidade; categoria por desagregação".
+>
+> **Atualização 2026-09-27: primeiro treino reproduzível (ponto zero).** O EDA está
+> concluído ([00-eda_report.md](../prediction/00-eda_report.md)). Foi treinado e salvo o
+> baseline **A0-crua**: SARIMA puro sobre 1 série diária total, com a base pré-EDA de
+> 2026-08-30, em `training_scripts/baseline/sarimax_serie_crua.py`. Métricas, previsões e
+> gráficos estão em `training_scripts/results/`. Ganho de ~17–18% sobre a naïve na mesma
+> janela, dezembro/2025 previsto em 34%. Diagnóstico completo em
+> [02-baseline_serie_crua_pre_eda.md](../prediction/02-baseline_serie_crua_pre_eda.md).
 
 ---
 
@@ -223,10 +231,10 @@ backend real.
 | --- | --- |
 | Levantar/validar requisitos com stakeholders | ✅ Feito — `SPECS.md`, `spec.md`, reuniões documentadas |
 | Pipeline automatizado de ingestão (dedup, normalização, discretização) | ⚠️ Existiu uma versão (protótipo, deletada); versão de produção não iniciada |
-| EDA (sazonalidade, tendência, comportamento por unidade) | ⚠️ Feito uma vez no protótipo (`notebooks/01_EDA...`, hoje órfão/gitignored); `docs/eda_report.md` formal não existe |
+| EDA (sazonalidade, tendência, comportamento por unidade) | ✅ Feito: [`docs/prediction/00-eda_report.md`](../prediction/00-eda_report.md), com scripts em `training_scripts/eda/` |
 | Engenharia de atributos (exógenas de mercado/produto/tempo) | ⚠️ Especificada e prototipada; não portada para `backend/domain/features/` |
 | Ponderação de exógenas via RF (MDI) | ⚠️ Prototipada e funcional; não portada |
-| Treino SARIMAX com seleção AIC + atualização semanal | ⚠️ Treino provado no protótipo; atualização semanal nunca existiu |
+| Treino SARIMAX com seleção AIC + atualização semanal | ⚠️ Baseline diário A0-crua treinado e salvo (2026-09-27, [02-baseline](../prediction/02-baseline_serie_crua_pre_eda.md)); A0/A1 por unidade pendentes; atualização semanal nunca existiu |
 | Avaliação com MAE/RMSE/MAPE/SMAPE/R² + walk-forward + comparação mensal×diária | ⚠️ Walk-forward e métricas provados (só granularidade mensal); comparação mensal×diária (contribuição acadêmica ii) nunca foi feita |
 | Dashboard interativo | ⚠️ UI mockada, sem integração |
 | Simulação de promoções/vendas casadas | ❌ Não iniciado |
@@ -252,7 +260,9 @@ backend real.
    destino para reaproveitar essa lógica na Fase 1 do
    [plano de experimentação](../prediction/plano_experimentos_modelagem.md); o `.ipynb`
    órfão deve ser removido para não confundir.
-5. **Resultados do protótipo (`results/`) não foram preservados** — as métricas por
+5. ~~**Resultados do protótipo (`results/`) não foram preservados**~~ *(2026-09-27: a
+   partir do A0-crua, os treinos salvam métricas, previsões e gráficos em
+   `training_scripts/results/`, versionados no git)* — as métricas por
    produto citadas na seção 3.3 vêm só da memória de sessões anteriores; recomendo
    reexecutar e salvar os artefatos assim que o pipeline for reconstruído, para ter
    evidência auditável em vez de "lembrança".

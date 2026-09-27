@@ -853,6 +853,14 @@ completas estão no [ADR-012](ADR-012-encomendas-grandes-fora-do-l1.md).
 | 10 | **Decidido**: o L1 ajusta 2 séries (por unidade), não 6 — a separação por categoria não melhora a acurácia (seção 3.11), a por unidade é apoiada; `categoria` passa a nível de desagregação (seção 3.0) | Alta |
 | 11 | Definir com a floricultura a regra de tratamento das vendas com quantidade negativa (devoluções) | Baixa |
 | 12 | **Decidido (ADR-012)**: separar da série do L1 as linhas de encomenda (linha > 5 dias típicos da unidade × categoria, limite calculado no treino) e limitar ao 99º percentil os picos restantes do balcão, só no treino. A participação da desagregação passa a ser calculada sobre o balcão; o painel informa que encomendas não estão incluídas. Substitui, para Itabirito, os itens 2, 5 e 8 (seção 3.12) | Alta |
+| 13 | **Carnaval como feriado explícito** (segunda e terça, loja fechada, venda 0). É ponto facultativo, não feriado nacional por lei, e uma lista de feriados nacionais pode não trazê-lo. No primeiro treino, só 16–17/02/2026 responderam por 23% do erro de fevereiro. `eda/_common.py` já trata o Carnaval, mas faltava registrar | Alta |
+| 14 | **Medir de forma comparável entre experimentos.** O MASE usa a escala da naïve *no treino*: quando o treino tem picos de encomenda, essa escala infla e o MASE fica otimista (0,40 no primeiro treino, contra ganho real de 18% sobre a naïve). Reportar também o erro relativo à naïve **na mesma janela de teste**, em quantas rodadas o modelo vence a naïve e, entre alvos diferentes (total × por unidade), o erro no total somado nas mesmas datas | Alta |
+| 15 | Avaliar a **largura** do intervalo de 95% junto com a cobertura: no primeiro treino a cobertura "passou" (96%) com uma faixa de ~80 mil para venda média de ~3 mil/dia | Média |
+| 16 | **Mudança de nível**: set–dez/2025 foi temporada alta no balcão (5,8 a 7,0 mil/dia, contra 3,5 mil em jan/2026), e o modelo puxa a previsão para a média do histórico. Complementa o item 5 (tendência): testar peso maior para as semanas recentes | Média |
+| 17 | **Vendas médias abaixo do limite de encomenda**: em dez/2025, 35 linhas de 500 ou mais unidades somaram 27% do balcão. O teto p99 (item 12) atenua; verificar se basta ou se o limite `k` precisa de ajuste sazonal | Baixa |
+
+*Itens 13–17 adicionados em 2026-09-27 a partir do primeiro treino com os dados pré-EDA
+([02-baseline_serie_crua_pre_eda.md](02-baseline_serie_crua_pre_eda.md)).*
 
 ---
 

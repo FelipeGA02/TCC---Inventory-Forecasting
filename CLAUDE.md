@@ -230,7 +230,7 @@ Ver `docs/prediction/ADR-009-granularidade-diaria-e-reposicao.md` para o raciona
 | log1p | se CV > 0.7 | estabiliza variância |
 | Grid de ordens | p,q ∈ 0..2; P,Q ∈ 0..1; m=7 | balanceia tempo e qualidade |
 | Critério de seleção | AIC | ajuste vs. parcimônia |
-| Exógenas | dummies/Fourier de dia-da-semana, feriado nacional/municipal, véspera, "dias até data comemorativa" | ponderadas por RF MDI, clip(lower=0.1) |
+| Exógenas | dummies/Fourier de dia-da-semana, feriado nacional/municipal, **Carnaval (seg/ter — ponto facultativo, loja fechada)**, véspera, "dias até data comemorativa" | ponderadas por RF MDI, clip(lower=0.1). Carnaval = 23% do erro de fev/2026 no baseline A0-crua |
 | Datas comemorativas | Dia das Mães (2º dom. maio), Namorados (12/jun), Finados (2/nov), Natal | exógena "dias até a data", substitui o `alta_temporada` binário |
 | Mínimo de observações | 180 dias | abaixo disso: `insufficient_data` para a unidade inteira |
 | Hold-out para avaliação | 28 dias | |
@@ -271,6 +271,12 @@ diária" — relatório em `docs/`.
 | Observações mínimas SKU | ≥ 28 dias com venda ou ≥ 8 vendas | fallback de rateio da categoria |
 | Ljung-Box (p-value, resíduos L1) | > 0.05 | log de aviso; não bloqueia deploy |
 | Shapiro-Wilk (p-value, resíduos L1) | > 0.05 | log de aviso; não bloqueia deploy |
+
+**Comparação entre experimentos** (A0-crua → A0 → A1 → B): além do MASE, reportar o MAE
+relativo à naïve sazonal **na mesma janela de teste**, o nº de folds em que o modelo vence a
+naïve e a **largura** do IC 95%. O MASE usa a escala do treino e fica otimista quando o treino
+tem picos: no A0-crua, MASE 0,40 correspondia a um ganho de só 18% sobre a naïve
+(`docs/prediction/02-baseline_serie_crua_pre_eda.md` §4.4).
 
 `low_confidence` ≠ falha: previsão/reposição ainda é gerada, mas com aviso visual no dashboard.
 MAPE e SMAPE continuam calculados e reportados, mas são **informativos** (instáveis com
@@ -333,5 +339,6 @@ Comandos disponíveis (invocar via Skill tool ou como `/speckit-*`):
 | `docs/prediction/plano_experimentos_modelagem.md` | Plano de experimentos: L1 baseline × enriquecido × demanda intermitente/outros modelos |
 | `docs/prediction/01-pre_processing.md` | O que os scripts de `training_scripts/preprocessing/` fazem e por quê (série diária por unidade — L1 — e por unidade×categoria — desagregação; colunas removidas) |
 | `docs/uml/` *(parcial — 2 de 5 diagramas)* | Diagramas de casos de uso, atividades, classes, modelo de dados e arquitetura lógica (seção 6.4 do artigo) |
+| `docs/prediction/02-baseline_serie_crua_pre_eda.md` | Primeiro treino (ponto zero): SARIMA puro sobre 1 série diária crua, pré-EDA. Como foi feito, resultados, diagnóstico de por que foi fraco (encomendas, Carnaval, mudança de nível, MASE inflado, IC largo) e o que resolver. Scripts em `training_scripts/baseline/` |
 | `docs/prediction/00-eda_report.md` | Relatório de EDA (T000b) — as 2 séries do L1 por unidade (§3.0, `16_series_l1_unidade.png` a `19_stl_unidade.png`), as 6 séries de desagregação `unidade×categoria` (§3.1–3.9, `10_series_l1_paineis.png` a `15_stl_par_denso.png`), granularidade das categorias (§3.10) e separação unidade/categoria (§3.11); §4 = ajustes de modelagem; §5 = questões para o cliente. Scripts em `training_scripts/eda/` |
 | `docs/database/dicionario_dados_fonte.md` | Dicionário campo a campo do relatório "Contas a Receber" (20 colunas, semântica, faixa, etapa de remoção) |

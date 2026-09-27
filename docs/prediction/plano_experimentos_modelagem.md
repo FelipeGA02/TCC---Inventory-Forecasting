@@ -36,7 +36,13 @@ Subpastas, uma por etapa da comparação:
 
 **Dados**: só `data/processed/contas_a_receber.csv` (transacional interno).
 
-- [ ] 1.1 EDA (`tasks.md` T000b, em `training_scripts/eda/`): sazonalidade semanal/anual,
+- [x] 1.0 **Modelo A0-crua: ponto zero, antes do EDA** (`training_scripts/baseline/sarimax_serie_crua.py`,
+      2026-09-27). SARIMA puro sobre **1 série** diária total (todas as lojas e categorias)
+      da base de 2026-08-30, sem separar encomendas e sem exógenas. Ganho de só ~17–18% sobre
+      a naïve na mesma janela (vence em 2 de 4 folds); dezembro/2025 previsto em 34%; IC 95%
+      de ~80 mil. Serve de referência para medir o ganho do EDA (A0), do calendário (A1) e do
+      enriquecimento (B) → [02-baseline_serie_crua_pre_eda.md](02-baseline_serie_crua_pre_eda.md)
+- [x] 1.1 EDA (`tasks.md` T000b, em `training_scripts/eda/`): sazonalidade semanal/anual,
       tendência, **% de zeros da série diária por SKU** (prova de que o SKU não pode ser
       modelado sozinho), perfil de demanda por categoria, seleção do Top-N →
       `docs/prediction/00-eda_report.md`
@@ -51,7 +57,9 @@ Subpastas, uma por etapa da comparação:
       `unidade × categoria` (perfil de desagregação), freq='D', reindex completo
       (dias sem venda = 0), ≥ 180 dias
 - [ ] 1.3 `build_calendar_exogenous()`: dummies/Fourier de dia-da-semana; flag de feriado
-      nacional; véspera de feriado
+      nacional; véspera de feriado; **Carnaval (seg/ter) explícito**. É ponto facultativo,
+      não feriado nacional, e a loja fecha: 23% do erro de fevereiro no A0-crua (EDA §4,
+      item 13)
 - [ ] 1.4 **Modelo A0 — SARIMA puro diário** (`training_scripts/baseline/`, sem exógena):
       ablação de referência, piso de desempenho
 - [ ] 1.5 **Modelo A1 — SARIMAX + calendário** (`training_scripts/baseline/`): exógenas de
@@ -59,12 +67,21 @@ Subpastas, uma por etapa da comparação:
 - [ ] 1.6 Seleção de ordem via grid AIC (`p,q ∈ 0..2`; `P,Q ∈ 0..1`; `D=0`; `m=7`)
 - [ ] 1.7 Avaliação (`training_scripts/validation/`): hold-out 28 dias + walk-forward CV
       (≥ 4 folds, origem móvel, horizonte 14 dias); métricas MASE, RMSSE, cobertura do IC,
-      MAE/RMSE; diagnóstico de resíduos Ljung-Box + Shapiro-Wilk
+      MAE/RMSE; diagnóstico de resíduos Ljung-Box + Shapiro-Wilk. Lições do A0-crua (EDA §4,
+      itens 14–15):
+      - MAE **relativo à naïve na mesma janela** e nº de folds em que o modelo vence (o MASE
+        sozinho fica otimista quando o treino tem picos);
+      - **largura** do IC 95% junto da cobertura;
+      - folds cobrindo **um ano inteiro**, dezembro incluído (como os 26 folds do EDA);
+      - seleção de ordem **dentro de cada fold** (ou ordem fixada de antemão), para a escolha
+        não ver o período testado;
+      - para comparar com o A0-crua, **somar as previsões das 2 unidades** e medir no total,
+        nas mesmas datas
 - [ ] 1.8 Consolidar `training_scripts/results/metrics/baseline_A0_A1.csv` por
       `unidade`
 
-**Checkpoint**: scorecard A0 vs A1 por `unidade`, provando que a exógena de
-calendário ajuda antes de qualquer dado externo.
+**Checkpoint**: scorecard A0-crua → A0 → A1 (no total e por `unidade`), mostrando o ganho
+dos achados do EDA e, depois, o da exógena de calendário, antes de qualquer dado externo.
 
 ---
 
@@ -76,7 +93,7 @@ Nenhuma envolve dado pessoal de cliente → sem conflito com Princípio VI/LGPD.
 
 | Fonte | Dado | API/acesso | Observação |
 | --- | --- | --- | --- |
-| Feriados nacionais | Datas exatas | [BrasilAPI](https://brasilapi.com.br/api/feriados/v1/{ano}) — gratuita | Nível nacional |
+| Feriados nacionais | Datas exatas | [BrasilAPI](https://brasilapi.com.br/api/feriados/v1/{ano}) — gratuita | Nível nacional. **Conferir se traz o Carnaval** (ponto facultativo); se não trouxer, calcular a partir da Páscoa |
 | Feriados municipais | Nova Lima e Itabirito/MG | Decretos municipais — **curadoria manual** | Tabela fixa versionada |
 | Datas comemorativas móveis | Dia das Mães (2º dom. maio), Namorados (12/jun), Finados (2/nov), Natal | cálculo determinístico | Vira exógena "dias até a data" (diária) |
 | Clima | Temperatura e precipitação **diária** em Nova Lima/Itabirito | [Open-Meteo](https://open-meteo.com) — gratuita, por lat/long | Chuva afeta venda de flor de corte |

@@ -4,10 +4,11 @@
 **Branch:** `train/sarimax-serie-crua-pre-eda`
 
 > **Resumo em uma frase:** com os dados como estavam antes do estudo (EDA), o modelo
-> aprendeu o ritmo da semana, mas é só um pouco melhor que "repetir a semana passada",
-> não enxerga as encomendas grandes nem as mudanças de temporada, e dá uma faixa de segurança larga demais
-> para ser usada. Pelas regras formais do projeto ele "passaria", mas por um erro de
-> régua. Este é o **ponto zero** contra o qual vamos medir as melhorias.
+> aprendeu o ritmo da semana, mas é só um pouco melhor que "repetir a semana passada".
+> Não enxerga as encomendas grandes, os feriados (como o Carnaval) nem as mudanças de
+> temporada, e dá uma faixa de segurança larga demais para ser usada. Pelas regras formais
+> do projeto ele "passaria", mas por um erro de régua. Este é o **ponto zero** contra o
+> qual vamos medir as melhorias.
 
 ---
 
@@ -114,8 +115,10 @@ cliente fechar negócio, não do dia da semana.
   somam **13% de tudo o que foi vendido**.
 - Nos **10 dias de maior venda**, mais da metade (54%) do volume veio dessas encomendas.
 - Sem as encomendas, a linha do tempo fica bem mais calma: a variação cai de 1,10 para 0,87.
-- Nem todo pico é encomenda. Alguns dias de 2024 são altos por somarem várias vendas médias
-  (painel de baixo). Para esses, o estudo propôs um **teto**, que também não foi aplicado aqui.
+- Nem todo pico é encomenda. Alguns dias são altos por somarem muitas vendas médias (painel
+  de baixo). Por exemplo, em 31/01/2024 foram 40 mil unidades de produtos de jardim em 104
+  notas, e a maior delas tinha só 12% do dia (EDA §3.7). Para esses dias, o estudo propôs um
+  **teto**, que também não foi aplicado aqui.
 
 ### 4.2 O erro se concentra nos dias de encomenda
 
@@ -172,9 +175,18 @@ um dia de 60 mil e não tem como saber quando.
 
 ![Rodadas](../../ia-predictor/training_scripts/results/plots/baseline/09_rodadas_modelo_vs_regra_simples.png)
 
-O modelo ganhou com folga nas rodadas 1 e 4. Nessas rodadas a regra simples copiou uma
-semana anterior que tinha um pico (fim de dezembro e início de fevereiro) e errou feio. Nas
-rodadas 2 e 3, semanas sem surpresas, a regra simples foi **melhor** que o modelo.
+O modelo só ganhou com folga quando a regra simples copiou uma semana atípica:
+
+- **Rodada 1** (04 a 17/01): a regra copiou a semana do Ano-Novo, com o feriado de 01/01
+  zerado e um dia de 25 mil unidades em 02/01.
+- **Rodada 4** (15 a 28/02): a regra copiou 11 e 12/02, dias de cerca de 8 mil unidades.
+
+Nas rodadas 2 e 3, semanas normais, a regra simples foi **melhor** que o modelo.
+
+**O Carnaval pegou os dois.** Em 16 e 17/02/2026 (segunda e terça de Carnaval) a venda foi
+zero. O modelo previu cerca de 4,3 e 4,8 mil, porque não sabe que é Carnaval. Só esses 2
+dias respondem por **23% de todo o erro de fevereiro**. Sem eles, o erro médio do mês cai de
+1.415 para 1.175 por dia. Isso é justamente o que o calendário resolve (§5, item 3).
 
 ### 4.7 Tudo misturado numa linha só
 
@@ -199,9 +211,12 @@ Em ordem de impacto esperado:
 2. **Pôr um teto nos dias fora do comum** que sobram no balcão, só na hora de ensinar o
    modelo. Na hora de medir o erro, os valores reais continuam intactos.
 3. **Ensinar o calendário ao modelo.** Feriados, véspera de feriado e datas comemorativas
-   (Dia das Mães, Namorados, Finados, Natal). Atenção: o efeito muda de sentido conforme o
-   tipo de produto (EDA §3.4), e o calendário **não** resolve a falha de dezembro de 2025,
-   que foi temporada alta e vendas médias, não Natal (§4.3).
+   (Dia das Mães, Namorados, Finados, Natal). Resolve dias como o Carnaval, com 23% do erro
+   de fevereiro, e o Ano-Novo (§4.6). O **Carnaval precisa entrar explicitamente**: é ponto
+   facultativo, não feriado nacional por lei, e uma lista de feriados nacionais pode não
+   trazê-lo. Atenção: o efeito das datas comemorativas muda de sentido conforme o tipo de
+   produto (EDA §3.4), e o calendário **não** resolve a falha de dezembro de 2025, que foi
+   temporada alta e vendas médias, não Natal (§4.3).
 4. **Acompanhar mudanças de nível.** O modelo demora a perceber quando a loja entra numa
    fase de venda mais alta ou mais baixa, como no fim de 2025. Vale testar dar mais peso às
    semanas recentes, ou incluir tendência (EDA §4, item 5).
@@ -233,6 +248,7 @@ Em ordem de impacto esperado:
 | MASE inflado pela escala do treino | **Não** (o EDA mede com MASE, WAPE e erro acumulado; só um aviso indireto no "limite honesto") | este documento, §4.4 |
 | Faixa de segurança (IC 95%) larga demais | **Não** (o EDA não avaliou a faixa) | este documento, §4.5 |
 | Escolha da configuração dentro de cada rodada | **Não se aplica ao EDA**: lá a configuração foi fixada de antemão, sem escolha | este documento, §5, item 6 |
+| Carnaval (loja fechada; 23% do erro de fevereiro) | **Só no código**: `eda/_common.py` já trata Carnaval como feriado móvel, mas nenhum documento o cita e o plano de dados externos só fala em feriados nacionais | este documento, §4.6 |
 | Testar também em dezembro | **Sim** (o EDA usa 26 rodadas cobrindo um ano inteiro) | `eda_grupos.py`, `N_FOLDS = 26` |
 
 ---
@@ -268,6 +284,8 @@ python -m training_scripts.baseline.analise_serie_crua     # diagnóstico e grá
   Shapiro p ≈ 0.
 - **Walk-forward (4 × 14 d):** MASE 0,396 · RMSSE 0,289 · MAE/MAE_naïve 0,83 (vence em 2/4)
   · cobertura IC95 96,4% · largura IC95 81,4 mil.
+- **Carnaval (16–17/02/2026, real = 0):** 22,9% do erro absoluto do hold-out; MAE sem esses
+  dias 1.175 (naïve 1.501).
 - **Dezembro/2025 (28 d, diagnóstico):** MAE 7.677 · MASE 2,34 · MAE/MAE_naïve 1,00 ·
   previsto/real 34%.
 - **Encomendas (ADR-012, k = 5, só para diagnóstico):** 99 linhas · 13,1% do volume · 69

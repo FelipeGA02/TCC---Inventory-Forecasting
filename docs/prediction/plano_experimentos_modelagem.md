@@ -47,7 +47,9 @@ Subpastas, uma por etapa da comparação:
       (BrasilAPI + fechamentos locais) zera o erro em feriados, estreita o IC 95% de ~79 para
       ~13 mil e, num ano de 26 rodadas, reduz o erro em 9% (vence a naïve em 22/26, contra
       19/26). O clima (Open-Meteo, observado) não traz ganho. Dezembro segue em 35% previsto
-      (encomendas), e o A1 superestima fases de baixa (fev/2026 +23%) →
+      (encomendas: 48% do erro do ano em 11% dos dias), as previsões ficam planas (não
+      acompanham fases), e a janela "7 dias até Mães/Finados" gerou 12% do erro do ano;
+      trocar por "loja aberta excepcionalmente no dia" →
       [03-enriquecimento_serie_crua.md](03-enriquecimento_serie_crua.md)
 - [x] 1.1 EDA (`tasks.md` T000b, em `training_scripts/eda/`): sazonalidade semanal/anual,
       tendência, **% de zeros da série diária por SKU** (prova de que o SKU não pode ser

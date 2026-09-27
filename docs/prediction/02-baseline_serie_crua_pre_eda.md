@@ -1,74 +1,250 @@
-# 02 — Linha de base: SARIMA sobre 1 série crua (dados pré-EDA)
+# 02 — Primeiro treino: previsão com os dados crus (antes do EDA)
 
-**Experimento:** `A0_sarima_serie_crua_pre_eda` · **Data:** 2026-09-27  
-**Script:** `ia-predictor/training_scripts/baseline/sarimax_serie_crua.py`  
-**Resultados:** `training_scripts/results/metrics/baseline_A0_sarima_serie_crua_pre_eda.json`
-(+ `_holdout.csv`) · gráficos em `training_scripts/results/plots/baseline/`
+**Experimento:** `A0_sarima_serie_crua_pre_eda` · **Data:** 2026-09-27 ·
+**Branch:** `train/sarimax-serie-crua-pre-eda`
 
-## Objetivo
+> **Resumo em uma frase:** com os dados como estavam antes do estudo (EDA), o modelo
+> aprendeu o ritmo da semana, mas é só um pouco melhor que "repetir a semana passada",
+> não enxerga as encomendas grandes nem o Natal, e dá uma faixa de segurança larga demais
+> para ser usada. Pelas regras formais do projeto ele "passaria", mas por um erro de
+> régua. Este é o **ponto zero** contra o qual vamos medir as melhorias.
 
-Estabelecer o **ponto zero** da modelagem para medir o ganho de cada etapa seguinte:
+---
 
-1. **este experimento:** série crua, sem EDA e sem exógenas;
-2. aplicação dos achados do EDA (L1 por unidade, 2 lojas, encomendas fora, teto p99);
-3. exógenas de calendário (A1);
-4. bases de enriquecimento (clima, feriados municipais; Modelo B).
+## 1. Por que fizemos este treino
 
-## O que entrou
+Queremos mostrar, no TCC, **quanto cada etapa do trabalho melhora a previsão**. Para isso
+precisamos de um "antes" honesto:
 
-| Item | Valor |
-| --- | --- |
-| Base | `data/processed/contas_a_receber_taxonomia.csv`: Etapa 3 do pré-processamento de 2026-08-30 (commit `8e5aa6e`), com as colunas removidas e a taxonomia, **antes do EDA** |
-| Série | **1 série**: soma diária de `qtdade` de todas as lojas (Jardim Canadá, Itabirito, Garden Center) e categorias |
-| Regras aplicadas | só a regra que já existia antes do EDA: `Servico e taxa` fica fora (5.342 linhas); dias sem venda = 0 |
-| Não aplicado | separação de encomendas grandes, teto p99, junção Garden Center→Jardim Canadá, exógenas |
-| Período | 2024-01-02 → 2026-02-28 · 789 dias (135 zerados, quase todos domingos) |
-| Perfil | média 4.995/dia · mediana 3.931 · máximo 66.377 · CV 1,10 |
-| Modelo | SARIMA(1,0,1)(1,0,1)₇ + constante, com log1p (CV > 0,7) e d = 0 (ADF p < 0,001); ordem escolhida por AIC num grid de 36 combinações |
-
-## Resultados
-
-| Métrica | Hold-out 28d | Walk-forward (4 folds × 14d) |
+| Etapa | O que muda | Status |
 | --- | --- | --- |
-| MAE (unidades/dia) | 1.415 | 1.394 |
-| MASE | 0,404 | 0,396 |
-| RMSSE | 0,319 | 0,289 |
-| **MAE relativo à naïve sazonal na mesma janela** | **0,82** | **0,83** (vence a naïve em 2 de 4 folds) |
-| Cobertura IC 95% | 92,9% | 96,4% |
-| **Largura média do IC 95%** | **79 mil** | **81 mil** (≈ 16× a média diária) |
-| MAPE (dias com venda) | 38,4% | — |
-| Ljung-Box p (lag 7 / 14) | 0,79 / 0,91 | — |
-| Shapiro-Wilk p | ≈ 0 | — |
+| **0. Este treino** | dados crus, sem nenhum ajuste descoberto no estudo | ✅ feito |
+| 1. Achados do EDA | separar encomendas, cortar picos, uma previsão por loja | próximo |
+| 2. Calendário | ensinar feriados e datas comemorativas (Natal, Dia das Mães…) | depois |
+| 3. Dados externos | clima, feriados municipais | depois |
 
-Walk-forward por fold (MAE do modelo ÷ MAE da naïve): 04/jan 0,35 · 18/jan 1,33 ·
-01/fev 1,10 · 15/fev 0,52.
+---
 
-Pelos limiares do CLAUDE.md, o status formal é **`trained`** (MASE < 1, cobertura no intervalo [90%, 98%]).
+## 2. Como o treino foi feito (passo a passo)
 
-## Leitura: por que o MASE de 0,40 engana
+**Dados usados.** A base de vendas do jeito que estava em 30/08/2026, depois da limpeza de
+colunas e da classificação dos produtos em categorias, **antes** de qualquer análise. Na
+época ainda eram 3 "lojas" (Jardim Canadá, Itabirito e Garden Center).
 
-- **Denominador inflado.** O MASE divide o erro pelo erro da naïve sazonal *dentro do
-  treino*. Esse treino contém os picos de encomenda (até 66 mil unidades num dia), o que
-  infla a escala e faz qualquer erro parecer pequeno. Comparando com a naïve **na mesma
-  janela de teste**, o ganho é modesto (MAE relativo de 0,82) e inconsistente: a naïve
-  vence em 2 dos 4 folds.
-- **Intervalo inútil na prática.** A cobertura passa porque o IC 95% é enorme (≈ 80 mil
-  para uma média de 5 mil/dia). Os picos de encomenda na série forçam o modelo a admitir
-  qualquer valor. Um intervalo desse tamanho não serve para decidir reposição.
-- **Previsão ≈ perfil semanal médio.** A previsão pontual praticamente repete o padrão
-  semanal (domingo = 0), sem prever os picos. Os resíduos não têm autocorrelação
-  (Ljung-Box ok), mas estão longe da normal (caudas pesadas por causa das encomendas).
-- **Hold-out calmo.** Fevereiro/2026 não teve picos grandes. O teste mais exigente
-  (dezembro, com picos de 41 a 66 mil) ficou no treino.
+**Uma única linha do tempo.** Somamos tudo o que foi vendido em cada dia, em todas as
+lojas e todos os tipos de produto. O resultado é uma lista de 789 dias (02/01/2024 a
+28/02/2026), cada um com um número: o total de unidades vendidas naquele dia.
 
-## Como comparar com os próximos experimentos
+- Tiramos só os lançamentos de **serviços e taxas** (frete, prestação de serviço), que não
+  são produto. Essa regra já existia antes do estudo.
+- **Não tiramos nada mais**: encomendas grandes, devoluções e dias fora do comum ficaram
+  como estavam.
+- Dias sem venda (quase todos domingos, loja fechada) entraram como zero.
 
-Os experimentos seguintes mudam o **alvo** (2 séries por unidade, sem encomendas). Por isso,
-MASE contra MASE, cada um com seu próprio denominador, **não é comparação justa**. Para
-cada experimento novo, usar:
+**O modelo.** Usamos um modelo estatístico clássico de séries temporais (SARIMA). Ele olha
+**só para o próprio histórico de vendas** e aprende duas coisas: o quanto um dia se parece
+com os dias anteriores e o ciclo de 7 dias da semana. Ele **não recebeu nenhuma
+informação extra**: não sabe o que é feriado, Natal ou chuva. O programa testou 36
+configurações do modelo e ficou com a que melhor se ajustou aos dados.
 
-1. **MAE relativo à naïve na mesma janela** e número de folds em que vence a naïve;
-2. **largura média do IC 95%** junto com a cobertura (um intervalo mais estreito com a
-   mesma cobertura é ganho real);
-3. MAE em unidades somando as previsões das unidades de volta ao total, na mesma janela e
-   nos mesmos folds (origens 2026-01-04, 01-18, 02-01, 02-15).
+**Como testamos (separação entre treino e teste).** O modelo é sempre avaliado em dias
+que ele **não viu** ao aprender:
+
+- **Teste principal:** aprendeu com tudo até 31/01/2026 e previu fevereiro inteiro (28
+  dias). Depois comparamos com o que foi vendido de verdade.
+- **Teste repetido (4 rodadas):** simula o uso real. Em cada rodada o modelo aprende com o
+  que aconteceu até uma data e prevê as 2 semanas seguintes.
+
+  | Rodada | Aprende com dados até | Prevê |
+  | --- | --- | --- |
+  | 1 | 03/01/2026 | 04/01 a 17/01 |
+  | 2 | 17/01/2026 | 18/01 a 31/01 |
+  | 3 | 31/01/2026 | 01/02 a 14/02 |
+  | 4 | 14/02/2026 | 15/02 a 28/02 |
+
+- **Teste extra em dezembro** (feito para este diagnóstico): aprendeu até 30/11/2025 e
+  previu 01/12 a 28/12, o mês mais difícil do ano.
+
+**Com o que comparamos.** Com uma **regra simples**: "amanhã vai vender o mesmo que no
+mesmo dia da semana passada". Se o modelo não ganha dessa regra com folga, ele não se
+paga.
+
+---
+
+## 3. Resultados
+
+| O que medimos | Fevereiro (teste principal) | 4 rodadas (média) | Dezembro (teste extra) |
+| --- | --- | --- | --- |
+| Erro médio por dia (unidades) | 1.415 | 1.394 | 7.677 |
+| Erro da regra simples no mesmo período | 1.725 | 2.333 | 7.691 |
+| **Quanto o modelo foi melhor que a regra simples** | **18%** | **17%¹** (ganhou em 2 de 4) | **0%** (empate) |
+| Venda média por dia no período | 3.152 | 3.168 | 10.525 |
+| Largura média da faixa de segurança (95%) | 79 mil | 81 mil | — |
+
+¹ Média do ganho de cada rodada. Comparando os erros médios da tabela (1.394 × 2.333), o
+ganho parece ser de 40%. Mas quase todo ele vem das rodadas 1 e 4, em que a regra simples
+copiou uma semana com pico e errou muito (ver §4.6). Nas semanas normais, o modelo perdeu.
+
+![Série crua](../../ia-predictor/training_scripts/results/plots/baseline/01_serie_crua.png)
+
+![Previsão de fevereiro](../../ia-predictor/training_scripts/results/plots/baseline/02_holdout_previsao.png)
+
+**O que deu certo:**
+
+- O modelo aprendeu o **ritmo da semana**: prevê zero no domingo e acompanha a subida e a
+  descida dos dias úteis.
+- Em fevereiro, o **total do mês** previsto ficou só 4% acima do real.
+- Os erros não seguem um padrão que o modelo tenha deixado de aproveitar. Ou seja, com
+  **só o histórico**, não dá para tirar muito mais do que isso.
+
+---
+
+## 4. Por que o resultado não foi bom
+
+### 4.1 Os picos são, em boa parte, encomendas grandes que o modelo não tem como prever
+
+A linha do tempo mistura duas coisas bem diferentes: a **venda do dia a dia** (muitas
+compras pequenas, com ritmo previsível) e as **encomendas grandes** de obra e paisagismo.
+São poucas vendas enormes, como 20 mil m² de grama numa única nota, que dependem de um
+cliente fechar negócio, não do dia da semana.
+
+![Picos são encomendas](../../ia-predictor/training_scripts/results/plots/baseline/05_picos_sao_encomendas.png)
+
+- Só **99 vendas** (0,03% de todas) são encomendas grandes pela regra do projeto, mas
+  somam **13% de tudo o que foi vendido**.
+- Nos **10 dias de maior venda**, mais da metade (54%) do volume veio dessas encomendas.
+- Sem as encomendas, a linha do tempo fica bem mais calma: a variação cai de 1,10 para 0,87.
+- Nem todo pico é encomenda. Alguns dias de 2024 são altos por somarem várias vendas médias
+  (painel de baixo). Para esses, o estudo propôs um **teto**, que também não foi aplicado aqui.
+
+### 4.2 O erro se concentra nos dias de encomenda
+
+![Erro concentrado](../../ia-predictor/training_scripts/results/plots/baseline/06_erro_concentrado_nas_encomendas.png)
+
+Nos dias de encomenda, o modelo erra em média **10,5 mil unidades**, contra **1,9 mil**
+nos outros dias. Esses dias são só **9%** do calendário, mas respondem por **35% de todo o
+erro**.
+
+### 4.3 Em dezembro, o modelo previu só um terço do que foi vendido
+
+![Teste em dezembro](../../ia-predictor/training_scripts/results/plots/baseline/10_teste_extra_dezembro.png)
+
+O teste principal caiu num mês calmo (fevereiro), o que ajudou o modelo. Quando testamos em
+dezembro:
+
+- ele previu **99 mil** unidades, e foram vendidas **295 mil** (34%);
+- **53%** do que foi vendido em dezembro veio de encomendas grandes, e nenhuma foi prevista;
+- mesmo **sem as encomendas**, o modelo previu cerca de 28% a menos que o balcão vendeu.
+  Ele não sabe que dezembro é época de Natal, porque não recebeu calendário;
+- a regra simples de "repetir a semana passada" se saiu **igual** ao modelo.
+
+É o mês em que a floricultura mais precisa de uma boa previsão, e é onde o modelo falha.
+
+### 4.4 A nota oficial parece ótima, mas por causa de uma régua frouxa
+
+![Régua frouxa](../../ia-predictor/training_scripts/results/plots/baseline/07_regua_frouxa_do_mase.png)
+
+A nota oficial do projeto (MASE) compara o erro do modelo com o erro da regra simples
+**no período de treino**. Como o treino tem as encomendas gigantes, a regra simples errava
+muito ali (3.505 por dia), e qualquer erro parece pequeno perto disso: a nota deu 0,40,
+que parece excelente. Comparando com a regra simples **no mesmo mês de teste**, o ganho é
+de só 18%.
+
+**Conclusão:** a nota oficial não serve para comparar este treino com os próximos. Vamos
+usar a comparação "modelo × regra simples no mesmo período".
+
+### 4.5 A faixa de segurança é larga demais para ser útil
+
+![Faixa de segurança](../../ia-predictor/training_scripts/results/plots/baseline/08_faixa_de_seguranca_inutil.png)
+
+Além da previsão, o modelo dá uma faixa de "mínimo e máximo prováveis". Em fevereiro essa
+faixa foi de **0 a cerca de 80 mil unidades por dia**, enquanto a venda real ficou perto de
+3 mil. A faixa quase nunca erra, mas não ajuda ninguém a decidir quanto comprar. Ela fica
+larga porque, com as encomendas no histórico, o modelo "sabe" que de vez em quando surge
+um dia de 60 mil e não tem como saber quando.
+
+### 4.6 Ganhar da regra simples só metade das vezes não é confiável
+
+![Rodadas](../../ia-predictor/training_scripts/results/plots/baseline/09_rodadas_modelo_vs_regra_simples.png)
+
+O modelo ganhou com folga nas rodadas 1 e 4. Nessas rodadas a regra simples copiou uma
+semana anterior que tinha um pico (fim de dezembro e início de fevereiro) e errou feio. Nas
+rodadas 2 e 3, semanas sem surpresas, a regra simples foi **melhor** que o modelo.
+
+### 4.7 Tudo misturado numa linha só
+
+![Ritmo semanal](../../ia-predictor/training_scripts/results/plots/baseline/11_ritmo_semanal_por_categoria.png)
+
+Cada tipo de produto tem seu dia forte: grama vende mais na terça e quarta, e plantas de
+corte na sexta e sábado. Somando tudo, o modelo só enxerga um ritmo médio. Aqui o efeito
+é pequeno, porque grama e produtos de jardim são 98% do volume e têm ritmos parecidos. Ele
+volta a importar quando a previsão for dividida entre produtos. Pelo mesmo motivo, a troca
+do Garden Center para outro CNPJ em 2025 **não atrapalhou** este treino: no total da
+empresa, as vendas só mudam de "etiqueta".
+
+---
+
+## 5. O que precisa ser resolvido para um treino melhor
+
+Em ordem de impacto esperado:
+
+1. **Separar as encomendas grandes da venda do dia a dia.** É o problema nº 1: gera os
+   picos, a faixa de segurança inútil e boa parte do erro. As encomendas viram um fluxo à
+   parte, que não se repõe por estoque (regra já definida no ADR-012).
+2. **Pôr um teto nos dias fora do comum** que sobram no balcão, só na hora de ensinar o
+   modelo. Na hora de medir o erro, os valores reais continuam intactos.
+3. **Ensinar o calendário ao modelo.** Feriados, véspera de feriado e datas comemorativas
+   (Natal, Dia das Mães, Namorados, Finados). Resolve a falha de dezembro no balcão.
+4. **Uma previsão por loja** (Jardim Canadá, com o Garden Center incluído, e Itabirito). As
+   lojas têm tamanhos e comportamentos diferentes, e é por loja que a reposição é feita.
+5. **Corrigir um detalhe do teste.** A escolha da melhor configuração do modelo foi feita
+   uma vez só, com os dados até 31/01. Por isso, nas rodadas 1 e 2, essa escolha já tinha
+   "visto" os dias que depois foram testados. O modelo em si não viu as respostas, e o
+   efeito deve ser pequeno, mas o certo é refazer a escolha dentro de cada rodada.
+6. **Medir de um jeito justo e igual para todos os treinos:**
+   - modelo × regra simples **no mesmo período** (e em quantas rodadas o modelo ganha);
+   - **largura da faixa de segurança**, e não só quantas vezes ela acerta;
+   - incluir **dezembro** entre os testes, porque um modelo que só funciona em mês calmo não
+     serve;
+   - como os próximos treinos preveem por loja, **somar as previsões das lojas** e comparar
+     com este total, nas mesmas datas.
+
+---
+
+## 6. Arquivos
+
+| O quê | Onde |
+| --- | --- |
+| Script do treino | `ia-predictor/training_scripts/baseline/sarimax_serie_crua.py` |
+| Script deste diagnóstico | `ia-predictor/training_scripts/baseline/analise_serie_crua.py` |
+| Resultados do treino | `training_scripts/results/metrics/baseline_A0_sarima_serie_crua_pre_eda.json` |
+| Previsão × real, dia a dia (fevereiro) | `…/baseline_A0_sarima_serie_crua_pre_eda_holdout.csv` |
+| Números do diagnóstico | `…/baseline_A0_sarima_serie_crua_pre_eda_diagnostico.json` |
+| Gráficos 01–11 | `training_scripts/results/plots/baseline/` |
+
+Para refazer (a partir de `ia-predictor/`):
+
+```bash
+python -m training_scripts.baseline.sarimax_serie_crua     # treino (~2,5 min)
+python -m training_scripts.baseline.analise_serie_crua     # diagnóstico e gráficos 05–11
+```
+
+### Ficha técnica (para o texto do TCC)
+
+- **Base:** `data/processed/contas_a_receber_taxonomia.csv`, Etapa 3 de 2026-08-30 (commit
+  `8e5aa6e`); 333.019 linhas, 5.342 de `Servico e taxa` excluídas.
+- **Série:** Σ `qtdade` diária, todas as unidades e categorias; 789 dias, 135 zerados; média
+  4.995, mediana 3.931, máx. 66.377, CV 1,10.
+- **Modelo:** SARIMA(1,0,1)(1,0,1)₇ com constante, sem exógenas; log1p (CV > 0,7); d = 0
+  (ADF p < 0,001); grid p,q ∈ {0,1,2}, P,Q ∈ {0,1}, D = 0, seleção por AIC (2.898,2).
+- **Hold-out (28 d):** MAE 1.415 · RMSE 2.117 · MASE 0,404 · RMSSE 0,319 · MAE/MAE_naïve
+  0,82 · cobertura IC95 92,9% · largura IC95 79,2 mil · Ljung-Box p (7/14) 0,79/0,91 ·
+  Shapiro p ≈ 0.
+- **Walk-forward (4 × 14 d):** MASE 0,396 · RMSSE 0,289 · MAE/MAE_naïve 0,83 (vence em 2/4)
+  · cobertura IC95 96,4% · largura IC95 81,4 mil.
+- **Dezembro/2025 (28 d, diagnóstico):** MAE 7.677 · MASE 2,34 · MAE/MAE_naïve 1,00 ·
+  previsto/real 34%.
+- **Encomendas (ADR-012, k = 5, só para diagnóstico):** 99 linhas · 13,1% do volume · 69
+  dias · 35% do erro absoluto do treino em 8,8% dos dias.
+- **Status pelos limiares do CLAUDE.md:** `trained`. Não é conclusivo, porque o MASE está
+  inflado pela escala do treino (§4.4).

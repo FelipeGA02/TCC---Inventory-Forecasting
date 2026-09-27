@@ -167,9 +167,15 @@ usar a comparação "modelo × regra simples no mesmo período".
 
 Além da previsão, o modelo dá uma faixa de "mínimo e máximo prováveis". Em fevereiro essa
 faixa foi de **0 a cerca de 80 mil unidades por dia**, enquanto a venda real ficou perto de
-3 mil. A faixa quase nunca erra, mas não ajuda ninguém a decidir quanto comprar. Ela fica
-larga porque, com as encomendas no histórico, o modelo "sabe" que de vez em quando surge
-um dia de 60 mil e não tem como saber quando.
+3 mil. A faixa quase nunca erra, mas não ajuda ninguém a decidir quanto comprar.
+
+> **Correção (2026-09-27, após o [doc 03](03-enriquecimento_serie_crua.md)):** a primeira
+> versão deste documento atribuía a faixa larga às encomendas. A causa principal eram os
+> **feriados**. O modelo trabalha numa escala que "estica" a diferença entre zero e o resto,
+> e nela um feriado com a loja fechada (venda zero), que o modelo não sabia prever, destoa
+> muito mais do que uma encomenda. Medido: 79% da variação que alarga a faixa vinha dos
+> feriados e só 5% dos dias com encomenda. Com o calendário, a faixa cai de ~79 mil para
+> ~13 mil.
 
 ### 4.6 Ganhar da regra simples só metade das vezes não é confiável
 
@@ -206,15 +212,16 @@ empresa, as vendas só mudam de "etiqueta".
 Em ordem de impacto esperado:
 
 1. **Separar as encomendas grandes da venda do dia a dia.** É o problema nº 1: gera os
-   picos, a faixa de segurança inútil e boa parte do erro. As encomendas viram um fluxo à
+   picos e boa parte do erro, principalmente em dezembro. As encomendas viram um fluxo à
    parte, que não se repõe por estoque (regra já definida no ADR-012).
 2. **Pôr um teto nos dias fora do comum** que sobram no balcão, só na hora de ensinar o
    modelo. Na hora de medir o erro, os valores reais continuam intactos.
 3. **Ensinar o calendário ao modelo.** Feriados, véspera de feriado e datas comemorativas
    (Dia das Mães, Namorados, Finados, Natal). Resolve dias como o Carnaval, com 23% do erro
-   de fevereiro, e o Ano-Novo (§4.6). O **Carnaval precisa entrar explicitamente**: é ponto
-   facultativo, não feriado nacional por lei, e uma lista de feriados nacionais pode não
-   trazê-lo. Atenção: o efeito das datas comemorativas muda de sentido conforme o tipo de
+   de fevereiro, e o Ano-Novo (§4.6), e é o que mais estreita a faixa de segurança (§4.5).
+   **Feito no [doc 03](03-enriquecimento_serie_crua.md).** O **Carnaval precisa entrar
+   explicitamente**, porque é ponto facultativo, não feriado nacional por lei. A BrasilAPI,
+   usada no doc 03, já o inclui. Atenção: o efeito das datas comemorativas muda de sentido conforme o tipo de
    produto (EDA §3.4), e o calendário **não** resolve a falha de dezembro de 2025, que foi
    temporada alta e vendas médias, não Natal (§4.3).
 4. **Acompanhar mudanças de nível.** O modelo demora a perceber quando a loja entra numa

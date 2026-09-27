@@ -853,14 +853,18 @@ completas estão no [ADR-012](ADR-012-encomendas-grandes-fora-do-l1.md).
 | 10 | **Decidido**: o L1 ajusta 2 séries (por unidade), não 6 — a separação por categoria não melhora a acurácia (seção 3.11), a por unidade é apoiada; `categoria` passa a nível de desagregação (seção 3.0) | Alta |
 | 11 | Definir com a floricultura a regra de tratamento das vendas com quantidade negativa (devoluções) | Baixa |
 | 12 | **Decidido (ADR-012)**: separar da série do L1 as linhas de encomenda (linha > 5 dias típicos da unidade × categoria, limite calculado no treino) e limitar ao 99º percentil os picos restantes do balcão, só no treino. A participação da desagregação passa a ser calculada sobre o balcão; o painel informa que encomendas não estão incluídas. Substitui, para Itabirito, os itens 2, 5 e 8 (seção 3.12) | Alta |
-| 13 | **Carnaval como feriado explícito** (segunda e terça, loja fechada, venda 0). É ponto facultativo, não feriado nacional por lei, e uma lista de feriados nacionais pode não trazê-lo. No primeiro treino, só 16–17/02/2026 responderam por 23% do erro de fevereiro. `eda/_common.py` já trata o Carnaval, mas faltava registrar | Alta |
+| 13 | **Carnaval como feriado explícito** (segunda e terça, loja fechada, venda 0). É ponto facultativo, não feriado nacional por lei, e uma lista de feriados nacionais pode não trazê-lo. No primeiro treino, só 16–17/02/2026 responderam por 23% do erro de fevereiro. `eda/_common.py` já trata o Carnaval, mas faltava registrar. *Conferido em 2026-09-27: a BrasilAPI traz o Carnaval, e com calendário o erro nos feriados cai a ~0 (doc 03)* | Alta |
 | 14 | **Medir de forma comparável entre experimentos.** O MASE usa a escala da naïve *no treino*: quando o treino tem picos de encomenda, essa escala infla e o MASE fica otimista (0,40 no primeiro treino, contra ganho real de 18% sobre a naïve). Reportar também o erro relativo à naïve **na mesma janela de teste**, em quantas rodadas o modelo vence a naïve e, entre alvos diferentes (total × por unidade), o erro no total somado nas mesmas datas | Alta |
-| 15 | Avaliar a **largura** do intervalo de 95% junto com a cobertura: no primeiro treino a cobertura "passou" (96%) com uma faixa de ~80 mil para venda média de ~3 mil/dia | Média |
+| 15 | Avaliar a **largura** do intervalo de 95% junto com a cobertura: no primeiro treino a cobertura "passou" (96%) com uma faixa de ~80 mil para venda média de ~3 mil/dia. *Causa principal: feriados sem calendário (79% dos resíduos² em escala log), não as encomendas (5%); com calendário a faixa cai para ~13 mil (doc 03)* | Média |
 | 16 | **Mudança de nível**: set–dez/2025 foi temporada alta no balcão (5,8 a 7,0 mil/dia, contra 3,5 mil em jan/2026), e o modelo puxa a previsão para a média do histórico. Complementa o item 5 (tendência): testar peso maior para as semanas recentes | Média |
 | 17 | **Vendas médias abaixo do limite de encomenda**: em dez/2025, 35 linhas de 500 ou mais unidades somaram 27% do balcão. O teto p99 (item 12) atenua; verificar se basta ou se o limite `k` precisa de ajuste sazonal | Baixa |
 
+| 18 | **Abertura excepcional**: nos dois Dias das Mães (domingo) e nos Finados (sábado feriado em 2024, domingo em 2025) a loja **abriu** e vendeu de 600 a 900 unidades, quando estaria fechada. São os únicos domingos com venda do histórico. Modelar como "loja aberta excepcionalmente no dia", não como janela de 7 dias antes da data: a janela atribui à semana (+159% e +280%) um efeito que é do próprio dia; o balcão da semana anterior varia só de −18% a +18% | Média |
+| 19 | **Clima não entra no L1 total**: com chuva e temperatura observadas (cenário ideal), o erro não melhorou (ano: 0,616 → 0,622 do erro da naïve), nenhum coeficiente foi significativo (p > 0,2) e o clima somou 1,4% da importância RF. Reavaliar só para flores de corte, se a categoria for prevista à parte | Média |
+
 *Itens 13–17 adicionados em 2026-09-27 a partir do primeiro treino com os dados pré-EDA
-([02-baseline_serie_crua_pre_eda.md](02-baseline_serie_crua_pre_eda.md)).*
+([02-baseline_serie_crua_pre_eda.md](02-baseline_serie_crua_pre_eda.md)); itens 18–19 a partir
+do treino enriquecido ([03-enriquecimento_serie_crua.md](03-enriquecimento_serie_crua.md)).*
 
 ---
 
@@ -899,6 +903,12 @@ completas estão no [ADR-012](ADR-012-encomendas-grandes-fora-do-l1.md).
    com o cliente? Existe algum registro dessas encomendas **antes** da venda (orçamento,
    pedido, agenda de entrega)? Se existir, ele permitiria incluir as encomendas já
    combinadas na previsão.
+10. **As lojas fecham em 15 de agosto e 8 de dezembro?** Nos dados, as duas lojas ficaram sem
+    venda em 15/08/2024, 15/08/2025 e 08/12/2025, dias úteis que não são feriado nacional
+    (provável feriado municipal: Assunção e Imaculada Conceição). Há outros dias de
+    fechamento local? E em 02/01/2025 só Itabirito fechou: foi uma "ponte" pontual? Também:
+    a loja **abre** sempre no Dia das Mães e em Finados, mesmo sendo domingo ou feriado?
+    (doc [03](03-enriquecimento_serie_crua.md), §1)
 
 ---
 

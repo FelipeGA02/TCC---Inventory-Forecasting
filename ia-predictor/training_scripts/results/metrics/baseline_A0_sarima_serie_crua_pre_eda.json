@@ -1,0 +1,225 @@
+{
+  "modelo": "A0_sarima_serie_crua_pre_eda",
+  "gerado_em": "2026-09-27T11:26:59",
+  "descricao": "SARIMA puro, sem exógenas, sobre 1 série diária total crua (base pré-EDA)",
+  "serie": {
+    "arquivo": "data/processed/contas_a_receber_taxonomia.csv",
+    "linhas_base": 333019,
+    "linhas_servico_excluidas": 5342,
+    "linhas_qtd_negativa": 44,
+    "unidades": [
+      "Garden Center",
+      "Itabirito",
+      "Jardim CanadÃ¡"
+    ],
+    "categorias": [
+      "Grama",
+      "Plantas de corte",
+      "Produtos de jardim"
+    ],
+    "inicio": "2024-01-02",
+    "fim": "2026-02-28",
+    "dias_calendario": 789,
+    "dias_com_venda": 654,
+    "dias_zero": 135,
+    "dias_negativos": 0,
+    "media": 4994.583536121672,
+    "mediana": 3930.5,
+    "desvio": 5518.340992920793,
+    "max": 66376.5,
+    "cv": 1.1048650909552755
+  },
+  "config": {
+    "m": 7,
+    "test_days": 28,
+    "horizonte_wf": 14,
+    "n_folds": 4,
+    "log1p": true,
+    "adf_pvalue": 7.009154426770503e-08,
+    "d": 0,
+    "grid": "p,q∈0..2 · P,Q∈0..1 · D=0 · AIC",
+    "exogenas": null
+  },
+  "ordem": {
+    "order": [
+      1,
+      0,
+      1
+    ],
+    "seasonal_order": [
+      1,
+      0,
+      1,
+      7
+    ],
+    "aic": 2898.2082797663033,
+    "tempo_selecao_s": 144.3,
+    "top5_aic": [
+      {
+        "order": [
+          1,
+          0,
+          1
+        ],
+        "seasonal_order": [
+          1,
+          0,
+          1,
+          7
+        ],
+        "aic": 2898.2082797663033
+      },
+      {
+        "order": [
+          2,
+          0,
+          1
+        ],
+        "seasonal_order": [
+          1,
+          0,
+          1,
+          7
+        ],
+        "aic": 2899.7749372133576
+      },
+      {
+        "order": [
+          0,
+          0,
+          2
+        ],
+        "seasonal_order": [
+          1,
+          0,
+          1,
+          7
+        ],
+        "aic": 2903.930222579019
+      },
+      {
+        "order": [
+          0,
+          0,
+          1
+        ],
+        "seasonal_order": [
+          1,
+          0,
+          1,
+          7
+        ],
+        "aic": 2905.430183057784
+      },
+      {
+        "order": [
+          2,
+          0,
+          0
+        ],
+        "seasonal_order": [
+          1,
+          0,
+          1,
+          7
+        ],
+        "aic": 2907.419282151266
+      }
+    ]
+  },
+  "holdout": {
+    "mae": 1414.8523823366254,
+    "rmse": 2116.965227987342,
+    "mase": 0.4036160731125817,
+    "rmsse": 0.3186828228014301,
+    "mape_dias_com_venda": 38.35783235984415,
+    "smape": 68.77441978040046,
+    "cobertura_ic95": 92.85714285714286,
+    "amplitude_media_ic95": 79177.4896632185,
+    "mae_relativo_naive": 0.8200421387784715,
+    "ljung_box_lag7_pvalue": 0.7871983269661644,
+    "ljung_box_lag14_pvalue": 0.9102259681023125,
+    "shapiro_pvalue": 7.589184499106847e-41
+  },
+  "holdout_naive_sazonal": {
+    "mae": 1725.3410714285715,
+    "rmse": 2290.213780277946,
+    "mase": 0.49218943030635603,
+    "rmsse": 0.34476324063744807,
+    "mape_dias_com_venda": 57.07466098450043,
+    "smape": 46.9246095984393,
+    "amplitude_media_ic95": 0.0
+  },
+  "walk_forward": {
+    "n_folds": 4,
+    "horizonte_dias": 14,
+    "mase_medio": 0.39571209221118997,
+    "rmsse_medio": 0.2885431525031985,
+    "mae_medio": 1394.0053133881843,
+    "cobertura_ic95_media": 96.42857142857143,
+    "mase_naive_medio": 0.6614026217928808,
+    "mae_relativo_naive_medio": 0.8265204208422408,
+    "folds_vence_naive": 2,
+    "amplitude_media_ic95": 81354.43098415245,
+    "folds": [
+      {
+        "origem": "2026-01-04",
+        "mae": 1564.6996612260393,
+        "rmse": 1947.3477819583502,
+        "mase": 0.43915007889959096,
+        "rmsse": 0.2901701980912753,
+        "smape": 71.44184858538284,
+        "cobertura_ic95": 100.0,
+        "amplitude_media_ic95": 88465.14363114753,
+        "mae_naive": 4420.160714285715,
+        "mase_naive": 1.240566464305655,
+        "mae_relativo_naive": 0.3539915768603202
+      },
+      {
+        "origem": "2026-01-18",
+        "mae": 1182.0342471704514,
+        "rmse": 1512.2116019635814,
+        "mase": 0.3327675227798404,
+        "rmsse": 0.22562676560932854,
+        "smape": 58.2176165805283,
+        "cobertura_ic95": 100.0,
+        "amplitude_media_ic95": 81758.18065154909,
+        "mae_naive": 885.6785714285714,
+        "mase_naive": 0.2493371616761403,
+        "mae_relativo_naive": 1.3346086100557537
+      },
+      {
+        "origem": "2026-02-01",
+        "mae": 1394.693278164368,
+        "rmse": 1971.6335003559761,
+        "mase": 0.39786526930785077,
+        "rmsse": 0.2968049361966487,
+        "smape": 61.11938646014605,
+        "cobertura_ic95": 100.0,
+        "amplitude_media_ic95": 78657.66924935624,
+        "mae_naive": 1271.9535714285716,
+        "mase_naive": 0.3628512147915222,
+        "mae_relativo_naive": 1.0964970023221394
+      },
+      {
+        "origem": "2026-02-15",
+        "mae": 1434.594066991878,
+        "rmse": 2251.6178620159326,
+        "mase": 0.4130654978574777,
+        "rmsse": 0.3415707101155413,
+        "smape": 76.41245087349463,
+        "cobertura_ic95": 85.71428571428571,
+        "amplitude_media_ic95": 76536.73040455695,
+        "mae_naive": 2753.621428571428,
+        "mase_naive": 0.7928556463982055,
+        "mae_relativo_naive": 0.5209844941307498
+      }
+    ]
+  },
+  "status": "trained",
+  "criterios": {
+    "mase_wf_menor_1": true,
+    "cobertura_wf_90_98": true
+  },
+  "tempo_total_s": 194.0
+}

@@ -1,0 +1,591 @@
+{
+  "experimento": "enriquecimento_serie_crua_pre_eda",
+  "gerado_em": "2026-09-27T15:13:57",
+  "serie": {
+    "arquivo": "data/processed/contas_a_receber_taxonomia.csv",
+    "linhas_base": 333019,
+    "linhas_servico_excluidas": 5342,
+    "linhas_qtd_negativa": 44,
+    "unidades": [
+      "Garden Center",
+      "Itabirito",
+      "Jardim CanadÃ¡"
+    ],
+    "categorias": [
+      "Grama",
+      "Plantas de corte",
+      "Produtos de jardim"
+    ],
+    "inicio": "2024-01-02",
+    "fim": "2026-02-28",
+    "dias_calendario": 789,
+    "dias_com_venda": 654,
+    "dias_zero": 135,
+    "dias_negativos": 0,
+    "media": 4994.583536121672,
+    "mediana": 3930.5,
+    "desvio": 5518.340992920793,
+    "max": 66376.5,
+    "cv": 1.1048650909552755
+  },
+  "exogenas": {
+    "calendario": [
+      "dia_seg",
+      "dia_ter",
+      "dia_qua",
+      "dia_qui",
+      "dia_sex",
+      "dia_sab",
+      "feriado",
+      "vespera_feriado",
+      "pos_feriado",
+      "antes_maes",
+      "antes_namorados",
+      "antes_mulher",
+      "antes_finados",
+      "antes_natal",
+      "antes_pais",
+      "inicio_mes"
+    ],
+    "clima": [
+      "chuva_dia",
+      "chuva_7d",
+      "temp_max"
+    ],
+    "fechamentos_locais": [
+      "2024-08-15",
+      "2025-08-15",
+      "2025-12-08"
+    ],
+    "aviso_clima": "teste usa clima observado (previsão perfeita) — teto do ganho"
+  },
+  "modelos": {
+    "A0_crua": {
+      "modelo": "A0_crua",
+      "exogenas": [],
+      "ordem_holdout": {
+        "order": [
+          1,
+          0,
+          1
+        ],
+        "seasonal_order": [
+          1,
+          0,
+          1,
+          7
+        ],
+        "aic": 2898.2082797663033,
+        "log1p": true
+      },
+      "holdout": {
+        "mae": 1414.8523823366254,
+        "mae_naive": 1725.3410714285715,
+        "erro_relativo_naive": 0.8200421387784715,
+        "rodadas": 1,
+        "rodadas_vence_naive": 1,
+        "cobertura_ic95": 92.85714285714286,
+        "largura_ic95": 79177.4896632185,
+        "previsto_sobre_real_pct": 103.8591323058357,
+        "mase": 0.4036160731125817,
+        "rmsse": 0.3186828228014301,
+        "ljung_box_lag7_pvalue": 0.7871983269661644,
+        "ljung_box_lag14_pvalue": 0.9102259681023125,
+        "shapiro_pvalue": 7.589184499106847e-41
+      },
+      "walk_forward_4": {
+        "mae": 1394.0053133881843,
+        "mae_naive": 2332.8535714285713,
+        "erro_relativo_naive": 0.5975537129553039,
+        "rodadas": 4,
+        "rodadas_vence_naive": 2,
+        "cobertura_ic95": 96.42857142857143,
+        "largura_ic95": 81354.43098415245,
+        "previsto_sobre_real_pct": 104.4749886137526
+      },
+      "ordem_ano": {
+        "order": [
+          1,
+          0,
+          2
+        ],
+        "seasonal_order": [
+          1,
+          0,
+          1,
+          7
+        ],
+        "aic": 1561.6343740140917,
+        "log1p": true,
+        "treino_ate": "2025-03-01"
+      },
+      "ano_26_rodadas": {
+        "mae": 3024.067413260385,
+        "mae_naive": 4463.67282967033,
+        "erro_relativo_naive": 0.6774841097580467,
+        "rodadas": 26,
+        "rodadas_vence_naive": 19,
+        "cobertura_ic95": 95.6043956043956,
+        "largura_ic95": 70828.28368456122,
+        "previsto_sobre_real_pct": 56.75951671906623,
+        "dias_feriado": 14,
+        "mae_dias_feriado": 3987.556588760495,
+        "pct_erro_em_feriados": 5.071565548891661,
+        "mae_dias_normais": 2985.5278462403808
+      },
+      "dezembro": {
+        "mae": 7806.877999290066,
+        "mae_naive": 7691.310714285714,
+        "erro_relativo_naive": 1.0150256944878977,
+        "rodadas": 1,
+        "rodadas_vence_naive": 0,
+        "cobertura_ic95": 92.85714285714286,
+        "largura_ic95": 79049.93731721284,
+        "previsto_sobre_real_pct": 32.90756265267522
+      },
+      "tempo_s": 322.0
+    },
+    "A1_crua_calendario": {
+      "modelo": "A1_crua_calendario",
+      "exogenas": [
+        "dia_seg",
+        "dia_ter",
+        "dia_qua",
+        "dia_qui",
+        "dia_sex",
+        "dia_sab",
+        "feriado",
+        "vespera_feriado",
+        "pos_feriado",
+        "antes_maes",
+        "antes_namorados",
+        "antes_mulher",
+        "antes_finados",
+        "antes_natal",
+        "antes_pais",
+        "inicio_mes"
+      ],
+      "ordem_holdout": {
+        "order": [
+          0,
+          0,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 1528.4263656393218,
+        "log1p": true
+      },
+      "holdout": {
+        "mae": 1397.277310138749,
+        "mae_naive": 1725.3410714285715,
+        "erro_relativo_naive": 0.8098557052153244,
+        "rodadas": 1,
+        "rodadas_vence_naive": 1,
+        "cobertura_ic95": 100.0,
+        "largura_ic95": 12812.910194589449,
+        "previsto_sobre_real_pct": 122.71743286137145,
+        "mase": 0.3986024181802827,
+        "rmsse": 0.2838693092930173,
+        "ljung_box_lag7_pvalue": 0.6869060597860139,
+        "ljung_box_lag14_pvalue": 0.47655053934536706,
+        "shapiro_pvalue": 4.501505857971693e-31
+      },
+      "coeficientes_holdout": {
+        "dia_seg": {
+          "coef": 8.423997237646816,
+          "ic_inf": 8.091901281615714,
+          "ic_sup": 8.756093193677918,
+          "p_valor": 0.0
+        },
+        "dia_ter": {
+          "coef": 8.442130381990804,
+          "ic_inf": 8.13594450324429,
+          "ic_sup": 8.748316260737319,
+          "p_valor": 0.0
+        },
+        "dia_qua": {
+          "coef": 8.458483105662507,
+          "ic_inf": 8.135481541641624,
+          "ic_sup": 8.78148466968339,
+          "p_valor": 0.0
+        },
+        "dia_qui": {
+          "coef": 8.434547372550398,
+          "ic_inf": 8.103013811294845,
+          "ic_sup": 8.76608093380595,
+          "p_valor": 0.0
+        },
+        "dia_sex": {
+          "coef": 8.4059799115639,
+          "ic_inf": 8.061987897750331,
+          "ic_sup": 8.74997192537747,
+          "p_valor": 0.0
+        },
+        "dia_sab": {
+          "coef": 7.734505493578097,
+          "ic_inf": 7.405461357826828,
+          "ic_sup": 8.063549629329366,
+          "p_valor": 0.0
+        },
+        "feriado": {
+          "coef": -8.236137302535408,
+          "ic_inf": -8.581642674130945,
+          "ic_sup": -7.890631930939869,
+          "p_valor": 0.0
+        },
+        "vespera_feriado": {
+          "coef": -0.04470362075495521,
+          "ic_inf": -0.2676018299081645,
+          "ic_sup": 0.1781945883982541,
+          "p_valor": 0.6942582130667198
+        },
+        "pos_feriado": {
+          "coef": 0.13873153549299697,
+          "ic_inf": -0.1512872398764402,
+          "ic_sup": 0.4287503108624341,
+          "p_valor": 0.3484726851974661
+        },
+        "antes_maes": {
+          "coef": 0.9368171750754511,
+          "ic_inf": 0.7162831140164124,
+          "ic_sup": 1.1573512361344898,
+          "p_valor": 8.374368513634957e-17
+        },
+        "antes_namorados": {
+          "coef": -0.06629023340455081,
+          "ic_inf": -0.6325935508187632,
+          "ic_sup": 0.5000130840096617,
+          "p_valor": 0.8185354076399763
+        },
+        "antes_mulher": {
+          "coef": -0.33682225569705093,
+          "ic_inf": -1.2360836537939774,
+          "ic_sup": 0.5624391423998756,
+          "p_valor": 0.46287986592971153
+        },
+        "antes_finados": {
+          "coef": 1.3412544979097365,
+          "ic_inf": 1.103439776865288,
+          "ic_sup": 1.579069218954185,
+          "p_valor": 2.0959555353168435e-28
+        },
+        "antes_natal": {
+          "coef": -0.13410410244471133,
+          "ic_inf": -0.8948410356164911,
+          "ic_sup": 0.6266328307270685,
+          "p_valor": 0.7297139646341515
+        },
+        "antes_pais": {
+          "coef": -0.11515343114775463,
+          "ic_inf": -0.572161710349392,
+          "ic_sup": 0.3418548480538828,
+          "p_valor": 0.621407421708972
+        },
+        "inicio_mes": {
+          "coef": 0.05352242204775825,
+          "ic_inf": -0.08133135426195284,
+          "ic_sup": 0.18837619835746935,
+          "p_valor": 0.43663117298904797
+        }
+      },
+      "walk_forward_4": {
+        "mae": 1402.0547175278195,
+        "mae_naive": 2332.8535714285713,
+        "erro_relativo_naive": 0.601004167042187,
+        "rodadas": 4,
+        "rodadas_vence_naive": 2,
+        "cobertura_ic95": 100.0,
+        "largura_ic95": 13458.622424696643,
+        "previsto_sobre_real_pct": 127.78595990555968
+      },
+      "ordem_ano": {
+        "order": [
+          0,
+          0,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 793.0694973891668,
+        "log1p": true,
+        "treino_ate": "2025-03-01"
+      },
+      "ano_26_rodadas": {
+        "mae": 2748.7450591571014,
+        "mae_naive": 4463.67282967033,
+        "erro_relativo_naive": 0.6158034345362434,
+        "rodadas": 26,
+        "rodadas_vence_naive": 22,
+        "cobertura_ic95": 93.68131868131869,
+        "largura_ic95": 13105.916559552094,
+        "previsto_sobre_real_pct": 79.11155898849569,
+        "dias_feriado": 14,
+        "mae_dias_feriado": 0.47232047617281914,
+        "pct_erro_em_feriados": 0.0006608896703597412,
+        "mae_dias_normais": 2858.6759687043386
+      },
+      "dezembro": {
+        "mae": 7102.166622409753,
+        "mae_naive": 7691.310714285714,
+        "erro_relativo_naive": 0.9234013403226975,
+        "rodadas": 1,
+        "rodadas_vence_naive": 1,
+        "cobertura_ic95": 82.14285714285714,
+        "largura_ic95": 11916.702156868285,
+        "previsto_sobre_real_pct": 34.88260946100849
+      },
+      "tempo_s": 290.3
+    },
+    "B_crua_calendario_clima": {
+      "modelo": "B_crua_calendario_clima",
+      "exogenas": [
+        "dia_seg",
+        "dia_ter",
+        "dia_qua",
+        "dia_qui",
+        "dia_sex",
+        "dia_sab",
+        "feriado",
+        "vespera_feriado",
+        "pos_feriado",
+        "antes_maes",
+        "antes_namorados",
+        "antes_mulher",
+        "antes_finados",
+        "antes_natal",
+        "antes_pais",
+        "inicio_mes",
+        "chuva_dia",
+        "chuva_7d",
+        "temp_max"
+      ],
+      "ordem_holdout": {
+        "order": [
+          0,
+          0,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 1531.3872263537974,
+        "log1p": true
+      },
+      "holdout": {
+        "mae": 1467.2097355254505,
+        "mae_naive": 1725.3410714285715,
+        "erro_relativo_naive": 0.8503882274770229,
+        "rodadas": 1,
+        "rodadas_vence_naive": 1,
+        "cobertura_ic95": 100.0,
+        "largura_ic95": 13117.605036003732,
+        "previsto_sobre_real_pct": 126.0215790584428,
+        "mase": 0.41855209722114783,
+        "rmsse": 0.29558444888961316,
+        "ljung_box_lag7_pvalue": 0.7000849826649336,
+        "ljung_box_lag14_pvalue": 0.4477408153647707,
+        "shapiro_pvalue": 5.496986100459391e-31
+      },
+      "coeficientes_holdout": {
+        "dia_seg": {
+          "coef": 8.426860927811555,
+          "ic_inf": 8.09266156144858,
+          "ic_sup": 8.76106029417453,
+          "p_valor": 0.0
+        },
+        "dia_ter": {
+          "coef": 8.441307127829091,
+          "ic_inf": 8.136748978740817,
+          "ic_sup": 8.745865276917366,
+          "p_valor": 0.0
+        },
+        "dia_qua": {
+          "coef": 8.456456189312483,
+          "ic_inf": 8.133306430167723,
+          "ic_sup": 8.779605948457244,
+          "p_valor": 0.0
+        },
+        "dia_qui": {
+          "coef": 8.433135589173425,
+          "ic_inf": 8.10276151289441,
+          "ic_sup": 8.763509665452439,
+          "p_valor": 0.0
+        },
+        "dia_sex": {
+          "coef": 8.402943216709906,
+          "ic_inf": 8.057885851597248,
+          "ic_sup": 8.748000581822563,
+          "p_valor": 0.0
+        },
+        "dia_sab": {
+          "coef": 7.730498741751682,
+          "ic_inf": 7.399392678288501,
+          "ic_sup": 8.061604805214863,
+          "p_valor": 0.0
+        },
+        "feriado": {
+          "coef": -8.23694544356369,
+          "ic_inf": -8.598985281782845,
+          "ic_sup": -7.874905605344534,
+          "p_valor": 0.0
+        },
+        "vespera_feriado": {
+          "coef": -0.039929454877770824,
+          "ic_inf": -0.26725276788256824,
+          "ic_sup": 0.18739385812702658,
+          "p_valor": 0.7306442473374987
+        },
+        "pos_feriado": {
+          "coef": 0.14135318935226396,
+          "ic_inf": -0.151632886170343,
+          "ic_sup": 0.43433926487487096,
+          "p_valor": 0.3443534676127844
+        },
+        "antes_maes": {
+          "coef": 0.9498738207969677,
+          "ic_inf": 0.7143918118496211,
+          "ic_sup": 1.1853558297443143,
+          "p_valor": 2.658118765144316e-15
+        },
+        "antes_namorados": {
+          "coef": -0.03580337674172482,
+          "ic_inf": -0.6116706121315486,
+          "ic_sup": 0.5400638586480989,
+          "p_valor": 0.9030124423754181
+        },
+        "antes_mulher": {
+          "coef": -0.3664506481845875,
+          "ic_inf": -1.2653347164739945,
+          "ic_sup": 0.5324334201048194,
+          "p_valor": 0.42427641274198424
+        },
+        "antes_finados": {
+          "coef": 1.3341712774645333,
+          "ic_inf": 1.0912816773129586,
+          "ic_sup": 1.5770608776161081,
+          "p_valor": 4.986627413808594e-27
+        },
+        "antes_natal": {
+          "coef": -0.14218855540793798,
+          "ic_inf": -0.9026195468713611,
+          "ic_sup": 0.6182424360554852,
+          "p_valor": 0.7140052680348405
+        },
+        "antes_pais": {
+          "coef": -0.09342207762148709,
+          "ic_inf": -0.5572998732732422,
+          "ic_sup": 0.37045571803026794,
+          "p_valor": 0.693046256891866
+        },
+        "inicio_mes": {
+          "coef": 0.0568941076984561,
+          "ic_inf": -0.07947822003608959,
+          "ic_sup": 0.1932664354330018,
+          "p_valor": 0.4135337472121393
+        },
+        "chuva_dia": {
+          "coef": 0.03080797564761995,
+          "ic_inf": -0.050713270798008706,
+          "ic_sup": 0.1123292220932486,
+          "p_valor": 0.4588773273349491
+        },
+        "chuva_7d": {
+          "coef": -0.010375503716309345,
+          "ic_inf": -0.07190055484180101,
+          "ic_sup": 0.05114954740918232,
+          "p_valor": 0.7410027399417689
+        },
+        "temp_max": {
+          "coef": 0.015065990398268806,
+          "ic_inf": -0.008506600641041246,
+          "ic_sup": 0.03863858143757886,
+          "p_valor": 0.21032396002670983
+        }
+      },
+      "walk_forward_4": {
+        "mae": 1449.5015738655582,
+        "mae_naive": 2332.8535714285713,
+        "erro_relativo_naive": 0.6213427158987632,
+        "rodadas": 4,
+        "rodadas_vence_naive": 2,
+        "cobertura_ic95": 100.0,
+        "largura_ic95": 13663.861710167703,
+        "previsto_sobre_real_pct": 130.09985628809184
+      },
+      "ordem_ano": {
+        "order": [
+          0,
+          0,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 796.714026454737,
+        "log1p": true,
+        "treino_ate": "2025-03-01"
+      },
+      "ano_26_rodadas": {
+        "mae": 2774.9384169964537,
+        "mae_naive": 4463.67282967033,
+        "erro_relativo_naive": 0.621671552303577,
+        "rodadas": 26,
+        "rodadas_vence_naive": 22,
+        "cobertura_ic95": 93.68131868131869,
+        "largura_ic95": 13038.881231781474,
+        "previsto_sobre_real_pct": 78.89542809999854,
+        "dias_feriado": 14,
+        "mae_dias_feriado": 0.4686065096987432,
+        "pct_erro_em_feriados": 0.0006495036857651655,
+        "mae_dias_normais": 2885.9172094159244
+      },
+      "dezembro": {
+        "mae": 7101.06187045104,
+        "mae_naive": 7691.310714285714,
+        "erro_relativo_naive": 0.9232577039517651,
+        "rodadas": 1,
+        "rodadas_vence_naive": 1,
+        "cobertura_ic95": 82.14285714285714,
+        "largura_ic95": 12051.759850434637,
+        "previsto_sobre_real_pct": 35.34684937378899
+      },
+      "tempo_s": 1142.7
+    }
+  },
+  "importancia_rf_mdi": {
+    "dia_sab": 0.3979408103018881,
+    "feriado": 0.1522964468130701,
+    "dia_qui": 0.10430529616636952,
+    "dia_sex": 0.0951165602857542,
+    "dia_seg": 0.08541885082398555,
+    "dia_qua": 0.07914607073210983,
+    "dia_ter": 0.07047994048875147,
+    "chuva_7d": 0.005211143988821469,
+    "chuva_dia": 0.00484896051776963,
+    "temp_max": 0.004266979878773382,
+    "inicio_mes": 0.0008602176269960546,
+    "antes_namorados": 8.449992762263752e-05,
+    "pos_feriado": 1.935327043574678e-05,
+    "vespera_feriado": 4.869177652364875e-06,
+    "antes_finados": 0.0,
+    "antes_mulher": 0.0,
+    "antes_natal": 0.0,
+    "antes_maes": 0.0,
+    "antes_pais": 0.0
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "faixa_residuos2": {
+    "A0_crua": {
+      "feriados": 1605.5779001388485,
+      "dias_com_encomenda": 101.84058670168719,
+      "demais_dias": 322.13099593065806,
+      "sigma2": 2.585571037159364
+    },
+    "A1_crua_calendario": {
+      "feriados": 33.992882374287866,
+      "dias_com_encomenda": 66.93929169262708,
+      "demais_dias": 217.51824210754228,
+      "sigma2": 0.4237346717208905
+    }
+  },
+  "nivel": {
+    "media_dia_aberto_treino_ano": 5626.092711864407,
+    "a1_rodadas_acima_de_110pct": 6,
+    "a1_rodadas_abaixo_de_90pct": 15,
+    "a1_previsto_sobre_real_por_rodada": [
+      0.842,
+      0.849,
+      0.851,
+      0.815,
+      1.218,
+      0.811,
+      0.827,
+      0.98,
+      0.658,
+      0.73,
+      0.866,
+      0.948,
+      1.002,
+      0.877,
+      0.919,
+      0.473,
+      0.657,
+      1.235,
+      0.439,
+      0.507,
+      0.269,
+      0.906,
+      1.451,
+      1.221,
+      1.193,
+      1.274
+    ]
+  },
+  "a1_semanas_de_data": {
+    "Dia das Mães 2025": {
+      "previsto": 70513.53834878259,
+      "real": 52448.75,
+      "erro": 59219.732553092465,
+      "previsto_dia_util_medio": 12658.632877903423
+    },
+    "Finados 2025": {
+      "previsto": 104032.19657926785,
+      "real": 62176.0,
+      "erro": 63132.609087415076,
+      "previsto_dia_util_medio": 18735.23937174602
+    },
+    "pct_do_erro_do_ano": 12.22859157435887
+  },
+  "abertura_excepcional": {
+    "2024-05-12": 629.0,
+    "2024-11-02": 718.0,
+    "2025-05-11": 669.0,
+    "2025-11-02": 891.0
+  },
+  "semana_antes_balcao_vs_2meses_pct": {
+    "Dia das Mães 2024": -17.5,
+    "Dia das Mães 2025": 10.6,
+    "Finados 2024": 39.1,
+    "Finados 2025": 12.1
+  },
+  "erro_ano_a1": {
+    "pct_dias_com_encomenda": 10.714285714285714,
+    "pct_erro_em_dias_com_encomenda": 47.99174117889611,
+    "mae_dias_com_encomenda": 12312.25906827813,
+    "mae_dias_sem_encomenda": 1601.1233780625782,
+    "mae_contra_so_balcao": 1738.8191470599306,
+    "pct_volume_encomenda_no_ano": 22.002939331280306
+  },
+  "dezembro_a1": {
+    "previsto": 102802.25928166244,
+    "real": 294709.2,
+    "real_balcao": 138201.2,
+    "previsto_sobre_balcao_pct": 74.38593824197072
+  }
+}

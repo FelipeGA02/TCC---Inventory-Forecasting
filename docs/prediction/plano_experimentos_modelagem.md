@@ -42,6 +42,15 @@ Subpastas, uma por etapa da comparação:
       a naïve na mesma janela (vence em 2 de 4 folds); dezembro/2025 previsto em 34%; IC 95%
       de ~80 mil. Serve de referência para medir o ganho do EDA (A0), do calendário (A1) e do
       enriquecimento (B) → [02-baseline_serie_crua_pre_eda.md](02-baseline_serie_crua_pre_eda.md)
+- [x] 1.0b **A1-crua e B-crua: enriquecimento sobre a mesma série crua**
+      (`training_scripts/enriched/sarimax_serie_crua_enriquecida.py`, 2026-09-27). O calendário
+      (BrasilAPI + fechamentos locais) zera o erro em feriados, estreita o IC 95% de ~79 para
+      ~13 mil e, num ano de 26 rodadas, reduz o erro em 9% (vence a naïve em 22/26, contra
+      19/26). O clima (Open-Meteo, observado) não traz ganho. Dezembro segue em 35% previsto
+      (encomendas: 48% do erro do ano em 11% dos dias), as previsões ficam planas (não
+      acompanham fases), e a janela "7 dias até Mães/Finados" gerou 12% do erro do ano;
+      trocar por "loja aberta excepcionalmente no dia" →
+      [03-enriquecimento_serie_crua.md](03-enriquecimento_serie_crua.md)
 - [x] 1.1 EDA (`tasks.md` T000b, em `training_scripts/eda/`): sazonalidade semanal/anual,
       tendência, **% de zeros da série diária por SKU** (prova de que o SKU não pode ser
       modelado sozinho), perfil de demanda por categoria, seleção do Top-N →
@@ -93,10 +102,10 @@ Nenhuma envolve dado pessoal de cliente → sem conflito com Princípio VI/LGPD.
 
 | Fonte | Dado | API/acesso | Observação |
 | --- | --- | --- | --- |
-| Feriados nacionais | Datas exatas | [BrasilAPI](https://brasilapi.com.br/api/feriados/v1/{ano}) — gratuita | Nível nacional. **Conferir se traz o Carnaval** (ponto facultativo); se não trouxer, calcular a partir da Páscoa |
-| Feriados municipais | Nova Lima e Itabirito/MG | Decretos municipais — **curadoria manual** | Tabela fixa versionada |
+| Feriados nacionais | Datas exatas | [BrasilAPI](https://brasilapi.com.br/api/feriados/v1/{ano}) — gratuita | Nível nacional. **Traz o Carnaval** (conferido em 2026-09-27) e Consciência Negra; cache em `data/external/` |
+| Feriados municipais | Nova Lima e Itabirito/MG | Decretos municipais — **curadoria manual** | Tabela fixa versionada. Dados mostram fechamento das duas lojas em 15/08 e 08/12 (`FECHAMENTOS_LOCAIS` em `enriched/dados_externos.py`); confirmar com a parceira |
 | Datas comemorativas móveis | Dia das Mães (2º dom. maio), Namorados (12/jun), Finados (2/nov), Natal | cálculo determinístico | Vira exógena "dias até a data" (diária) |
-| Clima | Temperatura e precipitação **diária** em Nova Lima/Itabirito | [Open-Meteo](https://open-meteo.com) — gratuita, por lat/long | Chuva afeta venda de flor de corte |
+| Clima | Temperatura e precipitação **diária** em Nova Lima/Itabirito | [Open-Meteo](https://open-meteo.com) — gratuita, por lat/long | Chuva afeta venda de flor de corte. **Sem ganho na série total** (doc 03), mesmo com clima observado |
 | Indicadores econômicos | IPCA, Selic, confiança do consumidor | [BCB SGS](https://api.bcb.gov.br/dados/serie/bcdata.sgs.{codigo}/dados) | Séries mensais — **forward-fill para diário**; peso provavelmente baixo no horizonte de 14 dias |
 | Interesse de busca | "flores", "buquê", "dia das mães presente" | `pytrends` (não oficial) | Instável; opcional |
 

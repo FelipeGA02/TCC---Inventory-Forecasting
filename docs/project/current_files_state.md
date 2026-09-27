@@ -28,6 +28,9 @@ disco (não é um relatório de execução — é um raio-x do que existe hoje).
 > gráficos estão em `training_scripts/results/`. Ganho de ~17–18% sobre a naïve na mesma
 > janela, dezembro/2025 previsto em 34%. Diagnóstico completo em
 > [02-baseline_serie_crua_pre_eda.md](../prediction/02-baseline_serie_crua_pre_eda.md).
+> Na mesma série, o enriquecimento com calendário (BrasilAPI) e clima (Open-Meteo) está em
+> [03-enriquecimento_serie_crua.md](../prediction/03-enriquecimento_serie_crua.md): o calendário
+> ajuda, o clima não. Dados externos ficam em cache em `ia-predictor/data/external/`.
 
 ---
 

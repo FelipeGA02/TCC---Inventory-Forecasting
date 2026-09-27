@@ -37,6 +37,10 @@ disco (não é um relatório de execução — é um raio-x do que existe hoje).
 > por loja, séries diárias prontas) e um `run_all.py` com relatório de qualidade; 10 testes
 > unitários em `tests/unit/test_preprocessing_etapas.py`. Ver
 > [01-pre_processing.md](../prediction/01-pre_processing.md) §6–§11.
+>
+> **Atualização 2026-09-27 — primeiro L1 aprovado.** Sobre as bases v2, o L1 por loja (A1
+> com d=1) cumpre os critérios do CLAUDE.md nas duas lojas (MASE 0,58; IC95 91–94%). Ver
+> [04-treino_l1_por_loja.md](../prediction/04-treino_l1_por_loja.md), com os próximos passos.
 
 ---
 

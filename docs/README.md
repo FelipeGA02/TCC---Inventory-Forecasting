@@ -12,6 +12,7 @@ referência técnica completa e `CLAUDE.md` (raiz) para o guia de desenvolviment
 | [`prediction/00-eda_report.md`](prediction/00-eda_report.md) | Análise exploratória | Relatório de EDA (T000b) — base transacional, as 2 séries do L1 (por unidade) e as 6 séries de desagregação (por categoria); achados que ajustam pré-processamento e modelagem |
 | [`prediction/02-baseline_serie_crua_pre_eda.md`](prediction/02-baseline_serie_crua_pre_eda.md) | Primeiro treino (linha de base) | SARIMA sobre 1 série diária crua, dados pré-EDA: como foi feito, resultados, por que foi fraco e o que resolver no próximo treino |
 | [`prediction/03-enriquecimento_serie_crua.md`](prediction/03-enriquecimento_serie_crua.md) | Segundo treino (enriquecimento) | A mesma série crua com calendário (feriados BrasilAPI + fechamentos locais) e clima (Open-Meteo): o calendário ajuda, o clima não |
+| [`prediction/04-treino_l1_por_loja.md`](prediction/04-treino_l1_por_loja.md) | Terceiro treino (L1 por loja) | Achados do EDA + calendário corrigido: MASE 0,58, 24/26 rodadas vencidas, faixa útil; pendências (encomendas, viés) e próximos passos com a solução de cada uma |
 | [`frontend/`](frontend/) | Dashboard React | ADR sobre geração do cliente TypeScript a partir do OpenAPI |
 | [`uml/`](uml/) | Modelagem UML | Diagramas de casos de uso e atividades (entregável acadêmico, seção 6.4 do artigo) — caminho fixo, referenciado em `SPECS.md`/`tasks.md`, não mover |
 

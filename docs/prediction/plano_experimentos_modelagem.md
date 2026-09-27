@@ -72,7 +72,13 @@ Subpastas, uma por etapa da comparação:
       datas comemorativas → **Etapa 6 do pré-processamento** (`preprocessing/build_calendar.py`,
       2026-09-27), `output/calendario_diario.csv`. Confere 100% com as vendas (0 dias fechados
       com venda, 0 abertos sem venda)
-- [ ] 1.4 **Modelo A0 — SARIMA puro diário** (`training_scripts/baseline/`, sem exógena):
+- [x] 1.4–1.7 **A0 e A1 por `unidade`, com os achados do EDA** (`baseline/sarimax_l1_por_loja.py`,
+      2026-09-27): alvo = balcão, limiar de encomenda por rodada, teto p99 no treino,
+      calendário corrigido, ordem escolhida antes da 1ª rodada, 26 rodadas + dez + fev. Melhor
+      versão: **A1 com d = 1** — MASE 0,58 nas duas lojas, 24/26 rodadas vencidas, IC95 91–94%
+      → `trained`. Pendências: encomendas (51% da venda de Itabirito no último ano) e viés da
+      mediana (81–88% do vendido) → [04-treino_l1_por_loja.md](04-treino_l1_por_loja.md) §5
+- [ ] 1.4 (original) **Modelo A0 — SARIMA puro diário** (`training_scripts/baseline/`, sem exógena):
       ablação de referência, piso de desempenho
 - [ ] 1.5 **Modelo A1 — SARIMAX + calendário** (`training_scripts/baseline/`): exógenas de
       calendário ponderadas por importância RF/MDI (clip 0.1)

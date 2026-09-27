@@ -278,7 +278,7 @@ Em ordem de impacto esperado:
 | --- | --- |
 | Script do experimento | `ia-predictor/training_scripts/enriched/sarimax_serie_crua_enriquecida.py` |
 | Script deste diagnóstico | `ia-predictor/training_scripts/enriched/analise_enriquecimento.py` |
-| Busca de feriados e clima | `ia-predictor/training_scripts/enriched/dados_externos.py` |
+| Busca de feriados e clima | `ia-predictor/training_scripts/preprocessing/dados_externos.py` (movido de `enriched/` em 2026-09-27) |
 | Dados externos (cache) | `ia-predictor/data/external/` |
 | Resultados | `training_scripts/results/metrics/enriquecimento_serie_crua_pre_eda.json` |
 | Números do diagnóstico | `…/enriquecimento_serie_crua_pre_eda_diagnostico.json` |

@@ -31,6 +31,12 @@ disco (não é um relatório de execução — é um raio-x do que existe hoje).
 > Na mesma série, o enriquecimento com calendário (BrasilAPI) e clima (Open-Meteo) está em
 > [03-enriquecimento_serie_crua.md](../prediction/03-enriquecimento_serie_crua.md): o calendário
 > ajuda, o clima não. Dados externos ficam em cache em `ia-predictor/data/external/`.
+>
+> **Atualização 2026-09-27 — pré-processamento v2.** O pipeline de
+> `training_scripts/preprocessing/` ganhou as Etapas 4–7 (base limpa, encomendas, calendário
+> por loja, séries diárias prontas) e um `run_all.py` com relatório de qualidade; 10 testes
+> unitários em `tests/unit/test_preprocessing_etapas.py`. Ver
+> [01-pre_processing.md](../prediction/01-pre_processing.md) §6–§11.
 
 ---
 

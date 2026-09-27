@@ -15,6 +15,13 @@ essa base é preparada para alimentar a modelagem: **L1 SARIMAX** da demanda di�
 > **unidade** (2 séries); `categoria` é obtida por desagregação, não é mais série L1
 > própria ([ADR-011](ADR-011-escopo-previsao-sem-reposicao.md) §4).
 
+> **Revisão de 2026-09-27 — Etapas 4 a 7.** O EDA ([00-eda_report.md](00-eda_report.md) §4) e
+> os dois treinos na série crua ([02](02-baseline_serie_crua_pre_eda.md) e
+> [03](03-enriquecimento_serie_crua.md)) fecharam os parâmetros que faltavam. O pipeline
+> passou a ir além da transação: limpa a base (4), marca as encomendas (5), monta o
+> calendário por loja (6) e grava as séries diárias prontas (7). Tudo roda com
+> `run_all.py`, que confere a consistência ao final. Ver §6 a §10.
+
 Este documento é deliberadamente verboso no **porquê**: cada decisão de parsing, cada
 coluna removida, cada regra de taxonomia e cada valor default está justificado, porque o
 pré-processamento é onde a maior parte das escolhas metodológicas do CRISP-DM (compreensão
@@ -25,11 +32,11 @@ dos dados → preparação) ficam gravadas em código.
 ## 1. Visão geral
 
 O alvo do modelo L1 é uma **série temporal diária por unidade**: para cada `unidade`, a
-soma de `qtdade` vendida por dia, de todas as categorias de produto. `categoria` (e depois
-SKU) são obtidos por desagregação em cascata, não por um modelo próprio (ver §5.2). O
-pré-processamento não constrói nenhuma dessas séries (isso é `prepare_daily_series()`, no
-backend/experimentação) — ele entrega a **base transacional limpa e enriquecida** de onde
-as séries são somadas.
+soma de `qtdade` vendida **no balcão** por dia (sem as encomendas grandes, ADR-012), de todas
+as categorias de produto. `categoria` (e depois SKU) são obtidos por desagregação em
+cascata, não por um modelo próprio (ver §5.2). Até 2026-09-21 o pré-processamento parava na
+base transacional; desde 2026-09-27 ele também entrega a base limpa, a marcação de
+encomendas, o calendário por loja e as **séries diárias prontas** (Etapas 4–7).
 
 ```
 data/raw/*.xlsx  (26 planilhas mensais, jan/2024–fev/2026)
@@ -50,16 +57,45 @@ data/raw/*.xlsx  (26 planilhas mensais, jan/2024–fev/2026)
         ▼
 ┌──────────────────────────────────────────────┐
 │ Etapa 3 — map_taxonomy.py                     │  deriva `unidade` (L1), `categoria` e `categoria_fina` (desagregação)
-│  → output/contas_a_receber_taxonomia.csv     │  12 colunas · pronto para prepare_daily_series
+│  → output/contas_a_receber_taxonomia.csv     │  12 colunas
 └──────────────────────────────────────────────┘
         │
         ▼
-   prepare_daily_series(df, unidade)             ← alvo do L1 — FORA deste pipeline
-   prepare_daily_series(df, unidade, categoria)  ← perfil de desagregação (L2)
-   (training_scripts/baseline/ — Fase 1 do plano de experimentos)
+┌──────────────────────────────────────────────┐
+│ Etapa 4 — clean_transactions.py  (§6)         │  sai Servico e taxa · data ISO · números · devolução marcada · grupo · UTF-8
+│  → output/contas_a_receber_limpa.csv         │  13 colunas · só demanda de produto
+└──────────────────────────────────────────────┘
+        │
+        ▼
+┌──────────────────────────────────────────────┐
+│ Etapa 5 — mark_orders.py  (§7)                │  encomenda = linha > 5 dias típicos (ADR-012)
+│  → output/contas_a_receber_encomendas.csv    │  + encomenda, limiar_encomenda, dias_tipicos_linha
+│  → output/limiares_encomenda.csv             │  1 limiar por unidade × categoria
+└──────────────────────────────────────────────┘
+        │                                    ┌──────────────────────────────────────────────┐
+        │                                    │ Etapa 6 — build_calendar.py  (§8)             │  por loja: feriados (BrasilAPI), fechamentos
+        │                                    │  → output/calendario_diario.csv              │  locais, abertura excepcional, loja_fechada
+        ▼                                    └──────────────────────────────────────────────┘
+┌──────────────────────────────────────────────┐
+│ Etapa 7 — build_daily_series.py  (§9)         │  total · balcão (alvo do L1) · encomenda, dias sem venda = 0
+│  → output/serie_diaria_unidade.csv           │  L1: 2 séries
+│  → output/serie_diaria_unidade_categoria.csv │  desagregação: 6 séries
+└──────────────────────────────────────────────┘
+        │
+        ▼
+   run_all.py  (§10) → output/preprocessamento_relatorio.json   ← conferências de consistência
+        │
+        ▼
+   treino (training_scripts/): série × calendário por `data × unidade`; teto p99 só no treino
 ```
 
 ### Por que entregar uma base transacional, e não a série diária pronta
+
+> **Revisto em 2026-09-27.** O argumento abaixo valia enquanto os parâmetros da série
+> estavam em aberto. O EDA e os treinos os fecharam (L1 por unidade, alvo = balcão, dias sem
+> venda = 0), e a Etapa 7 passou a gravar as séries. A base transacional continua sendo
+> entregue (Etapas 4–5), porque o walk-forward recalcula o limiar de encomenda por janela e
+> a desagregação para SKU parte das linhas.
 
 O pré-processamento **para na transação limpa** de propósito. A série diária depende de
 parâmetros de modelagem que ainda estão em aberto (qual recorte de `unidade`, se a
@@ -89,10 +125,20 @@ Cada etapa é um módulo com função pura e bloco `if __name__ == '__main__':`.
 `ia-predictor/`, na ordem:
 
 ```bash
+python -m training_scripts.preprocessing.run_all              # tudo, na ordem, + relatório (~1–2 min)
+
+# ou etapa por etapa
 python -m training_scripts.preprocessing.build_dataset
 python -m training_scripts.preprocessing.reduce_schema
 python -m training_scripts.preprocessing.map_taxonomy
+python -m training_scripts.preprocessing.clean_transactions
+python -m training_scripts.preprocessing.mark_orders
+python -m training_scripts.preprocessing.build_calendar
+python -m training_scripts.preprocessing.build_daily_series
 ```
+
+Testes das regras das Etapas 4–7 (dados sintéticos, sem internet):
+`pytest ia-predictor/tests/unit/test_preprocessing_etapas.py`.
 
 ### Por que a saída fica em `training_scripts/output/` e não em `data/processed/`
 
@@ -784,7 +830,9 @@ para que cada rodada entregue o raio-x sem análise externa.
 ### 5.4 Saída
 
 `output/contas_a_receber_taxonomia.csv` — **12 colunas** (as 9 da Etapa 2 + `unidade` +
-`categoria` + `categoria_fina`). É o arquivo que `prepare_daily_series()` consome, em dois
+`categoria` + `categoria_fina`). É a entrada da Etapa 4. *(Até 2026-09-21 era consumido
+direto por `prepare_daily_series()`; desde 2026-09-27 as séries saem prontas da Etapa 7.)*
+O `prepare_daily_series()` descrito a seguir é o que a Etapa 7 passou a fazer, em dois
 usos: `prepare_daily_series(df, unidade)` — filtra por unidade (ignorando `Servico e
 taxa`), soma `qtdade` por dia, reindexa o range diário completo (dias sem venda = 0) e
 exige ≥ 180 dias — é a **série-alvo do L1**; e `prepare_daily_series(df, unidade,
@@ -828,34 +876,284 @@ Ainda em aberto:
 
 ---
 
-## 6. O que este pipeline NÃO resolve (e onde reaparece)
+## 6. Etapa 4 — `clean_transactions.py`: base limpa, só demanda de produto
+
+### Por que existe
+
+As Etapas 1–3 extraem e classificam, mas não julgam: a base da Etapa 3 ainda tem frete e
+taxa, datas em texto `dd/mm/aaaa`, números em texto com vírgula e acentuação inconsistente
+entre execuções (o EDA precisava tentar vários encodings para ler). Cada script de EDA e de
+treino repetia essa limpeza por conta própria, com pequenas diferenças. A Etapa 4 faz isso
+**uma vez**, com as regras que o EDA e os treinos fecharam.
+
+### O que faz
+
+| Regra | Motivo | Execução real |
+| --- | --- | --- |
+| Remove `categoria = Servico e taxa` | frete, taxa e mão de obra não são demanda de produto; já era excluída da série antes do EDA (§5) | 5.342 linhas |
+| Remove linha sem data válida ou com `unidade` fora das 2 lojas | não há como colocá-la na série | 0 linhas |
+| `emissao` → `data` ISO (`aaaa-mm-dd`) | ordena e junta com o calendário sem ambiguidade de formato | — |
+| Números viram número (vírgula decimal; vazio = 0) | as Etapas 1–3 leem tudo como texto (§4) | 0 inválidos |
+| `devolucao = 1` quando `qtdade < 0` | **as devoluções ficam na base** e entram somadas (venda líquida do dia) até a floricultura dizer como tratá-las (EDA §5, pergunta 4). Volume desprezível | 44 linhas, −481 unidades |
+| `grupo` como coluna | vocabulário do cliente para o painel e a desagregação (EDA §4, item 9) | — |
+| Grava em UTF-8 | acaba com o problema de acentuação das saídas antigas | — |
+
+Linhas com `qtdade = 0` ficam: não mudam nenhuma soma e registram que o produto passou pelo
+caixa.
+
+### Saída
+
+`output/contas_a_receber_limpa.csv` — 327.677 linhas, 13 colunas:
+`data; unidade; empresa; categoria; categoria_fina; grupo; produto_cod; qtdade; vl_unit;
+vl_total; vl_desconto; tot_liq; devolucao`. Período 2024-01-02 → 2026-02-28.
+
+---
+
+## 7. Etapa 5 — `mark_orders.py`: marcação das encomendas grandes (ADR-012)
+
+### Por que existe
+
+O EDA (§3.12) e os dois treinos mostraram que as **encomendas grandes** (obras e
+paisagismo, combinadas com antecedência) são o maior erro de qualquer modelo de série
+temporal: em Itabirito elas são 36% do volume, e no ano de teste do treino enriquecido
+concentraram 48% do erro em 11% dos dias (doc 03, §4.1). A regra de separação já estava
+decidida e implementada em `encomendas.py` (ADR-012); faltava aplicá-la de forma
+padronizada e gravar o resultado.
+
+### A regra
+
+Uma linha é encomenda quando `qtdade > K × dia típico` da sua `unidade × categoria`, com
+`K = 5` e dia típico = mediana do volume diário em dias com venda, de segunda a sábado.
+
+| Unidade · categoria | Dia típico | Limiar da linha | Linhas de encomenda | % do volume do par |
+| --- | --- | --- | --- | --- |
+| Itabirito · Grama | 203 | 1.015 | 68 | 67,7% |
+| Itabirito · Produtos de jardim | 616 | 3.079 | 8 | 9,1% |
+| Itabirito · Flores de corte | 31 | 155 | 4 | 4,2% |
+| Jardim Canadá · Grama | 1.403 | 7.014 | 1 | 1,2% |
+| Jardim Canadá · Produtos de jardim | 1.653 | 8.265 | 1 | 1,0% |
+| Jardim Canadá · Flores de corte | 32 | 160 | 12 | 17,8% |
+
+Resultado por loja, **idêntico ao do EDA/ADR-012**: Itabirito 80 linhas em 58 dias (36,3%
+do volume); Jardim Canadá 14 linhas em 9 dias (1,3%). O `run_all` confere isso a cada
+execução.
+
+### Por que agora a marca é gravada no CSV (revisão da §12)
+
+A versão anterior deste documento dizia para **não** gravar a marca, porque um limiar
+calculado com a base inteira usaria informação do futuro no walk-forward. A marca agora é
+gravada, com duas salvaguardas:
+
+- **Semântica de produção.** Ao ajustar o modelo, a produção usa todo o histórico
+  disponível, exatamente o que o CSV traz. A marca gravada é a marca que a produção usaria
+  hoje.
+- **Validação sem vazamento.** Para testes com origem móvel, o limiar é recalculado com o
+  passado de cada janela: `marcar(df, data_corte=origem)` nesta etapa, ou
+  `limiares_encomenda()` sobre as linhas anteriores à origem. A coluna `qtdade` está na base
+  justamente para isso.
+
+O **teto no 99º percentil** (segunda camada do ADR-012) continua **fora** do
+pré-processamento: ele só altera a série de treino, nunca a base (`teto_quantil()`).
+
+### Vendas médias (EDA §4, item 17)
+
+Linhas de balcão acima de 1 dia típico, grandes mas abaixo do limiar de encomenda. A etapa só
+as mede (relatório), sem mudar a base:
+
+| Loja | Linhas | % do volume de balcão | % do balcão de dez/2025 |
+| --- | --- | --- | --- |
+| Itabirito | 391 | 23,9% | 12,4% |
+| Jardim Canadá | 216 | 14,5% | 12,3% |
+
+São parte relevante do balcão, espalhadas pelo ano, não um fenômeno só de dezembro. O teto
+p99 do treino atenua os dias mais extremos; se ainda sobrar erro nesses dias, a opção é
+revisar `K`, não criar outra categoria.
+
+### Saídas
+
+- `output/contas_a_receber_encomendas.csv` — a base limpa + `encomenda` (0/1),
+  `limiar_encomenda` e `dias_tipicos_linha` (quantos dias típicos a linha vale).
+- `output/limiares_encomenda.csv` — a tabela acima.
+
+---
+
+## 8. Etapa 6 — `build_calendar.py`: calendário diário por loja
+
+### Por que existe
+
+O calendário foi a única informação externa que melhorou a previsão (doc 03): com ele, o
+erro nos feriados cai de ~4 mil unidades para ~0, a faixa de 95% fica 6 vezes mais estreita
+e o erro do ano cai 9%. O clima não trouxe ganho e **fica fora** (EDA §4, item 19). O
+calendário precisa ser **por loja**, porque as regras diferem:
+
+- **Só Itabirito abre** no Dia das Mães (domingo) e em Finados (feriado): de 629 a 891
+  unidades nesses dias. Jardim Canadá nunca abriu num domingo.
+- **Só Itabirito fechou** em 02/01/2025 (Jardim Canadá vendeu 2.394).
+
+### Fontes e regras
+
+| Informação | Fonte / regra |
+| --- | --- |
+| Feriados nacionais | BrasilAPI, cache em `data/external/` (`dados_externos.py`). Inclui **Carnaval** (ponto facultativo) e **Consciência Negra** (nacional desde 2024) |
+| Fechamentos locais | observados nos dados: **15/08 e 08/12 todo ano** (as duas lojas fecharam em 15/08/2024, 15/08/2025 e 08/12/2025) e **02/01/2025 só em Itabirito**. A confirmar com a floricultura (EDA §5, pergunta 10). Em `constants.py` |
+| Abertura excepcional | Itabirito no Dia das Mães e em Finados (`constants.py`) |
+| **`loja_fechada`** | domingo, feriado nacional ou fechamento local, **exceto** abertura excepcional |
+| Datas comemorativas | Dia das Mães (2º domingo de maio), Namorados (12/06), Dia da Mulher (08/03), Pais (2º domingo de agosto), Finados (02/11), Natal (25/12) |
+
+### Colunas
+
+Uma linha por `data × unidade`, de 2024-01-01 a 2026-12-31 (vai além dos dados para cobrir o
+horizonte de previsão):
+
+| Coluna | Uso recomendado |
+| --- | --- |
+| `dia_semana`, `nome_dia` | **L1** (dia da semana foi 83% da importância no doc 03) |
+| **`loja_fechada`** | **L1** (feriado/fechamento: 15% da importância; erro nos feriados ≈ 0) |
+| **`abertura_excepcional`** | **L1**, junto com `loja_fechada` (corrige o erro do doc 03 §4.3) |
+| `feriado_nacional`, `nome_feriado`, `fechamento_local`, `data_comemorativa` | auditoria e gráficos |
+| `vespera_feriado`, `pos_feriado`, `inicio_mes` | candidatas; sem efeito no L1 total (doc 03 §3.4) |
+| `dias_ate_<data>`, `janela_7d_<data>` | candidatas para a **desagregação por categoria**, onde o efeito das datas muda de sentido (EDA §3.4). No L1, usar só junto com `abertura_excepcional` |
+
+### Conferência com as vendas
+
+No período dos dados, cada loja tem 27 dias úteis de loja fechada. O `run_all` cruza o
+calendário com as vendas: **0 dias marcados como fechados tiveram venda, e 0 dias marcados
+como abertos ficaram sem venda**. O calendário explica todos os zeros da série.
+
+### Saída
+
+`output/calendario_diario.csv` — 2.192 linhas (1.096 dias × 2 lojas), 25 colunas.
+
+---
+
+## 9. Etapa 7 — `build_daily_series.py`: séries diárias prontas
+
+### Por que existe
+
+Com os parâmetros da série fechados, cada experimento remontava a série do zero, a partir
+da transação, com pequenas diferenças entre scripts. A Etapa 7 grava as séries uma vez, com
+as três parcelas lado a lado, para o treino escolher o alvo sem reprocessar nada.
+
+### Colunas
+
+| Coluna | Significado |
+| --- | --- |
+| `qtd_total` | tudo o que saiu no dia (balcão + encomendas, devoluções descontadas) |
+| **`qtd_balcao`** | **alvo do L1** (ADR-012): sem as linhas de encomenda |
+| `qtd_encomenda` | fluxo sob pedido; não é previsto pelo histórico |
+| `qtd_devolucao` | soma das linhas negativas (já incluída em total e balcão), para auditoria |
+| `n_linhas`, `n_linhas_encomenda` | contagens do dia |
+
+As duas lojas cobrem o mesmo intervalo (2024-01-02 → 2026-02-28, 789 dias), com todos os
+dias do calendário; dia sem venda = 0.
+
+### Execução real
+
+| Loja | Total | Balcão (alvo L1) | Encomendas | Dias com venda | Variação diária (CV) total → balcão |
+| --- | --- | --- | --- | --- | --- |
+| Itabirito | 1.323.490 | 843.126 | 480.364 (36,3%) | 653 | 2,40 → 1,25 |
+| Jardim Canadá | 2.617.236 | 2.582.431 | 34.805 (1,3%) | 650 | 1,02 → 1,00 |
+
+A queda do CV de Itabirito reproduz o ADR-012. As duas lojas passam o mínimo de 180 dias com
+venda do L1.
+
+### Saídas
+
+- `output/serie_diaria_unidade.csv` — **L1**: 1.578 linhas (789 dias × 2 lojas).
+- `output/serie_diaria_unidade_categoria.csv` — **desagregação** `unidade → categoria`:
+  4.734 linhas (789 dias × 6 pares).
+
+A desagregação `categoria → SKU` continua partindo das linhas
+(`contas_a_receber_encomendas.csv`, coluna `produto_cod`): uma série por SKU seria enorme
+(~5 mil SKUs × 789 dias) e quase toda zero.
+
+### Como o treino usa
+
+```python
+serie = pd.read_csv('output/serie_diaria_unidade.csv', sep=';', decimal=',', parse_dates=['data'])
+cal = pd.read_csv('output/calendario_diario.csv', sep=';', parse_dates=['data'])
+dados = serie.merge(cal, on=['data', 'unidade'])       # série + calendário da mesma loja
+y = dados.query("unidade == 'Itabirito'").set_index('data')['qtd_balcao']
+# teto p99 (ADR-012): só no treino → encomendas.teto_quantil(y_treino)
+# walk-forward: recalcular o limiar de encomenda por janela (mark_orders.marcar(..., data_corte=origem))
+```
+
+---
+
+## 10. `run_all.py`: o pipeline inteiro + relatório de qualidade
+
+Roda as 7 etapas em ordem (~1–2 min; a Etapa 1 é incremental e só reprocessa planilhas novas)
+e grava `output/preprocessamento_relatorio.json` com o resumo de cada etapa e quatro
+conferências. Resultado da execução de 2026-09-27:
+
+| Conferência | Resultado |
+| --- | --- |
+| Conservação: Σ quantidade da base limpa = Σ séries por loja = Σ séries por categoria; balcão + encomenda = total | ok |
+| ADR-012 reproduzido (Itabirito 80 linhas / 36,3%; Jardim Canadá 14 / 1,3%) | ok |
+| Calendário × vendas: dia "fechado" com venda / dia "aberto" sem venda | 0 / 0 |
+| Mínimo de 180 dias com venda por loja (L1) | ok (653 e 650) |
+
+Se alguma conferência falhar numa base nova (por exemplo, um dia útil sem venda que o
+calendário não conhece), é sinal de fechamento local novo ou de problema no dado, e vale
+investigar antes de treinar.
+
+---
+
+## 11. O que cada achado do EDA e dos treinos virou
+
+| Achado | Onde foi resolvido |
+| --- | --- |
+| L1 = 2 séries, uma por loja; Garden Center dentro de Jardim Canadá (EDA §4 item 10) | Etapa 3 (`unidades.py`) + Etapa 7 |
+| `Servico e taxa` fora da demanda | Etapa 4 |
+| Devoluções (EDA §4 item 11) | Etapa 4: marcadas e mantidas até a resposta da floricultura |
+| Grupos do cliente no painel (EDA §4 item 9) | Etapa 4: coluna `grupo` |
+| Encomendas fora do L1 (EDA §4 item 12, ADR-012) | Etapa 5 (marca) + Etapa 7 (`qtd_balcao`) |
+| Vendas médias abaixo do limiar (EDA §4 item 17) | Etapa 5: medidas no relatório |
+| Dia da semana como variável direta (EDA §4 item 4) | Etapa 6: `dia_semana` |
+| Carnaval explícito (EDA §4 item 13) | Etapa 6: BrasilAPI já traz |
+| Fechamentos locais 15/08 e 08/12 (doc 03, EDA §5 pergunta 10) | Etapa 6: `fechamento_local` |
+| Abertura excepcional em Mães/Finados (EDA §4 item 18) | Etapa 6: `abertura_excepcional`, por loja |
+| Datas comemorativas por categoria (EDA §4 item 3) | Etapa 6: `dias_ate_*` e `janela_7d_*` para a desagregação |
+| Clima fora (EDA §4 item 19) | não entra no pipeline |
+| Teto p99 dos picos restantes (EDA §4 item 2, ADR-012) | **treino** (`encomendas.teto_quantil`), nunca na base |
+| Limiar de encomenda sem vazamento no walk-forward | **treino** (`marcar(..., data_corte=)`) |
+| Métrica comparável, largura do IC, ano inteiro de rodadas (EDA §4 itens 14–15) | **treino** (protocolo do doc 03) |
+| Acompanhar mudanças de nível (EDA §4 item 16) | **treino** (configuração do modelo) |
+
+---
+
+## 12. O que este pipeline NÃO resolve (e onde reaparece)
 
 Cada item abaixo foi **deixado de fora de propósito** — ou porque é regra de negócio que
 pertence ao backend de produção, ou porque depende de decisões de modelagem ainda abertas.
+*(Revisto em 2026-09-27: a limpeza, as séries, o calendário e a marcação de encomendas
+passaram a ser feitos pelas Etapas 4–7; os itens abaixo dizem o que ainda sobra.)*
 
-- **Validação de qualidade de dado** (`qtdade <= 0` — 880 linhas, `emissao` nula, vírgula
-  decimal malformada). O parser só extrai e formata; não julga. As regras de negócio ficam
-  no `domain/etl/normalizer.py` de produção (`SPECS.md` §4.2, ainda stub), para que exista
-  **um só lugar** com a política de limpeza, versionado e testado.
+- **Validação de qualidade de dado** — a Etapa 4 aplica as regras já decididas (sem
+  serviço/taxa, data e unidade válidas, número válido, devolução marcada). O que falta é a
+  **política final de devoluções** (pergunta à floricultura) e a migração dessas regras para
+  o `domain/etl/normalizer.py` de produção (`SPECS.md` §4.2, ainda stub), para que exista
+  um só lugar com a política de limpeza no sistema.
 - **Curadoria fina de `categoria_fina`** — os ~34 SKUs do `CATEGORIA_POR_SKU` são
   provisórios e a cauda de `"Outros"` (1,3%) não foi esgotada. Impacto no L1 é nulo (tudo
   colapsa em `Produtos de jardim`); a curadoria interessa à EDA e à L2. A estrutura de
   `unidade` e de `categoria` L1 já está **fechada** (ADR-011), não é mais pendência.
 - **Recomendação de reposição (L3), `shelf_life_dias`, risco de perda/ruptura** — **fora
   de escopo** por decisão da parceira (ADR-011). O entregável é só a previsão de demanda.
-- **Construção da série diária** (`prepare_daily_series`) — Fase 1 do
-  [plano de experimentos](plano_experimentos_modelagem.md), em `training_scripts/baseline/`.
-  Fora daqui pelo motivo da seção 1 (não reprocessar XLSX a cada ajuste de parâmetro).
-- **Exógenas de calendário** (dia-da-semana, feriados nacionais/municipais, datas
-  comemorativas) — `domain/features/calendar_exogenous.py`; feriados municipais e clima na
-  Fase 2 do plano.
+- ~~**Construção da série diária**~~ — **feita na Etapa 7** (§9).
+- ~~**Exógenas de calendário**~~ — **feitas na Etapa 6** (§8), por loja. O que sobra: a
+  confirmação dos fechamentos locais com a floricultura e a migração para
+  `domain/features/calendar_exogenous.py` na Fase 5. Clima fica fora (EDA §4 item 19).
 - **Features de preço/desconto** a partir de `vl_*` — avaliadas na Fase 3, não no baseline.
   As colunas cruas já ficam no CSV para não reprocessar depois.
 - **Desagregação para SKU (L2)** — usa `produto_cod` do CSV da Etapa 3 + histórico; fora
   deste pipeline.
-- **Separação das encomendas grandes e teto de picos** ([ADR-012](ADR-012-encomendas-grandes-fora-do-l1.md),
-  2026-09-23). O código fica em `preprocessing/encomendas.py`, mas é aplicado **ao montar
-  a série**, não gravado como coluna no CSV da Etapa 3. O motivo é que o limiar depende do
+- **Teto de picos** ([ADR-012](ADR-012-encomendas-grandes-fora-do-l1.md) §2) — continua
+  fora: só altera a série de treino. *A separação das encomendas passou a ser gravada pela
+  Etapa 5 (revisão explicada na §7); o texto a seguir registra o raciocínio original.*
+- *(Original, 2026-09-23)* **Separação das encomendas grandes e teto de picos**. O código
+  fica em `preprocessing/encomendas.py`, mas é aplicado **ao montar a série**, não gravado
+  como coluna no CSV da Etapa 3. O motivo é que o limiar depende do
   período de treino: uma linha é encomenda quando `qtdade` > 5 × a mediana do volume
   diário (seg–sáb) da sua `unidade × categoria`, **calculada só com o treino**. Gravar uma
   marca fixa no CSV, calculada com a base inteira, vazaria informação do futuro para o
@@ -868,7 +1166,7 @@ pertence ao backend de produção, ou porque depende de decisões de modelagem a
 
 ---
 
-## 7. Artefatos
+## 13. Artefatos
 
 ```text
 ia-predictor/training_scripts/
@@ -879,7 +1177,13 @@ ia-predictor/training_scripts/
 │   ├── build_dataset.py        # Etapa 1 — parsing + dedup entre arquivos + log + idempotência por hash
 │   ├── reduce_schema.py        # Etapa 2 — remove 11 colunas → CSV de 9 colunas
 │   ├── map_taxonomy.py         # Etapa 3 — deriva unidade (L1) + categoria/categoria_fina (desagregação) + diagnóstico (% "Outros", cobertura ≥180d por unidade e por par)
-│   ├── encomendas.py           # funções puras (ADR-012): limiar de encomenda por unidade × categoria, marcação das linhas, teto p99 — aplicadas ao montar a série, com o treino
+│   ├── encomendas.py           # funções puras (ADR-012): limiar de encomenda por unidade × categoria, marcação das linhas, teto p99
+│   ├── clean_transactions.py   # Etapa 4 — base limpa (sem serviço/taxa, data ISO, números, devolução, grupo, UTF-8)
+│   ├── mark_orders.py          # Etapa 5 — marca encomendas (ADR-012) + limiares + vendas médias; `marcar(df, data_corte=)` p/ walk-forward
+│   ├── dados_externos.py       # BrasilAPI (feriados, usado na Etapa 6) e Open-Meteo (clima, só no experimento do doc 03); cache em data/external/
+│   ├── build_calendar.py       # Etapa 6 — calendário diário por loja (loja_fechada, abertura_excepcional, feriados, datas)
+│   ├── build_daily_series.py   # Etapa 7 — séries diárias por unidade (L1) e unidade × categoria (desagregação)
+│   ├── run_all.py              # roda as Etapas 1–7 e grava o relatório de qualidade
 │   └── taxonomy/               # tabelas de/para versionadas (curadas à mão)
 │       ├── __init__.py
 │       ├── unidades.py         # empresa → unidade (2 unidades, fechado) (+ NORMALIZE_EMPRESA)
@@ -888,7 +1192,20 @@ ia-predictor/training_scripts/
     ├── contas_a_receber.csv               # Etapa 1 (20 colunas)
     ├── processamento_log.json
     ├── contas_a_receber_sem_colunas.csv   # Etapa 2 (9 colunas)
-    └── contas_a_receber_taxonomia.csv     # Etapa 3 (12 colunas) — entrada de prepare_daily_series
+    ├── contas_a_receber_taxonomia.csv     # Etapa 3 (12 colunas)
+    ├── contas_a_receber_limpa.csv         # Etapa 4 (13 colunas, só demanda de produto)
+    ├── contas_a_receber_encomendas.csv    # Etapa 5 (+ encomenda, limiar_encomenda, dias_tipicos_linha)
+    ├── limiares_encomenda.csv             # Etapa 5 (1 limiar por unidade × categoria)
+    ├── calendario_diario.csv              # Etapa 6 (data × unidade, 2024-01-01 → 2026-12-31)
+    ├── serie_diaria_unidade.csv           # Etapa 7 — L1 (total, balcão, encomenda)
+    ├── serie_diaria_unidade_categoria.csv # Etapa 7 — desagregação
+    └── preprocessamento_relatorio.json    # run_all — resumo + conferências
+
+ia-predictor/data/external/               # versionado: fontes públicas baixadas uma vez
+    ├── feriados_nacionais_<ano>.json      # BrasilAPI
+    └── clima_open_meteo_*.csv             # Open-Meteo (só experimento do doc 03)
+
+ia-predictor/tests/unit/test_preprocessing_etapas.py   # regras das Etapas 4–7 (10 testes)
 ```
 
 `training_scripts/output/` é `.gitignore` (dado gerado; o que se versiona é o código que o

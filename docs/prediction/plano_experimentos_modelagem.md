@@ -61,14 +61,17 @@ Subpastas, uma por etapa da comparação:
       "Outros"). Falta **refinar** as regras de `categoria` inspecionando os nomes que
       caem em "Outros", curar o `CATEGORIA_POR_SKU` do Top-N, e validar com a parceira o
       mapa `empresa → unidade` e o `shelf_life_dias` real
-- [ ] 1.2 `prepare_daily_series()` (`training_scripts/baseline/`): a partir do CSV com
-      taxonomia — série **diária** somada por `unidade` (alvo do L1) e por
-      `unidade × categoria` (perfil de desagregação), freq='D', reindex completo
-      (dias sem venda = 0), ≥ 180 dias
-- [ ] 1.3 `build_calendar_exogenous()`: dummies/Fourier de dia-da-semana; flag de feriado
-      nacional; véspera de feriado; **Carnaval (seg/ter) explícito**. É ponto facultativo,
-      não feriado nacional, e a loja fecha: 23% do erro de fevereiro no A0-crua (EDA §4,
-      item 13)
+- [x] 1.2 Série diária por `unidade` (alvo do L1 = **balcão**, ADR-012) e por
+      `unidade × categoria` (desagregação), freq='D', dias sem venda = 0, ≥ 180 dias →
+      **Etapa 7 do pré-processamento** (`preprocessing/build_daily_series.py`, 2026-09-27),
+      `output/serie_diaria_unidade.csv` e `serie_diaria_unidade_categoria.csv`. Base limpa e
+      marcação de encomendas nas Etapas 4–5 (01-pre_processing.md §6–§9)
+- [x] 1.3 Calendário: dia da semana; feriado nacional (BrasilAPI, com **Carnaval**);
+      fechamentos observados (só as datas passadas, sem projetar); **`loja_fechada`** e
+      **`abertura_excepcional`** por loja; véspera;
+      datas comemorativas → **Etapa 6 do pré-processamento** (`preprocessing/build_calendar.py`,
+      2026-09-27), `output/calendario_diario.csv`. Confere 100% com as vendas (0 dias fechados
+      com venda, 0 abertos sem venda)
 - [ ] 1.4 **Modelo A0 — SARIMA puro diário** (`training_scripts/baseline/`, sem exógena):
       ablação de referência, piso de desempenho
 - [ ] 1.5 **Modelo A1 — SARIMAX + calendário** (`training_scripts/baseline/`): exógenas de
@@ -103,7 +106,7 @@ Nenhuma envolve dado pessoal de cliente → sem conflito com Princípio VI/LGPD.
 | Fonte | Dado | API/acesso | Observação |
 | --- | --- | --- | --- |
 | Feriados nacionais | Datas exatas | [BrasilAPI](https://brasilapi.com.br/api/feriados/v1/{ano}) — gratuita | Nível nacional. **Traz o Carnaval** (conferido em 2026-09-27) e Consciência Negra; cache em `data/external/` |
-| Feriados municipais | Nova Lima e Itabirito/MG | Decretos municipais — **curadoria manual** | Tabela fixa versionada. Dados mostram fechamento das duas lojas em 15/08 e 08/12 (`FECHAMENTOS_LOCAIS` em `enriched/dados_externos.py`); confirmar com a parceira |
+| Feriados municipais | Nova Lima e Itabirito/MG | Decretos municipais — **curadoria manual** | Tabela fixa versionada. Dados mostram fechamento das duas lojas em 15/08 e 08/12 (só como fechamentos observados em `preprocessing/constants.py`, sem projetar para anos futuros); confirmar com a parceira se são feriados municipais |
 | Datas comemorativas móveis | Dia das Mães (2º dom. maio), Namorados (12/jun), Finados (2/nov), Natal | cálculo determinístico | Vira exógena "dias até a data" (diária) |
 | Clima | Temperatura e precipitação **diária** em Nova Lima/Itabirito | [Open-Meteo](https://open-meteo.com) — gratuita, por lat/long | Chuva afeta venda de flor de corte. **Sem ganho na série total** (doc 03), mesmo com clima observado |
 | Indicadores econômicos | IPCA, Selic, confiança do consumidor | [BCB SGS](https://api.bcb.gov.br/dados/serie/bcdata.sgs.{codigo}/dados) | Séries mensais — **forward-fill para diário**; peso provavelmente baixo no horizonte de 14 dias |

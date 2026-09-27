@@ -23,6 +23,13 @@ CONSOLIDATED_CSV = os.path.join(OUTPUT_DIR, 'contas_a_receber.csv')          # E
 LOG_FILE = os.path.join(OUTPUT_DIR, 'processamento_log.json')                # Etapa 1
 REDUCED_CSV = os.path.join(OUTPUT_DIR, 'contas_a_receber_sem_colunas.csv')   # Etapa 2
 TAXONOMY_CSV = os.path.join(OUTPUT_DIR, 'contas_a_receber_taxonomia.csv')    # Etapa 3
+CLEAN_CSV = os.path.join(OUTPUT_DIR, 'contas_a_receber_limpa.csv')           # Etapa 4
+ORDERS_CSV = os.path.join(OUTPUT_DIR, 'contas_a_receber_encomendas.csv')     # Etapa 5
+ORDER_THRESHOLDS_CSV = os.path.join(OUTPUT_DIR, 'limiares_encomenda.csv')    # Etapa 5
+CALENDAR_CSV = os.path.join(OUTPUT_DIR, 'calendario_diario.csv')             # Etapa 6
+SERIES_UNIDADE_CSV = os.path.join(OUTPUT_DIR, 'serie_diaria_unidade.csv')    # Etapa 7
+SERIES_CATEGORIA_CSV = os.path.join(OUTPUT_DIR, 'serie_diaria_unidade_categoria.csv')  # Etapa 7
+REPORT_JSON = os.path.join(OUTPUT_DIR, 'preprocessamento_relatorio.json')    # run_all
 
 # Schema do parser — um registro por (documento, produto). Ordem espelha o CSV de
 # produção (`ia-predictor/data/processed/contas_a_receber.csv`).
@@ -100,3 +107,47 @@ COLUMNS_TO_DROP = [
 # A antiga Etapa 3 (`discretize_fields.py`, one-hot de pagamento/empresa/vendedor) foi
 # REMOVIDA em 2026-08-30 (ADR-009 + ADR-010): essas categóricas não entram como exógenas
 # do L1. O one-hot está no histórico do git se precisar como referência.
+
+# --------------------------------------------------------------------------- #
+# Etapas 4–7 (2026-09-27) — regras vindas do EDA (docs/prediction/00-eda_report.md §4) e
+# dos treinos na série crua (docs/prediction/02 e 03). Ver 01-pre_processing.md §6–§9.
+# --------------------------------------------------------------------------- #
+
+# Etapa 4 — `categoria` que não é demanda de produto (frete, taxa, mão de obra). Sai da
+# base limpa (01-pre_processing.md §5; já excluída da série desde antes do EDA).
+CATEGORIA_NAO_PRODUTO = 'Servico e taxa'
+
+# Unidades operacionais (taxonomy/unidades.py). Linha com unidade fora desta lista é
+# descartada na Etapa 4 e contada no relatório.
+UNIDADES = ['Jardim Canadá', 'Itabirito']
+
+# Etapa 6 — calendário. Vai além do fim dos dados para cobrir o horizonte de previsão.
+CALENDAR_START = '2024-01-01'
+CALENDAR_END = '2026-12-31'
+
+# Fechamentos observados nos dados: dias úteis em que a loja vendeu zero sem ser domingo nem
+# feriado nacional. São FATOS do histórico, não uma regra de calendário: não se projetam
+# para anos futuros. O motivo (feriado municipal? ponte?) é desconhecido e está em aberto
+# com a floricultura (EDA §5, pergunta 10). Enquanto não houver confirmação, nenhuma data
+# futura é marcada como fechada por esta lista.
+#   - 15/08/2024, 15/08/2025 e 08/12/2025: as duas lojas;
+#   - 02/01/2025: só Itabirito (Jardim Canadá vendeu 2.394).
+FECHAMENTOS_OBSERVADOS = {
+    'Jardim Canadá': ['2024-08-15', '2025-08-15', '2025-12-08'],
+    'Itabirito': ['2024-08-15', '2025-08-15', '2025-12-08', '2025-01-02'],
+}
+
+# Abertura excepcional (EDA §4 item 18, doc 03 §4.3): Itabirito abre no Dia das Mães
+# (domingo) e em Finados (feriado), vendendo 600–900 unidades. São os únicos domingos com
+# venda do histórico. Jardim Canadá nunca abriu nesses dias.
+ABERTURA_EXCEPCIONAL = {
+    'Jardim Canadá': [],
+    'Itabirito': ['Dia das Mães', 'Finados'],
+}
+
+# Janela usada nas colunas `janela_7d_*` (candidatas, sem efeito no L1 total — doc 03 §3.4).
+JANELA_DATA_DIAS = 7
+
+# Mínimo de dias com venda para treinar o L1 de uma unidade (CLAUDE.md,
+# MIN_OBSERVATIONS_DAYS). Conferido no relatório do run_all.
+MIN_DIAS_L1 = 180

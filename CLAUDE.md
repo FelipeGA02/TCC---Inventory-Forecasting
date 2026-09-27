@@ -70,7 +70,7 @@ TCC---Inventory-Forecasting/
 │   │       └── contas_a_receber.csv   ← base consolidada (sep=";")
 │   ├── models/                  ← artefatos joblib por unidade (L1) + params de desagregação L2 (categoria/SKU)
 │   ├── training_scripts/        ← experimentação pré-produção (fora do backend)
-│   │   ├── preprocessing/       ← XLSX bruto → série diária por unidade (L1) e por unidade×categoria (desagregação) (docs/prediction/01-pre_processing.md)
+│   │   ├── preprocessing/       ← XLSX bruto → base limpa → encomendas → calendário por loja → séries diárias (L1 e desagregação); `run_all.py` roda as 7 etapas (docs/prediction/01-pre_processing.md)
 │   │   ├── eda/                 ← análise exploratória (base transacional, séries do L1, granularidade das categorias, classificação de demanda)
 │   │   ├── baseline/            ← L1: A0 (SARIMA puro) e A1 (SARIMAX + exógenas de calendário) diário
 │   │   ├── enriched/            ← L1 Modelo B (SARIMAX + exógenas externas: clima, feriados municipais)
@@ -141,6 +141,9 @@ uvicorn backend.main:app --reload --app-dir ia-predictor
 # Acessar documentação interativa
 # http://localhost:8000/docs   (Swagger UI)
 # http://localhost:8000/redoc  (ReDoc)
+
+# Pré-processamento completo (Etapas 1–7 + relatório de qualidade), a partir de ia-predictor/
+python -m training_scripts.preprocessing.run_all
 
 # Rodar testes unitários
 pytest ia-predictor/tests/unit/ -v
@@ -223,7 +226,7 @@ Ver `docs/prediction/ADR-009-granularidade-diaria-e-reposicao.md` para o raciona
 | Decisão | Valor | Motivo |
 | --- | --- | --- |
 | Alvo | qtd diária somada por `unidade` (todas as categorias) **de balcão** — sem as linhas de encomenda | série densa (poucos zeros), ao contrário de SKU e categoria isolados; separar por categoria não reduz o erro (ADR-011 §4, `eda_separacao.py`) |
-| Encomendas grandes | linha com `qtdade` > 5 × mediana diária (seg–sáb) da `unidade × categoria`, limiar do treino → sai da série do L1 (fluxo à parte, não previsto); balcão restante com teto no p99 dos dias abertos, só no treino | Itabirito: 36% do volume em 80 linhas (Grama de obra, boleto) → MASE 1,434 → 0,796. ADR-012, `preprocessing/encomendas.py`, `eda_encomendas.py` |
+| Encomendas grandes | linha com `qtdade` > 5 × mediana diária (seg–sáb) da `unidade × categoria`, limiar do treino → sai da série do L1 (fluxo à parte, não previsto); balcão restante com teto no p99 dos dias abertos, só no treino | Itabirito: 36% do volume em 80 linhas (Grama de obra, boleto) → MASE 1,434 → 0,796. ADR-012, `preprocessing/encomendas.py` + `mark_orders.py` (Etapa 5), `eda_encomendas.py`. Série pronta: `qtd_balcao` em `output/serie_diaria_unidade.csv` |
 | m (período sazonal) | 7 | sazonalidade semanal. **EDA (2026-09-21, `docs/prediction/00-eda_report.md` §3.3): o padrão é de dia útil — pico em ter–qui para Grama e para Produtos de jardim em Jardim Canadá (em Itabirito, Produtos de jardim tem semana mais uniforme) — e sexta para Flores de corte; sábado fraco; domingo = loja fechada (0).** Não "fim de semana vende mais". Ciclo real mas fraco na variância (Fs ≤ 0.29) — dummies de dia-da-semana como exógenas pesam mais que os termos P/Q |
 | D (diferenciação sazonal) | 0 | histórico < 3 ciclos anuais; P/Q semanais capturam o padrão |
 | d (diferenciação regular) | 0 ou 1 (via ADF) | limitado a 1 para não consumir dados de treino |
@@ -337,7 +340,7 @@ Comandos disponíveis (invocar via Skill tool ou como `/speckit-*`):
 | `docs/project/Projeto Tecnico Verde Perto Final...pdf` | Projeto técnico acadêmico original (fonte primária, revisado pelo orientador) |
 | `docs/project/current_files_state.md` | Raio-x do que já foi feito (dados, pré-processamento, modelagem) vs. requisitos do artigo |
 | `docs/prediction/plano_experimentos_modelagem.md` | Plano de experimentos: L1 baseline × enriquecido × demanda intermitente/outros modelos |
-| `docs/prediction/01-pre_processing.md` | O que os scripts de `training_scripts/preprocessing/` fazem e por quê (série diária por unidade — L1 — e por unidade×categoria — desagregação; colunas removidas) |
+| `docs/prediction/01-pre_processing.md` | O que os scripts de `training_scripts/preprocessing/` fazem e por quê: Etapas 1–3 (parsing, colunas removidas, taxonomia) e 4–7 (base limpa, encomendas, calendário por loja com `loja_fechada`/`abertura_excepcional`, séries diárias por unidade e unidade×categoria). §11 mapeia cada achado do EDA/treinos para a etapa que o resolve |
 | `docs/uml/` *(parcial — 2 de 5 diagramas)* | Diagramas de casos de uso, atividades, classes, modelo de dados e arquitetura lógica (seção 6.4 do artigo) |
 | `docs/prediction/02-baseline_serie_crua_pre_eda.md` | Primeiro treino (ponto zero): SARIMA puro sobre 1 série diária crua, pré-EDA. Como foi feito, resultados, diagnóstico de por que foi fraco (encomendas, Carnaval, mudança de nível, MASE inflado, IC largo) e o que resolver. Scripts em `training_scripts/baseline/` |
 | `docs/prediction/03-enriquecimento_serie_crua.md` | Segundo treino: a mesma série crua com calendário (BrasilAPI + fechamentos locais 15/08 e 08/12) e clima (Open-Meteo). Calendário: erro em feriados ~0, IC 95% 6× mais estreito, −9% de erro no ano. Clima: sem ganho. Diagnóstico: encomendas = 48% do erro restante; janela "7 dias até Mães/Finados" = 12% do erro (usar "loja aberta excepcionalmente no dia"). Scripts em `training_scripts/enriched/`, cache em `data/external/` |

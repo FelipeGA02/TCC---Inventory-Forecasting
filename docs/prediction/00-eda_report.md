@@ -866,6 +866,10 @@ completas estão no [ADR-012](ADR-012-encomendas-grandes-fora-do-l1.md).
 ([02-baseline_serie_crua_pre_eda.md](02-baseline_serie_crua_pre_eda.md)); itens 18–19 a partir
 do treino enriquecido ([03-enriquecimento_serie_crua.md](03-enriquecimento_serie_crua.md)).*
 
+*Os itens de dados desta lista (3, 4, 9, 10, 11, 12, 13, 17, 18, 19) foram incorporados ao
+pré-processamento em 2026-09-27, Etapas 4–7; os de modelagem (2, 5, 14, 15, 16) ficam no
+treino. Mapa completo em [01-pre_processing.md](01-pre_processing.md) §11.*
+
 ---
 
 ## 5. Perguntas em aberto para a floricultura

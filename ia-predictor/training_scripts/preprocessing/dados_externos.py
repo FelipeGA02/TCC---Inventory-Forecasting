@@ -1,15 +1,20 @@
-"""Bases externas para enriquecer a série diária: feriados (BrasilAPI) e clima (Open-Meteo).
+"""Bases externas: feriados nacionais (BrasilAPI) e clima (Open-Meteo).
 
 Cada fonte é baixada uma vez e guardada em `data/external/`. As execuções seguintes leem o
-cache, então o experimento é reproduzível mesmo sem internet.
+cache, então o pipeline é reproduzível mesmo sem internet.
 
 - Feriados nacionais: BrasilAPI (`/api/feriados/v1/{ano}`). Já inclui Carnaval, Sexta-feira
-  Santa, Corpus Christi e Consciência Negra (20/11, nacional desde 2024).
-- Fechamentos locais: não há API de feriado municipal. Usamos só as datas em que **as duas
-  lojas** ficaram sem venda num dia útil que não é feriado nacional, observadas nos dados
-  (15/08 em 2024 e 2025; 08/12/2025). A confirmação fica como pergunta para a floricultura.
-- Clima diário: Open-Meteo Archive (reanálise ERA5), gratuito e sem chave. Um ponto por
-  loja: Jardim Canadá (Nova Lima) e Itabirito.
+  Santa, Corpus Christi e Consciência Negra (20/11, nacional desde 2024). Usado pela Etapa 6
+  (`build_calendar.py`).
+- Clima diário: Open-Meteo Archive (reanálise ERA5), gratuito e sem chave. **Não entra no
+  pipeline** (EDA §4 item 19: sem ganho na série total, doc 03). Fica aqui porque o
+  experimento `enriched/sarimax_serie_crua_enriquecida.py` o usa.
+
+Feriados municipais não têm fonte pronta. Os dias em que a loja fechou sem explicação
+estão em `constants.py` (`FECHAMENTOS_OBSERVADOS`), só como fatos do histórico.
+
+Movido de `training_scripts/enriched/` em 2026-09-27: a busca de feriados passou a ser
+usada pelo pré-processamento.
 """
 from __future__ import annotations
 
@@ -19,8 +24,8 @@ import urllib.request
 
 import pandas as pd
 
-_ENRICHED_DIR = os.path.dirname(os.path.abspath(__file__))
-_IA_PREDICTOR_ROOT = os.path.dirname(os.path.dirname(_ENRICHED_DIR))
+_PREPROCESSING_DIR = os.path.dirname(os.path.abspath(__file__))
+_IA_PREDICTOR_ROOT = os.path.dirname(os.path.dirname(_PREPROCESSING_DIR))
 EXTERNAL_DIR = os.path.join(_IA_PREDICTOR_ROOT, "data", "external")
 
 LOJAS_COORD = {  # (latitude, longitude)
@@ -28,7 +33,8 @@ LOJAS_COORD = {  # (latitude, longitude)
     "itabirito": (-20.25, -43.80),
 }
 
-# Dias úteis sem venda nas duas lojas que não são feriado nacional (ver docstring).
+# Lista plana usada pelo experimento enriquecido (doc 03): dias úteis sem venda nas duas
+# lojas que não são feriado nacional. A regra completa, por loja, está em `constants.py`.
 FECHAMENTOS_LOCAIS = ["2024-08-15", "2025-08-15", "2025-12-08"]
 
 

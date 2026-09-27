@@ -67,7 +67,8 @@ Subpastas, uma por etapa da comparação:
       `output/serie_diaria_unidade.csv` e `serie_diaria_unidade_categoria.csv`. Base limpa e
       marcação de encomendas nas Etapas 4–5 (01-pre_processing.md §6–§9)
 - [x] 1.3 Calendário: dia da semana; feriado nacional (BrasilAPI, com **Carnaval**);
-      fechamentos locais; **`loja_fechada`** e **`abertura_excepcional`** por loja; véspera;
+      fechamentos observados (só as datas passadas, sem projetar); **`loja_fechada`** e
+      **`abertura_excepcional`** por loja; véspera;
       datas comemorativas → **Etapa 6 do pré-processamento** (`preprocessing/build_calendar.py`,
       2026-09-27), `output/calendario_diario.csv`. Confere 100% com as vendas (0 dias fechados
       com venda, 0 abertos sem venda)
@@ -105,7 +106,7 @@ Nenhuma envolve dado pessoal de cliente → sem conflito com Princípio VI/LGPD.
 | Fonte | Dado | API/acesso | Observação |
 | --- | --- | --- | --- |
 | Feriados nacionais | Datas exatas | [BrasilAPI](https://brasilapi.com.br/api/feriados/v1/{ano}) — gratuita | Nível nacional. **Traz o Carnaval** (conferido em 2026-09-27) e Consciência Negra; cache em `data/external/` |
-| Feriados municipais | Nova Lima e Itabirito/MG | Decretos municipais — **curadoria manual** | Tabela fixa versionada. Dados mostram fechamento das duas lojas em 15/08 e 08/12 (regra por loja em `preprocessing/constants.py`, aplicada na Etapa 6); confirmar com a parceira |
+| Feriados municipais | Nova Lima e Itabirito/MG | Decretos municipais — **curadoria manual** | Tabela fixa versionada. Dados mostram fechamento das duas lojas em 15/08 e 08/12 (só como fechamentos observados em `preprocessing/constants.py`, sem projetar para anos futuros); confirmar com a parceira se são feriados municipais |
 | Datas comemorativas móveis | Dia das Mães (2º dom. maio), Namorados (12/jun), Finados (2/nov), Natal | cálculo determinístico | Vira exógena "dias até a data" (diária) |
 | Clima | Temperatura e precipitação **diária** em Nova Lima/Itabirito | [Open-Meteo](https://open-meteo.com) — gratuita, por lat/long | Chuva afeta venda de flor de corte. **Sem ganho na série total** (doc 03), mesmo com clima observado |
 | Indicadores econômicos | IPCA, Selic, confiança do consumidor | [BCB SGS](https://api.bcb.gov.br/dados/serie/bcdata.sgs.{codigo}/dados) | Séries mensais — **forward-fill para diário**; peso provavelmente baixo no horizonte de 14 dias |

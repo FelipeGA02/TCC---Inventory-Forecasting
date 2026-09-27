@@ -995,9 +995,9 @@ calendário precisa ser **por loja**, porque as regras diferem:
 | Informação | Fonte / regra |
 | --- | --- |
 | Feriados nacionais | BrasilAPI, cache em `data/external/` (`dados_externos.py`). Inclui **Carnaval** (ponto facultativo) e **Consciência Negra** (nacional desde 2024) |
-| Fechamentos locais | observados nos dados: **15/08 e 08/12 todo ano** (as duas lojas fecharam em 15/08/2024, 15/08/2025 e 08/12/2025) e **02/01/2025 só em Itabirito**. A confirmar com a floricultura (EDA §5, pergunta 10). Em `constants.py` |
+| Fechamentos observados | dias úteis em que a loja vendeu zero sem ser domingo nem feriado nacional: **15/08/2024, 15/08/2025 e 08/12/2025** (as duas lojas) e **02/01/2025** (só Itabirito). **São fatos do histórico, não feriados assumidos:** não se repetem para os anos seguintes, porque o motivo não está confirmado (EDA §5, pergunta 10). Em `constants.py` (`FECHAMENTOS_OBSERVADOS`) |
 | Abertura excepcional | Itabirito no Dia das Mães e em Finados (`constants.py`) |
-| **`loja_fechada`** | domingo, feriado nacional ou fechamento local, **exceto** abertura excepcional |
+| **`loja_fechada`** | domingo, feriado nacional ou fechamento observado, **exceto** abertura excepcional |
 | Datas comemorativas | Dia das Mães (2º domingo de maio), Namorados (12/06), Dia da Mulher (08/03), Pais (2º domingo de agosto), Finados (02/11), Natal (25/12) |
 
 ### Colunas
@@ -1010,13 +1010,18 @@ horizonte de previsão):
 | `dia_semana`, `nome_dia` | **L1** (dia da semana foi 83% da importância no doc 03) |
 | **`loja_fechada`** | **L1** (feriado/fechamento: 15% da importância; erro nos feriados ≈ 0) |
 | **`abertura_excepcional`** | **L1**, junto com `loja_fechada` (corrige o erro do doc 03 §4.3) |
-| `feriado_nacional`, `nome_feriado`, `fechamento_local`, `data_comemorativa` | auditoria e gráficos |
+| `feriado_nacional`, `nome_feriado`, `fechamento_observado`, `data_comemorativa` | auditoria e gráficos |
 | `vespera_feriado`, `pos_feriado`, `inicio_mes` | candidatas; sem efeito no L1 total (doc 03 §3.4) |
 | `dias_ate_<data>`, `janela_7d_<data>` | candidatas para a **desagregação por categoria**, onde o efeito das datas muda de sentido (EDA §3.4). No L1, usar só junto com `abertura_excepcional` |
 
 ### Conferência com as vendas
 
-No período dos dados, cada loja tem 27 dias úteis de loja fechada. O `run_all` cruza o
+No período dos dados, cada loja tem 27 dias úteis de loja fechada.
+
+**Limitação assumida:** como os fechamentos observados não são projetados, se 15/08 ou
+08/12 forem mesmo feriados municipais, o modelo vai prever venda nesses dias em 2026 (erro
+parecido com o do Carnaval no primeiro treino). Resolve-se com a resposta da floricultura,
+não com suposição. O `run_all` cruza o
 calendário com as vendas: **0 dias marcados como fechados tiveram venda, e 0 dias marcados
 como abertos ficaram sem venda**. O calendário explica todos os zeros da série.
 
@@ -1111,7 +1116,7 @@ investigar antes de treinar.
 | Vendas médias abaixo do limiar (EDA §4 item 17) | Etapa 5: medidas no relatório |
 | Dia da semana como variável direta (EDA §4 item 4) | Etapa 6: `dia_semana` |
 | Carnaval explícito (EDA §4 item 13) | Etapa 6: BrasilAPI já traz |
-| Fechamentos locais 15/08 e 08/12 (doc 03, EDA §5 pergunta 10) | Etapa 6: `fechamento_local` |
+| Lojas fechadas em 15/08 e 08/12 (doc 03, EDA §5 pergunta 10) | Etapa 6: `fechamento_observado`, só nas datas passadas. **Não** tratados como feriado recorrente até a floricultura confirmar |
 | Abertura excepcional em Mães/Finados (EDA §4 item 18) | Etapa 6: `abertura_excepcional`, por loja |
 | Datas comemorativas por categoria (EDA §4 item 3) | Etapa 6: `dias_ate_*` e `janela_7d_*` para a desagregação |
 | Clima fora (EDA §4 item 19) | não entra no pipeline |
@@ -1142,7 +1147,8 @@ passaram a ser feitos pelas Etapas 4–7; os itens abaixo dizem o que ainda sobr
   de escopo** por decisão da parceira (ADR-011). O entregável é só a previsão de demanda.
 - ~~**Construção da série diária**~~ — **feita na Etapa 7** (§9).
 - ~~**Exógenas de calendário**~~ — **feitas na Etapa 6** (§8), por loja. O que sobra: a
-  confirmação dos fechamentos locais com a floricultura e a migração para
+  confirmação, com a floricultura, do motivo dos fechamentos observados (se forem feriados
+  municipais, passam a ser projetados para os anos seguintes) e a migração para
   `domain/features/calendar_exogenous.py` na Fase 5. Clima fica fora (EDA §4 item 19).
 - **Features de preço/desconto** a partir de `vl_*` — avaliadas na Fase 3, não no baseline.
   As colunas cruas já ficam no CSV para não reprocessar depois.

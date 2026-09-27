@@ -11,11 +11,13 @@ Colunas (uma linha por `data × unidade`, de CALENDAR_START a CALENDAR_END):
 
   * `dia_semana` (0 = segunda … 6 = domingo) e `nome_dia`;
   * `feriado_nacional` / `nome_feriado` — BrasilAPI (inclui Carnaval e Consciência Negra);
-  * `fechamento_local` — feriado municipal ou ponte observado nos dados (constants.py);
+  * `fechamento_observado` — dia útil em que a loja vendeu zero sem ser domingo nem feriado
+    nacional (constants.py). Só datas do histórico: **não é projetado para o futuro**, porque
+    o motivo não está confirmado (EDA §5, pergunta 10);
   * `data_comemorativa` — nome da data no próprio dia (Dia das Mães, Namorados, Dia da
     Mulher, Pais, Finados, Natal);
   * `abertura_excepcional` — a loja abre num dia em que estaria fechada (EDA §4 item 18);
-  * **`loja_fechada`** — domingo, feriado nacional ou fechamento local, exceto abertura
+  * **`loja_fechada`** — domingo, feriado nacional ou fechamento observado, exceto abertura
     excepcional. É a variável que mais pesa (doc 03, §3.2);
   * `vespera_feriado`, `pos_feriado` — dia aberto antes/depois de um fechamento que não é
     domingo;
@@ -38,7 +40,7 @@ import pandas as pd
 
 from .constants import (
     ABERTURA_EXCEPCIONAL, CALENDAR_CSV, CALENDAR_END, CALENDAR_START,
-    FECHAMENTOS_LOCAIS_PONTUAIS, FECHAMENTOS_LOCAIS_RECORRENTES, JANELA_DATA_DIAS, UNIDADES,
+    FECHAMENTOS_OBSERVADOS, JANELA_DATA_DIAS, UNIDADES,
 )
 from .dados_externos import feriados_nacionais
 
@@ -86,18 +88,16 @@ def montar_calendario(inicio: str, fim: str, feriados: pd.DataFrame,
         c['feriado_nacional'] = idx.isin(fer.index).astype(int)
         c['nome_feriado'] = fer.reindex(idx).fillna('').values
 
-        recorr = {(m, d) for m, d in FECHAMENTOS_LOCAIS_RECORRENTES.get(u, [])}
-        pont = set(pd.to_datetime(FECHAMENTOS_LOCAIS_PONTUAIS.get(u, [])))
-        c['fechamento_local'] = [int((d.month, d.day) in recorr or d in pont) for d in idx]
+        c['fechamento_observado'] = idx.isin(pd.to_datetime(FECHAMENTOS_OBSERVADOS.get(u, []))).astype(int)
 
         c['data_comemorativa'] = nome_data.reindex(idx).fillna('').values
         c['abertura_excepcional'] = c['data_comemorativa'].isin(ABERTURA_EXCEPCIONAL.get(u, [])).astype(int)
 
         domingo = c['dia_semana'] == 6
-        fechado_por_regra = domingo | (c['feriado_nacional'] == 1) | (c['fechamento_local'] == 1)
+        fechado_por_regra = domingo | (c['feriado_nacional'] == 1) | (c['fechamento_observado'] == 1)
         c['loja_fechada'] = (fechado_por_regra & (c['abertura_excepcional'] == 0)).astype(int)
 
-        feriado_ou_local = ((c['feriado_nacional'] == 1) | (c['fechamento_local'] == 1)) & ~domingo \
+        feriado_ou_local = ((c['feriado_nacional'] == 1) | (c['fechamento_observado'] == 1)) & ~domingo \
             & (c['abertura_excepcional'] == 0)
         aberto = c['loja_fechada'] == 0
         c['vespera_feriado'] = (aberto & feriado_ou_local.shift(-1, fill_value=False)).astype(int)
@@ -129,7 +129,7 @@ def build_calendar(output_path: str = CALENDAR_CSV, inicio: str = CALENDAR_START
         resumo['por_unidade'][u] = {
             'dias_loja_fechada': int(g['loja_fechada'].sum()),
             'feriados_nacionais_seg_sab': int(uteis['feriado_nacional'].sum()),
-            'fechamentos_locais': int(g['fechamento_local'].sum()),
+            'fechamentos_observados': g.loc[g['fechamento_observado'] == 1, 'data'].dt.strftime('%Y-%m-%d').tolist(),
             'aberturas_excepcionais': g.loc[g['abertura_excepcional'] == 1, 'data'].dt.strftime('%Y-%m-%d').tolist(),
         }
     if verbose:
@@ -137,7 +137,7 @@ def build_calendar(output_path: str = CALENDAR_CSV, inicio: str = CALENDAR_START
         for u, r in resumo['por_unidade'].items():
             print(f'[build_calendar] {u}: {r["dias_loja_fechada"]} dias fechada · '
                   f'{r["feriados_nacionais_seg_sab"]} feriados nacionais seg–sáb · '
-                  f'{r["fechamentos_locais"]} fechamentos locais · '
+                  f'{len(r["fechamentos_observados"])} fechamentos observados · '
                   f'{len(r["aberturas_excepcionais"])} aberturas excepcionais')
     return resumo
 

@@ -125,19 +125,16 @@ UNIDADES = ['Jardim Canadá', 'Itabirito']
 CALENDAR_START = '2024-01-01'
 CALENDAR_END = '2026-12-31'
 
-# Fechamentos locais (feriado municipal ou ponte) observados nos dados: dias úteis sem venda
-# que não são feriado nacional. Nenhuma API cobre feriado municipal; confirmar com a
-# floricultura (EDA §5, pergunta 10).
-#   - Recorrentes (mês, dia): as duas lojas fecharam em 15/08/2024, 15/08/2025 e 08/12/2025
-#     (08/12/2024 caiu num domingo). Tratados como anuais.
-#   - Pontuais: 02/01/2025, só Itabirito (Jardim Canadá vendeu 2.394).
-FECHAMENTOS_LOCAIS_RECORRENTES = {
-    'Jardim Canadá': [(8, 15), (12, 8)],
-    'Itabirito': [(8, 15), (12, 8)],
-}
-FECHAMENTOS_LOCAIS_PONTUAIS = {
-    'Jardim Canadá': [],
-    'Itabirito': ['2025-01-02'],
+# Fechamentos observados nos dados: dias úteis em que a loja vendeu zero sem ser domingo nem
+# feriado nacional. São FATOS do histórico, não uma regra de calendário: não se projetam
+# para anos futuros. O motivo (feriado municipal? ponte?) é desconhecido e está em aberto
+# com a floricultura (EDA §5, pergunta 10). Enquanto não houver confirmação, nenhuma data
+# futura é marcada como fechada por esta lista.
+#   - 15/08/2024, 15/08/2025 e 08/12/2025: as duas lojas;
+#   - 02/01/2025: só Itabirito (Jardim Canadá vendeu 2.394).
+FECHAMENTOS_OBSERVADOS = {
+    'Jardim Canadá': ['2024-08-15', '2025-08-15', '2025-12-08'],
+    'Itabirito': ['2024-08-15', '2025-08-15', '2025-12-08', '2025-01-02'],
 }
 
 # Abertura excepcional (EDA §4 item 18, doc 03 §4.3): Itabirito abre no Dia das Mães

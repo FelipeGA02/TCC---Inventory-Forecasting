@@ -76,7 +76,7 @@ def test_data_corte_calcula_limiar_so_com_o_passado():
 def calendario():
     feriados = pd.DataFrame({'data': pd.to_datetime(['2025-11-02', '2026-02-16', '2026-02-17']),
                              'nome': ['Finados', 'Carnaval', 'Carnaval']})
-    cal = montar_calendario('2025-01-01', '2026-03-31', feriados)
+    cal = montar_calendario('2025-01-01', '2026-12-31', feriados)
     return cal.set_index(['data', 'unidade'])
 
 
@@ -101,10 +101,14 @@ def test_itabirito_abre_no_dia_das_maes_e_em_finados(calendario):
     assert _dia(calendario, '2025-11-02', 'Jardim Canadá')['loja_fechada'] == 1
 
 
-def test_fechamentos_locais(calendario):
+def test_fechamentos_observados_nao_sao_projetados(calendario):
     for u in ('Jardim Canadá', 'Itabirito'):
-        assert _dia(calendario, '2025-08-15', u)['fechamento_local'] == 1
+        assert _dia(calendario, '2025-08-15', u)['fechamento_observado'] == 1
         assert _dia(calendario, '2025-12-08', u)['loja_fechada'] == 1
+        # não é feriado assumido: as mesmas datas em 2026 seguem abertas
+        assert _dia(calendario, '2026-08-14', u)['loja_fechada'] == 0      # sexta
+        assert _dia(calendario, '2026-12-08', u)['fechamento_observado'] == 0
+        assert _dia(calendario, '2026-12-08', u)['loja_fechada'] == 0      # terça
     assert _dia(calendario, '2025-01-02', 'Itabirito')['loja_fechada'] == 1
     assert _dia(calendario, '2025-01-02', 'Jardim Canadá')['loja_fechada'] == 0
 

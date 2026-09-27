@@ -10,8 +10,8 @@ cache, então o pipeline é reproduzível mesmo sem internet.
   pipeline** (EDA §4 item 19: sem ganho na série total, doc 03). Fica aqui porque o
   experimento `enriched/sarimax_serie_crua_enriquecida.py` o usa.
 
-Fechamentos locais (feriados municipais) não têm fonte pronta: a regra observada nos dados
-está em `constants.py` (`FECHAMENTOS_LOCAIS_*`) e é aplicada pela Etapa 6.
+Feriados municipais não têm fonte pronta. Os dias em que a loja fechou sem explicação
+estão em `constants.py` (`FECHAMENTOS_OBSERVADOS`), só como fatos do histórico.
 
 Movido de `training_scripts/enriched/` em 2026-09-27: a busca de feriados passou a ser
 usada pelo pré-processamento.

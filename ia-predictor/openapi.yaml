@@ -1,7 +1,7 @@
 openapi: 3.0.3
 
 info:
-  title: Floricultura — API de Previsão de Estoque
+  title: Floricultura — API de Previsão de Vendas
   description: |
     Sistema de recomendação de reposição diária para rede de floricultura com 2 unidades
     operacionais. Modelagem hierárquica: SARIMAX na demanda diária agregada por

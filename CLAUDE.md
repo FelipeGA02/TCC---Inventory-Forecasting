@@ -1,4 +1,4 @@
-# CLAUDE.md — Sistema de Previsão de Estoque · Floricultura
+# CLAUDE.md — Sistema de Previsão de Vendas · Floricultura
 
 Guia para sessões de desenvolvimento com Claude Code.
 Leia este arquivo antes de qualquer implementação.
@@ -91,7 +91,7 @@ TCC---Inventory-Forecasting/
 │           ├── pages/           ← Dashboard, ProductDetail, Replenishment, Alerts, Simulation
 │           └── components/      ← ForecastChart (diário), ReplenishmentTable, AlertList, UploadPanel, ExportButton
 ├── specs/
-│   └── 001-sistema-previsao-estoque/
+│   └── 001-sistema-previsao-vendas/
 │       ├── spec.md              ← especificação funcional (User Stories)
 │       ├── plan.md              ← plano técnico e arquitetura
 │       └── tasks.md             ← tarefas por fase com TDD
@@ -330,9 +330,9 @@ Comandos disponíveis (invocar via Skill tool ou como `/speckit-*`):
 | --- | --- |
 | `SPECS.md` | Especificação técnica completa (arquitectura, módulos, schemas) |
 | `ia-predictor/openapi.yaml` | Contratos de API em OpenAPI 3.0 (fonte da verdade) |
-| `specs/001-sistema-previsao-estoque/spec.md` | User Stories e requisitos funcionais |
-| `specs/001-sistema-previsao-estoque/plan.md` | Plano técnico com constitution check |
-| `specs/001-sistema-previsao-estoque/tasks.md` | Tarefas organizadas por fase (TDD) |
+| `specs/001-sistema-previsao-vendas/spec.md` | User Stories e requisitos funcionais |
+| `specs/001-sistema-previsao-vendas/plan.md` | Plano técnico com constitution check |
+| `specs/001-sistema-previsao-vendas/tasks.md` | Tarefas organizadas por fase (TDD) |
 | `.specify/memory/constitution.md` | 6 princípios governantes (v3.0.0) |
 | `docs/prediction/ADR-009-granularidade-diaria-e-reposicao.md` | **Espinha da revisão de escopo mensal→diário** — arquitetura L1/L2/L3, validação, shelf-life |
 | `docs/README.md` | Índice da documentação por área + convenção de ADRs |

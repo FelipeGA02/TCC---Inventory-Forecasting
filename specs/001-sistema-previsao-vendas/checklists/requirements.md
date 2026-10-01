@@ -1,4 +1,4 @@
-# Specification Quality Checklist: Sistema de Previsão de Estoque para Floricultura
+# Specification Quality Checklist: Sistema de Previsão de Vendas para Floricultura
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-07-28

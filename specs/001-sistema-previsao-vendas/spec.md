@@ -1,6 +1,6 @@
-# Feature Specification: Sistema de Previsão de Estoque para Floricultura
+# Feature Specification: Sistema de Previsão de Vendas para Floricultura
 
-**Feature Branch**: `001-sistema-previsao-estoque`
+**Feature Branch**: `001-sistema-previsao-vendas`
 
 **Created**: 2026-07-28
 

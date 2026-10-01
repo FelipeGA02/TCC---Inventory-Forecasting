@@ -303,6 +303,25 @@ class Doc:
         p.append(be)
         return name
 
+    def replace_text(self, old, new, top_level=False):
+        """Troca um termo dentro dos runs, preservando a formatação de cada run.
+
+        Devolve quantas ocorrências trocou. Falha se o termo estiver partido entre runs em algum
+        parágrafo (nesse caso, reescreva o parágrafo com set_text).
+        """
+        n = 0
+        for p in (self.find_all(contains=old, top_level=True) if top_level else
+                  [p for p in self.paragraphs() if old in text_of(p)]):
+            hit = False
+            for t in p.iter(q("t")):
+                if t.text and old in t.text:
+                    n += t.text.count(old)
+                    t.text = t.text.replace(old, new)
+                    hit = True
+            if not hit:
+                raise ValueError("'%s' partido entre runs em: %s" % (old, text_of(p)[:80]))
+        return n
+
     def renumber(self, p, old, new):
         """Troca 'Figura 12' por 'Figura 11' etc. Falha se o texto estiver partido entre runs."""
         hit = False

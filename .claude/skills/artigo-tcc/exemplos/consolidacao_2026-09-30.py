@@ -223,7 +223,7 @@ H2 = P(128)      # título de seção (Ttulo2)
 # RESUMO
 # --------------------------------------------------------------------------
 set_text(P(44), (
-    "Este trabalho apresenta o desenvolvimento de um sistema de previsão de estoque para a Floricultura Verde Perto, "
+    "Este trabalho apresenta o desenvolvimento de um sistema de previsão de vendas para a Floricultura Verde Perto, "
     "com histórico consolidado de vendas cobrindo o período de janeiro de 2024 a fevereiro de 2026. O setor de "
     "floricultura apresenta desafios decorrentes do alto nível de perecibilidade dos produtos, da sazonalidade acentuada "
     "e da oscilação da demanda em datas comemorativas. A ausência de previsão gera riscos de quebra de estoque e perdas "
@@ -246,7 +246,7 @@ set_text(P(44), (
 # 1 INTRODUÇÃO
 # --------------------------------------------------------------------------
 set_text(P(55), (
-    "Este trabalho apresenta o desenvolvimento de um sistema de previsão de estoque para a Floricultura Verde Perto, "
+    "Este trabalho apresenta o desenvolvimento de um sistema de previsão de vendas para a Floricultura Verde Perto, "
     "empresa com unidades localizadas em Nova Lima (Jardim Canadá) e Itabirito, Minas Gerais. A empresa possui "
     "aproximadamente dois anos de histórico consolidado de vendas e dados financeiros, totalizando mais de 333 mil "
     "registros transacionais com informações detalhadas por transação, segmentação por grupos de produtos e separação de "
@@ -284,7 +284,7 @@ set_text(P(69), (
     "identificar produtos frequentemente comprados em conjunto. O problema central pode ser sintetizado nas seguintes "
     "questões operacionais:"))
 set_text(P(77), (
-    "A falta de controle, planejamento e previsão de estoque da empresa gera ineficiências operacionais que se traduzem "
+    "A falta de controle de estoque, planejamento e previsão de vendas da empresa gera ineficiências operacionais que se traduzem "
     "diretamente em perdas financeiras. Para enfrentá-las, foi desenvolvido um sistema integrado e unificado, acessível a "
     "todos os usuários, capaz de receber dados, atualizar automaticamente os modelos preditivos em periodicidade semanal "
     "e as previsões diariamente, e apresentar recomendações com base em evidências quantitativas."))
@@ -312,7 +312,7 @@ set_text(P(91), (
 # 4 OBJETIVOS
 # --------------------------------------------------------------------------
 set_text(P(94), (
-    "Desenvolver um sistema de previsão de estoque para a Floricultura Verde Perto, baseado em dados históricos de vendas "
+    "Desenvolver um sistema de previsão de vendas para a Floricultura Verde Perto, baseado em dados históricos de vendas "
     "e técnicas de modelagem preditiva utilizando o modelo SARIMAX, capaz de apoiar decisões operacionais e estratégicas "
     "de reposição e compra, com previsão diária e horizonte de 14 dias."))
 set_text(P(97), (

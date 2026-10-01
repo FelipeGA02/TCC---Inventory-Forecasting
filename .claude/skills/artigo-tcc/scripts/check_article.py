@@ -45,6 +45,8 @@ OBSOLETE = [
     ("ponderação de variáveis exógenas", "RF/MDI é seleção/avaliação, não ponderação"),
     ("estoque crítico", "o sistema não usa estoque atual"), ("Estoque Crítico", "idem"),
     ("shelf", "camada L3 (validade) está fora de escopo"),
+    ("previsão de estoque", "o sistema se chama 'previsão de vendas' (decisão de 30/09/2026)"),
+    ("PREVISÃO DE ESTOQUE", "idem"), ("Plantas de corte", "nome atual da categoria: Flores de corte"),
 ]
 
 

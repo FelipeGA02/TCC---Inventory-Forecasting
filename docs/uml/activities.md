@@ -1,4 +1,4 @@
-# Diagramas de Atividades — Sistema de Previsão de Estoque
+# Diagramas de Atividades — Sistema de Previsão de Vendas
 
 > Diagrama 2 de 5. Ver índice em [`README.md`](README.md).
 

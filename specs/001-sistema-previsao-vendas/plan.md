@@ -1,6 +1,6 @@
-# Implementation Plan: Sistema de Previsão de Estoque para Floricultura
+# Implementation Plan: Sistema de Previsão de Vendas para Floricultura
 
-**Branch**: `001-sistema-previsao-estoque` | **Date**: 2026-07-28 (revisado 2026-08-30) | **Spec**: [spec.md](spec.md)
+**Branch**: `001-sistema-previsao-vendas` | **Date**: 2026-07-28 (revisado 2026-08-30) | **Spec**: [spec.md](spec.md)
 
 ---
 
@@ -82,7 +82,7 @@ simultâneos.
 ### Documentation (this feature)
 
 ```
-specs/001-sistema-previsao-estoque/
+specs/001-sistema-previsao-vendas/
 ├── plan.md              ← este arquivo
 ├── spec.md              ← especificação funcional
 ├── checklists/

@@ -1,6 +1,6 @@
 # Relatório de Análise Exploratória (EDA)
 
-**Projeto**: Sistema de Previsão de Estoque · Floricultura Verde Perto
+**Projeto**: Sistema de Previsão de Vendas · Floricultura Verde Perto
 **Data**: 2026-09-21 · atualizado em 2026-09-23 (seção 3.12 — encomendas grandes)
 **Base analisada**: 333.019 transações · 02/01/2024 – 28/02/2026 · 5.166 produtos · 2 unidades
 

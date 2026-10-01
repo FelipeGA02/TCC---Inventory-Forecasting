@@ -1,4 +1,4 @@
-# Documentação — Sistema de Previsão de Estoque (Floricultura Verde Perto)
+# Documentação — Sistema de Previsão de Vendas (Floricultura Verde Perto)
 
 Documentação organizada por área do projeto. Veja também `SPECS.md` (raiz) para a
 referência técnica completa e `CLAUDE.md` (raiz) para o guia de desenvolvimento.

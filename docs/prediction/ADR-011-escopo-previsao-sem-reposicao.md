@@ -202,7 +202,7 @@ T000c) deixa de ser necessário.
 
 **Pendente (propagação — fora do pré-processamento, exige revisão dedicada):**
 
-- `SPECS.md`, `specs/001-sistema-previsao-estoque/{spec,plan,tasks}.md` — remover a fase
+- `SPECS.md`, `specs/001-sistema-previsao-vendas/{spec,plan,tasks}.md` — remover a fase
   de política de reposição; ajustar user stories e critérios de sucesso; propagar
   `unidade × categoria` → `unidade` nos trechos ainda não revisados (schemas JSON de
   exemplo, diagramas de pipeline).

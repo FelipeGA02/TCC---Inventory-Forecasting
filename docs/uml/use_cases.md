@@ -1,11 +1,11 @@
-# Diagrama de Casos de Uso — Sistema de Previsão de Estoque
+# Diagrama de Casos de Uso — Sistema de Previsão de Vendas
 
 > Diagrama 1 de 5. Ver índice em [`README.md`](README.md).
 
 ## Visão geral
 
 O sistema possui dois atores (perfis de usuário), conforme FR-000a da especificação
-(`specs/001-sistema-previsao-estoque/spec.md`) e o Princípio VI da constituição
+(`specs/001-sistema-previsao-vendas/spec.md`) e o Princípio VI da constituição
 (segurança por padrão):
 
 - **admin** (gestora de compras) — acesso completo: upload, retrain manual e todas as
@@ -27,7 +27,7 @@ graph LR
         viewer(["👤 viewer<br/>(gerente de operações)"])
     end
 
-    subgraph "Casos de Uso — Sistema de Previsão de Estoque"
+    subgraph "Casos de Uso — Sistema de Previsão de Vendas"
         UC0((fazer login))
         UC1((fazer upload<br/>de planilha))
         UC2((disparar reajuste<br/>manual))

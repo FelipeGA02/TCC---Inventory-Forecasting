@@ -21,11 +21,11 @@
     ✅ .specify/templates/tasks-template.md (compatible)
   Follow-up TODOs:
     - Propagar a granularidade `unidade` do L1 a SPECS.md, openapi.yaml e
-      specs/001-sistema-previsao-estoque/{spec,plan,tasks}.md (ver ADR-011, seção
+      specs/001-sistema-previsao-vendas/{spec,plan,tasks}.md (ver ADR-011, seção
       "Pendente").
 -->
 
-# Sistema de Previsão de Estoque — Floricultura Constitution
+# Sistema de Previsão de Vendas — Floricultura Constitution
 
 ## Core Principles
 

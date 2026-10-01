@@ -10,11 +10,12 @@ confira a fonte indicada: se o repositório evoluiu (novo treino, novo ADR), a f
   anterior à consolidação: commit `c70291d`
   (`git show c70291d:"docs/project/TCC1 - Final.PDF.docx" > <tmp>/anterior.docx`).
 - Título atual: **SISTEMA DE PREVISÃO DE VENDAS: UMA SOLUÇÃO INTELIGENTE PARA A GESTÃO DE
-  DEMANDA DA FLORICULTURA VERDE PERTO** (o usuário trocou "estoque" por "vendas" na capa, na
-  folha de rosto e na 1ª frase do resumo). Em 30/09/2026 ainda diziam "previsão de estoque":
-  Introdução (2º parágrafo), Justificativa (1º parágrafo), Objetivo Geral, legenda da Tabela 1 e
-  abertura do Capítulo 8. Confirme com o usuário antes de uniformizar; `check_article.py` aponta
-  essas ocorrências.
+  DEMANDA DA FLORICULTURA VERDE PERTO**. Por decisão do usuário (30/09/2026), o nome do sistema é
+  "previsão de **vendas**" em todo o repositório e no artigo; "previsão de estoque" não deve voltar.
+  Termos de gestão continuam com "estoque" ("gestão de estoque", "ruptura de estoque", "controle de
+  estoque"). `check_article.py` aponta divergências entre o título e o texto.
+- Categorias: o nome antigo "Plantas de corte" (métricas dos treinos pré-EDA) corresponde à atual
+  **Flores de corte**. "Plantas diversas" é outro grupo (plantas exceto flores de corte e árvores).
 - Origem: o DOCX é uma **conversão de PDF para Word**. Por isso: não há estilos semânticos para o
   corpo (texto em `Normal` com `ind left=-15 right=60`), há um parágrafo vazio entre parágrafos,
   listas usam numeração própria (`numId` 1 a 5), e a renderização do Word não bate página a página

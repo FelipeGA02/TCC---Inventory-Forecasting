@@ -1,4 +1,4 @@
-# Tasks: Sistema de Previsão de Estoque para Floricultura
+# Tasks: Sistema de Previsão de Vendas para Floricultura
 
 **Input**: [spec.md](spec.md) · [plan.md](plan.md) · [ADR-009](../../docs/prediction/ADR-009-granularidade-diaria-e-reposicao.md)
 

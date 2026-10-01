@@ -1,4 +1,4 @@
-# SPECS — Sistema de Previsão de Estoque (Floricultura)
+# SPECS — Sistema de Previsão de Vendas (Floricultura)
 
 > Implementação do zero · Monolito Modular · FastAPI + SARIMAX (hierárquico) + React  
 > Segurança: JWT (python-jose) + bcrypt · Perfis: admin / viewer · LGPD  
@@ -657,7 +657,7 @@ from backend.infrastructure.database.migrations import create_tables
 from backend.infrastructure.scheduler.weekly_retrain import start_scheduler
 
 app = FastAPI(
-    title="Floricultura — API de Previsão de Estoque",
+    title="Floricultura — API de Previsão de Vendas",
     version="1.0.0",
     docs_url="/docs",
 )

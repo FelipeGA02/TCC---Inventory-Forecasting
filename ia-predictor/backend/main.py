@@ -19,7 +19,7 @@ from backend.infrastructure.database import create_tables
 from backend.infrastructure.scheduler import start_scheduler
 
 app = FastAPI(
-    title="Floricultura — API de Previsão de Estoque",
+    title="Floricultura — API de Previsão de Vendas",
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",

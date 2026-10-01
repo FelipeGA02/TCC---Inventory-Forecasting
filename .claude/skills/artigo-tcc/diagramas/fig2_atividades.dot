@@ -1,0 +1,32 @@
+digraph ACT {
+  rankdir=TB; nodesep=0.6; ranksep=0.42; pad=0.2;
+  node [fontname="Arial", fontsize=13, shape=box, style="rounded,filled", fillcolor="#e8f0fb", color="#2e75b6", width=3.3, height=0.55];
+  edge [color="#555555", arrowsize=0.9, penwidth=1.2, fontname="Arial", fontsize=11];
+  ini [shape=circle, label="", width=0.3, height=0.3, fixedsize=true, style=filled, fillcolor="#000000", color="#2e75b6"];
+  env [label="Enviar planilha de vendas (XLSX)"];
+  val [label="Validar e normalizar dados\n(deduplicação, padronização)"];
+  ok  [shape=diamond, label="Dados\nconsistentes?", style=filled, fillcolor="#fff6dd", color="#c9a227", width=2.2, height=1.1];
+  log [label="Registrar log e sinalizar\nanomalia ao usuário", fillcolor="#fbeee8", color="#b6662e"];
+  cls [label="Classificar produtos e marcar\nencomendas de grande porte"];
+  ser [label="Construir séries diárias de balcão\ne calendário por unidade"];
+  fit [label="Ajustar modelos SARIMAX por unidade\n(seleção via AIC, semanal)"];
+  wf  [label="Validar desempenho (walk-forward:\nMASE, cobertura do IC 95%)"];
+  cr  [shape=diamond, label="Critérios de\naceitação\natendidos?", style=filled, fillcolor="#fff6dd", color="#c9a227", width=2.2, height=1.2];
+  tr  [label="Registrar modelo\ncomo treinado", width=2.4];
+  lc  [label="Registrar modelo com baixa\nconfiança (aviso no painel)", fillcolor="#fbeee8", color="#b6662e", width=2.6];
+  gp  [label="Gerar previsão diária (14 dias) e\ndesagregar por categoria e produto"];
+  db  [label="Atualizar dashboard\ne emitir alertas de demanda"];
+  ex  [label="Exportar relatórios (PDF / Excel)"];
+  fim [shape=doublecircle, label="", width=0.26, height=0.26, fixedsize=true, style=filled, fillcolor="#000000", color="#000000"];
+  ini -> env -> val -> ok;
+  ok -> cls [label=" sim"];
+  ok -> log [label=" não"];
+  log -> env [constraint=false];
+  cls -> ser -> fit -> wf -> cr;
+  cr -> tr [label=" sim"];
+  cr -> lc [label=" não"];
+  tr -> gp; lc -> gp;
+  gp -> db -> ex -> fim;
+  {rank=same; cls; log;}
+  {rank=same; tr; lc;}
+}

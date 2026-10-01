@@ -1,0 +1,18 @@
+digraph ER {
+  rankdir=LR; nodesep=0.45; ranksep=1.0; pad=0.2;
+  node [shape=plaintext, fontname="Arial", fontsize=12];
+  edge [color="#555555", fontname="Arial", fontsize=10, arrowhead=crow, penwidth=1.0];
+  usuario [label=<<TABLE BORDER="1" CELLBORDER="1" CELLSPACING="0" CELLPADDING="5" BGCOLOR="#eaf7ea" COLOR="#75af77"><TR><TD>USUARIO</TD><TD ALIGN="LEFT" BALIGN="LEFT">PK id_usuario<BR/> email<BR/> nome<BR/> senha_hash<BR/> perfil</TD></TR></TABLE>>];
+  log [label=<<TABLE BORDER="1" CELLBORDER="1" CELLSPACING="0" CELLPADDING="5" BGCOLOR="#fff6dd" COLOR="#d6b655"><TR><TD>LOG_PROCESSAMENTO</TD><TD ALIGN="LEFT" BALIGN="LEFT">PK id_log<BR/> arquivo<BR/> hash<BR/> linhas_adicionadas<BR/> linhas_duplicadas<BR/> data</TD></TR></TABLE>>];
+  hist [label=<<TABLE BORDER="1" CELLBORDER="1" CELLSPACING="0" CELLPADDING="5" BGCOLOR="#fff6dd" COLOR="#d6b655"><TR><TD>HISTORICO_RETREINO</TD><TD ALIGN="LEFT" BALIGN="LEFT">PK id_retreino<BR/> gatilho<BR/> inicio<BR/> fim<BR/> modelos_ajustados<BR/> status</TD></TR></TABLE>>];
+  cat [label=<<TABLE BORDER="1" CELLBORDER="1" CELLSPACING="0" CELLPADDING="5" BGCOLOR="#eaf7ea" COLOR="#75af77"><TR><TD>CATEGORIA</TD><TD ALIGN="LEFT" BALIGN="LEFT">PK id_categoria<BR/> unidade<BR/> nome<BR/> participacao<BR/> mase</TD></TR></TABLE>>];
+  prod [label=<<TABLE BORDER="1" CELLBORDER="1" CELLSPACING="0" CELLPADDING="5" BGCOLOR="#f4f8fd" COLOR="#81acd3"><TR><TD>PRODUTO</TD><TD ALIGN="LEFT" BALIGN="LEFT">PK produto_cod<BR/>FK id_categoria<BR/> descricao<BR/> grupo<BR/> total_vendido</TD></TR></TABLE>>];
+  modelo [label=<<TABLE BORDER="1" CELLBORDER="1" CELLSPACING="0" CELLPADDING="5" BGCOLOR="#fbeee8" COLOR="#c98a6a"><TR><TD>MODELO</TD><TD ALIGN="LEFT" BALIGN="LEFT">PK id_modelo<BR/> unidade<BR/> ordem<BR/> ordem_sazonal<BR/> mase<BR/> cobertura_ic<BR/> status<BR/> data_treino</TD></TR></TABLE>>];
+  prev [label=<<TABLE BORDER="1" CELLBORDER="1" CELLSPACING="0" CELLPADDING="5" BGCOLOR="#fbeee8" COLOR="#c98a6a"><TR><TD>PREVISAO</TD><TD ALIGN="LEFT" BALIGN="LEFT">PK id_previsao<BR/>FK id_modelo<BR/>FK produto_cod<BR/> data<BR/> valor_previsto<BR/> limite_inferior<BR/> limite_superior</TD></TR></TABLE>>];
+  cat -> prod [label="1:N"];
+  prod -> prev [label="1:N"];
+  modelo -> prev [label="1:N"];
+  usuario -> log -> hist [style=invis];
+  {rank=same; usuario; cat; modelo;}
+  {rank=same; log; prod;}
+}

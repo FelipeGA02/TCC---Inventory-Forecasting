@@ -1,0 +1,28 @@
+digraph ARQ {
+  rankdir=TB; nodesep=0.35; ranksep=0.45; pad=0.2; compound=true;
+  node [fontname="Arial", fontsize=12, shape=box, style="rounded,filled"];
+  edge [color="#555555", arrowsize=0.9, penwidth=1.2, fontname="Arial", fontsize=10];
+  subgraph cluster_ing { label="Camada de Ingestão"; fontname="Arial"; fontsize=14; style="rounded,filled"; fillcolor="#f4f7fc"; color="#2e75b6";
+    i1 [label="Upload de planilhas\nde vendas (XLSX)", fillcolor="#e8f0fb", color="#2e75b6"];
+    i2 [label="Registro da importação\ne base consolidada", fillcolor="#e8f0fb", color="#2e75b6"];
+    i1 -> i2; }
+  subgraph cluster_proc { label="Camada de Processamento"; fontname="Arial"; fontsize=14; style="rounded,filled"; fillcolor="#eef8ef"; color="#3e8e41";
+    p1 [label="Validação, deduplicação e\nclassificação dos produtos\n(pandas, numpy)", fillcolor="#eaf7ea", color="#3e8e41"];
+    p2 [label="Encomendas, calendário por\nunidade e séries diárias", fillcolor="#eaf7ea", color="#3e8e41"];
+    p1 -> p2; }
+  subgraph cluster_mod { label="Camada de Modelagem"; fontname="Arial"; fontsize=14; style="rounded,filled"; fillcolor="#fbf0ec"; color="#b6662e";
+    m1 [label="Seleção de variáveis exógenas\n(scikit-learn / Random Forest)", fillcolor="#fbeee8", color="#b6662e"];
+    m2 [label="SARIMAX diário por unidade\n(statsmodels, seleção via AIC)", fillcolor="#fbeee8", color="#b6662e"];
+    m3 [label="Validação walk-forward\n(MASE, cobertura do IC 95%)", fillcolor="#fbeee8", color="#b6662e"];
+    m4 [label="Desagregação\nunidade → categoria → produto", fillcolor="#fbeee8", color="#b6662e"];
+    m1 -> m2 -> m3 -> m4; }
+  subgraph cluster_apr { label="Camada de Apresentação"; fontname="Arial"; fontsize=14; style="rounded,filled"; fillcolor="#f6f0fc"; color="#7a5ab5";
+    a0 [label="API REST\n(FastAPI, autenticação JWT)", fillcolor="#efe6fb", color="#7a5ab5"];
+    a1 [label="Dashboard interativo\n(React)", fillcolor="#efe6fb", color="#7a5ab5"];
+    a2 [label="Módulo de simulação\nde promoções", fillcolor="#efe6fb", color="#7a5ab5"];
+    a3 [label="Exportação de relatórios\n(PDF / Excel)", fillcolor="#efe6fb", color="#7a5ab5"];
+    a0 -> a1; a0 -> a2; a0 -> a3; }
+  i2 -> p1 [label=" dados brutos"];
+  p2 -> m1 [label=" séries e calendário"];
+  m4 -> a0 [label=" previsões"];
+}

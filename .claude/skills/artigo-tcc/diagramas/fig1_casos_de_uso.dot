@@ -1,0 +1,30 @@
+digraph UC {
+  rankdir=LR; nodesep=0.28; ranksep=1.6; pad=0.2;
+  node [fontname="Arial", fontsize=13];
+  edge [color="#555555", arrowsize=0.9, penwidth=1.2];
+  node [shape=plaintext];
+  sis [label="Sistema\n(rotina\nautomática)"];
+  adm [label="Gestora de compras\n(administrador)"];
+  con [label="Gerente de operações\n(consulta)"];
+  node [shape=ellipse, style=filled, fillcolor="#e8f1fb", color="#2e75b6", width=2.6, height=0.8];
+  up  [label="Enviar planilhas\nde vendas", fillcolor="#fbeee8", color="#b6662e"];
+  rt  [label="Disparar atualização\nmanual dos modelos", fillcolor="#fbeee8", color="#b6662e"];
+  dash [label="Visualizar dashboard\ne indicadores"];
+  prev [label="Consultar previsão\ndiária (14 dias)"];
+  tend [label="Acompanhar tendências\nde demanda"];
+  al  [label="Receber alertas\nde demanda"];
+  sim [label="Simular promoções\ne vendas casadas"];
+  exp [label="Exportar relatórios\n(PDF / Excel)"];
+  node [fillcolor="#eaf7ea", color="#3e8e41"];
+  upd [label="Atualizar modelos\nSARIMAX (semanal)"];
+  gen [label="Gerar previsão diária\ne alertas"];
+  sis -> upd; sis -> gen;
+  adm -> up; adm -> rt; adm -> dash; adm -> prev; adm -> tend; adm -> al; adm -> sim; adm -> exp;
+  con -> dash; con -> prev; con -> tend; con -> al; con -> sim; con -> exp;
+  edge [style=dashed, color="#999999", fontcolor="#888888", fontsize=10, fontname="Arial"];
+  up -> upd [label="«include»"];
+  rt -> upd [label="«include»"];
+  prev -> gen [label="«include»"];
+  al -> gen [label="«include»"];
+  {rank=same; upd; gen;}
+}

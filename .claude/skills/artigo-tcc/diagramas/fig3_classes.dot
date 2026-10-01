@@ -1,0 +1,35 @@
+digraph CLS {
+  rankdir=TB; nodesep=0.55; ranksep=0.65; newrank=true; pad=0.2;
+  node [shape=plaintext, fontname="Arial", fontsize=12];
+  edge [color="#555555", arrowsize=0.8, penwidth=1.0, fontname="Arial", fontsize=10];
+  usuario [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3" BGCOLOR="#f4f8fd" COLOR="#8ab2d7"><TR><TD><B>Usuario</B></TD></TR><HR/><TR><TD ALIGN="LEFT" BALIGN="LEFT">- id<BR/>- email<BR/>- nome<BR/>- perfil</TD></TR><HR/><TR><TD ALIGN="LEFT" BALIGN="LEFT">+ autenticar()<BR/>+ enviarPlanilha()</TD></TR></TABLE>>];
+  planilha [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3" BGCOLOR="#f4f8fd" COLOR="#8ab2d7"><TR><TD><B>PlanilhaUpload</B></TD></TR><HR/><TR><TD ALIGN="LEFT" BALIGN="LEFT">- id<BR/>- arquivo<BR/>- hash<BR/>- dataEnvio<BR/>- status</TD></TR><HR/><TR><TD ALIGN="LEFT" BALIGN="LEFT">+ validar()<BR/>+ normalizar()</TD></TR></TABLE>>];
+  transacao [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3" BGCOLOR="#f4f8fd" COLOR="#8ab2d7"><TR><TD><B>Transacao</B></TD></TR><HR/><TR><TD ALIGN="LEFT" BALIGN="LEFT">- id<BR/>- data<BR/>- unidadeId</TD></TR></TABLE>>];
+  unidade [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3" BGCOLOR="#f4f8fd" COLOR="#8ab2d7"><TR><TD><B>Unidade</B></TD></TR><HR/><TR><TD ALIGN="LEFT" BALIGN="LEFT">- id<BR/>- nome<BR/>- cidade</TD></TR></TABLE>>];
+  item [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3" BGCOLOR="#f4f8fd" COLOR="#8ab2d7"><TR><TD><B>ItemVenda</B></TD></TR><HR/><TR><TD ALIGN="LEFT" BALIGN="LEFT">- id<BR/>- sku<BR/>- quantidade<BR/>- valor<BR/>- encomenda</TD></TR></TABLE>>];
+  produto [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3" BGCOLOR="#f4f8fd" COLOR="#8ab2d7"><TR><TD><B>Produto (SKU)</B></TD></TR><HR/><TR><TD ALIGN="LEFT" BALIGN="LEFT">- sku<BR/>- descricao<BR/>- categoria<BR/>- grupo</TD></TR></TABLE>>];
+  serie [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3" BGCOLOR="#f4f8fd" COLOR="#8ab2d7"><TR><TD><B>SerieDiaria</B></TD></TR><HR/><TR><TD ALIGN="LEFT" BALIGN="LEFT">- unidade<BR/>- datas[]<BR/>- qtdBalcao[]<BR/>- qtdEncomenda[]</TD></TR><HR/><TR><TD ALIGN="LEFT" BALIGN="LEFT">+ agregar()</TD></TR></TABLE>>];
+  exog [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3" BGCOLOR="#f4f8fd" COLOR="#8ab2d7"><TR><TD><B>VariavelExogena</B></TD></TR><HR/><TR><TD ALIGN="LEFT" BALIGN="LEFT">- nome<BR/>- tipo<BR/>- importanciaMDI</TD></TR></TABLE>>];
+  modelo [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3" BGCOLOR="#f4f8fd" COLOR="#8ab2d7"><TR><TD><B>ModeloSARIMAX</B></TD></TR><HR/><TR><TD ALIGN="LEFT" BALIGN="LEFT">- id<BR/>- unidade<BR/>- ordem(p,d,q)<BR/>- ordemSazonal<BR/>- aic<BR/>- mase<BR/>- status</TD></TR><HR/><TR><TD ALIGN="LEFT" BALIGN="LEFT">+ ajustar()<BR/>+ prever()<BR/>+ avaliar()</TD></TR></TABLE>>];
+  desag [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3" BGCOLOR="#f4f8fd" COLOR="#8ab2d7"><TR><TD><B>Desagregacao</B></TD></TR><HR/><TR><TD ALIGN="LEFT" BALIGN="LEFT">- nivel<BR/>- participacao<BR/>- perfilDiaSemana</TD></TR><HR/><TR><TD ALIGN="LEFT" BALIGN="LEFT">+ repartir()</TD></TR></TABLE>>];
+  previsao [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3" BGCOLOR="#f4f8fd" COLOR="#8ab2d7"><TR><TD><B>Previsao</B></TD></TR><HR/><TR><TD ALIGN="LEFT" BALIGN="LEFT">- sku<BR/>- data<BR/>- valorPrevisto<BR/>- intervaloConf</TD></TR></TABLE>>];
+  alerta [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3" BGCOLOR="#f4f8fd" COLOR="#8ab2d7"><TR><TD><B>Alerta</B></TD></TR><HR/><TR><TD ALIGN="LEFT" BALIGN="LEFT">- sku<BR/>- tipo<BR/>- mensagem</TD></TR></TABLE>>];
+  relatorio [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3" BGCOLOR="#f4f8fd" COLOR="#8ab2d7"><TR><TD><B>Relatorio</B></TD></TR><HR/><TR><TD ALIGN="LEFT" BALIGN="LEFT">- tipo<BR/>- formato</TD></TR><HR/><TR><TD ALIGN="LEFT" BALIGN="LEFT">+ exportar()</TD></TR></TABLE>>];
+  usuario -> planilha [label=" envia"];
+  planilha -> transacao [label=" origina"];
+  transacao -> unidade;
+  transacao -> item [arrowhead=none, arrowtail=diamond, dir=back, label=" 1..*"];
+  item -> produto;
+  item -> serie [label=" agrega"];
+  serie -> modelo [label=" alimenta"];
+  exog -> modelo [label=" compõe"];
+  modelo -> desag [label=" gera previsão\n da unidade"];
+  produto -> desag [style=dashed, arrowhead=open, label=" participação"];
+  desag -> previsao [label=" origina"];
+  previsao -> alerta [label=" dispara"];
+  previsao -> relatorio;
+  {rank=same; usuario; planilha; transacao; unidade;}
+  {rank=same; produto; item; serie; exog;}
+  {rank=same; desag; modelo;}
+  {rank=same; alerta; previsao; relatorio;}
+}

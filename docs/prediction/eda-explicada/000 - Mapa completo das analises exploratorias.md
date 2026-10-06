@@ -653,6 +653,29 @@ CV) e o formato da distribuição: assimetria, cauda e maior dia ÷ média. A re
 Gráficos: [14](../../../ia-predictor/training_scripts/results/plots/eda/14_dist_qtd_diaria_l1.png)
 e [18](../../../ia-predictor/training_scripts/results/plots/eda/18_acf_dist_unidade.png).
 
+**De onde vem o limiar 0,7.** É uma **convenção operacional, não um valor calibrado**. Não
+houve experimento comparando 0,6 / 0,7 / 0,8, nem referência que fixe esse número: ele
+existe para automatizar a decisão nas séries desagregadas (L2/SKU), onde o CV varia muito
+e não se quer inspecionar cada série à mão. O racional é o usual do CV = σ/μ: abaixo de
+~0,5 a série é razoavelmente homocedástica e o log só distorce; acima de ~1,0 a variância
+cresce claramente com o nível (caso típico de contagem) e o log se justifica. 0,7 é o meio
+desse intervalo cinzento.
+
+No projeto, porém, **a decisão nunca foi marginal**: o menor CV observado é 1,01 (Jardim
+Canadá), já 44% acima do limiar, e Itabirito está 3,4 vezes acima. Qualquer limiar entre
+0,5 e 1,0 daria a mesma resposta em **todas** as séries. Duas consequências:
+
+- O limiar é um guarda-corpo que nunca foi acionado na direção "não transformar". Por isso
+  o treino L1 atual aplica `log1p` incondicionalmente, sem testar o CV
+  (`baseline/sarimax_l1_por_loja.py`, `selecionar`/`prever`): dado este EDA, o teste era
+  redundante. `LOG_CV_THRESHOLD` em `backend/config.py` e `aplicar_log1p` nos JSONs do EDA
+  seguem como registro da regra, não como gate ativo do L1.
+- **Para a banca:** apresentar o 0,7 como regra operacional, nunca como parâmetro
+  calibrado. A formulação segura é "adotou-se `log1p` por assimetria à direita e variância
+  proporcional ao nível (CV de 1,01 a 2,39 nas duas lojas), critério operacionalizado como
+  CV > 0,7 para automatizar a decisão nas séries desagregadas" — e, se cutucarem, "a
+  decisão é robusta a qualquer limiar entre 0,5 e 1,0".
+
 **Pseudocódigo** (`_distribuicao`):
 
 ```text
@@ -681,6 +704,27 @@ aplicar_log1p ← cv > 0,7                              # LOG_CV_THRESHOLD
   e correção de viés).
 - 💡 Box; Cox (1964): o log é o caso λ = 0 da família de Box-Cox.
 - 💡 Duan (1983): o fator de correção (*smearing*) usado no EDA.
+
+**O que Box-Cox faz aqui (e o que não faz).** A referência entra como **ancoragem
+teórica**, não como método aplicado — é o que o marcador 💡 significa. A família de
+Box-Cox parametriza as transformações estabilizadoras de variância por um expoente λ
+(λ = 1 não transforma, λ = 0,5 é raiz quadrada, λ = 0 é o logaritmo). Citá-la responde à
+pergunta "por que logaritmo e não outra transformação?": o `log1p` não é escolha *ad hoc*,
+é o caso λ = 0 do arcabouço canônico do tema.
+
+O projeto **não executa Box-Cox**: λ nunca foi estimado por máxima verossimilhança, foi
+fixado em 0 pela evidência de assimetria e variância proporcional ao nível (acima). Três
+observações para não confundir as coisas:
+
+- `SARIMAX` do statsmodels **não tem** parâmetro de Box-Cox automático. Só
+  `ExponentialSmoothing` tem (`use_boxcox`), e o projeto não o usa — a transformação é
+  sempre aplicada à mão, antes de entregar a série ao modelo.
+- O `+1` do `log1p` não é detalhe de implementação: as séries têm **domingos zerados**
+  (loja fechada), e λ = 0 puro exigiria `log(0)`. O deslocamento é obrigatório, e é o que
+  distingue `log1p` de um Box-Cox λ = 0 estrito.
+- Estimar λ não está no escopo e provavelmente não mudaria a conclusão: com CV de 1,01 a
+  4,49 e curtose de 40 a 83, o λ estimado cairia perto de 0. O custo seria perder a volta
+  simples para a escala de unidades (`expm1` = mediana) sem ganho de acurácia esperado.
 
 ### 2.3 Perfil por dia da semana
 
@@ -918,10 +962,18 @@ preditora; §9.1, diferenciação para remover tendência e mudanças de nível)
 
 Usar os dois evita confiar num teste só. A combinação sugere d (quantas vezes diferenciar).
 
+**O que o ADF não responde.** Rejeitar a raiz unitária **não** é o mesmo que afirmar que o
+nível é constante. O ADF só descarta o passeio aleatório puro ("a série não anda sem
+rumo"). Uma série pode reverter à média dentro da amostra — e o ADF rejeitar com folga — e
+ainda assim ter **fases de nível diferentes**, que é o que o KPSS acusa. Essa distinção é a
+origem de todo o problema descrito abaixo: o ADF foi usado como se respondesse "o nível é
+estável?", e ele não responde essa pergunta.
+
 **Resultado.**
 
 - Por unidade: o ADF rejeita a raiz unitária (p = 0,0003 e 0,0007), mas o KPSS rejeita a
-  estacionariedade (p = 0,039 e ≤ 0,01). **Os testes divergem nas duas lojas.**
+  estacionariedade (p = 0,039 e ≤ 0,01). **Os testes divergem nas duas lojas.** O "≤ 0,01"
+  é o limite da tabela do KPSS, não o p-valor exato (ressalva metodológica 7).
 - Unidade × categoria: Grama e Flores de Jardim Canadá e Produtos de jardim de Itabirito
   são estacionárias pelos dois testes. As outras 3 divergem.
 
@@ -935,14 +987,50 @@ se p_adf ≥ 0,05 e p_kpss ≤ 0,05:  d ← 1   "não estacionária"
 senão:                            d ← 0   "testes divergem: começar com d = 0 e revisar pelo resíduo"
 ```
 
-**Impacto no SARIMAX.** A divergência pedia um teste empírico, e foi o que o treino fez.
-Em `selecionar()`, as variantes A0 e A1 escolhem d pelo ADF (o que dá d = 0). A variante
-A1 d = 1 fixa d = 1. **A d = 1 venceu**: MASE 0,58, 24 de 26 rodadas vencidas e IC95
-entre 91% e 94%.
+**O problema que isso criou.** A divergência não é um detalhe de relatório: ela levou o
+treino ao d errado, em três camadas.
+
+1. **A regra de desempate manda para d = 0.** O `senão` do pseudocódigo acima resolve a
+   divergência com `d ← 0` ("começar com d = 0 e revisar pelo resíduo"). Como as duas lojas
+   divergem, as duas caem no desempate.
+2. **O treino é ainda mais direto: usa só o ADF.** Em `selecionar()`
+   (`baseline/sarimax_l1_por_loja.py`), d sai de
+   `0 if adfuller(z)[1] < 0.05 else 1` — o KPSS **não entra na conta**. A regra combinada
+   acima descreve o EDA, não o trainer. Aqui as duas regras concordam (ambas dão d = 0),
+   mas são regras diferentes, e isso precisa ser dito.
+3. **d = 0 faz a previsão voltar para a média do histórico.** Com d = 0 o modelo recebe
+   constante (`trend="c" if order[1] == 0 else "n"`), e a previsão converge para o nível
+   médio do treino em vez de partir do nível atual. Foi exatamente a falha de dezembro do
+   doc 02 §4.3: o balcão foi de 5,8 a 7,0 mil por dia entre setembro e dezembro contra
+   3,5 mil em janeiro, e o modelo previu **28% menos que o balcão vendeu, mesmo sem as
+   encomendas**. O teste principal tinha caído em fevereiro, um mês calmo, e escondeu o
+   problema.
+
+**A solução: decidir por experimento, não por teste.** Em vez de arbitrar a divergência com
+outro teste, criou-se a variante `A1_eda_d1`, com d **fixo** em 1, e comparou-se com as
+demais nas **mesmas 26 rodadas** de walk-forward. **A d = 1 venceu nas duas lojas**: MASE
+0,58, 24 de 26 rodadas vencidas, IC95 entre 91% e 94% — o que levou o L1 a
+`status = "trained"`. O ganho se concentra onde a teoria previa: nas janelas em que o nível
+mudou, o erro de Itabirito caiu de 780 (A0) para 131 (A1) e 50 (A1 d = 1).
 
 Leitura: o ADF diz que a série não "anda sem rumo", mas o KPSS acusa que o nível não é
-constante. Há fases de alta e de baixa (EDA §4, item 16), e o d = 1 acompanha essas
-mudanças de nível. O limite d ≤ 1 vem do `CLAUDE.md`.
+constante. Há fases de alta e de baixa (EDA §4, item 16), e o d = 1 prevê a **variação**,
+então a previsão parte do nível recente em vez de voltar à média histórica.
+
+Dois detalhes que fecham o raciocínio:
+
+- Com d = 1 o `trend` vira `"n"`: a diferenciação já remove a constante, e não se extrapola
+  tendência determinística. O limite d ≤ 1 vem do `CLAUDE.md`, para não consumir dados de
+  treino.
+- **d não é D.** Aqui se fala da diferenciação regular (d). A sazonal (D = 0) é outra
+  decisão, tomada por falta de ciclos anuais suficientes
+  ([ADR-004](../ADR-004-d0-sarimax-sazonal.md)), e não se mexeu nela.
+
+**O que levar para as séries desagregadas (L2/SKU).** O desempate `senão → d = 0` **não é
+conservador** para estes dados: se ninguém tivesse testado d = 1, o modelo teria ficado
+preso no d que falha quando o nível muda. Ao descer para `unidade × categoria` e SKU — onde
+3 das 6 séries também divergem —, tratar d como **variante a testar fora da amostra**, não
+como saída de teste de hipótese.
 
 **Base na literatura.**
 

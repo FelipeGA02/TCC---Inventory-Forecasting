@@ -269,7 +269,7 @@ def _grafico_esparsidade(df: pd.DataFrame, plt) -> str:
     d20, d50 = int(np.ceil(.2 * span)), int(np.ceil(.5 * span))
     # Regra da L2: < 28 dias com venda OU < 8 vendas. Como nº de vendas ≥ nº de dias, quem tem
     # < 8 vendas já tem < 8 dias; o grupo é o mesmo de "< 28 dias". O painel (a) mostra só
-    # dias; o critério de vendas fica no painel (b), com a explicação.
+    # dias; o critério de vendas fica no painel (b).
     sem_hist = int(((dias < 28) | (n_vendas < 8)).sum())
     assert sem_hist == int((dias < 28).sum())
     cortes = [
@@ -319,14 +319,6 @@ def _grafico_esparsidade(df: pd.DataFrame, plt) -> str:
     ax2.barh(y, [n] * len(cortes), color="#455A64", alpha=.08, height=.62, zorder=0)
     for yi, (_, k, _) in zip(y, cortes):
         ax2.text(k + n * .01, yi, f"{fmt_n(k, None)} SKUs  ·  {_pct(k / n * 100)}", va="center", fontsize=9)
-    ax2.text(.985, .06,
-             f"Regra da L2: menos de 28 dias com venda OU menos de 8 vendas = {fmt_n(sem_hist, None)} SKUs.\n"
-             "Cada venda cai em algum dia, então nº de vendas ≥ nº de dias:\n"
-             "quem tem menos de 8 vendas tem menos de 8 dias e já está entre os\n"
-             "que venderam em menos de 28 dias. O critério de vendas não acrescenta\n"
-             "nenhum SKU; o grupo é o mesmo da barra \"menos de 28 dias\".",
-             transform=ax2.transAxes, ha="right", va="bottom", multialignment="left", fontsize=8,
-             bbox={"facecolor": "white", "edgecolor": "#C2185B", "lw": .8, "pad": 6})
     ax2.set_yticks(y, [r for r, _, _ in cortes], fontsize=8.5)
     ax2.xaxis.set_major_formatter(fmt_n)
     ax2.set_xlim(0, n * 1.05)

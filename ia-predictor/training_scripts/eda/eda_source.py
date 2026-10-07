@@ -250,6 +250,80 @@ def bloco_exogenas_nominais(df: pd.DataFrame) -> dict:
 # --------------------------------------------------------------------------- #
 # Gráficos
 # --------------------------------------------------------------------------- #
+def _pct(v: float) -> str:
+    return f"{v:.1f}%".replace(".", ",")
+
+
+def _grafico_esparsidade(df: pd.DataFrame, plt) -> str:
+    """Gráfico 03: em quantos dias cada SKU vendeu, com os cortes que a Análise 1 cita
+    (mediana, histórico mínimo da L2, venda única, 20% e 50% dos dias) e a contagem de SKUs
+    em cada um, em número real (sem notação 10ˣ)."""
+    from matplotlib.ticker import FixedLocator, FuncFormatter, NullLocator
+
+    g = df.groupby("produto_cod")
+    dias = g["data"].apply(lambda s: s.dt.normalize().nunique())
+    n_vendas = g.size()
+    n = len(dias)
+    span = (df["data"].max() - df["data"].min()).days + 1
+    mediana = float(dias.median())
+    d20, d50 = int(np.ceil(.2 * span)), int(np.ceil(.5 * span))
+    cortes = [
+        ("venderam uma única vez", int((n_vendas == 1).sum())),
+        ("sem histórico mínimo\n(< 28 dias com venda ou < 8 vendas)", int(((dias < 28) | (n_vendas < 8)).sum())),
+        (f"venderam em ≥ 20% dos dias\n(≥ {d20} dias)", int((dias >= d20).sum())),
+        (f"venderam em ≥ 50% dos dias\n(≥ {d50} dias)", int((dias >= d50).sum())),
+    ]
+    fmt_n = FuncFormatter(lambda v, _: f"{v:,.0f}".replace(",", "."))
+
+    fig, (ax, axb) = plt.subplots(2, 1, figsize=(11, 8.2), gridspec_kw={"height_ratios": [1.35, 1]})
+
+    # (a) histograma em faixas de 7 dias (o corte de 28 cai na borda de uma faixa),
+    # eixo log com rótulos em número real
+    bins = np.arange(0, dias.max() + 8, 7)
+    cont, bordas, barras = ax.hist(dias.values, bins=bins, color="#455A64")
+    for b, borda in zip(barras, bordas[:-1]):
+        if borda < 28:
+            b.set_color("#C2185B")
+    ax.set_yscale("log")
+    ax.yaxis.set_major_locator(FixedLocator([1, 3, 10, 30, 100, 300, 1000, 3000]))
+    ax.yaxis.set_minor_locator(NullLocator())
+    ax.yaxis.set_major_formatter(fmt_n)
+    ax.set_ylim(.7, cont.max() * 2.2)
+    ax.annotate(f"{fmt_n(cont[0], None)} SKUs venderam em 1 a {int(bordas[1]) - 1} dias", (bordas[1], cont[0]),
+                (60, cont.max() * .8), fontsize=8.5, va="center", color="#C2185B", fontweight="bold",
+                arrowprops={"arrowstyle": "-", "lw": .6, "color": "#C2185B"})
+    ax.axvline(mediana, color="#000", lw=1.1, ls=":")
+    ax.text(mediana + 4, cont.max() * 1.6, f"mediana = {mediana:.0f} dias", fontsize=8.5)
+    ax.axvline(28, color="#C2185B", lw=1.3, ls="--")
+    ax.text(60, cont.max() * .2, f"28 dias: histórico mínimo\n{_pct(cortes[1][1] / n * 100)} dos SKUs "
+            f"ficam abaixo\n(ou têm menos de 8 vendas)", fontsize=8.5, color="#C2185B")
+    for d, (rot, k), y in ((d20, cortes[2], 40), (d50, cortes[3], 12)):
+        ax.axvline(d, color="#00838F", lw=1.1, ls="--")
+        ax.text(d + 5, y, f"≥ {d} dias: {k} SKUs ({_pct(k / n * 100)})", fontsize=8.5, color="#00838F")
+    ax.set_xlim(0, bordas[-1])
+    ax.set_title(f"(a) Em quantos dias cada SKU vendeu ({fmt_n(n, None)} SKUs, {span} dias; "
+                 "barras de 7 dias, eixo vertical em escala log)", fontsize=10)
+    ax.set_xlabel("dias distintos com ao menos 1 venda")
+    ax.set_ylabel("nº de SKUs")
+
+    # (b) os cortes da análise em barras, com contagem e % do total
+    y = np.arange(len(cortes))[::-1]
+    cores = ["#C2185B", "#C2185B", "#00838F", "#00838F"]
+    ax2 = axb
+    ax2.barh(y, [k for _, k in cortes], color=cores, height=.62)
+    ax2.barh(y, [n] * len(cortes), color="#455A64", alpha=.08, height=.62, zorder=0)
+    for yi, (_, k) in zip(y, cortes):
+        ax2.text(k + n * .01, yi, f"{fmt_n(k, None)} SKUs  ·  {_pct(k / n * 100)}", va="center", fontsize=9)
+    ax2.set_yticks(y, [r for r, _ in cortes], fontsize=8.5)
+    ax2.xaxis.set_major_formatter(fmt_n)
+    ax2.set_xlim(0, n * 1.05)
+    ax2.set_xlabel(f"nº de SKUs (faixa clara = total de {fmt_n(n, None)})")
+    ax2.set_title("(b) Os cortes citados na análise", fontsize=10)
+    ax2.grid(axis="y", visible=False)
+    fig.tight_layout()
+    return C.savefig(fig, "03_esparsidade_dias_ativos_sku.png")
+
+
 def graficos(df: pd.DataFrame, plt) -> list[str]:
     figs = []
 
@@ -281,15 +355,8 @@ def graficos(df: pd.DataFrame, plt) -> list[str]:
     ax.set_ylabel("qtd média / linha"); ax.legend(frameon=False)
     figs.append(C.savefig(fig, "02_sazonalidade_semanal_unidade.png"))
 
-    # 3. Esparsidade por SKU — histograma de dias ativos
-    g = df.groupby("produto_cod")["data"].apply(lambda s: s.dt.normalize().nunique())
-    fig, ax = plt.subplots(figsize=(8, 4))
-    ax.hist(g.values, bins=60, color="#455A64")
-    ax.axvline(28, color="#C2185B", lw=1.2, ls="--", label="corte fallback L2 (28 dias)")
-    ax.set_title(f"Dias com venda por SKU (n={len(g)})  —  mediana={g.median():.0f}")
-    ax.set_xlabel("dias distintos com ao menos 1 venda"); ax.set_ylabel("nº de SKUs")
-    ax.legend(frameon=False); ax.set_yscale("log")
-    figs.append(C.savefig(fig, "03_esparsidade_dias_ativos_sku.png"))
+    # 3. Esparsidade por SKU — histograma de dias ativos, com os cortes citados na análise
+    figs.append(_grafico_esparsidade(df, plt))
 
     # 4. Curva de Pareto do volume por SKU
     q = df.groupby("produto_cod")["qtdade_n"].sum().sort_values(ascending=False)

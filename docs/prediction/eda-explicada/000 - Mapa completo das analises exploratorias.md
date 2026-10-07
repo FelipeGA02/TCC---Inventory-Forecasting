@@ -1021,8 +1021,14 @@ treino ao d errado, em três camadas.
 outro teste, criou-se a variante `A1_eda_d1`, com d **fixo** em 1, e comparou-se com as
 demais nas **mesmas 26 rodadas** de walk-forward. **A d = 1 venceu nas duas lojas**: MASE
 0,58, 24 de 26 rodadas vencidas, IC95 entre 91% e 94% — o que levou o L1 a
-`status = "trained"`. O ganho se concentra onde a teoria previa: nas janelas em que o nível
-mudou, o erro de Itabirito caiu de 780 (A0) para 131 (A1) e 50 (A1 d = 1).
+`status = "trained"`. O ganho se concentra onde a teoria previa, nas fases em que o nível
+sai da média: em dezembro/2025 a parcela do balcão coberta pela previsão sobe de 71% para
+88% em Jardim Canadá e de 73% para 86% em Itabirito. No ano inteiro a diferença é pequena
+(erro médio de 1.337 → 1.282 por dia em Jardim Canadá e 489 → 486 em Itabirito): o d = 1
+não melhora tudo, melhora as fases.
+
+Não confundir com o 780 → 131 → 50 de Itabirito (2.6): aquilo é o erro nos dias de
+**abertura excepcional**, efeito do calendário, não da mudança de nível.
 
 Leitura: o ADF diz que a série não "anda sem rumo", mas o KPSS acusa que o nível não é
 constante. Há fases de alta e de baixa (EDA §4, item 16), e o d = 1 prevê a **variação**,

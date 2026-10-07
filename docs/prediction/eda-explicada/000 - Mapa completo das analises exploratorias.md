@@ -413,10 +413,21 @@ produto típico é "cheia de zeros".
 - Só 1,3% dos produtos vendem em metade dos dias ou mais, e 5,1% vendem em 20% dos dias
   ou mais.
 - 13,2% venderam uma única vez.
-- **72,2%** cairiam no rateio da categoria (menos de 28 dias com venda ou menos de 8
-  vendas).
+- **72,2%** (3.732 produtos) cairiam no rateio da categoria: venderam em menos de 28 dias.
 
 Gráfico: [03](../../../ia-predictor/training_scripts/results/plots/eda/03_esparsidade_dias_ativos_sku.png).
+O painel de cima mostra só os dias com venda; o de baixo, os cortes em número de produtos.
+
+> **Por que "ou menos de 8 vendas" não muda o número.** A regra de rateio está escrita como
+> "menos de 28 dias com venda **ou** menos de 8 vendas". *Dias com venda* conta datas
+> distintas; *vendas* conta linhas de venda, e um produto pode vender várias vezes no mesmo
+> dia (há um com 16 vendas em 4 dias). Mas cada venda cai em algum dia, então vendas ≥ dias
+> sempre. Quem tem menos de 8 vendas tem menos de 8 dias e já está entre os que venderam em
+> menos de 28 dias; o inverso não vale. Por isso a regra separa os mesmos 3.732 produtos que
+> "menos de 28 dias" sozinho, e os 2.279 com menos de 8 vendas (44,1%) estão todos dentro
+> desse grupo. Atenção: o `CLAUDE.md` (limiares) e a constituição escrevem o mínimo como
+> "≥ 28 dias **ou** ≥ 8 vendas", cuja negação é "< 28 dias **e** < 8 vendas" (2.279
+> produtos). As duas formas precisam ser unificadas antes de implementar a L2.
 
 **Pseudocódigo** (`bloco_esparsidade_sku`):
 

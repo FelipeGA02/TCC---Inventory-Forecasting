@@ -267,15 +267,21 @@ def _grafico_esparsidade(df: pd.DataFrame, plt) -> str:
     span = (df["data"].max() - df["data"].min()).days + 1
     mediana = float(dias.median())
     d20, d50 = int(np.ceil(.2 * span)), int(np.ceil(.5 * span))
+    # Regra da L2: < 28 dias com venda OU < 8 vendas. Como nº de vendas ≥ nº de dias, quem tem
+    # < 8 vendas já tem < 8 dias; o grupo é o mesmo de "< 28 dias". O painel (a) mostra só
+    # dias; o critério de vendas fica no painel (b), com a explicação.
+    sem_hist = int(((dias < 28) | (n_vendas < 8)).sum())
+    assert sem_hist == int((dias < 28).sum())
     cortes = [
-        ("venderam uma única vez", int((n_vendas == 1).sum())),
-        ("sem histórico mínimo\n(< 28 dias com venda ou < 8 vendas)", int(((dias < 28) | (n_vendas < 8)).sum())),
-        (f"venderam em ≥ 20% dos dias\n(≥ {d20} dias)", int((dias >= d20).sum())),
-        (f"venderam em ≥ 50% dos dias\n(≥ {d50} dias)", int((dias >= d50).sum())),
+        ("venderam uma única vez\n(1 venda)", int((n_vendas == 1).sum()), "#C2185B"),
+        ("menos de 8 vendas", int((n_vendas < 8).sum()), "#E57BA6"),
+        ("sem histórico mínimo:\nmenos de 28 dias com venda", sem_hist, "#C2185B"),
+        (f"venderam em ≥ 20% dos dias\n(≥ {d20} dias)", int((dias >= d20).sum()), "#00838F"),
+        (f"venderam em ≥ 50% dos dias\n(≥ {d50} dias)", int((dias >= d50).sum()), "#00838F"),
     ]
     fmt_n = FuncFormatter(lambda v, _: f"{v:,.0f}".replace(",", "."))
 
-    fig, (ax, axb) = plt.subplots(2, 1, figsize=(11, 8.2), gridspec_kw={"height_ratios": [1.35, 1]})
+    fig, (ax, axb) = plt.subplots(2, 1, figsize=(11, 9), gridspec_kw={"height_ratios": [1.3, 1.1]})
 
     # (a) histograma em faixas de 7 dias (o corte de 28 cai na borda de uma faixa),
     # eixo log com rótulos em número real
@@ -295,9 +301,9 @@ def _grafico_esparsidade(df: pd.DataFrame, plt) -> str:
     ax.axvline(mediana, color="#000", lw=1.1, ls=":")
     ax.text(mediana + 4, cont.max() * 1.6, f"mediana = {mediana:.0f} dias", fontsize=8.5)
     ax.axvline(28, color="#C2185B", lw=1.3, ls="--")
-    ax.text(60, cont.max() * .2, f"28 dias: histórico mínimo\n{_pct(cortes[1][1] / n * 100)} dos SKUs "
-            f"ficam abaixo\n(ou têm menos de 8 vendas)", fontsize=8.5, color="#C2185B")
-    for d, (rot, k), y in ((d20, cortes[2], 40), (d50, cortes[3], 12)):
+    ax.text(60, cont.max() * .2, f"28 dias: histórico mínimo\n{fmt_n(sem_hist, None)} SKUs "
+            f"({_pct(sem_hist / n * 100)}) venderam\nem menos de 28 dias", fontsize=8.5, color="#C2185B")
+    for d, (rot, k, _), y in ((d20, cortes[3], 40), (d50, cortes[4], 12)):
         ax.axvline(d, color="#00838F", lw=1.1, ls="--")
         ax.text(d + 5, y, f"≥ {d} dias: {k} SKUs ({_pct(k / n * 100)})", fontsize=8.5, color="#00838F")
     ax.set_xlim(0, bordas[-1])
@@ -308,13 +314,20 @@ def _grafico_esparsidade(df: pd.DataFrame, plt) -> str:
 
     # (b) os cortes da análise em barras, com contagem e % do total
     y = np.arange(len(cortes))[::-1]
-    cores = ["#C2185B", "#C2185B", "#00838F", "#00838F"]
     ax2 = axb
-    ax2.barh(y, [k for _, k in cortes], color=cores, height=.62)
+    ax2.barh(y, [k for _, k, _ in cortes], color=[c for _, _, c in cortes], height=.62)
     ax2.barh(y, [n] * len(cortes), color="#455A64", alpha=.08, height=.62, zorder=0)
-    for yi, (_, k) in zip(y, cortes):
+    for yi, (_, k, _) in zip(y, cortes):
         ax2.text(k + n * .01, yi, f"{fmt_n(k, None)} SKUs  ·  {_pct(k / n * 100)}", va="center", fontsize=9)
-    ax2.set_yticks(y, [r for r, _ in cortes], fontsize=8.5)
+    ax2.text(.985, .06,
+             f"Regra da L2: menos de 28 dias com venda OU menos de 8 vendas = {fmt_n(sem_hist, None)} SKUs.\n"
+             "Cada venda cai em algum dia, então nº de vendas ≥ nº de dias:\n"
+             "quem tem menos de 8 vendas tem menos de 8 dias e já está entre os\n"
+             "que venderam em menos de 28 dias. O critério de vendas não acrescenta\n"
+             "nenhum SKU; o grupo é o mesmo da barra \"menos de 28 dias\".",
+             transform=ax2.transAxes, ha="right", va="bottom", multialignment="left", fontsize=8,
+             bbox={"facecolor": "white", "edgecolor": "#C2185B", "lw": .8, "pad": 6})
+    ax2.set_yticks(y, [r for r, _, _ in cortes], fontsize=8.5)
     ax2.xaxis.set_major_formatter(fmt_n)
     ax2.set_xlim(0, n * 1.05)
     ax2.set_xlabel(f"nº de SKUs (faixa clara = total de {fmt_n(n, None)})")

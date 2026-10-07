@@ -19,6 +19,7 @@ import os
 import matplotlib
 
 matplotlib.use("Agg")
+import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 import numpy as np
@@ -50,6 +51,11 @@ def main() -> None:
     axes[0, 1].set_title(f"Depois de log1p — CV {cv_z:.2f}".replace(".", ","))
     axes[0, 1].set_ylabel("log(1 + unidades)")
 
+    for ax in axes[0]:
+        loc = mdates.MonthLocator(bymonth=(1, 4, 7, 10))
+        ax.xaxis.set_major_locator(loc)
+        ax.xaxis.set_major_formatter(mdates.ConciseDateFormatter(loc))
+
     # Linha de baixo: a distribuição nas duas escalas.
     axes[1, 0].hist(serie.values, bins=50, color=COR_CRUA, alpha=.85)
     axes[1, 0].axvline(serie.mean(), color="#000", lw=1, ls="--", label="média")
@@ -69,7 +75,7 @@ def main() -> None:
     decisao = "aplica log1p" if log else "mantém a escala original"
     fig.suptitle(
         f"O que o log1p faz com a série — CV {cv:.2f} > {base.LOG_CV_THRESHOLD:.1f} "
-        f"⇒ {decisao}  ·  máx. {info['max'] / 1000:.0f} mil contra média "
+        f"⇒ {decisao}  ·  máximo {info['max'] / 1000:.0f} mil contra média "
         f"{info['media'] / 1000:.1f} mil".replace(".", ","),
     )
     fig.tight_layout()

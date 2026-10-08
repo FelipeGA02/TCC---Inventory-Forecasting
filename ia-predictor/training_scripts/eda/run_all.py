@@ -1,4 +1,4 @@
-"""Roda os seis EDAs em sequência (T000b).
+"""Roda os EDAs em sequência (T000b).
 
     python -m training_scripts.eda.run_all
 
@@ -6,8 +6,8 @@ Pré-requisito: `training_scripts/output/contas_a_receber_taxonomia.csv` gerado
 (rodar `python -m training_scripts.preprocessing.map_taxonomy` antes).
 """
 from . import (
-    eda_classificacao_sku, eda_grupos, eda_separacao, eda_series, eda_series_unidade,
-    eda_source,
+    eda_classificacao_sku, eda_encomendas, eda_encomendas_hampel, eda_grupos, eda_separacao,
+    eda_series, eda_series_unidade, eda_source,
 )
 
 
@@ -46,6 +46,11 @@ def main() -> None:
     print("EDA 6 — encomendas grandes: separar do balcão + teto (ADR-012)")
     print("=" * 72)
     eda_encomendas.main()
+    print()
+    print("=" * 72)
+    print("EDA 7 — regra de encomenda × identificador de Hampel")
+    print("=" * 72)
+    eda_encomendas_hampel.main()
 
 
 if __name__ == "__main__":

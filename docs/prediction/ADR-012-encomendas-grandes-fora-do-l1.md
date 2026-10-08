@@ -65,9 +65,15 @@ encomenda = qtdade_da_linha > limiar
 **Por que um múltiplo do dia típico, e não um percentil das linhas.** Em Produtos de
 jardim, linhas de 60 a 100 mudas são rotina. O 99º percentil das linhas marcaria 37–48%
 do volume como encomenda, quase tudo compra legítima de balcão. O múltiplo da mediana
-diária pergunta outra coisa: "esta linha sozinha vale quantos dias normais da loja?". É a
-mesma ideia de filtros robustos baseados em mediana, como o filtro de Hampel (Pearson et
-al., 2016).
+diária pergunta outra coisa: "esta linha sozinha vale quantos dias normais da loja?". Usa
+a mediana como centro pelo mesmo motivo dos critérios robustos de outlier: a média seria
+puxada pelas próprias encomendas (Leys et al., 2013). E calcula o limiar dentro de cada
+`unidade × categoria` porque o que é anômalo depende do contexto (Chandola; Banerjee;
+Kumar, 2009): 1.000 m² é rotina na Grama de Jardim Canadá e são 5 dias de venda na de
+Itabirito. A regra **não é** o filtro de Hampel, que mede a distância à mediana em
+múltiplos do MAD (mediana + t × MAD; Hampel, 1974; Pearson et al., 2016). Comparada com
+ele, fica contida no identificador clássico: ver "Comparação com o identificador de
+Hampel", abaixo.
 
 ### 2. Aplicar teto aos picos que restam
 
@@ -100,6 +106,65 @@ continua medido na série real.
 **Sensibilidade a K** (SARIMAX, separar + teto): Itabirito fica em 0,795, 0,796 e 0,789
 com K = 3, 5 e 10; Jardim Canadá em 0,657, 0,646 e 0,640. A conclusão não depende da
 escolha exata de K.
+
+### Comparação com o identificador de Hampel (EDA 7 — `eda_encomendas_hampel.py`, 2026-10-08)
+
+Nenhum trabalho publicado usa o limiar "K dias típicos". Para ancorá-lo num critério da
+literatura, o EDA 7 aplicou o identificador de Hampel (marca quando o valor passa de
+mediana + t × 1,4826 × MAD; Hampel, 1974; Pearson et al., 2016) ao **mesmo contexto**: a
+mesma amostra do dia típico (volume diário da `unidade × categoria`, dias com venda,
+seg–sáb), aplicado a cada linha. Limiares da base inteira, só descritivos. Três versões:
+na escala original (o identificador clássico), em escala log e sobre a distribuição das
+próprias linhas. O "K equivalente" é o limiar ÷ dia típico.
+
+| Par | Dia típico | Projeto (K = 5) | Hampel original, t = 3 | Hampel em log, t = 3 |
+| --- | --- | --- | --- | --- |
+| Itabirito · Grama | 203 | 1.015 | 911 (K 4,5) | 20.536 (K 101) |
+| Itabirito · Produtos de jardim | 616 | 3.079 | 1.516 (K 2,5) | 2.847 (K 4,6) |
+| Itabirito · Flores de corte | 31 | 155 | 104 (K 3,4) | 397 (K 12,8) |
+| Jardim Canadá · Grama | 1.403 | 7.014 | 4.989 (K 3,6) | 20.736 (K 14,8) |
+| Jardim Canadá · Produtos de jardim | 1.653 | 8.265 | 3.895 (K 2,4) | 6.769 (K 4,1) |
+| Jardim Canadá · Flores de corte | 32 | 160 | 125 (K 3,9) | 801 (K 25,0) |
+
+| | Projeto | Hampel original, t = 3 | Hampel em log, t = 3 |
+| --- | --- | --- | --- |
+| Itabirito: linhas marcadas | 80 | 112 (as 80 do projeto + 32) | 12 (10 em comum) |
+| Itabirito: % do volume | 36,3% | 40,1% | 5,2% |
+| Itabirito: % pagas por boleto (balcão: 1,4%) | 65,0% | 56,2% | 50,0% |
+| Jardim Canadá: linhas marcadas | 14 | 32 (as 14 do projeto + 18) | 4 (3 em comum) |
+| Jardim Canadá: % do volume | 1,3% | 4,5% | 0,9% |
+| Jaccard das linhas com o projeto (ITA · JC) | — | 0,71 · 0,44 | 0,12 · 0,20 |
+
+![Regra do projeto × Hampel](../../ia-predictor/training_scripts/results/plots/eda/28_encomendas_hampel.png)
+
+Leitura:
+
+- **A regra do projeto está contida no identificador de Hampel clássico.** Nas 6
+  combinações, toda linha marcada pela regra também é outlier pelo Hampel na escala
+  original com t = 3. A regra é um corte mais conservador do mesmo critério: exige 5 dias
+  típicos, onde o Hampel exigiria de 2,4 a 4,5.
+- **Onde as encomendas se concentram, as duas quase coincidem**: Grama de Itabirito, 68 ×
+  71 linhas; Flores de corte de Jardim Canadá, 12 × 14.
+- **As 50 linhas que só o Hampel marca** (32 em Itabirito, 18 em Jardim Canadá; 3 a 4
+  pontos do volume, a maioria em Produtos de jardim) têm perfil intermediário. Em
+  Itabirito, 34% são pagas por boleto (65% nas encomendas do projeto, 1,4% no balcão) e só
+  12,5% são de "CONSUMIDOR" (90,5% no balcão). São vendas grandes de clientes
+  identificados, próximas das "vendas médias" da Etapa 5. A regra do projeto as deixa no
+  balcão, onde o teto p99 atenua os dias mais extremos.
+- **Em escala log, o Hampel não serve aqui.** A dispersão do volume diário em log é muito
+  grande em Grama e Flores de corte: em Grama de Itabirito, o limiar iria a 20.536 m²
+  (101 dias típicos) e nenhuma linha seria marcada. Em Itabirito, as 70 linhas que só o
+  projeto marca (68 delas de Grama) têm 68,6% pagas por boleto, o perfil de encomenda. O
+  Hampel em log só concorda com o projeto em Produtos de jardim (K equivalente 4,1 a 4,6).
+- **Sobre as próprias linhas, o Hampel degenera.** Em Flores de corte e Produtos de jardim
+  a maioria das linhas tem 1 unidade, o MAD vira 0 e o limiar cai a 1 unidade: em
+  Itabirito marcaria 51.865 linhas (75% do volume). Confirma o argumento acima: a
+  referência tem de ser o volume diário do par, não a distribuição das linhas.
+
+**Conclusão:** o limiar K × dia típico é uma versão mais conservadora do identificador de
+Hampel aplicado ao volume diário de cada `unidade × categoria`. Com isso, a escolha de K = 5
+deixa de ser um número solto: fica acima do K equivalente do Hampel clássico em todos os
+pares, e a sensibilidade a K (acima) mostra que a previsão não muda entre 3 e 10.
 
 ### Antes × depois
 
@@ -267,5 +332,23 @@ apoiada nas referências.
   n. 349, p. 70-79, 1975. DOI: 10.1080/01621459.1975.10480264. (resumo)
 - PEARSON, R. K.; NEUVO, Y.; ASTOLA, J.; GABBOUJ, M. Generalized Hampel filters. *EURASIP
   Journal on Advances in Signal Processing*, v. 2016, art. 87, 2016.
-  DOI: 10.1186/s13634-016-0383-6. Filtro robusto baseado em múltiplos da mediana, a mesma
-  família de critério do limiar K × mediana. (resumo)
+  DOI: 10.1186/s13634-016-0383-6. Filtro robusto que marca o valor cuja distância à
+  mediana passa de t × MAD. Não é o mesmo critério do limiar K × mediana (que mede a
+  distância em múltiplos da própria mediana), mas a regra do projeto fica contida nele
+  (EDA 7). (resumo)
+- HAMPEL, F. R. The influence curve and its role in robust estimation. *Journal of the
+  American Statistical Association*, v. 69, n. 346, p. 383-393, 1974.
+  DOI: 10.1080/01621459.1974.10482962. Origem do identificador de Hampel (mediana e MAD
+  como centro e escala robustos). (metadados conferidos no Crossref em 2026-10-08; texto
+  não lido)
+- LEYS, C.; LEY, C.; KLEIN, O.; BERNARD, P.; LICATA, L. Detecting outliers: do not use
+  standard deviation around the mean, use absolute deviation around the median. *Journal
+  of Experimental Social Psychology*, v. 49, n. 4, p. 764-766, 2013.
+  DOI: 10.1016/j.jesp.2013.03.013. Por que o centro tem de ser a mediana: a média e o
+  desvio-padrão são puxados pelos próprios outliers. (metadados conferidos no Crossref em
+  2026-10-08; texto não lido)
+- CHANDOLA, V.; BANERJEE, A.; KUMAR, V. Anomaly detection: a survey. *ACM Computing
+  Surveys*, v. 41, n. 3, art. 15, p. 1-58, 2009. DOI: 10.1145/1541880.1541882. Define
+  anomalia contextual (um valor só é anômalo em relação ao seu contexto), o que sustenta
+  calcular o limiar por `unidade × categoria`. (metadados conferidos no Crossref em
+  2026-10-08; texto não lido)

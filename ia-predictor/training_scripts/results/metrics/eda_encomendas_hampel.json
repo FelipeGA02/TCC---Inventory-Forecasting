@@ -1,0 +1,1857 @@
+{
+  "gerado_em": "2026-10-08T17:12:19",
+  "parametros": {
+    "K_DIAS_TIPICOS": 5,
+    "T_HAMPEL": [
+      2.5,
+      3.0,
+      3.5
+    ],
+    "ESCALA_MAD": 1.4826,
+    "amostra_dia_tipico": "volume diário da unidade × categoria, dias com venda, seg–sáb",
+    "limiares": "calculados na base inteira (descritivo, como o bloco 1 do EDA 6)"
+  },
+  "limiares_por_par": {
+    "Itabirito · Flores de corte": {
+      "dia_tipico": 31.0,
+      "projeto": 155.0,
+      "hampel_log_t2.5": 259.6,
+      "hampel_log_t3": 397.1,
+      "hampel_log_t3.5": 607.4,
+      "hampel_bruto_t3": 104.4,
+      "hampel_linhas_t3": 1.0
+    },
+    "Itabirito · Grama": {
+      "dia_tipico": 203.0,
+      "projeto": 1015.0,
+      "hampel_log_t2.5": 9513.6,
+      "hampel_log_t3": 20535.9,
+      "hampel_log_t3.5": 44328.6,
+      "hampel_bruto_t3": 911.3,
+      "hampel_linhas_t3": 3367.0
+    },
+    "Itabirito · Produtos de jardim": {
+      "dia_tipico": 615.8,
+      "projeto": 3078.8,
+      "hampel_log_t2.5": 2206.0,
+      "hampel_log_t3": 2847.3,
+      "hampel_log_t3.5": 3675.1,
+      "hampel_bruto_t3": 1516.4,
+      "hampel_linhas_t3": 1.0
+    },
+    "Jardim Canadá · Flores de corte": {
+      "dia_tipico": 32.0,
+      "projeto": 160.0,
+      "hampel_log_t2.5": 468.2,
+      "hampel_log_t3": 800.8,
+      "hampel_log_t3.5": 1369.5,
+      "hampel_bruto_t3": 125.4,
+      "hampel_linhas_t3": 1.0
+    },
+    "Jardim Canadá · Grama": {
+      "dia_tipico": 1402.8,
+      "projeto": 7013.8,
+      "hampel_log_t2.5": 13236.3,
+      "hampel_log_t3": 20736.0,
+      "hampel_log_t3.5": 32485.0,
+      "hampel_bruto_t3": 4988.8,
+      "hampel_linhas_t3": 5361.3
+    },
+    "Jardim Canadá · Produtos de jardim": {
+      "dia_tipico": 1653.0,
+      "projeto": 8265.0,
+      "hampel_log_t2.5": 5351.3,
+      "hampel_log_t3": 6768.6,
+      "hampel_log_t3.5": 8561.2,
+      "hampel_bruto_t3": 3894.7,
+      "hampel_linhas_t3": 43.6
+    }
+  },
+  "k_equivalente_por_par": {
+    "Itabirito · Flores de corte": {
+      "hampel_log_t2.5": 8.37,
+      "hampel_log_t3": 12.81,
+      "hampel_log_t3.5": 19.59,
+      "hampel_bruto_t3": 3.37,
+      "hampel_linhas_t3": 0.03
+    },
+    "Itabirito · Grama": {
+      "hampel_log_t2.5": 46.86,
+      "hampel_log_t3": 101.16,
+      "hampel_log_t3.5": 218.37,
+      "hampel_bruto_t3": 4.49,
+      "hampel_linhas_t3": 16.59
+    },
+    "Itabirito · Produtos de jardim": {
+      "hampel_log_t2.5": 3.58,
+      "hampel_log_t3": 4.62,
+      "hampel_log_t3.5": 5.97,
+      "hampel_bruto_t3": 2.46,
+      "hampel_linhas_t3": 0.0
+    },
+    "Jardim Canadá · Flores de corte": {
+      "hampel_log_t2.5": 14.63,
+      "hampel_log_t3": 25.02,
+      "hampel_log_t3.5": 42.8,
+      "hampel_bruto_t3": 3.92,
+      "hampel_linhas_t3": 0.03
+    },
+    "Jardim Canadá · Grama": {
+      "hampel_log_t2.5": 9.44,
+      "hampel_log_t3": 14.78,
+      "hampel_log_t3.5": 23.16,
+      "hampel_bruto_t3": 3.56,
+      "hampel_linhas_t3": 3.82
+    },
+    "Jardim Canadá · Produtos de jardim": {
+      "hampel_log_t2.5": 3.24,
+      "hampel_log_t3": 4.09,
+      "hampel_log_t3.5": 5.18,
+      "hampel_bruto_t3": 2.36,
+      "hampel_linhas_t3": 0.03
+    }
+  },
+  "comparacao_por_par": {
+    "Itabirito · Flores de corte": {
+      "hampel_log_t2.5": {
+        "linhas_projeto": 4,
+        "linhas_alternativa": 2,
+        "linhas_ambas": 2,
+        "linhas_so_projeto": 2,
+        "linhas_so_alternativa": 0,
+        "jaccard_linhas": 0.5,
+        "pct_volume_projeto": 4.2,
+        "pct_volume_alternativa": 3.1,
+        "pct_volume_ambas_na_uniao": 74.1,
+        "perfil": {
+          "marcadas_projeto": {
+            "linhas": 4,
+            "pct_boleto": 25.0,
+            "pct_consumidor": 25.0
+          },
+          "marcadas_alternativa": {
+            "linhas": 2,
+            "pct_boleto": 50.0,
+            "pct_consumidor": 0.0
+          },
+          "ambas": {
+            "linhas": 2,
+            "pct_boleto": 50.0,
+            "pct_consumidor": 0.0
+          },
+          "so_projeto": {
+            "linhas": 2,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 50.0
+          },
+          "so_alternativa": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "nenhuma": {
+            "linhas": 12334,
+            "pct_boleto": 1.5,
+            "pct_consumidor": 94.3
+          }
+        }
+      },
+      "hampel_log_t3": {
+        "linhas_projeto": 4,
+        "linhas_alternativa": 2,
+        "linhas_ambas": 2,
+        "linhas_so_projeto": 2,
+        "linhas_so_alternativa": 0,
+        "jaccard_linhas": 0.5,
+        "pct_volume_projeto": 4.2,
+        "pct_volume_alternativa": 3.1,
+        "pct_volume_ambas_na_uniao": 74.1,
+        "perfil": {
+          "marcadas_projeto": {
+            "linhas": 4,
+            "pct_boleto": 25.0,
+            "pct_consumidor": 25.0
+          },
+          "marcadas_alternativa": {
+            "linhas": 2,
+            "pct_boleto": 50.0,
+            "pct_consumidor": 0.0
+          },
+          "ambas": {
+            "linhas": 2,
+            "pct_boleto": 50.0,
+            "pct_consumidor": 0.0
+          },
+          "so_projeto": {
+            "linhas": 2,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 50.0
+          },
+          "so_alternativa": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "nenhuma": {
+            "linhas": 12334,
+            "pct_boleto": 1.5,
+            "pct_consumidor": 94.3
+          }
+        }
+      },
+      "hampel_log_t3.5": {
+        "linhas_projeto": 4,
+        "linhas_alternativa": 0,
+        "linhas_ambas": 0,
+        "linhas_so_projeto": 4,
+        "linhas_so_alternativa": 0,
+        "jaccard_linhas": 0.0,
+        "pct_volume_projeto": 4.2,
+        "pct_volume_alternativa": 0.0,
+        "pct_volume_ambas_na_uniao": 0.0,
+        "perfil": {
+          "marcadas_projeto": {
+            "linhas": 4,
+            "pct_boleto": 25.0,
+            "pct_consumidor": 25.0
+          },
+          "marcadas_alternativa": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "ambas": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "so_projeto": {
+            "linhas": 4,
+            "pct_boleto": 25.0,
+            "pct_consumidor": 25.0
+          },
+          "so_alternativa": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "nenhuma": {
+            "linhas": 12334,
+            "pct_boleto": 1.5,
+            "pct_consumidor": 94.3
+          }
+        }
+      },
+      "hampel_bruto_t3": {
+        "linhas_projeto": 4,
+        "linhas_alternativa": 11,
+        "linhas_ambas": 4,
+        "linhas_so_projeto": 0,
+        "linhas_so_alternativa": 7,
+        "jaccard_linhas": 0.364,
+        "pct_volume_projeto": 4.2,
+        "pct_volume_alternativa": 7.1,
+        "pct_volume_ambas_na_uniao": 59.7,
+        "perfil": {
+          "marcadas_projeto": {
+            "linhas": 4,
+            "pct_boleto": 25.0,
+            "pct_consumidor": 25.0
+          },
+          "marcadas_alternativa": {
+            "linhas": 11,
+            "pct_boleto": 18.2,
+            "pct_consumidor": 45.5
+          },
+          "ambas": {
+            "linhas": 4,
+            "pct_boleto": 25.0,
+            "pct_consumidor": 25.0
+          },
+          "so_projeto": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "so_alternativa": {
+            "linhas": 7,
+            "pct_boleto": 14.3,
+            "pct_consumidor": 57.1
+          },
+          "nenhuma": {
+            "linhas": 12327,
+            "pct_boleto": 1.5,
+            "pct_consumidor": 94.3
+          }
+        }
+      },
+      "hampel_linhas_t3": {
+        "linhas_projeto": 4,
+        "linhas_alternativa": 3890,
+        "linhas_ambas": 4,
+        "linhas_so_projeto": 0,
+        "linhas_so_alternativa": 3886,
+        "jaccard_linhas": 0.001,
+        "pct_volume_projeto": 4.2,
+        "pct_volume_alternativa": 74.5,
+        "pct_volume_ambas_na_uniao": 5.7,
+        "perfil": {
+          "marcadas_projeto": {
+            "linhas": 4,
+            "pct_boleto": 25.0,
+            "pct_consumidor": 25.0
+          },
+          "marcadas_alternativa": {
+            "linhas": 3890,
+            "pct_boleto": 4.2,
+            "pct_consumidor": 89.5
+          },
+          "ambas": {
+            "linhas": 4,
+            "pct_boleto": 25.0,
+            "pct_consumidor": 25.0
+          },
+          "so_projeto": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "so_alternativa": {
+            "linhas": 3886,
+            "pct_boleto": 4.1,
+            "pct_consumidor": 89.5
+          },
+          "nenhuma": {
+            "linhas": 8448,
+            "pct_boleto": 0.3,
+            "pct_consumidor": 96.4
+          }
+        }
+      }
+    },
+    "Itabirito · Grama": {
+      "hampel_log_t2.5": {
+        "linhas_projeto": 68,
+        "linhas_alternativa": 20,
+        "linhas_ambas": 20,
+        "linhas_so_projeto": 48,
+        "linhas_so_alternativa": 0,
+        "jaccard_linhas": 0.294,
+        "pct_volume_projeto": 67.7,
+        "pct_volume_alternativa": 42.9,
+        "pct_volume_ambas_na_uniao": 63.3,
+        "perfil": {
+          "marcadas_projeto": {
+            "linhas": 68,
+            "pct_boleto": 70.6,
+            "pct_consumidor": 7.4
+          },
+          "marcadas_alternativa": {
+            "linhas": 20,
+            "pct_boleto": 100.0,
+            "pct_consumidor": 0.0
+          },
+          "ambas": {
+            "linhas": 20,
+            "pct_boleto": 100.0,
+            "pct_consumidor": 0.0
+          },
+          "so_projeto": {
+            "linhas": 48,
+            "pct_boleto": 58.3,
+            "pct_consumidor": 10.4
+          },
+          "so_alternativa": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "nenhuma": {
+            "linhas": 3885,
+            "pct_boleto": 2.7,
+            "pct_consumidor": 82.0
+          }
+        }
+      },
+      "hampel_log_t3": {
+        "linhas_projeto": 68,
+        "linhas_alternativa": 0,
+        "linhas_ambas": 0,
+        "linhas_so_projeto": 68,
+        "linhas_so_alternativa": 0,
+        "jaccard_linhas": 0.0,
+        "pct_volume_projeto": 67.7,
+        "pct_volume_alternativa": 0.0,
+        "pct_volume_ambas_na_uniao": 0.0,
+        "perfil": {
+          "marcadas_projeto": {
+            "linhas": 68,
+            "pct_boleto": 70.6,
+            "pct_consumidor": 7.4
+          },
+          "marcadas_alternativa": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "ambas": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "so_projeto": {
+            "linhas": 68,
+            "pct_boleto": 70.6,
+            "pct_consumidor": 7.4
+          },
+          "so_alternativa": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "nenhuma": {
+            "linhas": 3885,
+            "pct_boleto": 2.7,
+            "pct_consumidor": 82.0
+          }
+        }
+      },
+      "hampel_log_t3.5": {
+        "linhas_projeto": 68,
+        "linhas_alternativa": 0,
+        "linhas_ambas": 0,
+        "linhas_so_projeto": 68,
+        "linhas_so_alternativa": 0,
+        "jaccard_linhas": 0.0,
+        "pct_volume_projeto": 67.7,
+        "pct_volume_alternativa": 0.0,
+        "pct_volume_ambas_na_uniao": 0.0,
+        "perfil": {
+          "marcadas_projeto": {
+            "linhas": 68,
+            "pct_boleto": 70.6,
+            "pct_consumidor": 7.4
+          },
+          "marcadas_alternativa": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "ambas": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "so_projeto": {
+            "linhas": 68,
+            "pct_boleto": 70.6,
+            "pct_consumidor": 7.4
+          },
+          "so_alternativa": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "nenhuma": {
+            "linhas": 3885,
+            "pct_boleto": 2.7,
+            "pct_consumidor": 82.0
+          }
+        }
+      },
+      "hampel_bruto_t3": {
+        "linhas_projeto": 68,
+        "linhas_alternativa": 71,
+        "linhas_ambas": 68,
+        "linhas_so_projeto": 0,
+        "linhas_so_alternativa": 3,
+        "jaccard_linhas": 0.958,
+        "pct_volume_projeto": 67.7,
+        "pct_volume_alternativa": 68.2,
+        "pct_volume_ambas_na_uniao": 99.3,
+        "perfil": {
+          "marcadas_projeto": {
+            "linhas": 68,
+            "pct_boleto": 70.6,
+            "pct_consumidor": 7.4
+          },
+          "marcadas_alternativa": {
+            "linhas": 71,
+            "pct_boleto": 69.0,
+            "pct_consumidor": 7.0
+          },
+          "ambas": {
+            "linhas": 68,
+            "pct_boleto": 70.6,
+            "pct_consumidor": 7.4
+          },
+          "so_projeto": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "so_alternativa": {
+            "linhas": 3,
+            "pct_boleto": 33.3,
+            "pct_consumidor": 0.0
+          },
+          "nenhuma": {
+            "linhas": 3882,
+            "pct_boleto": 2.7,
+            "pct_consumidor": 82.0
+          }
+        }
+      },
+      "hampel_linhas_t3": {
+        "linhas_projeto": 68,
+        "linhas_alternativa": 37,
+        "linhas_ambas": 37,
+        "linhas_so_projeto": 31,
+        "linhas_so_alternativa": 0,
+        "jaccard_linhas": 0.544,
+        "pct_volume_projeto": 67.7,
+        "pct_volume_alternativa": 58.2,
+        "pct_volume_ambas_na_uniao": 85.9,
+        "perfil": {
+          "marcadas_projeto": {
+            "linhas": 68,
+            "pct_boleto": 70.6,
+            "pct_consumidor": 7.4
+          },
+          "marcadas_alternativa": {
+            "linhas": 37,
+            "pct_boleto": 89.2,
+            "pct_consumidor": 2.7
+          },
+          "ambas": {
+            "linhas": 37,
+            "pct_boleto": 89.2,
+            "pct_consumidor": 2.7
+          },
+          "so_projeto": {
+            "linhas": 31,
+            "pct_boleto": 48.4,
+            "pct_consumidor": 12.9
+          },
+          "so_alternativa": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "nenhuma": {
+            "linhas": 3885,
+            "pct_boleto": 2.7,
+            "pct_consumidor": 82.0
+          }
+        }
+      }
+    },
+    "Itabirito · Produtos de jardim": {
+      "hampel_log_t2.5": {
+        "linhas_projeto": 8,
+        "linhas_alternativa": 14,
+        "linhas_ambas": 8,
+        "linhas_so_projeto": 0,
+        "linhas_so_alternativa": 6,
+        "jaccard_linhas": 0.571,
+        "pct_volume_projeto": 9.1,
+        "pct_volume_alternativa": 11.4,
+        "pct_volume_ambas_na_uniao": 79.9,
+        "perfil": {
+          "marcadas_projeto": {
+            "linhas": 8,
+            "pct_boleto": 37.5,
+            "pct_consumidor": 0.0
+          },
+          "marcadas_alternativa": {
+            "linhas": 14,
+            "pct_boleto": 42.9,
+            "pct_consumidor": 0.0
+          },
+          "ambas": {
+            "linhas": 8,
+            "pct_boleto": 37.5,
+            "pct_consumidor": 0.0
+          },
+          "so_projeto": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "so_alternativa": {
+            "linhas": 6,
+            "pct_boleto": 50.0,
+            "pct_consumidor": 0.0
+          },
+          "nenhuma": {
+            "linhas": 114815,
+            "pct_boleto": 1.4,
+            "pct_consumidor": 90.4
+          }
+        }
+      },
+      "hampel_log_t3": {
+        "linhas_projeto": 8,
+        "linhas_alternativa": 10,
+        "linhas_ambas": 8,
+        "linhas_so_projeto": 0,
+        "linhas_so_alternativa": 2,
+        "jaccard_linhas": 0.8,
+        "pct_volume_projeto": 9.1,
+        "pct_volume_alternativa": 10.0,
+        "pct_volume_ambas_na_uniao": 91.1,
+        "perfil": {
+          "marcadas_projeto": {
+            "linhas": 8,
+            "pct_boleto": 37.5,
+            "pct_consumidor": 0.0
+          },
+          "marcadas_alternativa": {
+            "linhas": 10,
+            "pct_boleto": 50.0,
+            "pct_consumidor": 0.0
+          },
+          "ambas": {
+            "linhas": 8,
+            "pct_boleto": 37.5,
+            "pct_consumidor": 0.0
+          },
+          "so_projeto": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "so_alternativa": {
+            "linhas": 2,
+            "pct_boleto": 100.0,
+            "pct_consumidor": 0.0
+          },
+          "nenhuma": {
+            "linhas": 114819,
+            "pct_boleto": 1.4,
+            "pct_consumidor": 90.4
+          }
+        }
+      },
+      "hampel_log_t3.5": {
+        "linhas_projeto": 8,
+        "linhas_alternativa": 4,
+        "linhas_ambas": 4,
+        "linhas_so_projeto": 4,
+        "linhas_so_alternativa": 0,
+        "jaccard_linhas": 0.5,
+        "pct_volume_projeto": 9.1,
+        "pct_volume_alternativa": 7.1,
+        "pct_volume_ambas_na_uniao": 78.1,
+        "perfil": {
+          "marcadas_projeto": {
+            "linhas": 8,
+            "pct_boleto": 37.5,
+            "pct_consumidor": 0.0
+          },
+          "marcadas_alternativa": {
+            "linhas": 4,
+            "pct_boleto": 25.0,
+            "pct_consumidor": 0.0
+          },
+          "ambas": {
+            "linhas": 4,
+            "pct_boleto": 25.0,
+            "pct_consumidor": 0.0
+          },
+          "so_projeto": {
+            "linhas": 4,
+            "pct_boleto": 50.0,
+            "pct_consumidor": 0.0
+          },
+          "so_alternativa": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "nenhuma": {
+            "linhas": 114821,
+            "pct_boleto": 1.4,
+            "pct_consumidor": 90.4
+          }
+        }
+      },
+      "hampel_bruto_t3": {
+        "linhas_projeto": 8,
+        "linhas_alternativa": 30,
+        "linhas_ambas": 8,
+        "linhas_so_projeto": 0,
+        "linhas_so_alternativa": 22,
+        "jaccard_linhas": 0.267,
+        "pct_volume_projeto": 9.1,
+        "pct_volume_alternativa": 15.9,
+        "pct_volume_ambas_na_uniao": 57.4,
+        "perfil": {
+          "marcadas_projeto": {
+            "linhas": 8,
+            "pct_boleto": 37.5,
+            "pct_consumidor": 0.0
+          },
+          "marcadas_alternativa": {
+            "linhas": 30,
+            "pct_boleto": 40.0,
+            "pct_consumidor": 0.0
+          },
+          "ambas": {
+            "linhas": 8,
+            "pct_boleto": 37.5,
+            "pct_consumidor": 0.0
+          },
+          "so_projeto": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "so_alternativa": {
+            "linhas": 22,
+            "pct_boleto": 40.9,
+            "pct_consumidor": 0.0
+          },
+          "nenhuma": {
+            "linhas": 114799,
+            "pct_boleto": 1.4,
+            "pct_consumidor": 90.4
+          }
+        }
+      },
+      "hampel_linhas_t3": {
+        "linhas_projeto": 8,
+        "linhas_alternativa": 47938,
+        "linhas_ambas": 8,
+        "linhas_so_projeto": 0,
+        "linhas_so_alternativa": 47930,
+        "jaccard_linhas": 0.0,
+        "pct_volume_projeto": 9.1,
+        "pct_volume_alternativa": 90.2,
+        "pct_volume_ambas_na_uniao": 10.1,
+        "perfil": {
+          "marcadas_projeto": {
+            "linhas": 8,
+            "pct_boleto": 37.5,
+            "pct_consumidor": 0.0
+          },
+          "marcadas_alternativa": {
+            "linhas": 47938,
+            "pct_boleto": 2.8,
+            "pct_consumidor": 83.5
+          },
+          "ambas": {
+            "linhas": 8,
+            "pct_boleto": 37.5,
+            "pct_consumidor": 0.0
+          },
+          "so_projeto": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "so_alternativa": {
+            "linhas": 47930,
+            "pct_boleto": 2.8,
+            "pct_consumidor": 83.5
+          },
+          "nenhuma": {
+            "linhas": 66891,
+            "pct_boleto": 0.4,
+            "pct_consumidor": 95.3
+          }
+        }
+      }
+    },
+    "Jardim Canadá · Flores de corte": {
+      "hampel_log_t2.5": {
+        "linhas_projeto": 12,
+        "linhas_alternativa": 5,
+        "linhas_ambas": 5,
+        "linhas_so_projeto": 7,
+        "linhas_so_alternativa": 0,
+        "jaccard_linhas": 0.417,
+        "pct_volume_projeto": 17.7,
+        "pct_volume_alternativa": 11.9,
+        "pct_volume_ambas_na_uniao": 67.0,
+        "perfil": {
+          "marcadas_projeto": {
+            "linhas": 12,
+            "pct_boleto": 8.3,
+            "pct_consumidor": 25.0
+          },
+          "marcadas_alternativa": {
+            "linhas": 5,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 20.0
+          },
+          "ambas": {
+            "linhas": 5,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 20.0
+          },
+          "so_projeto": {
+            "linhas": 7,
+            "pct_boleto": 14.3,
+            "pct_consumidor": 28.6
+          },
+          "so_alternativa": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "nenhuma": {
+            "linhas": 10228,
+            "pct_boleto": 1.4,
+            "pct_consumidor": 91.1
+          }
+        }
+      },
+      "hampel_log_t3": {
+        "linhas_projeto": 12,
+        "linhas_alternativa": 2,
+        "linhas_ambas": 2,
+        "linhas_so_projeto": 10,
+        "linhas_so_alternativa": 0,
+        "jaccard_linhas": 0.167,
+        "pct_volume_projeto": 17.7,
+        "pct_volume_alternativa": 6.1,
+        "pct_volume_ambas_na_uniao": 34.7,
+        "perfil": {
+          "marcadas_projeto": {
+            "linhas": 12,
+            "pct_boleto": 8.3,
+            "pct_consumidor": 25.0
+          },
+          "marcadas_alternativa": {
+            "linhas": 2,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 0.0
+          },
+          "ambas": {
+            "linhas": 2,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 0.0
+          },
+          "so_projeto": {
+            "linhas": 10,
+            "pct_boleto": 10.0,
+            "pct_consumidor": 30.0
+          },
+          "so_alternativa": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "nenhuma": {
+            "linhas": 10228,
+            "pct_boleto": 1.4,
+            "pct_consumidor": 91.1
+          }
+        }
+      },
+      "hampel_log_t3.5": {
+        "linhas_projeto": 12,
+        "linhas_alternativa": 0,
+        "linhas_ambas": 0,
+        "linhas_so_projeto": 12,
+        "linhas_so_alternativa": 0,
+        "jaccard_linhas": 0.0,
+        "pct_volume_projeto": 17.7,
+        "pct_volume_alternativa": 0.0,
+        "pct_volume_ambas_na_uniao": 0.0,
+        "perfil": {
+          "marcadas_projeto": {
+            "linhas": 12,
+            "pct_boleto": 8.3,
+            "pct_consumidor": 25.0
+          },
+          "marcadas_alternativa": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "ambas": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "so_projeto": {
+            "linhas": 12,
+            "pct_boleto": 8.3,
+            "pct_consumidor": 25.0
+          },
+          "so_alternativa": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "nenhuma": {
+            "linhas": 10228,
+            "pct_boleto": 1.4,
+            "pct_consumidor": 91.1
+          }
+        }
+      },
+      "hampel_bruto_t3": {
+        "linhas_projeto": 12,
+        "linhas_alternativa": 14,
+        "linhas_ambas": 12,
+        "linhas_so_projeto": 0,
+        "linhas_so_alternativa": 2,
+        "jaccard_linhas": 0.857,
+        "pct_volume_projeto": 17.7,
+        "pct_volume_alternativa": 18.6,
+        "pct_volume_ambas_na_uniao": 95.4,
+        "perfil": {
+          "marcadas_projeto": {
+            "linhas": 12,
+            "pct_boleto": 8.3,
+            "pct_consumidor": 25.0
+          },
+          "marcadas_alternativa": {
+            "linhas": 14,
+            "pct_boleto": 14.3,
+            "pct_consumidor": 21.4
+          },
+          "ambas": {
+            "linhas": 12,
+            "pct_boleto": 8.3,
+            "pct_consumidor": 25.0
+          },
+          "so_projeto": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "so_alternativa": {
+            "linhas": 2,
+            "pct_boleto": 50.0,
+            "pct_consumidor": 0.0
+          },
+          "nenhuma": {
+            "linhas": 10226,
+            "pct_boleto": 1.4,
+            "pct_consumidor": 91.1
+          }
+        }
+      },
+      "hampel_linhas_t3": {
+        "linhas_projeto": 12,
+        "linhas_alternativa": 4023,
+        "linhas_ambas": 12,
+        "linhas_so_projeto": 0,
+        "linhas_so_alternativa": 4011,
+        "jaccard_linhas": 0.003,
+        "pct_volume_projeto": 17.7,
+        "pct_volume_alternativa": 82.5,
+        "pct_volume_ambas_na_uniao": 21.5,
+        "perfil": {
+          "marcadas_projeto": {
+            "linhas": 12,
+            "pct_boleto": 8.3,
+            "pct_consumidor": 25.0
+          },
+          "marcadas_alternativa": {
+            "linhas": 4023,
+            "pct_boleto": 2.9,
+            "pct_consumidor": 86.4
+          },
+          "ambas": {
+            "linhas": 12,
+            "pct_boleto": 8.3,
+            "pct_consumidor": 25.0
+          },
+          "so_projeto": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "so_alternativa": {
+            "linhas": 4011,
+            "pct_boleto": 2.9,
+            "pct_consumidor": 86.5
+          },
+          "nenhuma": {
+            "linhas": 6217,
+            "pct_boleto": 0.5,
+            "pct_consumidor": 94.0
+          }
+        }
+      }
+    },
+    "Jardim Canadá · Grama": {
+      "hampel_log_t2.5": {
+        "linhas_projeto": 1,
+        "linhas_alternativa": 1,
+        "linhas_ambas": 1,
+        "linhas_so_projeto": 0,
+        "linhas_so_alternativa": 0,
+        "jaccard_linhas": 1.0,
+        "pct_volume_projeto": 1.2,
+        "pct_volume_alternativa": 1.2,
+        "pct_volume_ambas_na_uniao": 100.0,
+        "perfil": {
+          "marcadas_projeto": {
+            "linhas": 1,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 0.0
+          },
+          "marcadas_alternativa": {
+            "linhas": 1,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 0.0
+          },
+          "ambas": {
+            "linhas": 1,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 0.0
+          },
+          "so_projeto": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "so_alternativa": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "nenhuma": {
+            "linhas": 13332,
+            "pct_boleto": 6.9,
+            "pct_consumidor": 59.4
+          }
+        }
+      },
+      "hampel_log_t3": {
+        "linhas_projeto": 1,
+        "linhas_alternativa": 0,
+        "linhas_ambas": 0,
+        "linhas_so_projeto": 1,
+        "linhas_so_alternativa": 0,
+        "jaccard_linhas": 0.0,
+        "pct_volume_projeto": 1.2,
+        "pct_volume_alternativa": 0.0,
+        "pct_volume_ambas_na_uniao": 0.0,
+        "perfil": {
+          "marcadas_projeto": {
+            "linhas": 1,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 0.0
+          },
+          "marcadas_alternativa": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "ambas": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "so_projeto": {
+            "linhas": 1,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 0.0
+          },
+          "so_alternativa": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "nenhuma": {
+            "linhas": 13332,
+            "pct_boleto": 6.9,
+            "pct_consumidor": 59.4
+          }
+        }
+      },
+      "hampel_log_t3.5": {
+        "linhas_projeto": 1,
+        "linhas_alternativa": 0,
+        "linhas_ambas": 0,
+        "linhas_so_projeto": 1,
+        "linhas_so_alternativa": 0,
+        "jaccard_linhas": 0.0,
+        "pct_volume_projeto": 1.2,
+        "pct_volume_alternativa": 0.0,
+        "pct_volume_ambas_na_uniao": 0.0,
+        "perfil": {
+          "marcadas_projeto": {
+            "linhas": 1,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 0.0
+          },
+          "marcadas_alternativa": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "ambas": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "so_projeto": {
+            "linhas": 1,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 0.0
+          },
+          "so_alternativa": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "nenhuma": {
+            "linhas": 13332,
+            "pct_boleto": 6.9,
+            "pct_consumidor": 59.4
+          }
+        }
+      },
+      "hampel_bruto_t3": {
+        "linhas_projeto": 1,
+        "linhas_alternativa": 9,
+        "linhas_ambas": 1,
+        "linhas_so_projeto": 0,
+        "linhas_so_alternativa": 8,
+        "jaccard_linhas": 0.111,
+        "pct_volume_projeto": 1.2,
+        "pct_volume_alternativa": 4.7,
+        "pct_volume_ambas_na_uniao": 26.0,
+        "perfil": {
+          "marcadas_projeto": {
+            "linhas": 1,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 0.0
+          },
+          "marcadas_alternativa": {
+            "linhas": 9,
+            "pct_boleto": 22.2,
+            "pct_consumidor": 22.2
+          },
+          "ambas": {
+            "linhas": 1,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 0.0
+          },
+          "so_projeto": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "so_alternativa": {
+            "linhas": 8,
+            "pct_boleto": 25.0,
+            "pct_consumidor": 25.0
+          },
+          "nenhuma": {
+            "linhas": 13324,
+            "pct_boleto": 6.9,
+            "pct_consumidor": 59.4
+          }
+        }
+      },
+      "hampel_linhas_t3": {
+        "linhas_projeto": 1,
+        "linhas_alternativa": 5,
+        "linhas_ambas": 1,
+        "linhas_so_projeto": 0,
+        "linhas_so_alternativa": 4,
+        "jaccard_linhas": 0.2,
+        "pct_volume_projeto": 1.2,
+        "pct_volume_alternativa": 3.1,
+        "pct_volume_ambas_na_uniao": 40.2,
+        "perfil": {
+          "marcadas_projeto": {
+            "linhas": 1,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 0.0
+          },
+          "marcadas_alternativa": {
+            "linhas": 5,
+            "pct_boleto": 20.0,
+            "pct_consumidor": 40.0
+          },
+          "ambas": {
+            "linhas": 1,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 0.0
+          },
+          "so_projeto": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "so_alternativa": {
+            "linhas": 4,
+            "pct_boleto": 25.0,
+            "pct_consumidor": 50.0
+          },
+          "nenhuma": {
+            "linhas": 13328,
+            "pct_boleto": 6.9,
+            "pct_consumidor": 59.4
+          }
+        }
+      }
+    },
+    "Jardim Canadá · Produtos de jardim": {
+      "hampel_log_t2.5": {
+        "linhas_projeto": 1,
+        "linhas_alternativa": 3,
+        "linhas_ambas": 1,
+        "linhas_so_projeto": 0,
+        "linhas_so_alternativa": 2,
+        "jaccard_linhas": 0.333,
+        "pct_volume_projeto": 1.0,
+        "pct_volume_alternativa": 2.0,
+        "pct_volume_ambas_na_uniao": 50.6,
+        "perfil": {
+          "marcadas_projeto": {
+            "linhas": 1,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 0.0
+          },
+          "marcadas_alternativa": {
+            "linhas": 3,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 33.3
+          },
+          "ambas": {
+            "linhas": 1,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 0.0
+          },
+          "so_projeto": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "so_alternativa": {
+            "linhas": 2,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 50.0
+          },
+          "nenhuma": {
+            "linhas": 172981,
+            "pct_boleto": 3.5,
+            "pct_consumidor": 74.3
+          }
+        }
+      },
+      "hampel_log_t3": {
+        "linhas_projeto": 1,
+        "linhas_alternativa": 2,
+        "linhas_ambas": 1,
+        "linhas_so_projeto": 0,
+        "linhas_so_alternativa": 1,
+        "jaccard_linhas": 0.5,
+        "pct_volume_projeto": 1.0,
+        "pct_volume_alternativa": 1.5,
+        "pct_volume_ambas_na_uniao": 65.2,
+        "perfil": {
+          "marcadas_projeto": {
+            "linhas": 1,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 0.0
+          },
+          "marcadas_alternativa": {
+            "linhas": 2,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 50.0
+          },
+          "ambas": {
+            "linhas": 1,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 0.0
+          },
+          "so_projeto": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "so_alternativa": {
+            "linhas": 1,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 100.0
+          },
+          "nenhuma": {
+            "linhas": 172982,
+            "pct_boleto": 3.5,
+            "pct_consumidor": 74.3
+          }
+        }
+      },
+      "hampel_log_t3.5": {
+        "linhas_projeto": 1,
+        "linhas_alternativa": 1,
+        "linhas_ambas": 1,
+        "linhas_so_projeto": 0,
+        "linhas_so_alternativa": 0,
+        "jaccard_linhas": 1.0,
+        "pct_volume_projeto": 1.0,
+        "pct_volume_alternativa": 1.0,
+        "pct_volume_ambas_na_uniao": 100.0,
+        "perfil": {
+          "marcadas_projeto": {
+            "linhas": 1,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 0.0
+          },
+          "marcadas_alternativa": {
+            "linhas": 1,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 0.0
+          },
+          "ambas": {
+            "linhas": 1,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 0.0
+          },
+          "so_projeto": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "so_alternativa": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "nenhuma": {
+            "linhas": 172983,
+            "pct_boleto": 3.5,
+            "pct_consumidor": 74.3
+          }
+        }
+      },
+      "hampel_bruto_t3": {
+        "linhas_projeto": 1,
+        "linhas_alternativa": 9,
+        "linhas_ambas": 1,
+        "linhas_so_projeto": 0,
+        "linhas_so_alternativa": 8,
+        "jaccard_linhas": 0.111,
+        "pct_volume_projeto": 1.0,
+        "pct_volume_alternativa": 4.0,
+        "pct_volume_ambas_na_uniao": 25.0,
+        "perfil": {
+          "marcadas_projeto": {
+            "linhas": 1,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 0.0
+          },
+          "marcadas_alternativa": {
+            "linhas": 9,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 11.1
+          },
+          "ambas": {
+            "linhas": 1,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 0.0
+          },
+          "so_projeto": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "so_alternativa": {
+            "linhas": 8,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 12.5
+          },
+          "nenhuma": {
+            "linhas": 172975,
+            "pct_boleto": 3.5,
+            "pct_consumidor": 74.3
+          }
+        }
+      },
+      "hampel_linhas_t3": {
+        "linhas_projeto": 1,
+        "linhas_alternativa": 4629,
+        "linhas_ambas": 1,
+        "linhas_so_projeto": 0,
+        "linhas_so_alternativa": 4628,
+        "jaccard_linhas": 0.0,
+        "pct_volume_projeto": 1.0,
+        "pct_volume_alternativa": 51.9,
+        "pct_volume_ambas_na_uniao": 1.9,
+        "perfil": {
+          "marcadas_projeto": {
+            "linhas": 1,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 0.0
+          },
+          "marcadas_alternativa": {
+            "linhas": 4629,
+            "pct_boleto": 13.3,
+            "pct_consumidor": 34.0
+          },
+          "ambas": {
+            "linhas": 1,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 0.0
+          },
+          "so_projeto": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "so_alternativa": {
+            "linhas": 4628,
+            "pct_boleto": 13.3,
+            "pct_consumidor": 34.0
+          },
+          "nenhuma": {
+            "linhas": 168355,
+            "pct_boleto": 3.2,
+            "pct_consumidor": 75.4
+          }
+        }
+      }
+    }
+  },
+  "comparacao_por_unidade": {
+    "Itabirito": {
+      "hampel_log_t2.5": {
+        "linhas_projeto": 80,
+        "linhas_alternativa": 36,
+        "linhas_ambas": 30,
+        "linhas_so_projeto": 50,
+        "linhas_so_alternativa": 6,
+        "jaccard_linhas": 0.349,
+        "pct_volume_projeto": 36.3,
+        "pct_volume_alternativa": 25.9,
+        "pct_volume_ambas_na_uniao": 65.9,
+        "perfil": {
+          "marcadas_projeto": {
+            "linhas": 80,
+            "pct_boleto": 65.0,
+            "pct_consumidor": 7.5
+          },
+          "marcadas_alternativa": {
+            "linhas": 36,
+            "pct_boleto": 75.0,
+            "pct_consumidor": 0.0
+          },
+          "ambas": {
+            "linhas": 30,
+            "pct_boleto": 80.0,
+            "pct_consumidor": 0.0
+          },
+          "so_projeto": {
+            "linhas": 50,
+            "pct_boleto": 56.0,
+            "pct_consumidor": 12.0
+          },
+          "so_alternativa": {
+            "linhas": 6,
+            "pct_boleto": 50.0,
+            "pct_consumidor": 0.0
+          },
+          "nenhuma": {
+            "linhas": 131034,
+            "pct_boleto": 1.4,
+            "pct_consumidor": 90.5
+          }
+        }
+      },
+      "hampel_log_t3": {
+        "linhas_projeto": 80,
+        "linhas_alternativa": 12,
+        "linhas_ambas": 10,
+        "linhas_so_projeto": 70,
+        "linhas_so_alternativa": 2,
+        "jaccard_linhas": 0.122,
+        "pct_volume_projeto": 36.3,
+        "pct_volume_alternativa": 5.2,
+        "pct_volume_ambas_na_uniao": 12.9,
+        "perfil": {
+          "marcadas_projeto": {
+            "linhas": 80,
+            "pct_boleto": 65.0,
+            "pct_consumidor": 7.5
+          },
+          "marcadas_alternativa": {
+            "linhas": 12,
+            "pct_boleto": 50.0,
+            "pct_consumidor": 0.0
+          },
+          "ambas": {
+            "linhas": 10,
+            "pct_boleto": 40.0,
+            "pct_consumidor": 0.0
+          },
+          "so_projeto": {
+            "linhas": 70,
+            "pct_boleto": 68.6,
+            "pct_consumidor": 8.6
+          },
+          "so_alternativa": {
+            "linhas": 2,
+            "pct_boleto": 100.0,
+            "pct_consumidor": 0.0
+          },
+          "nenhuma": {
+            "linhas": 131038,
+            "pct_boleto": 1.4,
+            "pct_consumidor": 90.5
+          }
+        }
+      },
+      "hampel_log_t3.5": {
+        "linhas_projeto": 80,
+        "linhas_alternativa": 4,
+        "linhas_ambas": 4,
+        "linhas_so_projeto": 76,
+        "linhas_so_alternativa": 0,
+        "jaccard_linhas": 0.05,
+        "pct_volume_projeto": 36.3,
+        "pct_volume_alternativa": 3.6,
+        "pct_volume_ambas_na_uniao": 10.0,
+        "perfil": {
+          "marcadas_projeto": {
+            "linhas": 80,
+            "pct_boleto": 65.0,
+            "pct_consumidor": 7.5
+          },
+          "marcadas_alternativa": {
+            "linhas": 4,
+            "pct_boleto": 25.0,
+            "pct_consumidor": 0.0
+          },
+          "ambas": {
+            "linhas": 4,
+            "pct_boleto": 25.0,
+            "pct_consumidor": 0.0
+          },
+          "so_projeto": {
+            "linhas": 76,
+            "pct_boleto": 67.1,
+            "pct_consumidor": 7.9
+          },
+          "so_alternativa": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "nenhuma": {
+            "linhas": 131040,
+            "pct_boleto": 1.4,
+            "pct_consumidor": 90.5
+          }
+        }
+      },
+      "hampel_bruto_t3": {
+        "linhas_projeto": 80,
+        "linhas_alternativa": 112,
+        "linhas_ambas": 80,
+        "linhas_so_projeto": 0,
+        "linhas_so_alternativa": 32,
+        "jaccard_linhas": 0.714,
+        "pct_volume_projeto": 36.3,
+        "pct_volume_alternativa": 40.1,
+        "pct_volume_ambas_na_uniao": 90.6,
+        "perfil": {
+          "marcadas_projeto": {
+            "linhas": 80,
+            "pct_boleto": 65.0,
+            "pct_consumidor": 7.5
+          },
+          "marcadas_alternativa": {
+            "linhas": 112,
+            "pct_boleto": 56.2,
+            "pct_consumidor": 8.9
+          },
+          "ambas": {
+            "linhas": 80,
+            "pct_boleto": 65.0,
+            "pct_consumidor": 7.5
+          },
+          "so_projeto": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "so_alternativa": {
+            "linhas": 32,
+            "pct_boleto": 34.4,
+            "pct_consumidor": 12.5
+          },
+          "nenhuma": {
+            "linhas": 131008,
+            "pct_boleto": 1.4,
+            "pct_consumidor": 90.5
+          }
+        }
+      },
+      "hampel_linhas_t3": {
+        "linhas_projeto": 80,
+        "linhas_alternativa": 51865,
+        "linhas_ambas": 49,
+        "linhas_so_projeto": 31,
+        "linhas_so_alternativa": 51816,
+        "jaccard_linhas": 0.001,
+        "pct_volume_projeto": 36.3,
+        "pct_volume_alternativa": 74.9,
+        "pct_volume_ambas_na_uniao": 40.2,
+        "perfil": {
+          "marcadas_projeto": {
+            "linhas": 80,
+            "pct_boleto": 65.0,
+            "pct_consumidor": 7.5
+          },
+          "marcadas_alternativa": {
+            "linhas": 51865,
+            "pct_boleto": 2.9,
+            "pct_consumidor": 83.9
+          },
+          "ambas": {
+            "linhas": 49,
+            "pct_boleto": 75.5,
+            "pct_consumidor": 4.1
+          },
+          "so_projeto": {
+            "linhas": 31,
+            "pct_boleto": 48.4,
+            "pct_consumidor": 12.9
+          },
+          "so_alternativa": {
+            "linhas": 51816,
+            "pct_boleto": 2.9,
+            "pct_consumidor": 84.0
+          },
+          "nenhuma": {
+            "linhas": 79224,
+            "pct_boleto": 0.5,
+            "pct_consumidor": 94.8
+          }
+        }
+      }
+    },
+    "Jardim Canadá": {
+      "hampel_log_t2.5": {
+        "linhas_projeto": 14,
+        "linhas_alternativa": 9,
+        "linhas_ambas": 7,
+        "linhas_so_projeto": 7,
+        "linhas_so_alternativa": 2,
+        "jaccard_linhas": 0.438,
+        "pct_volume_projeto": 1.3,
+        "pct_volume_alternativa": 1.8,
+        "pct_volume_ambas_na_uniao": 68.2,
+        "perfil": {
+          "marcadas_projeto": {
+            "linhas": 14,
+            "pct_boleto": 7.1,
+            "pct_consumidor": 21.4
+          },
+          "marcadas_alternativa": {
+            "linhas": 9,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 22.2
+          },
+          "ambas": {
+            "linhas": 7,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 14.3
+          },
+          "so_projeto": {
+            "linhas": 7,
+            "pct_boleto": 14.3,
+            "pct_consumidor": 28.6
+          },
+          "so_alternativa": {
+            "linhas": 2,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 50.0
+          },
+          "nenhuma": {
+            "linhas": 196541,
+            "pct_boleto": 3.6,
+            "pct_consumidor": 74.2
+          }
+        }
+      },
+      "hampel_log_t3": {
+        "linhas_projeto": 14,
+        "linhas_alternativa": 4,
+        "linhas_ambas": 3,
+        "linhas_so_projeto": 11,
+        "linhas_so_alternativa": 1,
+        "jaccard_linhas": 0.2,
+        "pct_volume_projeto": 1.3,
+        "pct_volume_alternativa": 0.9,
+        "pct_volume_ambas_na_uniao": 37.3,
+        "perfil": {
+          "marcadas_projeto": {
+            "linhas": 14,
+            "pct_boleto": 7.1,
+            "pct_consumidor": 21.4
+          },
+          "marcadas_alternativa": {
+            "linhas": 4,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 25.0
+          },
+          "ambas": {
+            "linhas": 3,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 0.0
+          },
+          "so_projeto": {
+            "linhas": 11,
+            "pct_boleto": 9.1,
+            "pct_consumidor": 27.3
+          },
+          "so_alternativa": {
+            "linhas": 1,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 100.0
+          },
+          "nenhuma": {
+            "linhas": 196542,
+            "pct_boleto": 3.6,
+            "pct_consumidor": 74.2
+          }
+        }
+      },
+      "hampel_log_t3.5": {
+        "linhas_projeto": 14,
+        "linhas_alternativa": 1,
+        "linhas_ambas": 1,
+        "linhas_so_projeto": 13,
+        "linhas_so_alternativa": 0,
+        "jaccard_linhas": 0.071,
+        "pct_volume_projeto": 1.3,
+        "pct_volume_alternativa": 0.5,
+        "pct_volume_ambas_na_uniao": 38.8,
+        "perfil": {
+          "marcadas_projeto": {
+            "linhas": 14,
+            "pct_boleto": 7.1,
+            "pct_consumidor": 21.4
+          },
+          "marcadas_alternativa": {
+            "linhas": 1,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 0.0
+          },
+          "ambas": {
+            "linhas": 1,
+            "pct_boleto": 0.0,
+            "pct_consumidor": 0.0
+          },
+          "so_projeto": {
+            "linhas": 13,
+            "pct_boleto": 7.7,
+            "pct_consumidor": 23.1
+          },
+          "so_alternativa": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "nenhuma": {
+            "linhas": 196543,
+            "pct_boleto": 3.6,
+            "pct_consumidor": 74.2
+          }
+        }
+      },
+      "hampel_bruto_t3": {
+        "linhas_projeto": 14,
+        "linhas_alternativa": 32,
+        "linhas_ambas": 14,
+        "linhas_so_projeto": 0,
+        "linhas_so_alternativa": 18,
+        "jaccard_linhas": 0.438,
+        "pct_volume_projeto": 1.3,
+        "pct_volume_alternativa": 4.5,
+        "pct_volume_ambas_na_uniao": 29.4,
+        "perfil": {
+          "marcadas_projeto": {
+            "linhas": 14,
+            "pct_boleto": 7.1,
+            "pct_consumidor": 21.4
+          },
+          "marcadas_alternativa": {
+            "linhas": 32,
+            "pct_boleto": 12.5,
+            "pct_consumidor": 18.8
+          },
+          "ambas": {
+            "linhas": 14,
+            "pct_boleto": 7.1,
+            "pct_consumidor": 21.4
+          },
+          "so_projeto": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "so_alternativa": {
+            "linhas": 18,
+            "pct_boleto": 16.7,
+            "pct_consumidor": 16.7
+          },
+          "nenhuma": {
+            "linhas": 196525,
+            "pct_boleto": 3.6,
+            "pct_consumidor": 74.2
+          }
+        }
+      },
+      "hampel_linhas_t3": {
+        "linhas_projeto": 14,
+        "linhas_alternativa": 8657,
+        "linhas_ambas": 14,
+        "linhas_so_projeto": 0,
+        "linhas_so_alternativa": 8643,
+        "jaccard_linhas": 0.002,
+        "pct_volume_projeto": 1.3,
+        "pct_volume_alternativa": 29.5,
+        "pct_volume_ambas_na_uniao": 4.5,
+        "perfil": {
+          "marcadas_projeto": {
+            "linhas": 14,
+            "pct_boleto": 7.1,
+            "pct_consumidor": 21.4
+          },
+          "marcadas_alternativa": {
+            "linhas": 8657,
+            "pct_boleto": 8.5,
+            "pct_consumidor": 58.3
+          },
+          "ambas": {
+            "linhas": 14,
+            "pct_boleto": 7.1,
+            "pct_consumidor": 21.4
+          },
+          "so_projeto": {
+            "linhas": 0,
+            "pct_boleto": null,
+            "pct_consumidor": null
+          },
+          "so_alternativa": {
+            "linhas": 8643,
+            "pct_boleto": 8.5,
+            "pct_consumidor": 58.4
+          },
+          "nenhuma": {
+            "linhas": 187900,
+            "pct_boleto": 3.4,
+            "pct_consumidor": 74.9
+          }
+        }
+      }
+    }
+  },
+  "graficos": [
+    "ia-predictor/training_scripts/results/plots/eda/28_encomendas_hampel.png"
+  ]
+}

@@ -206,9 +206,16 @@ T000c) deixa de ser necessário.
   de política de reposição; ajustar user stories e critérios de sucesso; propagar
   `unidade × categoria` → `unidade` nos trechos ainda não revisados (schemas JSON de
   exemplo, diagramas de pipeline).
-- `ia-predictor/openapi.yaml` — remover `/api/v1/replenishment/{produto_cod}` e `/batch`,
+- ~~`ia-predictor/openapi.yaml` — remover `/api/v1/replenishment/{produto_cod}` e `/batch`,
   o schema `ReplenishmentRecommendation`; refletir a granularidade `unidade` do L1 nos
-  contratos de status de modelo.
+  contratos de status de modelo.~~ **Feito (2026-10-08, openapi 3.0.0):** endpoints e
+  schemas de reposição removidos; `shelf_life_dias` fora de `ProductDetailResponse`;
+  `ModelStatusResponse` conta modelos por unidade e lista `UnitModelStatus`; alerta
+  `risco_sobra` redefinido sem validade (previsão 7 d ≥ 20% abaixo da média de 4 semanas);
+  exportação sem a aba "Reposição". `CLAUDE.md` alinhado no mesmo commit.
+- `.specify/memory/constitution.md` — o Princípio III e os Quality Gates ainda exigem a
+  simulação de reposição (perda + ruptura) e citam previsão/reposição; emendar via
+  `/speckit-constitution`.
 - `docs/prediction/plano_experimentos_modelagem.md` — remover a simulação de reposição da
   trilha de avaliação; manter MASE/RMSSE/resíduos; ajustar as referências a
   `unidade × categoria` como grão do L1 baseline (Fase 1) para `unidade`.

@@ -3,11 +3,14 @@ openapi: 3.0.3
 info:
   title: Floricultura — API de Previsão de Vendas
   description: |
-    Sistema de recomendação de reposição diária para rede de floricultura com 2 unidades
-    operacionais. Modelagem hierárquica: SARIMAX na demanda diária agregada por
-    `unidade × categoria` (L1), desagregação proporcional para SKU (L2) e política de
-    reposição perecível-consciente com shelf-life (L3). Ver
-    docs/prediction/ADR-009-granularidade-diaria-e-reposicao.md.
+    Sistema de previsão de demanda diária para rede de floricultura com 2 unidades
+    operacionais (Jardim Canadá e Itabirito), horizonte de 14 dias, com intervalo de
+    confiança de 95%. Modelagem hierárquica: SARIMAX na venda diária de balcão de cada
+    `unidade` (L1, 2 séries; encomendas grandes ficam fora, ADR-012) e desagregação em
+    cascata `unidade → categoria → SKU` (L2). A recomendação de reposição (L3) saiu de
+    escopo: o sistema informa quanto deve vender e a loja decide a compra (ADR-011).
+    Ver docs/prediction/ADR-009-granularidade-diaria-e-reposicao.md e
+    docs/prediction/ADR-011-escopo-previsao-sem-reposicao.md.
 
     ## Autenticação
     Todos os endpoints `/api/v1/*` exigem JWT via header `Authorization: Bearer <token>`.
@@ -15,8 +18,8 @@ info:
 
     ## Perfis
     - **admin**: upload, retrain, acesso completo
-    - **viewer**: somente visualização (forecast, replenishment, alerts, simulation, export)
-  version: "2.0.0"
+    - **viewer**: somente visualização (forecast, alerts, simulation, export)
+  version: "3.0.0"
   contact:
     name: Daniel Nunes da Silva & Felipe Gurgel Araújo
     email: felipegurgel5@gmail.com
@@ -30,14 +33,14 @@ tags:
     description: Status do sistema
   - name: auth
     description: Autenticação e autorização
+  - name: upload
+    description: Envio das planilhas de vendas
   - name: products
     description: Catálogo de produtos e histórico de vendas
   - name: forecast
     description: Previsão de demanda diária por produto (horizonte 14 dias)
-  - name: replenishment
-    description: Recomendação de quantidade a repor por produto e por dia
   - name: alerts
-    description: Alertas automáticos de pico de demanda e risco de sobra
+    description: Alertas automáticos de alta e de queda de demanda
   - name: simulation
     description: Simulação de promoções e vendas casadas
   - name: reports
@@ -188,7 +191,7 @@ components:
           example: 128450.0
         model_status:
           type: string
-          description: Status do modelo L1 da categoria do produto
+          description: Status do modelo L1 da unidade do produto (a previsão do SKU vem da desagregação desse modelo)
           enum: [trained, low_confidence, insufficient_data, error, pending, training]
           example: trained
         last_mase:
@@ -226,7 +229,7 @@ components:
           example: 42.0
 
     ModelMetrics:
-      description: Métricas do modelo L1 da categoria à qual o produto pertence.
+      description: Métricas do modelo L1 da unidade à qual o produto pertence, medidas no walk-forward (origem móvel, h = 14 dias).
       type: object
       properties:
         MASE:
@@ -277,10 +280,6 @@ components:
         unidade:
           type: string
           example: "Jardim Canadá"
-        shelf_life_dias:
-          type: integer
-          description: Validade estimada da categoria (dias)
-          example: 4
         total_sold:
           type: number
           format: float
@@ -292,24 +291,25 @@ components:
             $ref: "#/components/schemas/DailyPoint"
         model_status:
           type: string
-          description: Status do modelo L1 da categoria (unidade × categoria)
+          description: Status do modelo L1 da unidade do produto
           enum: [trained, low_confidence, insufficient_data, error, pending, training]
         metrics:
           $ref: "#/components/schemas/ModelMetrics"
           nullable: true
         sarimax_order:
           type: string
+          description: Ordem (p,d,q) do modelo L1 da unidade
           nullable: true
-          example: "(1,1,1)"
+          example: "(0,1,1)"
         seasonal_order:
           type: string
-          description: Ordem sazonal semanal (m=7)
+          description: Ordem sazonal semanal (P,D,Q,m) do modelo L1 da unidade
           nullable: true
-          example: "(1,0,1,7)"
+          example: "(0,0,1,7)"
         use_log_transform:
           type: boolean
           nullable: true
-          example: false
+          example: true
         last_trained_at:
           type: string
           format: date-time
@@ -423,125 +423,6 @@ components:
           items:
             $ref: "#/components/schemas/ForecastBatchItem"
 
-    # --- Replenishment (reposição) ---
-    ReplenishmentDay:
-      type: object
-      properties:
-        date:
-          type: string
-          format: date
-          example: "2026-03-07"
-        forecast_demand:
-          type: number
-          format: float
-          example: 48.0
-        qty_to_order:
-          type: number
-          format: float
-          description: Quantidade sugerida a repor neste dia
-          example: 40.0
-        cover_until:
-          type: string
-          format: date
-          description: Data até a qual a reposição sugerida cobre a demanda
-          example: "2026-03-10"
-        expected_waste:
-          type: number
-          format: float
-          description: Unidades que devem sobrar e perder validade
-          example: 0.0
-        stockout_risk_pct:
-          type: number
-          format: float
-          example: 4.0
-
-    ReplenishmentRecommendation:
-      type: object
-      properties:
-        produto_cod:
-          type: string
-          example: "147"
-        produto_nome:
-          type: string
-          example: ROSA VERMELHA 40CM
-        categoria:
-          type: string
-          example: "Flores de corte"
-        unidade:
-          type: string
-          example: "Jardim Canadá"
-        shelf_life_dias:
-          type: integer
-          example: 4
-        safety_stock_days:
-          type: integer
-          example: 2
-        current_stock:
-          type: number
-          format: float
-          description: Estoque atual informado (0 por padrão — compra "a seco")
-          example: 0.0
-        reorder_in_days:
-          type: integer
-          description: Cadência sugerida — repor a cada N dias
-          example: 3
-        risk_label:
-          type: string
-          enum: [ok, risco_ruptura, risco_perda]
-          example: ok
-        reason:
-          type: string
-          description: Justificativa em PT-BR sem jargão técnico
-          example: "Validade curta (4 dias) — repor 40 unidades cobre até terça sem sobra."
-        days:
-          type: array
-          items:
-            $ref: "#/components/schemas/ReplenishmentDay"
-        generated_at:
-          type: string
-          format: date-time
-          example: "2026-03-06T03:00:00"
-
-    ReplenishmentBatchItem:
-      type: object
-      properties:
-        produto_cod:
-          type: string
-          example: "147"
-        produto_nome:
-          type: string
-          example: ROSA VERMELHA 40CM
-        qty_to_order_today:
-          type: number
-          format: float
-          example: 40.0
-        cover_until:
-          type: string
-          format: date
-          example: "2026-03-10"
-        reorder_in_days:
-          type: integer
-          example: 3
-        risk_label:
-          type: string
-          enum: [ok, risco_ruptura, risco_perda]
-          example: ok
-
-    ReplenishmentBatchResponse:
-      type: object
-      properties:
-        ref_date:
-          type: string
-          format: date
-          example: "2026-03-06"
-        generated_at:
-          type: string
-          format: date-time
-        items:
-          type: array
-          items:
-            $ref: "#/components/schemas/ReplenishmentBatchItem"
-
     # --- Alerts ---
     AlertItem:
       type: object
@@ -555,7 +436,7 @@ components:
         kind:
           type: string
           enum: [pico_demanda, risco_sobra]
-          description: pico_demanda = previsão 7d acima da média recente; risco_sobra = validade curta com demanda em queda
+          description: pico_demanda = previsão dos próximos 7 dias ≥ 20% acima da média das últimas 4 semanas; risco_sobra = previsão dos próximos 7 dias ≥ 20% abaixo dessa média (comprar o mesmo que antes tende a sobrar)
           example: pico_demanda
         severity:
           type: string
@@ -694,8 +575,36 @@ components:
             $ref: "#/components/schemas/SimulationScenarioResult"
 
     # --- Model Status ---
+    UnitModelStatus:
+      description: Status do modelo L1 de uma unidade (venda diária de balcão).
+      type: object
+      properties:
+        unidade:
+          type: string
+          example: "Jardim Canadá"
+        status:
+          type: string
+          enum: [trained, low_confidence, insufficient_data, error, pending, training]
+          example: trained
+        sarimax_order:
+          type: string
+          nullable: true
+          example: "(0,1,1)"
+        seasonal_order:
+          type: string
+          nullable: true
+          example: "(0,0,1,7)"
+        metrics:
+          $ref: "#/components/schemas/ModelMetrics"
+          nullable: true
+        trained_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-03-02T02:00:00"
+
     ModelStatusResponse:
-      description: Contagens referem-se aos modelos L1 (um por unidade × categoria).
+      description: Status dos modelos L1, um por unidade (2 modelos).
       type: object
       properties:
         last_retrain_at:
@@ -710,26 +619,30 @@ components:
           type: string
           format: date-time
           nullable: true
-          description: Última geração diária de previsão + reposição
+          description: Última geração diária de previsão
         skus_covered:
           type: integer
-          description: SKUs com reposição gerada na última rodada diária
+          description: SKUs com previsão desagregada na última rodada diária
           example: 20
-        total_categories:
-          type: integer
-          example: 24
-        trained_categories:
-          type: integer
-          example: 19
-        low_confidence_categories:
-          type: integer
-          example: 3
-        failed_categories:
-          type: integer
-          example: 0
-        insufficient_data_categories:
+        total_models:
           type: integer
           example: 2
+        trained_models:
+          type: integer
+          example: 2
+        low_confidence_models:
+          type: integer
+          example: 0
+        failed_models:
+          type: integer
+          example: 0
+        insufficient_data_models:
+          type: integer
+          example: 0
+        units:
+          type: array
+          items:
+            $ref: "#/components/schemas/UnitModelStatus"
         is_training:
           type: boolean
           example: false
@@ -741,7 +654,7 @@ components:
         last_retrain_summary:
           type: string
           nullable: true
-          example: "19 modelos atualizados, 0 com erro"
+          example: "2 modelos atualizados, 0 com erro"
 
     RetrainResponse:
       type: object
@@ -905,7 +818,9 @@ paths:
       summary: Enviar planilha XLSX de vendas
       description: |
         Processa arquivo XLSX exportado do sistema financeiro.
-        Deduplica registros por (doc_numero, produto_cod).
+        Deduplica contra arquivos já enviados pela chave
+        (doc_numero, produto_cod, emissao, qtdade, vl_total); linhas iguais dentro do
+        mesmo arquivo são vendas reais e são mantidas (01-pre_processing.md §2).
         Agenda retrain automático dos modelos após processamento.
         **Requer perfil admin.**
       operationId: uploadFile
@@ -1013,7 +928,7 @@ paths:
     get:
       tags: [products]
       summary: Detalhes de um produto
-      description: Retorna histórico diário de vendas do SKU, categoria/unidade, shelf-life e métricas do modelo L1. Sem dados pessoais de clientes (LGPD).
+      description: Retorna histórico diário de vendas do SKU, categoria/unidade e métricas do modelo L1 da unidade. Sem dados pessoais de clientes (LGPD).
       operationId: getProduct
       security:
         - BearerAuth: []
@@ -1047,9 +962,10 @@ paths:
       summary: Previsão de demanda diária para um produto
       description: |
         Retorna a previsão de demanda **por dia** para os próximos `horizon_days` dias.
-        Obtida do modelo L1 da categoria (`unidade × categoria`) desagregado para o SKU.
-        Inclui intervalo de confiança de 95% e marcação de fim de semana, feriado e
-        proximidade de datas comemorativas.
+        Obtida do modelo L1 da unidade do produto, desagregado em cascata
+        (`unidade → categoria → SKU`). Inclui intervalo de confiança de 95% e marcação de
+        fim de semana, feriado e proximidade de datas comemorativas. Encomendas grandes
+        não entram na previsão (ADR-012).
       operationId: getForecast
       security:
         - BearerAuth: []
@@ -1083,13 +999,13 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorDetail"
         "409":
-          description: Modelo da categoria não disponível
+          description: Modelo da unidade não disponível
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorDetail"
               example:
-                detail: "Categoria sem histórico suficiente para previsão. Status: insufficient_data"
+                detail: "Esta loja ainda não tem histórico suficiente para previsão. Status: insufficient_data"
 
   /api/v1/forecast/batch:
     get:
@@ -1124,88 +1040,6 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
-  # ── Replenishment (reposição) ────────────────
-  /api/v1/replenishment/{produto_cod}:
-    get:
-      tags: [replenishment]
-      summary: Recomendação de reposição diária para um produto
-      description: |
-        Para cada um dos próximos `horizon_days` dias, retorna a quantidade sugerida de
-        reposição considerando a demanda prevista, a validade da categoria
-        (`shelf_life_dias`), um estoque de segurança e o estoque atual (0 por padrão).
-        Inclui cadência sugerida, data-limite de cobertura e risco de perda/ruptura.
-      operationId: getReplenishment
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: produto_cod
-          in: path
-          required: true
-          schema:
-            type: string
-          example: "147"
-        - name: horizon_days
-          in: query
-          schema:
-            type: integer
-            default: 14
-            minimum: 1
-            maximum: 28
-        - name: current_stock
-          in: query
-          description: Estoque atual do produto (unidades). Padrão 0 — compra "a seco".
-          schema:
-            type: number
-            format: float
-            default: 0
-      responses:
-        "200":
-          description: Recomendação gerada com sucesso
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ReplenishmentRecommendation"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          description: Produto não encontrado
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorDetail"
-        "409":
-          description: Categoria sem modelo disponível
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorDetail"
-
-  /api/v1/replenishment/batch:
-    get:
-      tags: [replenishment]
-      summary: Reposição de hoje para os top N produtos
-      description: Lista, por produto de maior volume, a quantidade a repor hoje, a data-limite de cobertura, a cadência sugerida e o selo de risco. É a tela "Reposição de Hoje" do dashboard.
-      operationId: getReplenishmentBatch
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: top_n
-          in: query
-          schema:
-            type: integer
-            default: 10
-            minimum: 1
-            maximum: 50
-      responses:
-        "200":
-          description: Reposição dos top produtos
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ReplenishmentBatchResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-
   # ── Alerts ───────────────────────────────────
   /api/v1/alerts:
     get:
@@ -1213,8 +1047,9 @@ paths:
       summary: Alertas de pico de demanda e risco de sobra
       description: |
         `pico_demanda`: produtos cuja previsão dos próximos 7 dias supera em ≥20% a média
-        das últimas 4 semanas. `risco_sobra`: produtos de validade curta com demanda em
-        queda. Ordenados por variação decrescente. Justificativas em PT-BR sem jargão.
+        das últimas 4 semanas. `risco_sobra`: produtos cuja previsão dos próximos 7 dias
+        fica ≥20% abaixo dessa média. Ordenados pela variação em valor absoluto,
+        decrescente. Justificativas em PT-BR sem jargão.
       operationId: getAlerts
       security:
         - BearerAuth: []
@@ -1279,10 +1114,10 @@ paths:
       tags: [reports]
       summary: Exportar relatório de previsões e alertas
       description: |
-        Gera arquivo PDF ou Excel com a reposição sugerida dos top N produtos para os
+        Gera arquivo PDF ou Excel com a previsão diária dos top N produtos para os
         próximos `horizon_days` dias e a lista de alertas.
-        **Excel**: abas "Reposição", "Previsão diária", "Métricas", "Alertas".
-        **PDF**: tabela de reposição + alertas com cabeçalho e rodapé.
+        **Excel**: abas "Previsão diária", "Métricas", "Alertas".
+        **PDF**: tabela de previsão + alertas com cabeçalho e rodapé.
       operationId: exportReport
       security:
         - BearerAuth: []
@@ -1348,7 +1183,7 @@ paths:
       tags: [models]
       summary: Disparar reajuste manual dos modelos
       description: |
-        Inicia reajuste assíncrono de todos os modelos L1 (`unidade × categoria`).
+        Inicia reajuste assíncrono dos modelos L1 (um por unidade).
         **Requer perfil admin.**
         Retorna 409 se já houver reajuste em andamento.
       operationId: triggerRetrain

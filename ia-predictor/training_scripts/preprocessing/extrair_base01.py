@@ -136,15 +136,29 @@ def _load_rows(input_path):
 
 
 def _parse_products(rows, i, total_rows):
-    """Lê as linhas de produto até encontrar 'Totais' ou uma linha vazia."""
+    """Lê as linhas de produto até encontrar 'Totais'.
+
+    Quando o documento ocupa mais de uma página impressa, o relatório intercala, entre
+    as linhas de produto, um bloco de rodapé/cabeçalho repetido (marca de impressão
+    'dd/mm/aaaa - hh:mm' + contador de página, nome da empresa, título do relatório,
+    linhas em branco) antes de retomar os produtos restantes do mesmo documento. Esse
+    bloco não tem valor na coluna de quantidade — inclusive a própria marca de
+    impressão, que tem a mesma forma 'código - nome' de uma linha de produto e seria
+    lida como um produto fantasma se só o texto da coluna 1 fosse checado. Por isso o
+    critério real de "é produto" é ter quantidade, não só não ser 'Totais'/vazio.
+    """
     products = []
     while i < total_rows:
         prod_a = cell_str(rows[i], PRODUCT_COLUMNS['produto'])
-        if prod_a in ('Totais', ''):
+        if prod_a == 'Totais' or prod_a.startswith('Documento:'):
             break
+        qtd = rows[i].get(PRODUCT_COLUMNS['qtdade'])
+        if qtd is None:
+            i += 1
+            continue
         products.append({
             'produto': prod_a,
-            'qtdade': rows[i].get(PRODUCT_COLUMNS['qtdade'], 0),
+            'qtdade': qtd,
             'vl_unit': rows[i].get(PRODUCT_COLUMNS['vl_unit'], 0),
             'vl_total': rows[i].get(PRODUCT_COLUMNS['vl_total'], 0),
             'vl_desconto': rows[i].get(PRODUCT_COLUMNS['vl_desconto'], 0),

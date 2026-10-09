@@ -55,7 +55,7 @@ entram no sumário por entradas com `PAGEREF` para os bookmarks `_Toc900010`, `_
 | Arquitetura | hierárquica: L1 = SARIMAX por **unidade** (2 séries, venda de balcão); L2 = desagregação em cascata unidade → categoria → produto (participação móvel de 4–8 semanas × perfil de dia da semana; efeito de datas por categoria; fallback uniforme para produto com < 28 dias com venda ou < 8 vendas) | `ADR-011` §4, `01-pre_processing.md` §5.2 |
 | Unidades | 3 empresas (CNPJ) → 2 unidades: Jardim Canadá (floricultura + garden center) e Itabirito | `ADR-011` §2 |
 | Categorias | Grama, Flores de corte, Produtos de jardim; grupos do cliente (Plantas diversas, Insumos e acessórios) só na apresentação | `ADR-011` §3 |
-| Encomendas | linha > 5 × mediana diária (seg–sáb) da unidade × categoria, limiar só com treino; fluxo à parte; teto no p99 dos dias abertos só no treino | `ADR-012` |
+| Encomendas | **em aberto**: a regra "linha > 5 × mediana diária" + teto p99 foi retirada em 2026-10-09 por não ter fonte publicada. O artigo ainda a descreve e precisa ser revisto | — |
 | Modelo adotado | SARIMAX com log1p, m = 7, D = 0, d = 1; ordem (0,1,1)(0,0,1) nas duas lojas; exógenas: 6 dummies de dia da semana, `loja_fechada`, `abertura_excepcional`; previsão pontual = mediana | `04-treino_l1_por_loja.md` (ficha técnica) |
 | Random Forest / MDI | **avaliação e seleção** de exógenas (não ponderação: um SARIMAX linear absorve a escala) | `03-enriquecimento_serie_crua.md` (ficha técnica) |
 | Clima | avaliado e descartado (1,4% da importância; sem ganho) | doc 03 §3.3 |
@@ -90,7 +90,6 @@ partes forem implementadas, confira se o texto continua correto e só então det
 | 20 maiores produtos | 61,7% do volume | EDA §2.6 |
 | Datas comemorativas (Flores de corte) | 1,7 a 5,0 × a média (Mulher, Mães, Namorados) | EDA §3.4 |
 | Separação por unidade | Itabirito −17% de MASE com modelo próprio; nenhuma categoria ganha ≥ 5% | EDA §3.11, ADR-011 §4 |
-| Encomendas | Itabirito 80 linhas, 36,3% do volume, MASE 1,434 → 0,796; Jardim Canadá 1,3%, 0,659 → 0,646 | ADR-012 |
 | Calendário (série total) | feriados ~4 mil → ~0; IC 79 mil → 13 mil; −9% de erro; janelas vencidas 19 → 22 | doc 03 |
 | Importância RF | dia da semana 83,2%, feriado 15,2%, clima 1,4% | doc 03 (ficha) |
 | Resultado final (Tabela 4) | MASE 0,58 / 0,58; MASE < 1 em 25 / 23 de 26; erro relativo 66% / 62%; vence 24 / 24 de 26; MAE 1.282 × 1.948 / 486 × 780; cobertura 91,2% / 93,7%; largura 5.463 / 2.255 (Jardim Canadá / Itabirito) | doc 04 (ficha) |
@@ -126,7 +125,7 @@ Acrescentadas na consolidação (todas citadas no texto): Bartezzaghi e Verganti
 (1993); Croston (1972); Fliedner (2001); Gross e Sohl (1990); Huber, Gossmann e Stuckenschmidt
 (2017); Hyndman e Koehler (2006); Kalchschmidt, Verganti e Zotteri (2006); Pearson et al. (2016);
 Syntetos, Boylan e Croston (2005); Teunter, Syntetos e Babai (2011); Zotteri e Kalchschmidt (2007).
-Os dados bibliográficos vieram de `ADR-012` (Referências) e `01-pre_processing.md` §5.2, onde
+Os dados bibliográficos vieram do antigo `ADR-012` (Referências; removido, está no histórico do git) e `01-pre_processing.md` §5.2, onde
 estão os DOIs; não foram conferidos online na sessão.
 
 **Pendência conhecida:** a entrada PAVLYSHENKO (2019), que já existia, repete o título do artigo
@@ -134,6 +133,6 @@ de Arunraj et al. e atribui a ela resultados (MAPE < 5%, redução de 18%) que p
 verificados. Não foi alterada. Não reutilize esses números em texto novo sem confirmar a fonte.
 
 Ainda disponíveis no repositório, não usadas no artigo: Kalchschmidt, Zotteri e Verganti (2003)
-(o ADR-012 pede conferir o texto completo antes de citar), Verganti (1997) (DOI não confirmado),
+(conferir o texto completo antes de citar), Verganti (1997) (DOI não confirmado),
 Bartezzaghi, Verganti e Zotteri (1999), Johnston, Boylan e Shale (2003), Olhager (2003),
 Box e Tiao (1975), Babai, Boylan e Rostami-Tabar (2022).

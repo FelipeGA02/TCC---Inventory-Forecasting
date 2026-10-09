@@ -5,8 +5,8 @@
   3. classificacao03         BaseFormatada02.csv → BaseClassificada03.csv (unidade e categorias)
 
 O pipeline está sendo refeito: as etapas antigas (reduce_schema, map_taxonomy,
-clean_transactions, mark_orders, build_calendar, build_daily_series) saíram daqui e voltam
-conforme forem reescritas sobre a base nova.
+clean_transactions, build_calendar e as séries diárias) saíram daqui e voltam conforme forem
+reescritas sobre a base nova.
 
 O relatório (`output/preprocessamento_relatorio.json`) junta o resumo de cada etapa.
 

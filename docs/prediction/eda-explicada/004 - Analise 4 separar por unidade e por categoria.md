@@ -66,7 +66,7 @@ anos de dados **não viram previsão melhor**.
 ### Cuidados
 
 - Em Itabirito, vários valores passam de 1, ou seja, pior que repetir a semana anterior. A causa são os
-  pedidos gigantes (tratados na Análise 5).
+  pedidos gigantes (encomendas grandes; tratamento em aberto).
 - Diferenças de até cerca de 10% estão dentro do ruído.
 - 2 dos 234 ajustes SARIMAX não convergiram. A ordem do SARIMAX no teste é fixa.
 

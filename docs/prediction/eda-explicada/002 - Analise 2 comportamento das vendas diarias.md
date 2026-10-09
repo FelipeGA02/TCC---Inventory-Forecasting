@@ -90,7 +90,7 @@ do volume em Jardim Canadá, e grama e jardim dominam a média. O agregado escon
 | Itabirito | +54% ao ano (Grama +96%) |
 
 Pode ser mudança real de demanda, de mix de produtos ou de forma de registrar as vendas. Ficou como
-pergunta para a floricultura. (A Análise 5 mostra que boa parte do crescimento de Itabirito era encomenda.)
+pergunta para a floricultura.
 
 ### 3.5 A "memória" da série é fraca
 

@@ -228,7 +228,7 @@ Ver `docs/prediction/ADR-009-granularidade-diaria-e-reposicao.md` para o raciona
 | Decisão | Valor | Motivo |
 | --- | --- | --- |
 | Alvo | qtd diária somada por `unidade` (todas as categorias) **de balcão** — sem as linhas de encomenda | série densa (poucos zeros), ao contrário de SKU e categoria isolados; separar por categoria não reduz o erro (ADR-011 §4, `eda_separacao.py`) |
-| Encomendas grandes | linha com `qtdade` > 5 × mediana diária (seg–sáb) da `unidade × categoria`, limiar do treino → sai da série do L1 (fluxo à parte, não previsto); balcão restante com teto no p99 dos dias abertos, só no treino | Itabirito: 36% do volume em 80 linhas (Grama de obra, boleto) → MASE 1,434 → 0,796. ADR-012, `preprocessing/encomendas.py` + `mark_orders.py` (Etapa 5), `eda_encomendas.py`. Série pronta: `qtd_balcao` em `output/serie_diaria_unidade.csv` |
+| Encomendas grandes | **em aberto**: critério de separação a definir, com parâmetro fundamentado em literatura ou em campo do sistema da loja | a regra anterior (linha > 5 × mediana diária + teto no p99) foi retirada em 2026-10-09: o 5 e o p99 não tinham fonte publicada |
 | m (período sazonal) | 7 | sazonalidade semanal. **EDA (2026-09-21, `docs/prediction/00-eda_report.md` §3.3): o padrão é de dia útil — pico em ter–qui para Grama e para Produtos de jardim em Jardim Canadá (em Itabirito, Produtos de jardim tem semana mais uniforme) — e sexta para Flores de corte; sábado fraco; domingo = loja fechada (0).** Não "fim de semana vende mais". Ciclo real mas fraco na variância (Fs ≤ 0.29) — dummies de dia-da-semana como exógenas pesam mais que os termos P/Q |
 | D (diferenciação sazonal) | 0 | o ciclo semanal já é capturado pelas dummies de dia-da-semana; com calendário, o termo sazonal AR cai a P = 0 e sobra só Q = 1 (doc 04). Diferenciar a semana (yₜ − yₜ₋₇) sobrediferenciaria e criaria picos falsos nas semanas com feriado. (Histórico curto não é o motivo: com m = 7 há > 100 ciclos.) |
 | d (diferenciação regular) | **1** na versão escolhida (A1 d=1); ADF indicava 0 | com d = 1 a previsão parte do nível recente em vez de voltar à média do histórico: melhor no ano e em dezembro nas 2 lojas (doc 04). Limitado a 1 |
@@ -240,14 +240,14 @@ Ver `docs/prediction/ADR-009-granularidade-diaria-e-reposicao.md` para o raciona
 | Previsão pontual | mediana (`expm1` da média em log) | o fator de Duan (média) explodiu (4,6× em Itabirito sem calendário) e foi descartado (doc 04 §2). Efeito colateral: previsão cobre 81–88% do vendido |
 | Mínimo de observações | 180 dias | abaixo disso: `insufficient_data` para a unidade inteira |
 | Hold-out para avaliação | 28 dias | |
-| Walk-forward CV | ≥4 folds, origem móvel, horizonte 14 dias. Protocolo atual (doc 04): 26 rodadas cobrindo um ano, janela expansiva; limiar de encomenda e teto p99 recalculados em cada rodada | obrigatório antes de `status = "trained"` |
+| Walk-forward CV | ≥4 folds, origem móvel, horizonte 14 dias. Protocolo atual (doc 04): 26 rodadas cobrindo um ano, janela expansiva; todo parâmetro estimado dos dados (ex.: limiar de encomenda) recalculado em cada rodada | obrigatório antes de `status = "trained"` |
 
 ### L2 — Desagregação em cascata: `unidade` → `categoria` → SKU
 
 | Decisão | Valor | Motivo |
 | --- | --- | --- |
 | Método | participação móvel (share das últimas 4–8 semanas) × perfil de dia-da-semana **do nível**, aplicado 2×: `unidade→categoria`, depois `categoria→SKU`; no passo `unidade→categoria`, também o índice de data comemorativa **da categoria** | evita modelar com SARIMAX uma série (categoria ou SKU) que não ganha acurácia por isso (categoria: ADR-011 §4) ou é quase toda zero (SKU). O índice de data recupera o que o total esconde: no Dia das Mães, Flores de corte sobe 2,14× enquanto a unidade cai 0,66× |
-| Base | participações calculadas sobre a venda de **balcão** | senão uma encomenda de Grama inflaria a participação da Grama nas semanas seguintes (ADR-012) |
+| Base | participações calculadas sobre a venda de **balcão** | senão uma encomenda de Grama inflaria a participação da Grama nas semanas seguintes |
 | Fallback | categoria com histórico curto → rateio uniforme entre categorias da unidade; SKU com < 28 dias com venda ou < 8 vendas → rateio uniforme da categoria | |
 
 ### L3 — Política de reposição: fora de escopo (ADR-011)
@@ -343,7 +343,6 @@ Comandos disponíveis (invocar via Skill tool ou como `/speckit-*`):
 | `.specify/memory/constitution.md` | 6 princípios governantes (v3.0.0) |
 | `docs/prediction/ADR-009-granularidade-diaria-e-reposicao.md` | **Espinha da revisão de escopo mensal→diário** — arquitetura L1/L2/L3, validação, shelf-life (L3 e grão `unidade × categoria` revisados pelo ADR-011) |
 | `docs/prediction/ADR-011-escopo-previsao-sem-reposicao.md` | **Escopo atual**: previsão de demanda sem reposição (L3 fora), 2 unidades, 3 categorias + `Servico e taxa`, L1 por `unidade` (teste de separação §4). Lista o que ainda falta propagar |
-| `docs/prediction/ADR-012-encomendas-grandes-fora-do-l1.md` | Encomendas grandes fora do L1: regra K = 5 dias típicos por `unidade × categoria`, teto p99 só no treino, evidência (boleto, clientes, sensibilidade a K) e referências |
 | `docs/README.md` | Índice da documentação por área + convenção de ADRs |
 | `docs/prediction/`, `docs/backend/`, `docs/database/`, `docs/frontend/` | ADRs organizados por área (ver `docs/README.md` para a lista completa) |
 | `docs/project/Projeto Tecnico Verde Perto Final...pdf` | Projeto técnico acadêmico original (fonte primária, revisado pelo orientador) |

@@ -25,7 +25,7 @@ texto, um por documento (venda), sem estrutura tabular. Cada bloco tem um cabeç
 (`Documento:`, cliente, empresa, vendedor, observação), uma seção `Produto` com N
 linhas de item, e uma linha `Totais`.
 
-A **Etapa 1** do pré-processamento (`build_dataset.py` + `parser.py`) varre os 26
+A **Etapa 1** do pré-processamento (`extrair_base01.py`) varre os 26
 XLSX por **posição fixa de coluna** e expande cada bloco em **uma linha por
 `(documento, produto)`** — o menor grão que preserva tudo que a modelagem pode
 querer somar depois (por dia×unidade×categoria para o L1; por dia×SKU para a L2).

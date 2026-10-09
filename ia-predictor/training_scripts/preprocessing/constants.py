@@ -19,7 +19,7 @@ RAW_DIR = os.path.join(_IA_PREDICTOR_ROOT, 'data', 'raw')
 # não dentro de `preprocessing/`, para não misturar código-fonte com dado gerado.
 OUTPUT_DIR = os.path.join(_TRAINING_SCRIPTS_DIR, 'output')
 
-CONSOLIDATED_CSV = os.path.join(OUTPUT_DIR, 'contas_a_receber.csv')          # Etapa 1
+CONSOLIDATED_CSV = os.path.join(OUTPUT_DIR, 'Base01.csv')                   # Etapa 1
 LOG_FILE = os.path.join(OUTPUT_DIR, 'processamento_log.json')                # Etapa 1
 REDUCED_CSV = os.path.join(OUTPUT_DIR, 'contas_a_receber_sem_colunas.csv')   # Etapa 2
 TAXONOMY_CSV = os.path.join(OUTPUT_DIR, 'contas_a_receber_taxonomia.csv')    # Etapa 3

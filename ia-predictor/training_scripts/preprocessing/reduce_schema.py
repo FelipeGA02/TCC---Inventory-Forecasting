@@ -1,7 +1,7 @@
 """Etapa 2 do pipeline: remove colunas sem uso na modelagem hierárquica diária.
 
 Gera a planilha consolidada "pronta para treinamento" a partir do CSV bruto da Etapa 1
-(`build_dataset.py`). Saída: colunas de data, `empresa` (chave de agrupamento `unidade`
+(`extrair_base01.py`). Saída: colunas de data, `empresa` (chave de agrupamento `unidade`
 da camada L1), `produto_cod` e as métricas de venda. `pagamento` e `vendedor` são
 removidos aqui (ADR-009 + ADR-010). A justificativa de cada remoção está em
 `docs/prediction/01-pre_processing.md` (seção 4).

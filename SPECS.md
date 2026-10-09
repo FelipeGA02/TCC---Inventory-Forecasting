@@ -273,9 +273,7 @@ ia-predictor/
 │   │   │                             # 01-pre_processing.md) — parser, dedup, drop de colunas;
 │   │   │                             # escreve só em training_scripts/output/
 │   │   ├── constants.py
-│   │   ├── helpers.py
-│   │   ├── parser.py
-│   │   ├── build_dataset.py         # Etapa 1 — parsing + dedup entre arquivos + log
+│   │   ├── extrair_base01.py        # Etapa 1 — parsing + dedup entre arquivos + log → Base01.csv
 │   │   ├── reduce_schema.py         # Etapa 2 — 20 → 9 colunas
 │   │   ├── map_taxonomy.py          # Etapa 3 — deriva unidade + categoria
 │   │   └── taxonomy/                # tabelas de/para versionadas (unidades.py, categorias.py)

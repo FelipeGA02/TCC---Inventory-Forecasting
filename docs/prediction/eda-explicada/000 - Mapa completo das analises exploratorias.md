@@ -75,7 +75,7 @@ As mesmas análises aparecem com três numerações diferentes:
 
 | Este mapa / pasta `eda-explicada` | "EDA n" no código (`eda/run_all.py`) | Script | Seção do [relatório](../00-eda_report.md) | Gráficos |
 | --- | --- | --- | --- | --- |
-| **Análise 1** — base bruta | EDA 1 + EDA 5 | `eda_source.py`, `eda_classificacao_sku.py` (+ `build_dataset.py`, `reduce_schema.py` do pré-processamento) | §1.3, §2.1–2.8, §2.5b | 01–06, 24 |
+| **Análise 1** — base bruta | EDA 1 + EDA 5 | `eda_source.py`, `eda_classificacao_sku.py` (+ `extrair_base01.py`, `reduce_schema.py` do pré-processamento) | §1.3, §2.1–2.8, §2.5b | 01–06, 24 |
 | **Análise 2** — vendas dia a dia | EDA 2 + EDA 2b | `eda_series_unidade.py` (2 séries), `eda_series.py` (6 séries) | §3.0–3.9 | 10–19 |
 | **Análise 3** — granularidade | EDA 3 | `eda_grupos.py` | §3.10 | 20–22 |
 | **Análise 4** — separação | EDA 4 | `eda_separacao.py` | §3.11 | 23 |
@@ -114,7 +114,7 @@ python -m training_scripts.eda.eda_encomendas       # Análise 5 (ver aviso abai
 | --- | --- | --- | --- | --- | --- |
 | 1.1 | Volume e completude | `eda_source.bloco_volume_completude` | 01 | Histórico muito acima de 180 dias; série diária contínua | ✅ Wirth; Hipp (2000) |
 | 1.2 | Qualidade dos dados | `eda_source.bloco_qualidade` | — | Alvo contínuo; `clip(0)` antes do log; sem serviço/taxa | ✅ Wirth; Hipp (2000) |
-| 1.3 | Deduplicação (documento 995) | `build_dataset.process_pending_files` | — | Evita alvo subestimado | — (verificação interna) |
+| 1.3 | Deduplicação (documento 995) | `extrair_base01.process_pending_files` | — | Evita alvo subestimado | — (verificação interna) |
 | 1.4 | Colunas e exógenas nominais | `eda_source.bloco_exogenas_nominais`, `reduce_schema` | — | Exógenas do SARIMAX = só calendário | 💡 Kaufman et al. (2012); ✅ LGPD |
 | 1.5 | Perfil por unidade e CNPJ | `bloco_por_unidade`, `bloco_jardim_canada_por_cnpj` | 06 | 1 série por loja, sem quebra falsa em abr/2025 | 📄 Box; Tiao (1975), como alternativa |
 | 1.6 | Perfil por categoria | `bloco_por_categoria` | 05 | Nenhum direto no L1 | — |
@@ -165,7 +165,7 @@ produto por produto?
 **Scripts.** [`eda_source.py`](../../../ia-predictor/training_scripts/eda/eda_source.py)
 (blocos 1–8) e
 [`eda_classificacao_sku.py`](../../../ia-predictor/training_scripts/eda/eda_classificacao_sku.py).
-A deduplicação e o corte de colunas moram no pré-processamento (`build_dataset.py`,
+A deduplicação e o corte de colunas moram no pré-processamento (`extrair_base01.py`,
 `reduce_schema.py`), mas foram decididos a partir desta análise.
 
 **Saídas.** `eda_source.json`, `eda_classificacao_sku.json` e os gráficos 01–06 e 24.
@@ -267,7 +267,7 @@ a soma das 12 linhas dá exatamente 756,30, o total impresso. Sem a segunda linh
 corrigida só compara arquivos diferentes e usa uma chave mais rígida. Na base atual, ela
 removeu 0 linhas.
 
-**Pseudocódigo** (`build_dataset.process_pending_files`, regra corrigida):
+**Pseudocódigo** (`extrair_base01.process_pending_files`, regra corrigida):
 
 ```text
 vistos ← ∅

@@ -1,6 +1,6 @@
 """Roda o pipeline inteiro (Etapas 1–7) e grava um relatório de qualidade.
 
-  1. build_dataset       XLSX → contas_a_receber.csv (incremental: só planilhas novas)
+  1. extrair_base01      XLSX → Base01.csv (incremental: só planilhas novas)
   2. reduce_schema       → contas_a_receber_sem_colunas.csv
   3. map_taxonomy        → contas_a_receber_taxonomia.csv
   4. clean_transactions  → contas_a_receber_limpa.csv
@@ -29,11 +29,11 @@ import pandas as pd
 
 from .build_calendar import build_calendar
 from .build_daily_series import build_daily_series
-from .build_dataset import build_dataset
 from .clean_transactions import clean_transactions
 from .constants import (
     CALENDAR_CSV, CLEAN_CSV, MIN_DIAS_L1, REPORT_JSON, SERIES_CATEGORIA_CSV, SERIES_UNIDADE_CSV,
 )
+from .extrair_base01 import extrair_base01
 from .map_taxonomy import map_taxonomy
 from .mark_orders import mark_orders
 from .reduce_schema import reduce_schema
@@ -97,7 +97,7 @@ def checagens(ordens: dict) -> dict:
 
 def run_all(verbose: bool = True) -> dict:
     etapas = {}
-    etapas['1_build_dataset'] = build_dataset(verbose=verbose)['status']
+    etapas['1_extrair_base01'] = extrair_base01(verbose=verbose)['status']
     etapas['2_reduce_schema'] = reduce_schema(verbose=verbose)
     etapas['3_map_taxonomy'] = map_taxonomy(verbose=verbose)
     etapas['4_clean_transactions'] = clean_transactions(verbose=verbose)

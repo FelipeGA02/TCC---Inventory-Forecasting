@@ -83,7 +83,7 @@ partes forem implementadas, confira se o texto continua correto e só então det
 | Registros (documento × produto) | 333.019 (327.677 após remover serviços/taxas) | `01-pre_processing.md` §3, §6 |
 | Planilhas | 26 (jan/2024–fev/2026), 0 duplicatas | idem §3 |
 | Produtos distintos | 5.166 | EDA §2.1 |
-| Clientes / vendedores | ~2.500 (2.523 códigos) / 38 | base da Etapa 1 (`training_scripts/output/contas_a_receber.csv`) |
+| Clientes / vendedores | ~2.500 (2.523 códigos) / 38 | base da Etapa 1 (`training_scripts/output/Base01.csv`) |
 | Dias no período / produto típico vende em | 789 / 9 dias | EDA §2.5 |
 | Produtos intermitentes ou lumpy | 99,3% dos classificáveis | EDA §2.5b |
 | Séries por unidade com venda | ~82% dos dias | EDA §3.0 |

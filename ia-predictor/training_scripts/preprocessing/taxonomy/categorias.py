@@ -169,8 +169,8 @@ CATEGORIA_REGRAS: list[tuple[re.Pattern, str]] = [
                 r"COROA\s+DE\s+CRISTO)\b", re.I),
      "Arbusto e planta formada"),
 
-    # Bromelia e orquidea sao sempre comercializadas envasadas.
-    (re.compile(r"\b(BROM[EÉ]LIA|ORQU[IÍ]DEA)", re.I),
+    # Bromelia, orquidea e arvore da felicidade sao sempre comercializadas envasadas.
+    (re.compile(r"\b(BROM[EÉ]LIA|ORQU[IÍ]DEA|[AÁ]RVORE\s+DA\s+FELICIDADE)", re.I),
      "Planta em vaso"),
 
     # Produto cujo nome e literalmente "INSUMO".

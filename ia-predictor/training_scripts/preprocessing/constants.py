@@ -22,6 +22,7 @@ OUTPUT_DIR = os.path.join(_TRAINING_SCRIPTS_DIR, 'output')
 CONSOLIDATED_CSV = os.path.join(OUTPUT_DIR, 'Base01.csv')                   # Etapa 1
 LOG_FILE = os.path.join(OUTPUT_DIR, 'processamento_log.json')                # Etapa 1
 FORMATTED_CSV = os.path.join(OUTPUT_DIR, 'BaseFormatada02.csv')             # tratamento_de_dados02
+FORMATTED_REPORT_JSON = os.path.join(OUTPUT_DIR, 'tratamento_de_dados02_resumo.json')  # tratamento_de_dados02
 REDUCED_CSV = os.path.join(OUTPUT_DIR, 'contas_a_receber_sem_colunas.csv')   # Etapa 2
 TAXONOMY_CSV = os.path.join(OUTPUT_DIR, 'contas_a_receber_taxonomia.csv')    # Etapa 3
 CLEAN_CSV = os.path.join(OUTPUT_DIR, 'contas_a_receber_limpa.csv')           # Etapa 4

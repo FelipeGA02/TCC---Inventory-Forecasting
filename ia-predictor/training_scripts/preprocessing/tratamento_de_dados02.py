@@ -4,33 +4,62 @@ Esta etapa faz só limpeza genérica de dados, sem nenhuma regra de negócio (na
 derivar `unidade`/`categoria`, separar encomendas ou remover colunas sem uso analítico
 — isso é tratamento posterior):
 
-  * remove linhas sem os campos essenciais para qualquer uso futuro (`produto_cod`,
-    `qtdade`, `emissao`) e linhas totalmente em branco;
-  * remove linhas com valor não numérico em algum campo numérico (lixo de parsing,
-    ex.: rodapé do relatório "impresso em 14/04/2026 10:36 ... X/951" capturado pela
-    Etapa 1 como se fosse uma linha de produto);
   * padroniza texto: remove espaços nas pontas e espaços duplicados no meio dos campos;
-  * padroniza `emissao` de `dd/mm/aaaa` (formato do XLSX) para ISO `aaaa-mm-dd`, que não
-    é ambíguo e já vem ordenável como string;
+  * corrige o cliente sem nome: o relatório traz `Cliente: 3655 -` e a Etapa 1 grava o
+    código no `cliente_nome` (com `cliente_cod` vazio). Aqui o código volta para
+    `cliente_cod` e o nome fica vazio;
+  * remove linhas sem os campos essenciais para qualquer uso futuro (`produto_cod`,
+    `qtdade`, `emissao`);
+  * valida `emissao` como data de calendário (`dd/mm/aaaa`; 31/02 ou texto fora do padrão
+    são descartados e contados) e grava em ISO `aaaa-mm-dd`, que não é ambíguo e já vem
+    ordenável como string;
   * converte os campos numéricos (`qtdade`, `vl_unit`, `vl_total`, `vl_desconto`,
     `tot_liq`, `icms_ret`, `total_liquido_doc`), hoje texto em formato BR (vírgula
-    decimal, herdado do parser da Etapa 1), para `float` de fato.
+    decimal, herdado da Etapa 1), para `float`. Linha com valor não numérico é removida
+    (lixo de parsing, ex.: rodapé do relatório capturado como linha de produto). Campo
+    vazio vira 0: é o esperado em `vl_desconto` e `icms_ret`; nos demais é contado como
+    alerta no resumo;
+  * marca, sem corrigir, as inconsistências de valor que vêm do sistema da loja. A linha
+    fica na base com a coluna `alerta_*` = 1:
+      - `alerta_qtd_x_unit`      |qtdade × vl_unit − vl_total| > 0,05;
+      - `alerta_tot_liq`         |vl_total − vl_desconto − tot_liq| > 0,01;
+      - `alerta_total_documento` |Σ tot_liq do documento − total_liquido_doc| > 0,05
+                                 (marca todas as linhas do documento);
+      - `alerta_desconto_negativo` vl_desconto < 0.
+  * grava o resumo com a contagem de cada regra em `tratamento_de_dados02_resumo.json`.
+
+O que esta etapa NÃO faz, de propósito:
+
+  * não remove linhas repetidas iguais. São vendas reais: o mesmo produto lançado mais de
+    uma vez no mesmo cupom (1.478 linhas), e o `total_liquido_doc` só fecha contando todas;
+  * não tira zeros à esquerda de `produto_cod`: `20` (AMEIXA) e `0000000000020` (PRESILHA)
+    são produtos diferentes. O código é lido e gravado como texto.
 
 Uso (a partir de `ia-predictor/`):
     python -m training_scripts.preprocessing.tratamento_de_dados02
 """
+import json
 import re
+from datetime import datetime
 
 import pandas as pd
 
-from .constants import CONSOLIDATED_CSV, FORMATTED_CSV
+from .constants import CONSOLIDATED_CSV, FORMATTED_CSV, FORMATTED_REPORT_JSON
 
 CAMPOS_OBRIGATORIOS = ['produto_cod', 'qtdade', 'emissao']
 CAMPOS_NUMERICOS = [
     'qtdade', 'vl_unit', 'vl_total', 'vl_desconto', 'tot_liq', 'icms_ret', 'total_liquido_doc',
 ]
+# Campos numéricos em que vazio = 0 é o normal (sem desconto, sem ICMS retido).
+VAZIO_ZERO_ESPERADO = ['vl_desconto', 'icms_ret']
+CHAVE_DOCUMENTO = ['doc_tipo', 'doc_numero', 'emissao']
+
+TOL_QTD_X_UNIT = 0.05
+TOL_TOT_LIQ = 0.01
+TOL_TOTAL_DOCUMENTO = 0.05
 
 _ESPACOS = re.compile(r'\s+')
+_CLIENTE_SEM_NOME = re.compile(r'^(\d+)\s*-$')
 
 
 def _padronizar_texto(valor: str) -> str:
@@ -40,32 +69,59 @@ def _padronizar_texto(valor: str) -> str:
     return _ESPACOS.sub(' ', valor.strip())
 
 
-def _para_float(valor: str):
-    """Converte número em formato BR ('1.234,56' ou '54') para float.
+def _corrigir_cliente_sem_nome(df: pd.DataFrame) -> int:
+    """'3655 -' em `cliente_nome` com `cliente_cod` vazio → código 3655, nome vazio."""
+    codigo = df['cliente_nome'].str.extract(_CLIENTE_SEM_NOME, expand=False)
+    alvo = (df['cliente_cod'] == '') & codigo.notna()
+    df.loc[alvo, 'cliente_cod'] = codigo[alvo]
+    df.loc[alvo, 'cliente_nome'] = ''
+    return int(alvo.sum())
 
-    Retorna `None` se o valor não for numérico (lixo de parsing, ex.: rodapé do
-    relatório capturado como linha de produto) — a linha é descartada depois.
+
+def _para_float(coluna: pd.Series) -> tuple[pd.Series, pd.Series, pd.Series]:
+    """Converte números em formato BR ('1.234,56' ou '54') para float.
+
+    Devolve (valores, vazio, invalido): vazio vira 0; invalido marca o texto que não é
+    número (a linha é descartada depois).
     """
-    if valor is None or valor == '':
-        return 0.0
-    try:
-        return float(valor.replace('.', '').replace(',', '.'))
-    except ValueError:
-        return None
+    vazio = coluna == ''
+    texto = coluna.str.replace('.', '', regex=False).str.replace(',', '.', regex=False)
+    valores = pd.to_numeric(texto.where(~vazio), errors='coerce')
+    invalido = valores.isna() & ~vazio
+    return valores.fillna(0.0), vazio, invalido
 
 
-def _emissao_para_iso(valor: str) -> str:
-    """Converte 'dd/mm/aaaa' para 'aaaa-mm-dd'. Mantém o valor original se não casar o padrão."""
-    partes = valor.split('/')
-    if len(partes) != 3:
-        return valor
-    dia, mes, ano = partes
-    return f'{ano}-{mes}-{dia}'
+def _marcar_inconsistencias(df: pd.DataFrame) -> dict:
+    """Acrescenta as colunas `alerta_*` (0/1) e devolve as contagens."""
+    df['alerta_qtd_x_unit'] = (
+        (df['qtdade'] * df['vl_unit'] - df['vl_total']).abs() > TOL_QTD_X_UNIT
+    ).astype(int)
+    df['alerta_tot_liq'] = (
+        (df['vl_total'] - df['vl_desconto'] - df['tot_liq']).abs() > TOL_TOT_LIQ
+    ).astype(int)
+
+    por_doc = df.groupby(CHAVE_DOCUMENTO, sort=False)
+    diferenca = (por_doc['tot_liq'].transform('sum') - por_doc['total_liquido_doc'].transform('first')).abs()
+    df['alerta_total_documento'] = (diferenca > TOL_TOTAL_DOCUMENTO).astype(int)
+
+    df['alerta_desconto_negativo'] = (df['vl_desconto'] < 0).astype(int)
+
+    docs_alerta = df.loc[df['alerta_total_documento'] == 1, CHAVE_DOCUMENTO].drop_duplicates()
+    return {
+        'qtd_x_unit_diferente_de_vl_total': int(df['alerta_qtd_x_unit'].sum()),
+        'vl_total_menos_desconto_diferente_de_tot_liq': int(df['alerta_tot_liq'].sum()),
+        'soma_do_documento_diferente_do_total': {
+            'linhas': int(df['alerta_total_documento'].sum()),
+            'documentos': int(len(docs_alerta)),
+        },
+        'desconto_negativo': int(df['alerta_desconto_negativo'].sum()),
+    }
 
 
 def tratar_dados(
     input_csv: str = CONSOLIDATED_CSV,
     output_csv: str = FORMATTED_CSV,
+    report_json: str = FORMATTED_REPORT_JSON,
     verbose: bool = True,
 ) -> dict:
     df = pd.read_csv(input_csv, sep=';', encoding='utf-8', dtype=str, keep_default_na=False)
@@ -74,35 +130,66 @@ def tratar_dados(
     for col in df.columns:
         df[col] = df[col].map(_padronizar_texto)
 
-    vazias = df[CAMPOS_OBRIGATORIOS].apply(lambda col: col.str.strip() == '').any(axis=1)
+    clientes_corrigidos = _corrigir_cliente_sem_nome(df)
+
+    vazias = (df[CAMPOS_OBRIGATORIOS] == '').any(axis=1)
     df = df.loc[~vazias].copy()
-    linhas_vazias = linhas_lidas - len(df)
 
-    df['emissao'] = df['emissao'].map(_emissao_para_iso)
+    datas = pd.to_datetime(df['emissao'], format='%d/%m/%Y', errors='coerce')
+    data_invalida = datas.isna()
+    exemplos_data_invalida = df.loc[data_invalida, 'emissao'].unique()[:10].tolist()
+    df = df.loc[~data_invalida].copy()
+    df['emissao'] = datas[~data_invalida].dt.strftime('%Y-%m-%d')
 
+    invalidas = pd.Series(False, index=df.index)
+    vazios = {}
     for col in CAMPOS_NUMERICOS:
-        df[col] = df[col].map(_para_float)
-
-    invalidas = df[CAMPOS_NUMERICOS].isna().any(axis=1)
-    linhas_invalidas = int(invalidas.sum())
+        df[col], vazios[col], invalido = _para_float(df[col])
+        invalidas |= invalido
+    # Vazio contado só nas linhas que ficam na base.
+    vazios_por_campo = {col: int((vazio & ~invalidas).sum()) for col, vazio in vazios.items()}
     df = df.loc[~invalidas].copy()
+
+    inconsistencias = _marcar_inconsistencias(df)
 
     df.to_csv(output_csv, sep=';', index=False, encoding='utf-8')
 
     resumo = {
-        'linhas_lidas': linhas_lidas,
-        'linhas_removidas_campo_vazio': linhas_vazias,
-        'linhas_removidas_valor_invalido': linhas_invalidas,
-        'linhas_gravadas': len(df),
+        'executado_em': datetime.now().isoformat(),
+        'input_csv': input_csv,
         'output_csv': output_csv,
+        'linhas_lidas': linhas_lidas,
+        'clientes_sem_nome_corrigidos': clientes_corrigidos,
+        'linhas_removidas': {
+            'campo_obrigatorio_vazio': int(vazias.sum()),
+            'data_invalida': int(data_invalida.sum()),
+            'valor_nao_numerico': int(invalidas.sum()),
+        },
+        'exemplos_data_invalida': exemplos_data_invalida,
+        'vazio_virou_zero': {
+            'esperado': {c: vazios_por_campo[c] for c in VAZIO_ZERO_ESPERADO},
+            'alerta': {c: vazios_por_campo[c] for c in CAMPOS_NUMERICOS
+                       if c not in VAZIO_ZERO_ESPERADO},
+        },
+        'inconsistencias_marcadas': inconsistencias,
+        'linhas_gravadas': len(df),
     }
+    with open(report_json, 'w', encoding='utf-8') as f:
+        json.dump(resumo, f, indent=2, ensure_ascii=False)
+
     if verbose:
+        removidas = resumo['linhas_removidas']
         print(f'[tratamento_de_dados02] {linhas_lidas} linhas lidas de {input_csv}')
-        print(f'[tratamento_de_dados02] {linhas_vazias} linha(s) removida(s) '
-              f'(campo obrigatório vazio: {", ".join(CAMPOS_OBRIGATORIOS)})')
-        print(f'[tratamento_de_dados02] {linhas_invalidas} linha(s) removida(s) '
-              f'(valor não numérico em {", ".join(CAMPOS_NUMERICOS)})')
+        print(f'[tratamento_de_dados02] {clientes_corrigidos} cliente(s) sem nome corrigido(s)')
+        print(f'[tratamento_de_dados02] removidas: {removidas["campo_obrigatorio_vazio"]} '
+              f'(campo obrigatório vazio), {removidas["data_invalida"]} (data inválida), '
+              f'{removidas["valor_nao_numerico"]} (valor não numérico)')
+        alerta_vazio = {c: n for c, n in resumo['vazio_virou_zero']['alerta'].items() if n}
+        if alerta_vazio:
+            print(f'[tratamento_de_dados02] [!] campo numérico vazio virou 0: {alerta_vazio}')
+        print(f'[tratamento_de_dados02] inconsistências marcadas (linhas mantidas): {inconsistencias}')
         print(f'[tratamento_de_dados02] {len(df)} linhas gravadas em {output_csv}')
+        print(f'[tratamento_de_dados02] resumo em {report_json}')
     return resumo
 
 

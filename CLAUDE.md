@@ -10,7 +10,7 @@ Leia este arquivo antes de qualquer implementação.
 TCC de Ciência da Computação (Centro Universitário Dom Helder, 2026), em parceria com a
 Floricultura Verde Perto (unidades em Nova Lima — Jardim Canadá — e Itabirito/MG).
 Sistema de **previsão de demanda diária** para rede de floricultura com 2 unidades
-operacionais, baseado em modelagem hierárquica (SARIMAX na venda de balcão de cada
+operacionais, baseado em modelagem hierárquica (SARIMAX na venda total de cada
 unidade + desagregação em cascata para categoria e SKU) e dashboard React. A loja decide
 a compra; o sistema informa quanto deve vender (ADR-011).
 
@@ -227,8 +227,8 @@ Ver `docs/prediction/ADR-009-granularidade-diaria-e-reposicao.md` para o raciona
 
 | Decisão | Valor | Motivo |
 | --- | --- | --- |
-| Alvo | qtd diária somada por `unidade` (todas as categorias) **de balcão** — sem as linhas de encomenda | série densa (poucos zeros), ao contrário de SKU e categoria isolados; separar por categoria não reduz o erro (ADR-011 §4, `eda_separacao.py`) |
-| Encomendas grandes | **em aberto**: critério de separação a definir, com parâmetro fundamentado em literatura ou em campo do sistema da loja | a regra anterior (linha > 5 × mediana diária + teto no p99) foi retirada em 2026-10-09: o 5 e o p99 não tinham fonte publicada |
+| Alvo | qtd diária somada por `unidade` (todas as categorias), **venda total**: nenhuma venda sai da série | série densa (poucos zeros), ao contrário de SKU e categoria isolados; separar por categoria não reduz o erro (ADR-011 §4, `eda_separacao.py`) |
+| Vendas grandes | **ficam na série e devem ser previstas.** A loja confirmou (2026-10-09) que não são encomendas: são empresas que compram no balcão com o estoque da loja (ex.: NN 5582, Cumbuco, 16/12/2025). Compras recorrentes e vendas entre empresas Verde Perto também são venda normal | clientes cadastrados (≠ `CONSUMIDOR`) são 69,5% do volume de Itabirito e 63,3% do de Jardim Canadá, com série errática (CV² 8,47 e 2,25); `CONSUMIDOR` é suave (CV² ≤ 0,36). Em estudo: prever as duas parcelas separadas e somar × SARIMAX direto no total, ambos avaliados contra o total |
 | m (período sazonal) | 7 | sazonalidade semanal. **EDA (2026-09-21, `docs/prediction/00-eda_report.md` §3.3): o padrão é de dia útil — pico em ter–qui para Grama e para Produtos de jardim em Jardim Canadá (em Itabirito, Produtos de jardim tem semana mais uniforme) — e sexta para Flores de corte; sábado fraco; domingo = loja fechada (0).** Não "fim de semana vende mais". Ciclo real mas fraco na variância (Fs ≤ 0.29) — dummies de dia-da-semana como exógenas pesam mais que os termos P/Q |
 | D (diferenciação sazonal) | 0 | o ciclo semanal já é capturado pelas dummies de dia-da-semana; com calendário, o termo sazonal AR cai a P = 0 e sobra só Q = 1 (doc 04). Diferenciar a semana (yₜ − yₜ₋₇) sobrediferenciaria e criaria picos falsos nas semanas com feriado. (Histórico curto não é o motivo: com m = 7 há > 100 ciclos.) |
 | d (diferenciação regular) | **1** na versão escolhida (A1 d=1); ADF indicava 0 | com d = 1 a previsão parte do nível recente em vez de voltar à média do histórico: melhor no ano e em dezembro nas 2 lojas (doc 04). Limitado a 1 |
@@ -247,7 +247,7 @@ Ver `docs/prediction/ADR-009-granularidade-diaria-e-reposicao.md` para o raciona
 | Decisão | Valor | Motivo |
 | --- | --- | --- |
 | Método | participação móvel (share das últimas 4–8 semanas) × perfil de dia-da-semana **do nível**, aplicado 2×: `unidade→categoria`, depois `categoria→SKU`; no passo `unidade→categoria`, também o índice de data comemorativa **da categoria** | evita modelar com SARIMAX uma série (categoria ou SKU) que não ganha acurácia por isso (categoria: ADR-011 §4) ou é quase toda zero (SKU). O índice de data recupera o que o total esconde: no Dia das Mães, Flores de corte sobe 2,14× enquanto a unidade cai 0,66× |
-| Base | participações calculadas sobre a venda de **balcão** | senão uma encomenda de Grama inflaria a participação da Grama nas semanas seguintes |
+| Base | participações calculadas sobre a venda **total** (mesmo alvo do L1) | as vendas grandes são demanda real (confirmado pela loja em 2026-10-09) |
 | Fallback | categoria com histórico curto → rateio uniforme entre categorias da unidade; SKU com < 28 dias com venda ou < 8 vendas → rateio uniforme da categoria | |
 
 ### L3 — Política de reposição: fora de escopo (ADR-011)

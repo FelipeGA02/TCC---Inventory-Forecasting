@@ -50,6 +50,19 @@ OUTPUT_DIR = os.path.join(_TRAINING_SCRIPTS_DIR, 'output')
 CONSOLIDATED_CSV = os.path.join(OUTPUT_DIR, 'Base01.csv')
 LOG_FILE = os.path.join(OUTPUT_DIR, 'processamento_log.json')
 
+# Lock de execução: duas chamadas concorrentes a `extrair_base01()` (ex.: rodar o
+# `run_all` de novo antes do anterior terminar) cada uma carrega seu próprio snapshot
+# de `existing_keys` em memória e abre o CSV em modo 'a' — sem a trava, as duas podem
+# gravar o mesmo bloco de registros em paralelo, inflando `Base01.csv` com linhas que
+# nenhum dos dois resumos reporta como "adicionadas" (cada processo só vê o que ELE
+# escreveu). O lock transforma a segunda chamada em erro claro em vez de corrupção
+# silenciosa de dado.
+LOCK_FILE = os.path.join(OUTPUT_DIR, '.extrair_base01.lock')
+
+
+class PipelineEmExecucaoError(RuntimeError):
+    """Outra execução de `extrair_base01()` já está em andamento."""
+
 # Schema do parser — um registro por (documento, produto). Ordem espelha o CSV de
 # produção (`ia-predictor/data/processed/contas_a_receber.csv`).
 FIELDS = [
@@ -477,62 +490,81 @@ def extrair_base01(
 ):
     """Lê todos os XLSX pendentes em `raw_dir` e acrescenta ao `Base01.csv`."""
     ensure_directories(raw_dir=raw_dir, output_dir=output_dir)
-    log = load_log(log_file)
 
-    files = list_raw_xlsx_files(raw_dir=raw_dir)
-    if not files:
-        if verbose:
-            print(f'Nenhum arquivo .xlsx/.xlsm encontrado em {raw_dir}/')
-        return {'status': 'no_files', 'pending': [], 'summary': None}
-
-    pending = build_pending_files(files, raw_dir=raw_dir, log=log)
-    if not pending:
-        if verbose:
-            print('Todos os arquivos já foram processados. Nada de novo.')
-        return {'status': 'no_pending', 'pending': [], 'summary': None}
-
-    if verbose:
-        print(f'{len(pending)} arquivo(s) novo(s) ou alterado(s) para processar.\n')
-
-    summary = process_pending_files(pending, csv_path=output_csv, verbose=verbose)
-
-    now = datetime.now().isoformat()
-    arquivos_processados = log.setdefault('arquivos_processados', {})
-
-    for item in summary['details']:
-        arquivos_processados[item['name']] = {
-            'hash': item['hash'],
-            'processado_em': now,
-            'registros_adicionados': item['records'],
-            'registros_pulados': len(item['skipped']),
-            'duplicatas_encontradas': item['duplicates'],
-        }
-
-    log.setdefault('historico_execucoes', []).append({
-        'executado_em': now,
-        'arquivos': [item['name'] for item in summary['details']],
-        'total_registros_adicionados': summary['total_records'],
-        'total_pulados': summary['total_skipped'],
-        'total_duplicatas': summary['total_duplicates'],
-    })
-
-    log['ultima_atualizacao'] = now
-    save_log(log, log_file)
-
-    if verbose:
-        print(
-            f'\nResumo: {summary["total_records"]} linhas adicionadas, '
-            f'{summary["total_skipped"]} puladas, '
-            f'{summary["total_duplicates"]} duplicatas ignoradas.'
+    try:
+        with open(LOCK_FILE, 'x', encoding='utf-8') as f:
+            f.write(str(os.getpid()))
+    except FileExistsError:
+        raise PipelineEmExecucaoError(
+            f'Já existe uma execução do pré-processamento em andamento (lock em '
+            f'{LOCK_FILE}). Espere ela terminar antes de rodar de novo — rodar em '
+            f'paralelo duplica linhas no Base01.csv sem aviso. Se tiver certeza de que '
+            f'não há nenhuma execução ativa (ex.: processo anterior travou), apague o '
+            f'arquivo de lock manualmente.'
         )
-        print(f'CSV: {output_csv}')
-        print(f'Log: {log_file}')
 
-    return {
-        'status': 'processed',
-        'pending': [name for name, _, _ in pending],
-        'summary': summary,
-    }
+    try:
+        log = load_log(log_file)
+
+        files = list_raw_xlsx_files(raw_dir=raw_dir)
+        if not files:
+            if verbose:
+                print(f'Nenhum arquivo .xlsx/.xlsm encontrado em {raw_dir}/')
+            return {'status': 'no_files', 'pending': [], 'summary': None}
+
+        pending = build_pending_files(files, raw_dir=raw_dir, log=log)
+        if not pending:
+            if verbose:
+                print('Todos os arquivos já foram processados. Nada de novo.')
+            return {'status': 'no_pending', 'pending': [], 'summary': None}
+
+        if verbose:
+            print(f'{len(pending)} arquivo(s) novo(s) ou alterado(s) para processar.\n')
+
+        summary = process_pending_files(pending, csv_path=output_csv, verbose=verbose)
+
+        now = datetime.now().isoformat()
+        arquivos_processados = log.setdefault('arquivos_processados', {})
+
+        for item in summary['details']:
+            arquivos_processados[item['name']] = {
+                'hash': item['hash'],
+                'processado_em': now,
+                'registros_adicionados': item['records'],
+                'registros_pulados': len(item['skipped']),
+                'duplicatas_encontradas': item['duplicates'],
+            }
+
+        log.setdefault('historico_execucoes', []).append({
+            'executado_em': now,
+            'arquivos': [item['name'] for item in summary['details']],
+            'total_registros_adicionados': summary['total_records'],
+            'total_pulados': summary['total_skipped'],
+            'total_duplicatas': summary['total_duplicates'],
+        })
+
+        log['ultima_atualizacao'] = now
+        save_log(log, log_file)
+
+        if verbose:
+            print(
+                f'\nResumo: {summary["total_records"]} linhas adicionadas, '
+                f'{summary["total_skipped"]} puladas, '
+                f'{summary["total_duplicatas"]} duplicatas ignoradas.'
+            )
+            print(f'CSV: {output_csv}')
+            print(f'Log: {log_file}')
+
+        return {
+            'status': 'processed',
+            'pending': [name for name, _, _ in pending],
+            'summary': summary,
+        }
+    finally:
+        try:
+            os.remove(LOCK_FILE)
+        except FileNotFoundError:
+            pass
 
 
 if __name__ == '__main__':

@@ -550,7 +550,7 @@ def extrair_base01(
             print(
                 f'\nResumo: {summary["total_records"]} linhas adicionadas, '
                 f'{summary["total_skipped"]} puladas, '
-                f'{summary["total_duplicatas"]} duplicatas ignoradas.'
+                f'{summary["total_duplicates"]} duplicatas ignoradas.'
             )
             print(f'CSV: {output_csv}')
             print(f'Log: {log_file}')

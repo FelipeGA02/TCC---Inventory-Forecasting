@@ -5,8 +5,12 @@
   3. classificacao03         BaseFormatada02.csv → BaseClassificada03.csv (unidade e categorias)
   4. limpeza_para_treino04   BaseClassificada03.csv → BaseTreino.csv (remove Servico e taxa
                               e mantém só as colunas que o SARIMAX do L1 usa)
+  5. separa_unidades05       BaseTreino.csv → BaseTreino_<unidade>.csv (1 série por loja)
+  6. remove_encomendas06     BaseClassificada03.csv → BaseTreino_<unidade>_sem_encomendas.csv
+                              (ramo experimental: só vendas de CONSUMIDOR — ver docstring do
+                              módulo sobre por que isso não é a decisão de escopo atual)
   10. dados_externos10       calendário diário por loja (exógenas do L1 — não depende da base
-                              transacional, por isso numerada fora da sequência 1→4)
+                              transacional, por isso numerada fora da sequência 1→6)
 
 O pipeline está sendo refeito: a etapa antiga de séries diárias (build_daily_series)
 saiu daqui e volta conforme for reescrita sobre a base nova. `reduce_schema.py`,
@@ -32,6 +36,8 @@ from .classificacao_03 import classificar
 from .dados_externos_10 import build_calendar
 from .extrair_base_01 import OUTPUT_DIR, extrair_base01
 from .limpeza_para_treino_04 import limpar
+from .remove_encomendas_06 import remover
+from .separa_unidades_05 import separar
 from .tratamento_de_dados_02 import tratar_dados
 
 REPORT_JSON = os.path.join(OUTPUT_DIR, 'preprocessamento_relatorio.json')
@@ -62,6 +68,8 @@ def run_all(verbose: bool = True) -> dict:
     etapas['2_tratamento_de_dados02'] = tratar_dados(verbose=verbose)
     etapas['3_classificacao03'] = classificar(verbose=verbose)
     etapas['4_limpeza_para_treino04'] = limpar(verbose=verbose)
+    etapas['5_separa_unidades05'] = separar(verbose=verbose)
+    etapas['6_remove_encomendas06'] = remover(verbose=verbose)
     etapas['10_dados_externos10'] = build_calendar(verbose=verbose)
     rel = {'gerado_em': datetime.now().isoformat(timespec='seconds'), 'etapas': etapas}
     with open(REPORT_JSON, 'w', encoding='utf-8') as fh:

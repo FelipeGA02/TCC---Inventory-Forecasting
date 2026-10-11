@@ -21,7 +21,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from training_scripts.preprocessing.constants import CALENDAR_CSV
+from training_scripts.preprocessing.dados_externos_10 import CALENDAR_CSV
 
 from . import _common as C
 

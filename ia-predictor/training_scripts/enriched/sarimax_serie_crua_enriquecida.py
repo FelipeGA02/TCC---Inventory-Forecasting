@@ -48,7 +48,7 @@ from statsmodels.tsa.statespace.sarimax import SARIMAX
 
 from training_scripts.baseline import sarimax_serie_crua as base
 from training_scripts.eda._common import datas_comemorativas
-from training_scripts.preprocessing.dados_externos import (
+from training_scripts.preprocessing.dados_externos_10 import (
     FECHAMENTOS_LOCAIS,
     clima_diario,
     feriados_nacionais,

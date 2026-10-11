@@ -32,12 +32,16 @@ Uso (a partir de `ia-predictor/`):
     python -m training_scripts.preprocessing.tratamento_de_dados02
 """
 import json
+import os
 import re
 from datetime import datetime
 
 import pandas as pd
 
-from .constants import CONSOLIDATED_CSV, FORMATTED_CSV, FORMATTED_REPORT_JSON
+from .extrair_base_01 import CONSOLIDATED_CSV, OUTPUT_DIR
+
+FORMATTED_CSV = os.path.join(OUTPUT_DIR, 'BaseFormatada02.csv')
+FORMATTED_REPORT_JSON = os.path.join(OUTPUT_DIR, 'tratamento_de_dados02_resumo.json')
 
 CAMPOS_OBRIGATORIOS = ['produto_cod', 'qtdade', 'emissao']
 CAMPOS_NUMERICOS = [

@@ -3,12 +3,20 @@
   1. extrair_base01          XLSX → Base01.csv (incremental: só planilhas novas)
   2. tratamento_de_dados02   Base01.csv → BaseFormatada02.csv (limpeza genérica)
   3. classificacao03         BaseFormatada02.csv → BaseClassificada03.csv (unidade e categorias)
-  4. limpeza04               BaseClassificada03.csv → BaseLimpa04.csv (remove Servico e taxa
-                              e colunas sem uso no treino)
+  4. limpeza_para_treino04   BaseClassificada03.csv → BaseTreino.csv (remove Servico e taxa
+                              e mantém só as colunas que o SARIMAX do L1 usa)
+  10. dados_externos10       calendário diário por loja (exógenas do L1 — não depende da base
+                              transacional, por isso numerada fora da sequência 1→4)
 
-O pipeline está sendo refeito: as etapas antigas (reduce_schema, map_taxonomy,
-build_calendar e as séries diárias) saíram daqui e voltam conforme forem reescritas
-sobre a base nova.
+O pipeline está sendo refeito: a etapa antiga de séries diárias (build_daily_series)
+saiu daqui e volta conforme for reescrita sobre a base nova. `reduce_schema.py`,
+`map_taxonomy.py` (desenho anterior, L1 por `unidade x categoria`) e `clean_transactions.py`
+foram removidos — superados por `tratamento_de_dados_02.py`, `classificacao_03.py` e
+`limpeza_para_treino_04.py`.
+
+Não existe mais um módulo central de constantes (`constants.py`): cada etapa define os
+próprios caminhos e regras, importando de `extrair_base_01` só o que é comum a todas
+(`OUTPUT_DIR`) e da etapa anterior o CSV que consome como entrada.
 
 O relatório (`output/preprocessamento_relatorio.json`) junta o resumo de cada etapa.
 
@@ -16,14 +24,17 @@ Uso (a partir de `ia-predictor/`):
     python -m training_scripts.preprocessing.run_all
 """
 import json
+import os
 import sys
 from datetime import datetime
 
 from .classificacao_03 import classificar
-from .constants import REPORT_JSON
-from .extrair_base_01 import extrair_base01
-from .limpeza_04 import limpar
+from .dados_externos_10 import build_calendar
+from .extrair_base_01 import OUTPUT_DIR, extrair_base01
+from .limpeza_para_treino_04 import limpar
 from .tratamento_de_dados_02 import tratar_dados
+
+REPORT_JSON = os.path.join(OUTPUT_DIR, 'preprocessamento_relatorio.json')
 
 for _stream in (sys.stdout, sys.stderr):
     try:
@@ -50,7 +61,8 @@ def run_all(verbose: bool = True) -> dict:
     etapas['1_extrair_base01'] = _resumo_extracao(extrair_base01(verbose=verbose))
     etapas['2_tratamento_de_dados02'] = tratar_dados(verbose=verbose)
     etapas['3_classificacao03'] = classificar(verbose=verbose)
-    etapas['4_limpeza04'] = limpar(verbose=verbose)
+    etapas['4_limpeza_para_treino04'] = limpar(verbose=verbose)
+    etapas['10_dados_externos10'] = build_calendar(verbose=verbose)
     rel = {'gerado_em': datetime.now().isoformat(timespec='seconds'), 'etapas': etapas}
     with open(REPORT_JSON, 'w', encoding='utf-8') as fh:
         json.dump(rel, fh, ensure_ascii=False, indent=2, default=str)

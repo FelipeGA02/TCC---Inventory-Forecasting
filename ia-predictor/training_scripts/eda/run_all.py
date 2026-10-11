@@ -2,8 +2,8 @@
 
     python -m training_scripts.eda.run_all
 
-Pré-requisito: `training_scripts/output/contas_a_receber_taxonomia.csv` gerado
-(rodar `python -m training_scripts.preprocessing.map_taxonomy` antes).
+Pré-requisito: rodar `python -m training_scripts.preprocessing.run_all` antes, para
+gerar as saídas de `training_scripts/output/`.
 """
 from . import (
     eda_classificacao_sku, eda_grupos, eda_separacao, eda_series, eda_series_unidade, eda_source,

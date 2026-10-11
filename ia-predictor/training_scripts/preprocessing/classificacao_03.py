@@ -34,18 +34,22 @@ Uso (a partir de `ia-predictor/`):
     python -m training_scripts.preprocessing.classificacao03
 """
 import json
+import os
 from datetime import datetime
 
 import pandas as pd
 
-from .constants import (
-    CLASSIFIED_CSV, CLASSIFIED_PRODUCTS_CSV, CLASSIFIED_REPORT_JSON, FORMATTED_CSV,
-)
+from .extrair_base_01 import OUTPUT_DIR
+from .tratamento_de_dados_02 import FORMATTED_CSV
 from .taxonomy.categorias import (
     CATEGORIA_DEFAULT, CATEGORIA_L1, CATEGORIA_L1_DEFAULT, CATEGORIA_POR_SKU,
     GRUPO_PRODUTO, GRUPO_PRODUTO_DEFAULT, map_categoria,
 )
 from .taxonomy.unidades import UNIDADE_DEFAULT, map_unidade
+
+CLASSIFIED_CSV = os.path.join(OUTPUT_DIR, 'BaseClassificada03.csv')
+CLASSIFIED_REPORT_JSON = os.path.join(OUTPUT_DIR, 'classificacao03_resumo.json')
+CLASSIFIED_PRODUCTS_CSV = os.path.join(OUTPUT_DIR, 'produtos_classificados03.csv')
 
 COLUNAS_CLASSIFICACAO = ['unidade', 'categoria', 'categoria_fina', 'grupo', 'origem_categoria']
 TOP_OUTROS = 30

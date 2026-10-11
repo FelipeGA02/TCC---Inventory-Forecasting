@@ -3,10 +3,12 @@
   1. extrair_base01          XLSX → Base01.csv (incremental: só planilhas novas)
   2. tratamento_de_dados02   Base01.csv → BaseFormatada02.csv (limpeza genérica)
   3. classificacao03         BaseFormatada02.csv → BaseClassificada03.csv (unidade e categorias)
+  4. limpeza04               BaseClassificada03.csv → BaseLimpa04.csv (remove Servico e taxa
+                              e colunas sem uso no treino)
 
 O pipeline está sendo refeito: as etapas antigas (reduce_schema, map_taxonomy,
-clean_transactions, build_calendar e as séries diárias) saíram daqui e voltam conforme forem
-reescritas sobre a base nova.
+build_calendar e as séries diárias) saíram daqui e voltam conforme forem reescritas
+sobre a base nova.
 
 O relatório (`output/preprocessamento_relatorio.json`) junta o resumo de cada etapa.
 
@@ -17,10 +19,11 @@ import json
 import sys
 from datetime import datetime
 
-from .classificacao03 import classificar
+from .classificacao_03 import classificar
 from .constants import REPORT_JSON
-from .extrair_base01 import extrair_base01
-from .tratamento_de_dados02 import tratar_dados
+from .extrair_base_01 import extrair_base01
+from .limpeza_04 import limpar
+from .tratamento_de_dados_02 import tratar_dados
 
 for _stream in (sys.stdout, sys.stderr):
     try:
@@ -47,6 +50,7 @@ def run_all(verbose: bool = True) -> dict:
     etapas['1_extrair_base01'] = _resumo_extracao(extrair_base01(verbose=verbose))
     etapas['2_tratamento_de_dados02'] = tratar_dados(verbose=verbose)
     etapas['3_classificacao03'] = classificar(verbose=verbose)
+    etapas['4_limpeza04'] = limpar(verbose=verbose)
     rel = {'gerado_em': datetime.now().isoformat(timespec='seconds'), 'etapas': etapas}
     with open(REPORT_JSON, 'w', encoding='utf-8') as fh:
         json.dump(rel, fh, ensure_ascii=False, indent=2, default=str)

@@ -31,6 +31,7 @@ ia-predictor/models/*.pkl
 # ─── Dados brutos e processados ───────────────────────────────────────────────
 ia-predictor/data/raw/
 ia-predictor/data/processed/
+ia-predictor/data/external/
 
 # ─── Logs e relatórios gerados ────────────────────────────────────────────────
 *.log

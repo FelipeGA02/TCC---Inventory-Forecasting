@@ -14,10 +14,9 @@
 > [`ia-predictor/training_scripts/eda/`](../../../ia-predictor/training_scripts/eda/), os
 > JSONs em `training_scripts/results/metrics/`, o [relatório de EDA](../00-eda_report.md),
 > as explicações em linguagem simples ([001](<001 - Analise 1 critério de Syntetos, Boylan e Croston.md>)
-> a [005](<005 - Analise 5 encomendas grandes.md>)), os ADRs
+> a [004](<004 - Analise 4 separar por unidade e por categoria.md>)), os ADRs
 > [010](../ADR-010-exogenas-nominais-fora-do-l1.md),
-> [011](../ADR-011-escopo-previsao-sem-reposicao.md) e
-> [012](../ADR-012-encomendas-grandes-fora-do-l1.md) e o
+> [011](../ADR-011-escopo-previsao-sem-reposicao.md) e o
 > [pré-processamento](../01-pre_processing.md). Os números foram conferidos nos JSONs em
 > 2026-10-04.
 
@@ -32,7 +31,6 @@
 - [Análise 2 — O comportamento das vendas dia a dia](#análise-2--o-comportamento-das-vendas-dia-a-dia)
 - [Análise 3 — Granularidade das categorias](#análise-3--granularidade-das-categorias-abrir-produtos-de-jardim)
 - [Análise 4 — Separar por unidade e por categoria](#análise-4--separar-por-unidade-e-por-categoria)
-- [Análise 5 — Encomendas grandes](#análise-5--encomendas-grandes)
 - [Síntese: de onde veio cada peça do treino final](#síntese-de-onde-veio-cada-peça-do-treino-final)
 - [Ressalvas metodológicas (para a banca)](#ressalvas-metodológicas-para-a-banca)
 - [Referências](#referências)
@@ -79,7 +77,6 @@ As mesmas análises aparecem com três numerações diferentes:
 | **Análise 2** — vendas dia a dia | EDA 2 + EDA 2b | `eda_series_unidade.py` (2 séries), `eda_series.py` (6 séries) | §3.0–3.9 | 10–19 |
 | **Análise 3** — granularidade | EDA 3 | `eda_grupos.py` | §3.10 | 20–22 |
 | **Análise 4** — separação | EDA 4 | `eda_separacao.py` | §3.11 | 23 |
-| **Análise 5** — encomendas | EDA 6 | `eda_encomendas.py` (+ `preprocessing/encomendas.py`) | §3.12 | 25–26 |
 
 Os gráficos ficam em
 [`training_scripts/results/plots/eda/`](../../../ia-predictor/training_scripts/results/plots/eda/).
@@ -87,9 +84,7 @@ Os números 07–09 não existem (foram pulados na numeração).
 
 **Ordem cronológica.** Análises 1 e 2 em 01/09/2026 (T000b). Análises 3 e 4 antes de
 21/09/2026. A Análise 4 gerou o [ADR-011](../ADR-011-escopo-previsao-sem-reposicao.md)
-(L1 por unidade) em 21/09. A Análise 5 gerou o
-[ADR-012](../ADR-012-encomendas-grandes-fora-do-l1.md) (encomendas fora do L1) em 23/09.
-Os três treinos ([02](../02-baseline_serie_crua_pre_eda.md),
+(L1 por unidade) em 21/09. Os três treinos ([02](../02-baseline_serie_crua_pre_eda.md),
 [03](../03-enriquecimento_serie_crua.md) e [04](../04-treino_l1_por_loja.md)) vieram depois,
 em 27/09.
 
@@ -98,13 +93,7 @@ em 27/09.
 ```bash
 python -m training_scripts.preprocessing.run_all   # gera as bases que o EDA lê
 python -m training_scripts.eda.run_all              # roda os scripts de EDA em sequência
-python -m training_scripts.eda.eda_encomendas       # Análise 5 (ver aviso abaixo)
 ```
-
-> Aviso (2026-10-04): o `eda/run_all.py` chama `eda_encomendas.main()` no último passo, mas
-> não importa `eda_encomendas`. Hoje ele roda as 6 primeiras análises e para com
-> `NameError` no fim. Até a correção (acrescentar `eda_encomendas` ao `from . import`),
-> rode a Análise 5 separadamente, como acima.
 
 ---
 
@@ -131,7 +120,7 @@ python -m training_scripts.eda.eda_encomendas       # Análise 5 (ver aviso abai
 | 2.7 | Tendência | `_tendencia` | — | Motivou testar d = 1 | ✅ Hyndman; Athanasopoulos (2021) |
 | 2.8 | Estacionariedade (ADF + KPSS) | `_adf_kpss` | — | Variante d = 1 (a vencedora) | 💡 Dickey; Fuller (1979); 💡 Kwiatkowski et al. (1992) |
 | 2.9 | Autocorrelação e Ljung-Box | `_acf_pacf` | 13, 18 | Grade pequena; ordem (0,1,1)(0,0,1)₇ | ✅ Box et al. (2015); 💡 Ljung; Box (1978) |
-| 2.10 | Dias fora do padrão | `_outliers` | — | Levou à Análise 5 | ✅ Chen; Liu (1993) |
+| 2.10 | Dias fora do padrão | `_outliers` | — | Picos de pedido grande isolado; tratamento em aberto | ✅ Chen; Liu (1993) |
 | 2.11 | Veredito para o SARIMAX | `_verdito` | — | Prévia do `status` do modelo | — (regra do projeto) |
 | 2.12 | Participação dos produtos na categoria | `bloco_sku_dentro_categoria` | — | Nenhum direto no L1 | ✅ Gross; Sohl (1990) |
 | 3.1 | Viabilidade dos grupos | `eda_grupos.bloco_viabilidade` | — | Nenhum direto no L1 | — |
@@ -144,13 +133,6 @@ python -m training_scripts.eda.eda_encomendas       # Análise 5 (ver aviso abai
 | 4.3 | Soma das partes × agregado | `_soma_das_partes` | — | Confirma um modelo por loja | ✅ Fliedner (2001) |
 | 4.4 | Janelas com data comemorativa | `_janelas_com_data` | — | Categoria não vira série nem perto das datas | ✅ Huber et al. (2017) |
 | 4.5 | Decisão | `main` | — | ADR-011 | ✅ Zotteri; Kalchschmidt (2007) |
-| 5.1 | Diagnóstico no nível da linha | ADR-012, `bloco_perfil` | — | Achou a causa do MASE 1,43 de Itabirito | 📄 Johnston; Boylan; Shale (2003) |
-| 5.2 | Regra "K dias típicos" | `encomendas.limiares_encomenda` | 25 | **Alvo = venda de balcão** | ✅ Pearson et al. (2016); ✅ Bartezzaghi; Verganti (1995) |
-| 5.3 | Conferência da regra (boleto, consumidor) | `bloco_perfil` | — | Regra validada sem virar exógena | ✅ Kalchschmidt; Verganti; Zotteri (2006) |
-| 5.4 | Teto no 99º percentil | `encomendas.teto_quantil` | — | `teto_quantil` no treino | ✅ Hyndman; Athanasopoulos (2021, §13.9) |
-| 5.5 | As 4 variantes, sem vazamento | `teste_previsao`, `_janelas` | 26 | Limiar recalculado em cada rodada | ✅ Hyndman; Koehler (2006) |
-| 5.6 | Sensibilidade a K | `main` | — | K = 5 não é ajuste fino | ✅ Pearson et al. (2016) |
-| 5.7 | Antes × depois | `bloco_antes_depois` | — | Ciclo semanal aparece; tendência cai | ✅ Syntetos et al. (2005) |
 
 ---
 
@@ -245,7 +227,7 @@ encoding_ok ← "CANADÁ" aparece com os bytes UTF-8 corretos (C3 81)?
   contagem (Poisson).
 - **Negativas.** Se ficassem soltas, gerariam dias com venda negativa. A Etapa 4 marca as
   devoluções, e o treino ainda faz `clip(lower=0)` antes do `log1p`
-  (`np.log1p(teto_quantil(y).clip(lower=0))` em `selecionar()` e `prever()`).
+  (`np.log1p(y.clip(lower=0))`).
 - **"Serviço e taxa"** (frete, taxas) não é demanda de produto e sai do alvo.
 - A integridade de 90% confirma que a quantidade por linha é confiável como alvo.
 
@@ -319,8 +301,7 @@ registrar o mix de pagamento e o nº de vendedores, só para documentar o descar
 entra variável **conhecida antes** dos 14 dias previstos. Daí as exógenas finais serem
 apenas de calendário: `dia_seg … dia_sab`, `loja_fechada` e `abertura_excepcional`
 (`COLS_CAL`). Usar a forma de pagamento seria vazamento de dados (*data leakage*): o
-modelo pareceria bom no teste e falharia na prática. O pagamento volta uma única vez, na
-Análise 5, só para **conferir** a regra das encomendas, nunca como variável do modelo.
+modelo pareceria bom no teste e falharia na prática.
 
 **Base na literatura.**
 
@@ -558,9 +539,7 @@ repetir para as 6 séries unidade × categoria e para as 2 séries por unidade
 - **Justifica formalmente o nível do L1.** Agregar até a unidade move a série do quadrante
   errado (produto: intermitente/lumpy) para o quadrante em que o SARIMAX é apropriado
   (errático).
-- **Errática pede suavização.** O CV² alto é o motivo do `log1p` (2.2). Depois da
-  Análise 5, a série de balcão com teto de Jardim Canadá vira "suave" (CV² 0,40) e a de
-  Itabirito cai para 0,84.
+- **Errática pede suavização.** O CV² alto é o motivo do `log1p` (2.2).
 - O ADI de 1,21 das séries por unidade vem **inteiro** de domingos e feriados. São zeros
   determinísticos, que o SARIMAX recebe pela exógena `loja_fechada` (2.1), e não um sinal
   de demanda intermitente.
@@ -941,8 +920,6 @@ compara a média dos primeiros 90 dias com a dos últimos 90.
 - Jardim Canadá: **−13%/ano** (Produtos de jardim −23%: de 2.286 para 1.198 unidades por
   dia).
 - Itabirito: **+54%/ano** (de 892 para 3.033 unidades por dia; Grama +96%).
-- Depois da Análise 5, o balcão de Itabirito cresce só **+8%/ano** (774 → 910). O resto
-  era encomenda.
 
 **Pseudocódigo** (`_tendencia`):
 
@@ -1130,14 +1107,14 @@ maior_dia  ← dia de maior s
 no maior dia: nº de documentos, nº de linhas, maior linha, maior_linha / total do dia
 ```
 
-**Impacto no SARIMAX.** Foi o achado que levou à **Análise 5**. Os picos não são "dias
-fortes", e sim **linhas** enormes de encomenda. Esses picos:
+**Impacto no SARIMAX.** Os picos não são "dias fortes", e sim **linhas** enormes de
+encomenda. Esses picos:
 
 - distorciam os coeficientes;
 - inflavam a escala do MASE (que fica otimista; doc 02 §4.4);
 - alargavam o intervalo de 95% (cerca de 80 mil no doc 02).
 
-A solução (encomendas fora do alvo e teto no p99) entra no treino.
+O critério para separar essas encomendas do alvo está em aberto.
 
 **Base na literatura.**
 
@@ -1156,7 +1133,6 @@ A solução (encomendas fora do alvo e teto no p99) entra no treino.
   37 vezes a média, Fs = 0,07 e +54%/ano.
 - Unidade × categoria: "atenção" em Grama de Itabirito, Flores de Jardim Canadá e Produtos
   de jardim de Itabirito.
-- Depois da Análise 5, o balcão de Itabirito passa a "ok".
 
 **Pseudocódigo** (`_verdito`):
 
@@ -1173,8 +1149,7 @@ nível ← "insuficiente" se insufficient_data; "atenção" se há motivos; sen�
 ```
 
 **Impacto no SARIMAX.** É uma prévia do `status` que o modelo recebe (`trained`,
-`low_confidence` ou `insufficient_data`). Itabirito iria para `low_confidence`. Com a
-Análise 5 e o treino do doc 04, as duas lojas ficaram `trained`.
+`low_confidence` ou `insufficient_data`). Itabirito iria para `low_confidence`.
 
 **Base na literatura.** Nenhuma. Os limites (180 dias, 12%, 30×, Fs 0,1, 40%/ano) são
 **heurísticas do projeto**. Cada motivo aponta para um bloco que tem base própria
@@ -1490,7 +1465,7 @@ por loja (2 séries), e não 6.**
   repartição em cascata (unidade → categoria → produto).
 - Separar por unidade tem apoio: Itabirito ganha nos dois modelos, e as tendências das
   lojas são opostas.
-- O MASE de **1,434** de Itabirito expôs o problema que a Análise 5 resolveu.
+- O MASE de **1,434** de Itabirito expôs o problema das encomendas grandes (2.10).
 
 **Base na literatura.**
 
@@ -1577,307 +1552,35 @@ para cada parte p: separar[p] ← min(ganho SARIMAX, ganho HW) ≥ 5%
 
 ---
 
-## Análise 5 — Encomendas grandes
-
-**Pergunta.** Por que Itabirito erra tanto (MASE 1,434, pior que repetir a semana
-anterior) e dá para corrigir?
-
-**Scripts.**
-[`eda_encomendas.py`](../../../ia-predictor/training_scripts/eda/eda_encomendas.py) (o
-teste) e
-[`preprocessing/encomendas.py`](../../../ia-predictor/training_scripts/preprocessing/encomendas.py)
-(as funções puras usadas no pré-processamento e no treino).
-
-**Saídas.** `eda_encomendas.json` e os gráficos 25–26.
-
-**Explicação simples.** [005](<005 - Analise 5 encomendas grandes.md>).
-
-**Decisão que gerou.** [ADR-012](../ADR-012-encomendas-grandes-fora-do-l1.md).
-
-### 5.1 Diagnóstico no nível da linha de venda
-
-**O que é.** Em vez de olhar a série diária, olha **cada linha de venda**: qual o dia
-típico, qual o tamanho das maiores linhas e quem as compra (só em agregado, sem
-identificar ninguém).
-
-**Resultado.**
-
-| Indicador | Itabirito | Jardim Canadá |
-| --- | --- | --- |
-| Grama num dia típico (mediana) | 203 m² | 1.403 m² |
-| Maior linha de Grama | 20.000 m² | 15.000 m² |
-| % da Grama nos 10 maiores dias | 43,6% | 8,6% |
-| CV da série diária da unidade | 2,40 | 1,02 |
-
-Em Itabirito, um único cliente responde por 32 das 40 maiores linhas, todas pagas por
-boleto. São encomendas de obra e paisagismo, não venda de balcão.
-
-**Pseudocódigo** (ADR-012 §Contexto; `bloco_perfil`):
-
-```text
-para cada unidade × categoria:
-    dia_típico ← mediana(Σ qtd diária, dias com venda, segunda a sábado)
-    maiores linhas; % do volume nos 10 maiores dias
-    concentração: das 40 maiores linhas, quantas são do mesmo cliente (só a contagem)
-```
-
-**Impacto no SARIMAX.** Mostra que o problema **não está no modelo, e sim no alvo**. A
-série somava duas demandas diferentes. Nenhum modelo de série temporal antecipa em que dia
-cai um pedido de 20.000 m² numa loja que vende 200 m² por dia.
-
-**Base na literatura.**
-
-- 📄 Johnston; Boylan; Shale (2003): o tamanho do pedido tem cauda longa e deve ser
-  estudado no nível da linha.
-- ✅ Chen; Liu (1993): picos contaminam o ajuste.
-
-### 5.2 A regra "K dias típicos"
-
-**O que é.** Uma linha é **encomenda** quando, sozinha, vale mais que **K = 5 dias
-típicos** da sua unidade × categoria. Um percentil das linhas não serviria: em Produtos de
-jardim, linhas de 60 a 100 mudas são comuns, e o p99 marcaria 37–48% do volume como
-encomenda.
-
-**Resultado.**
-
-| Unidade · categoria | Limite por linha | Linhas marcadas | % do volume |
-| --- | --- | --- | --- |
-| Itabirito · Grama | 1.015 | 68 | 67,7% |
-| Itabirito · Produtos de jardim | 3.079 | 8 | 9,1% |
-| Itabirito · Flores de corte | 155 | 4 | 4,2% |
-| Jardim Canadá · Flores de corte | 160 | 12 | 17,8% |
-| Jardim Canadá · Grama | 7.014 | 1 | 1,2% |
-| Jardim Canadá · Produtos de jardim | 8.265 | 1 | 1,0% |
-
-No total, as encomendas são **36,3% do volume de Itabirito** (80 linhas) e 1,3% do de
-Jardim Canadá (14 linhas). Gráfico:
-[25](../../../ia-predictor/training_scripts/results/plots/eda/25_encomendas_series.png).
-
-**Pseudocódigo** (`limiares_encomenda`, `marcar_encomendas`):
-
-```text
-limiares(linhas_do_treino, K = 5):
-    diário[u, c, dia] ← Σ qtd por dia, só segunda a sábado e dias com venda
-    limiar[u, c]      ← K × mediana(diário[u, c, ·])
-marcar(linhas, limiar):
-    encomenda ← qtd da linha > limiar[unidade, categoria]   # par sem limiar: nunca marca
-balcão ← linhas não marcadas
-```
-
-**Impacto no SARIMAX.**
-
-- **O alvo do L1 passa a ser a venda de balcão** (`qtd_balcao`). As encomendas viram um
-  fluxo à parte, que não é previsto pelo histórico.
-- No treino, o limiar é **recalculado em cada rodada só com o passado**
-  (`Dados.balcao(origem)` chama `marcar(linhas, data_corte=origem)`), para não haver
-  vazamento.
-
-**Base na literatura.**
-
-- ✅ Bartezzaghi; Verganti (1995).
-- 📄 Bartezzaghi; Verganti; Zotteri (1999).
-- 📄 Verganti (1997).
-- 📄 Kalchschmidt; Zotteri; Verganti (2003).
-
-Esses trabalhos separam a demanda regular da demanda irregular de poucos clientes grandes.
-
-- 📄 Olhager (2003): parte da demanda é sob pedido e fica fora da política de estoque.
-- ✅ Pearson et al. (2016): filtro de Hampel. O limiar "K × mediana" é da mesma família.
-
-**Nenhum** desses trabalhos usa exatamente "5 dias típicos". O valor é uma escolha do
-projeto, testada em 5.6.
-
-### 5.3 Conferência da regra com informações que ela não usa
-
-**O que é.** A regra usa só quantidade, unidade, categoria e data. Para conferir se ela
-separa mesmo outro tipo de cliente, a análise compara o perfil das linhas marcadas com o
-do balcão, usando a forma de pagamento e o "cliente consumidor final". Essas duas
-informações não entram na regra.
-
-**Resultado** (Itabirito):
-
-| Perfil | Encomendas | Balcão |
-| --- | --- | --- |
-| Pagas por boleto | 65% | 1,4% |
-| Cliente "CONSUMIDOR" | 7,5% | 90,5% |
-
-**Pseudocódigo** (`bloco_perfil`):
-
-```text
-para cada unidade:
-    % de linhas pagas por boleto: encomenda × balcão
-    % de linhas de "CONSUMIDOR" (cliente_cod = 1): encomenda × balcão
-    (só agregados; cliente e pagamento NÃO entram na regra)
-```
-
-**Impacto no SARIMAX.** Valida a separação sem quebrar o ADR-010: pagamento e cliente
-continuam **fora** do X do modelo e serviram só de evidência.
-
-**Base na literatura.**
-
-- ✅ Kalchschmidt; Verganti; Zotteri (2006): segmentar clientes heterogêneos e prever
-  cada segmento à parte.
-- 📄 Bartezzaghi; Verganti; Zotteri (1999).
-
-### 5.4 Teto no 99º percentil (winsorização)
-
-**O que é.** Nos picos que sobram no balcão, os dias acima do 99º percentil dos dias
-abertos são rebaixados a esse valor. Isso é feito **só no treino**; o erro continua sendo
-medido contra a venda real.
-
-**Resultado.**
-
-- Sozinho, o teto quase não ajuda Itabirito (MASE 1,434 → 1,401).
-- Depois da separação, acrescenta de 1% a 2%.
-- Em Jardim Canadá, o teto reduz o maior dia de 14 para 4,4 vezes a média e a curtose de
-  43,9 para 2,7. A série vira "suave" pelo critério de 1.10 (CV² 0,40).
-
-**Pseudocódigo** (`teto_quantil`):
-
-```text
-teto(série_de_treino, q = 0,99):
-    abertos ← dias de segunda a sábado com venda > 0
-    limite  ← quantil_q(abertos)
-    devolver min(série, limite)          # só no treino; o erro é medido na série real
-```
-
-**Impacto no SARIMAX.** Está no treino: `z = log1p(teto_quantil(y).clip(lower=0))`,
-recalculado em cada rodada.
-
-**Base na literatura.**
-
-- ✅ Hyndman; Athanasopoulos (2021, §13.9): tratar picos, mas não apagá-los sem entender
-  a causa. Por isso as encomendas são **separadas**, não apagadas.
-- ✅ Chen; Liu (1993).
-- 💡 Dixon (1960): a winsorização.
-
-### 5.5 Teste das quatro variantes, sem vazamento
-
-**O que é.** O mesmo walk-forward (26 × 14 dias) com quatro receitas por unidade.
-
-**Resultado** (MASE):
-
-| Variante | Itabirito SARIMAX | Itabirito HW | Jardim Canadá SARIMAX | Jardim Canadá HW |
-| --- | --- | --- | --- | --- |
-| Como era (total → total) | 1,434 | 1,311 | 0,659 | 0,727 |
-| Só o teto | 1,401 | 1,283 | 0,648 | 0,713 |
-| Só separar | 0,810 | 0,699 | 0,656 | 0,724 |
-| **Separar + teto** | **0,796** | **0,688** | **0,646** | **0,710** |
-
-Gráfico: [26](../../../ia-predictor/training_scripts/results/plots/eda/26_encomendas_mase.png).
-
-**Pseudocódigo** (`_janelas`, `teste_previsao`):
-
-```text
-para cada janela i (26 × 14 dias):
-    limiar ← limiares(linhas com data < início da janela)      # SÓ o passado
-    balcão ← série diária das linhas não marcadas
-    original:     treina no total          → avalia contra o total
-    só_teto:      treina em teto(total)    → avalia contra o total
-    só_separar:   treina no balcão         → avalia contra o balcão
-    separar_teto: treina em teto(balcão)   → avalia contra o balcão (e também contra o total)
-    MASE com a escala do treino REAL (sem teto)
-```
-
-**Impacto no SARIMAX.** Define a receita que o treino usa: separar e aplicar o teto, com o
-limiar recalculado por rodada. Itabirito vai de 1,434 para 0,796 já com o modelo de teste
-simples. No treino final (com o calendário corrigido e d = 1), as duas lojas chegam a
-**0,58**.
-
-**Limite honesto:** contra a venda **total**, Itabirito volta a ter MASE 1,26. A encomenda
-continua imprevisível pelo histórico. No ano de teste do doc 04, ela foi 51% da venda e
-70% do erro de Itabirito.
-
-**Base na literatura.**
-
-- ✅ Hyndman; Koehler (2006): o MASE.
-- 💡 Tashman (2000): origem móvel sem vazamento.
-
-### 5.6 Sensibilidade ao número K
-
-**O que é.** Repete a variante "separar + teto" com K = 3 e K = 10.
-
-**Resultado.** O MASE de Itabirito fica entre **0,79 e 0,80** com K = 3, 5 ou 10.
-
-**Pseudocódigo** (`main`):
-
-```text
-para K ∈ {3, 5, 10}: MASE(separar_teto, K)    # mesmo walk-forward
-```
-
-**Impacto no SARIMAX.** Mostra que K = 5 **não é um ajuste fino** que só funciona com esse
-número. O treino usa `K_DIAS_TIPICOS = 5` sem precisar calibrar.
-
-**Base na literatura.** ✅ Pearson et al. (2016). Filtros por múltiplo da mediana são
-pouco sensíveis ao multiplicador, desde que ele separe a cauda.
-
-### 5.7 Antes × depois (a bateria da Análise 2 reaplicada)
-
-**O que é.** Roda o mesmo diagnóstico da Análise 2 (`analisa_serie`) na série total, na de
-balcão e na de balcão com teto, e recalcula a classe de demanda (1.10).
-
-**Resultado** (Itabirito):
-
-| Indicador | Antes (total) | Balcão | Balcão + teto |
-| --- | --- | --- | --- |
-| Veredito | atenção | ok | ok |
-| CV | 2,39 | 1,25 | 1,11 |
-| Maior dia ÷ média | 37,2 | 13,4 | 7,2 |
-| Curtose | 82,6 | 29,0 | 12,7 |
-| **Força do ciclo semanal** | **0,07** | 0,20 | **0,24** |
-| **Tendência** | **+54%/ano** | +8%/ano | +10%/ano |
-| CV² (classe) | 4,58 (errática) | 1,11 (errática) | 0,84 (errática) |
-| MASE SARIMAX | 1,434 | 0,810 | 0,796 |
-
-**Pseudocódigo** (`bloco_antes_depois`, `_resumo_serie`):
-
-```text
-para cada unidade:
-    para série ∈ {total, balcão, teto(balcão)}:
-        diagnóstico ← analisa_serie(série)        # a bateria 2.1–2.11
-        ADI, CV² e classe de Syntetos, Boylan e Croston
-```
-
-**Impacto no SARIMAX.**
-
-- **O ciclo semanal estava escondido pelos picos.** Sem eles, fica mais de 3 vezes mais
-  forte, e é exatamente o que o SARIMAX usa para prever.
-- **A tendência de +54% era quase toda encomenda.** As encomendas foram de 68 mil
-  unidades em 2024 para 377 mil em 2025. Por isso a recomendação de d = 1 "por tendência"
-  (2.7) perdeu força, e o d = 1 ficou justificado pelas **mudanças de nível** (2.8).
-- Itabirito sai de "atenção" para "ok".
-
-**Base na literatura.** ✅ Syntetos; Boylan; Croston (2005): a mudança de CV² mostra a
-série ficando mais regular.
-
----
-
 ## Síntese: de onde veio cada peça do treino final
 
 O treino final é a variante **A1 d = 1** de
 [`sarimax_l1_por_loja.py`](../../../ia-predictor/training_scripts/baseline/sarimax_l1_por_loja.py)
-([doc 04](../04-treino_l1_por_loja.md)):
+([doc 04](../04-treino_l1_por_loja.md)).
+
+> **Atenção (2026-10-09):** esse treino separou as encomendas com a regra "linha > 5 dias
+> típicos" e aplicou teto no p99. A regra foi retirada por não ter fundamentação publicada
+> (o 5 e o p99 foram escolhidos pelo projeto). O resultado da última linha da tabela foi obtido
+> com ela e precisa ser refeito quando o novo critério de encomenda for definido.
+
 
 ```text
 para cada loja u e cada rodada do walk-forward (origem):
-    limiar ← K × mediana diária, só com o passado                                   # 5.2, 5.5
-    y ← venda diária de balcão (linhas abaixo do limiar)                             # 4.5, 5.2
-    z ← log1p( min(y, p99 dos dias abertos) )                                        # 2.2, 5.4
+    y ← venda diária de balcão (critério de encomenda em aberto)                     # 4.5
+    z ← log1p(y)                                                                     # 2.2
     X ← [dia_seg … dia_sab, loja_fechada, abertura_excepcional]                      # 1.4, 2.1, 2.3, 2.6
     ordem ← escolhida uma vez, com dados até 01/03/2025, pelo menor AIC entre
             p, q ∈ {0,1,2}; P, Q ∈ {0,1}; m = 7; D = 0; d = 1                         # 2.4, 2.5, 2.8, 2.9
     ajustar SARIMAX(z, X) e prever 14 dias com o X futuro (o calendário é conhecido)
     previsão ← expm1(μ) = mediana;  IC95 ← expm1 dos limites em log                  # 2.2
     avaliar contra o balcão real: MASE, erro ÷ naïve semanal, rodadas vencidas,
-                                  acerto e largura do IC95                           # 3.3, 5.5
+                                  acerto e largura do IC95                           # 3.3
 ```
 
 | Peça do treino | Valor | Análise que justificou |
 | --- | --- | --- |
 | Nível do modelo | 2 séries, uma por loja | 1.5, 1.7, 1.10, 4.2–4.5 |
-| Alvo | venda de balcão (encomendas fora) | 5.1–5.7 |
-| Limiar de encomenda | 5 × mediana diária, recalculado a cada rodada | 5.2, 5.5, 5.6 |
-| Teto | p99 dos dias abertos, só no treino | 5.4 |
+| Alvo | venda de balcão (encomendas fora); critério de separação **em aberto** | — |
 | Transformação | `log1p`; previsão = mediana (`expm1`); Duan descartado | 2.2 (e doc 04 §2) |
 | Período sazonal | m = 7 | 1.9, 2.3, 2.4 |
 | Diferenciação sazonal | D = 0 | 2.4, 2.5 (ADR-004) |
@@ -1886,7 +1589,7 @@ para cada loja u e cada rodada do walk-forward (origem):
 | Ordem escolhida | (0,1,1)(0,0,1)₇ nas duas lojas | 2.4, 2.8, 2.9 |
 | Exógenas | 6 dummies de dia, `loja_fechada`, `abertura_excepcional` | 1.4, 2.1, 2.3, 2.6 (e doc 03) |
 | Fora das exógenas | pagamento, vendedor, clima, janela de 7 dias | 1.4, 2.6 (e doc 03) |
-| Validação | 26 rodadas × 14 dias contra a naïve semanal | 3.3, 4.2, 5.5 |
+| Validação | 26 rodadas × 14 dias contra a naïve semanal | 3.3, 4.2 |
 | Resultado | MASE 0,58 nas 2 lojas; vence a naïve em 24/26 rodadas; IC95 com 91–94% de acerto → `trained` | doc 04 §3.2 |
 
 ---
@@ -1998,20 +1701,20 @@ janelas (💡 Diebold; Mariano, 1995).
 | Referência | Usada em |
 | --- | --- |
 | ARUNRAJ, N. S.; AHRENS, D.; FERNANDES, M. Application of SARIMAX model to forecast daily sales in food retail industry. *International Journal of Operations Research and Information Systems*, v. 7, n. 2, p. 1–21, 2016. | 2.3, 2.6 |
-| BARTEZZAGHI, E.; VERGANTI, R. Managing demand uncertainty through order overplanning. *International Journal of Production Economics*, v. 40, n. 2–3, p. 107–120, 1995. | 5.2 |
+| BARTEZZAGHI, E.; VERGANTI, R. Managing demand uncertainty through order overplanning. *International Journal of Production Economics*, v. 40, n. 2–3, p. 107–120, 1995. | — |
 | BOX, G. E. P.; JENKINS, G. M.; REINSEL, G. C.; LJUNG, G. M. *Time Series Analysis: Forecasting and Control*. 5. ed. Hoboken: Wiley, 2015. | 1.9, 2.5, 2.9 |
 | BRASIL. Lei nº 13.709, de 14 de agosto de 2018 (LGPD). | 1.4 |
-| CHEN, C.; LIU, L.-M. Forecasting time series with outliers. *Journal of Forecasting*, v. 12, n. 1, p. 13–35, 1993. | 2.10, 5.1, 5.4 |
+| CHEN, C.; LIU, L.-M. Forecasting time series with outliers. *Journal of Forecasting*, v. 12, n. 1, p. 13–35, 1993. | 2.10 |
 | CROSTON, J. D. Forecasting and stock control for intermittent demands. *Operational Research Quarterly*, v. 23, n. 3, p. 289–303, 1972. | 1.7, 1.10 |
 | FLIEDNER, G. Hierarchical forecasting: issues and use guidelines. *Industrial Management & Data Systems*, v. 101, n. 1, p. 5–12, 2001. | 2.12, 4.1, 4.3 |
 | GROSS, C. W.; SOHL, J. E. Disaggregation methods to expedite product line forecasting. *Journal of Forecasting*, v. 9, n. 3, p. 233–254, 1990. | 2.12, 3.3, 4.2 |
 | HUBER, J.; GOSSMANN, A.; STUCKENSCHMIDT, H. Cluster-based hierarchical demand forecasting for perishable goods. *Expert Systems with Applications*, v. 76, p. 140–151, 2017. | 1.7, 4.4 |
-| HYNDMAN, R. J.; ATHANASOPOULOS, G. *Forecasting: principles and practice*. 3. ed. Melbourne: OTexts, 2021. Seções usadas: §2.4, §2.8, §3.1, §3.6, §4.3, §5.4, §5.6, §5.10, §7.4, §7.6, cap. 10, §8.3, §9.1, §9.10, §11.1–11.2, §12.1, §13.2, §13.9. | 1.4, 1.9, 1.10, 2.2–2.9, 3.3, 4.1, 4.2, 5.4 |
-| HYNDMAN, R. J.; KOEHLER, A. B. Another look at measures of forecast accuracy. *International Journal of Forecasting*, v. 22, n. 4, p. 679–688, 2006. | 3.3, 5.5 |
-| KALCHSCHMIDT, M.; VERGANTI, R.; ZOTTERI, G. Forecasting demand from heterogeneous customers. *International Journal of Operations & Production Management*, v. 26, n. 6, p. 619–638, 2006. | 5.3 |
-| PEARSON, R. K.; NEUVO, Y.; ASTOLA, J.; GABBOUJ, M. Generalized Hampel filters. *EURASIP Journal on Advances in Signal Processing*, v. 2016, art. 87, 2016. | 5.2, 5.6 |
+| HYNDMAN, R. J.; ATHANASOPOULOS, G. *Forecasting: principles and practice*. 3. ed. Melbourne: OTexts, 2021. Seções usadas: §2.4, §2.8, §3.1, §3.6, §4.3, §5.4, §5.6, §5.10, §7.4, §7.6, cap. 10, §8.3, §9.1, §9.10, §11.1–11.2, §12.1, §13.2, §13.9. | 1.4, 1.9, 1.10, 2.2–2.9, 3.3, 4.1, 4.2 |
+| HYNDMAN, R. J.; KOEHLER, A. B. Another look at measures of forecast accuracy. *International Journal of Forecasting*, v. 22, n. 4, p. 679–688, 2006. | 3.3 |
+| KALCHSCHMIDT, M.; VERGANTI, R.; ZOTTERI, G. Forecasting demand from heterogeneous customers. *International Journal of Operations & Production Management*, v. 26, n. 6, p. 619–638, 2006. | — |
+| PEARSON, R. K.; NEUVO, Y.; ASTOLA, J.; GABBOUJ, M. Generalized Hampel filters. *EURASIP Journal on Advances in Signal Processing*, v. 2016, art. 87, 2016. | — |
 | SYNTETOS, A. A.; BOYLAN, J. E. The accuracy of intermittent demand estimates. *International Journal of Forecasting*, v. 21, n. 2, p. 303–314, 2005. | 1.10 |
-| SYNTETOS, A. A.; BOYLAN, J. E.; CROSTON, J. D. On the categorization of demand patterns. *Journal of the Operational Research Society*, v. 56, n. 5, p. 495–503, 2005. | 1.10, 2.1, 5.7 |
+| SYNTETOS, A. A.; BOYLAN, J. E.; CROSTON, J. D. On the categorization of demand patterns. *Journal of the Operational Research Society*, v. 56, n. 5, p. 495–503, 2005. | 1.10, 2.1 |
 | TEUNTER, R. H.; SYNTETOS, A. A.; BABAI, M. Z. Intermittent demand: linking forecasting to inventory obsolescence. *European Journal of Operational Research*, v. 214, n. 3, p. 606–615, 2011. | 1.10 |
 | WIRTH, R.; HIPP, J. CRISP-DM: towards a standard process model for data mining. In: *Proceedings of the 4th International Conference on the Practical Applications of Knowledge Discovery and Data Mining*. London, 2000. p. 29–39. | 1.1–1.3 |
 | ZOTTERI, G.; KALCHSCHMIDT, M. A model for selecting the appropriate level of aggregation in forecasting processes. *International Journal of Production Economics*, v. 108, n. 1–2, p. 74–83, 2007. | 1.7, 4.2, 4.5 |
@@ -2032,13 +1735,7 @@ análises exploratórias.
 | Referência | Usada em |
 | --- | --- |
 | BABAI, M. Z.; BOYLAN, J. E.; ROSTAMI-TABAR, B. Demand forecasting in supply chains: a review of aggregation and hierarchical approaches. *International Journal of Production Research*, v. 60, n. 1, p. 324–348, 2022. | 4.5 |
-| BARTEZZAGHI, E.; VERGANTI, R.; ZOTTERI, G. A simulation framework for forecasting uncertain lumpy demand. *International Journal of Production Economics*, v. 59, n. 1–3, p. 499–510, 1999. | 5.2, 5.3 |
 | BOX, G. E. P.; TIAO, G. C. Intervention analysis with applications to economic and environmental problems. *Journal of the American Statistical Association*, v. 70, n. 349, p. 70–79, 1975. | 1.5, 2.6 |
-| CHEN, C.; LIU, L.-M. Joint estimation of model parameters and outlier effects in time series. *Journal of the American Statistical Association*, v. 88, n. 421, p. 284–297, 1993. | 5 (ADR-012) |
-| JOHNSTON, F. R.; BOYLAN, J. E.; SHALE, E. A. An examination of the size of orders from customers, their characterisation and the implications for inventory control of slow moving items. *Journal of the Operational Research Society*, v. 54, n. 8, p. 833–837, 2003. | 5.1 |
-| KALCHSCHMIDT, M.; ZOTTERI, G.; VERGANTI, R. Inventory management in a multi-echelon spare parts supply chain. *International Journal of Production Economics*, v. 81–82, p. 397–413, 2003. (O ADR-012 avisa: conferir o texto completo antes de citar.) | 5.2 |
-| OLHAGER, J. Strategic positioning of the order penetration point. *International Journal of Production Economics*, v. 85, n. 3, p. 319–329, 2003. | 5.2 |
-| VERGANTI, R. Order overplanning with uncertain lumpy demand: a simplified theory. *International Journal of Production Research*, v. 35, n. 12, p. 3229–3248, 1997. | 5.2 |
 
 ### 💡 Sugestões: referências clássicas dos métodos, não usadas no projeto até aqui
 
@@ -2050,7 +1747,6 @@ Todas precisam ser conferidas no texto original antes de entrar no artigo.
 | CLEVELAND, R. B.; CLEVELAND, W. S.; McRAE, J. E.; TERPENNING, I. STL: a seasonal-trend decomposition procedure based on loess. *Journal of Official Statistics*, v. 6, n. 1, p. 3–73, 1990. | 2.4 |
 | DICKEY, D. A.; FULLER, W. A. Distribution of the estimators for autoregressive time series with a unit root. *Journal of the American Statistical Association*, v. 74, n. 366, p. 427–431, 1979. | 2.8 |
 | DIEBOLD, F. X.; MARIANO, R. S. Comparing predictive accuracy. *Journal of Business & Economic Statistics*, v. 13, n. 3, p. 253–263, 1995. | Ressalva 9 |
-| DIXON, W. J. Simplified estimation from censored normal samples. *The Annals of Mathematical Statistics*, v. 31, n. 2, p. 385–391, 1960. | 5.4 (winsorização) |
 | DUAN, N. Smearing estimate: a nonparametric retransformation method. *Journal of the American Statistical Association*, v. 78, n. 383, p. 605–610, 1983. | 2.2, 3.3 |
 | HOLT, C. C. Forecasting seasonals and trends by exponentially weighted moving averages. *International Journal of Forecasting*, v. 20, n. 1, p. 5–10, 2004 (reimpressão do relatório de 1957). | 3.3 |
 | KAUFMAN, S.; ROSSET, S.; PERLICH, C.; STITELMAN, O. Leakage in data mining: formulation, detection, and avoidance. *ACM Transactions on Knowledge Discovery from Data*, v. 6, n. 4, art. 15, 2012. | 1.4 |
@@ -2058,7 +1754,7 @@ Todas precisam ser conferidas no texto original antes de entrar no artigo.
 | LJUNG, G. M.; BOX, G. E. P. On a measure of lack of fit in time series models. *Biometrika*, v. 65, n. 2, p. 297–303, 1978. | 2.9 |
 | NOSEK, B. A.; EBERSOLE, C. R.; DeHAVEN, A. C.; MELLOR, D. T. The preregistration revolution. *Proceedings of the National Academy of Sciences*, v. 115, n. 11, p. 2600–2606, 2018. | 3.4 |
 | SILVER, E. A.; PYKE, D. F.; THOMAS, D. J. *Inventory and production management in supply chains*. 4. ed. Boca Raton: CRC Press, 2017. | 1.8 |
-| TASHMAN, L. J. Out-of-sample tests of forecasting accuracy: an analysis and review. *International Journal of Forecasting*, v. 16, n. 4, p. 437–450, 2000. | 3.3, 5.5 |
+| TASHMAN, L. J. Out-of-sample tests of forecasting accuracy: an analysis and review. *International Journal of Forecasting*, v. 16, n. 4, p. 437–450, 2000. | 3.3 |
 | TUKEY, J. W. *Exploratory data analysis*. Reading: Addison-Wesley, 1977. | 2.10 |
 | WANG, X.; SMITH, K.; HYNDMAN, R. Characteristic-based clustering for time series data. *Data Mining and Knowledge Discovery*, v. 13, n. 3, p. 335–364, 2006. | 2.4 |
 | WICKRAMASURIYA, S. L.; ATHANASOPOULOS, G.; HYNDMAN, R. J. Optimal forecast reconciliation for hierarchical and grouped time series through trace minimization. *Journal of the American Statistical Association*, v. 114, n. 526, p. 804–819, 2019. | 4.5 (alternativa não testada) |

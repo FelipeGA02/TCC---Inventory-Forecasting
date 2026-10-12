@@ -5,8 +5,8 @@ info:
   description: |
     Sistema de previsão de demanda diária para rede de floricultura com 2 unidades
     operacionais (Jardim Canadá e Itabirito), horizonte de 14 dias, com intervalo de
-    confiança de 95%. Modelagem hierárquica: SARIMAX na venda diária de balcão de cada
-    `unidade` (L1, 2 séries; encomendas grandes ficam fora, ADR-012) e desagregação em
+    confiança de 95%. Modelagem hierárquica: SARIMAX na venda diária total de cada
+    `unidade` (L1, 2 séries) e desagregação em
     cascata `unidade → categoria → SKU` (L2). A recomendação de reposição (L3) saiu de
     escopo: o sistema informa quanto deve vender e a loja decide a compra (ADR-011).
     Ver docs/prediction/ADR-009-granularidade-diaria-e-reposicao.md e
@@ -964,8 +964,7 @@ paths:
         Retorna a previsão de demanda **por dia** para os próximos `horizon_days` dias.
         Obtida do modelo L1 da unidade do produto, desagregado em cascata
         (`unidade → categoria → SKU`). Inclui intervalo de confiança de 95% e marcação de
-        fim de semana, feriado e proximidade de datas comemorativas. Encomendas grandes
-        não entram na previsão (ADR-012).
+        fim de semana, feriado e proximidade de datas comemorativas.
       operationId: getForecast
       security:
         - BearerAuth: []

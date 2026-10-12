@@ -29,10 +29,87 @@ from datetime import datetime
 
 import openpyxl
 
-from .constants import (
-    CONSOLIDATED_CSV, DETAIL_COLUMNS, DUPLICATE_KEY_FIELDS, FIELDS,
-    HEADER_COLUMNS, LOG_FILE, NET_TOTAL_COLUMN, OUTPUT_DIR, PRODUCT_COLUMNS, RAW_DIR,
-)
+# --------------------------------------------------------------------------- #
+# Caminhos do pipeline — `OUTPUT_DIR` é importado pelas etapas seguintes
+# (tratamento_de_dados_02, classificacao_03, limpeza_para_treino_04, dados_externos_10,
+# run_all) para montar os próprios arquivos de saída no mesmo diretório.
+# --------------------------------------------------------------------------- #
+_PREPROCESSING_DIR = os.path.dirname(os.path.abspath(__file__))
+_TRAINING_SCRIPTS_DIR = os.path.dirname(_PREPROCESSING_DIR)
+_IA_PREDICTOR_ROOT = os.path.dirname(_TRAINING_SCRIPTS_DIR)
+
+# Entrada: os XLSX brutos de produção (só leitura — este pipeline nunca escreve aqui).
+RAW_DIR = os.path.join(_IA_PREDICTOR_ROOT, 'data', 'raw')
+
+# Saída: sandbox de experimentação, isolado do `data/processed/` de produção para que
+# rodar estes scripts nunca sobrescreva o CSV canônico usado pelo backend. Fica em
+# `training_scripts/output/` (compartilhado por todas as etapas de pré-processamento),
+# não dentro de `preprocessing/`, para não misturar código-fonte com dado gerado.
+OUTPUT_DIR = os.path.join(_TRAINING_SCRIPTS_DIR, 'output')
+
+CONSOLIDATED_CSV = os.path.join(OUTPUT_DIR, 'Base01.csv')
+LOG_FILE = os.path.join(OUTPUT_DIR, 'processamento_log.json')
+
+# Lock de execução: duas chamadas concorrentes a `extrair_base01()` (ex.: rodar o
+# `run_all` de novo antes do anterior terminar) cada uma carrega seu próprio snapshot
+# de `existing_keys` em memória e abre o CSV em modo 'a' — sem a trava, as duas podem
+# gravar o mesmo bloco de registros em paralelo, inflando `Base01.csv` com linhas que
+# nenhum dos dois resumos reporta como "adicionadas" (cada processo só vê o que ELE
+# escreveu). O lock transforma a segunda chamada em erro claro em vez de corrupção
+# silenciosa de dado.
+LOCK_FILE = os.path.join(OUTPUT_DIR, '.extrair_base01.lock')
+
+
+class PipelineEmExecucaoError(RuntimeError):
+    """Outra execução de `extrair_base01()` já está em andamento."""
+
+# Schema do parser — um registro por (documento, produto). Ordem espelha o CSV de
+# produção (`ia-predictor/data/processed/contas_a_receber.csv`).
+FIELDS = [
+    'doc_tipo', 'doc_numero', 'pagamento', 'emissao', 'operador',
+    'cliente_cod', 'cliente_nome', 'empresa', 'vendedor', 'obs',
+    'produto_cod', 'produto_nome', 'qtdade', 'vl_unit',
+    'vl_total', 'vl_desconto', 'tot_liq', 'icms_ret', 'total_liquido_doc',
+    'arquivo_origem',
+]
+
+# Índices de coluna (1-based) do XLSX de "Contas a Receber" exportado pelo sistema da
+# floricultura — layout fixo do relatório, não muda entre meses.
+HEADER_COLUMNS = {
+    'documento': 1,
+    'pagamento': 3,
+    'emissao': 8,
+    'operador': 17,
+}
+
+DETAIL_COLUMNS = {
+    'cliente': 1,
+    'empresa': 1,
+    'vendedor': 13,
+    'obs': 1,
+}
+
+PRODUCT_COLUMNS = {
+    'produto': 1,
+    'qtdade': 8,
+    'vl_unit': 9,
+    'vl_total': 14,
+    'vl_desconto': 15,
+    'tot_liq': 18,
+    'icms_ret': 20,
+}
+
+NET_TOTAL_COLUMN = 5
+
+# Chave composta usada para deduplicar registros ENTRE arquivos diferentes (sobreposição
+# de datas nas bordas do mês — o mesmo documento pode ser exportado em dois meses
+# consecutivos). Nunca é aplicada dentro do mesmo arquivo: um produto pode legitimamente
+# aparecer em mais de uma linha no mesmo documento (comprovado em
+# docs/prediction/01-pre_processing.md, seção 3 — o total_liquido_doc só fecha contando as
+# duas linhas). `emissao`, `qtdade` e `vl_total` além de `doc_numero`/`produto_cod`
+# reduzem o risco de colisão acidental entre documentos não relacionados que reaproveitam
+# o mesmo número (confirmado que `doc_numero` se repete entre `doc_tipo` diferentes).
+DUPLICATE_KEY_FIELDS = ('doc_numero', 'produto_cod', 'emissao', 'qtdade', 'vl_total')
 
 
 # --------------------------------------------------------------------------- #
@@ -413,62 +490,81 @@ def extrair_base01(
 ):
     """Lê todos os XLSX pendentes em `raw_dir` e acrescenta ao `Base01.csv`."""
     ensure_directories(raw_dir=raw_dir, output_dir=output_dir)
-    log = load_log(log_file)
 
-    files = list_raw_xlsx_files(raw_dir=raw_dir)
-    if not files:
-        if verbose:
-            print(f'Nenhum arquivo .xlsx/.xlsm encontrado em {raw_dir}/')
-        return {'status': 'no_files', 'pending': [], 'summary': None}
-
-    pending = build_pending_files(files, raw_dir=raw_dir, log=log)
-    if not pending:
-        if verbose:
-            print('Todos os arquivos já foram processados. Nada de novo.')
-        return {'status': 'no_pending', 'pending': [], 'summary': None}
-
-    if verbose:
-        print(f'{len(pending)} arquivo(s) novo(s) ou alterado(s) para processar.\n')
-
-    summary = process_pending_files(pending, csv_path=output_csv, verbose=verbose)
-
-    now = datetime.now().isoformat()
-    arquivos_processados = log.setdefault('arquivos_processados', {})
-
-    for item in summary['details']:
-        arquivos_processados[item['name']] = {
-            'hash': item['hash'],
-            'processado_em': now,
-            'registros_adicionados': item['records'],
-            'registros_pulados': len(item['skipped']),
-            'duplicatas_encontradas': item['duplicates'],
-        }
-
-    log.setdefault('historico_execucoes', []).append({
-        'executado_em': now,
-        'arquivos': [item['name'] for item in summary['details']],
-        'total_registros_adicionados': summary['total_records'],
-        'total_pulados': summary['total_skipped'],
-        'total_duplicatas': summary['total_duplicates'],
-    })
-
-    log['ultima_atualizacao'] = now
-    save_log(log, log_file)
-
-    if verbose:
-        print(
-            f'\nResumo: {summary["total_records"]} linhas adicionadas, '
-            f'{summary["total_skipped"]} puladas, '
-            f'{summary["total_duplicates"]} duplicatas ignoradas.'
+    try:
+        with open(LOCK_FILE, 'x', encoding='utf-8') as f:
+            f.write(str(os.getpid()))
+    except FileExistsError:
+        raise PipelineEmExecucaoError(
+            f'Já existe uma execução do pré-processamento em andamento (lock em '
+            f'{LOCK_FILE}). Espere ela terminar antes de rodar de novo — rodar em '
+            f'paralelo duplica linhas no Base01.csv sem aviso. Se tiver certeza de que '
+            f'não há nenhuma execução ativa (ex.: processo anterior travou), apague o '
+            f'arquivo de lock manualmente.'
         )
-        print(f'CSV: {output_csv}')
-        print(f'Log: {log_file}')
 
-    return {
-        'status': 'processed',
-        'pending': [name for name, _, _ in pending],
-        'summary': summary,
-    }
+    try:
+        log = load_log(log_file)
+
+        files = list_raw_xlsx_files(raw_dir=raw_dir)
+        if not files:
+            if verbose:
+                print(f'Nenhum arquivo .xlsx/.xlsm encontrado em {raw_dir}/')
+            return {'status': 'no_files', 'pending': [], 'summary': None}
+
+        pending = build_pending_files(files, raw_dir=raw_dir, log=log)
+        if not pending:
+            if verbose:
+                print('Todos os arquivos já foram processados. Nada de novo.')
+            return {'status': 'no_pending', 'pending': [], 'summary': None}
+
+        if verbose:
+            print(f'{len(pending)} arquivo(s) novo(s) ou alterado(s) para processar.\n')
+
+        summary = process_pending_files(pending, csv_path=output_csv, verbose=verbose)
+
+        now = datetime.now().isoformat()
+        arquivos_processados = log.setdefault('arquivos_processados', {})
+
+        for item in summary['details']:
+            arquivos_processados[item['name']] = {
+                'hash': item['hash'],
+                'processado_em': now,
+                'registros_adicionados': item['records'],
+                'registros_pulados': len(item['skipped']),
+                'duplicatas_encontradas': item['duplicates'],
+            }
+
+        log.setdefault('historico_execucoes', []).append({
+            'executado_em': now,
+            'arquivos': [item['name'] for item in summary['details']],
+            'total_registros_adicionados': summary['total_records'],
+            'total_pulados': summary['total_skipped'],
+            'total_duplicatas': summary['total_duplicates'],
+        })
+
+        log['ultima_atualizacao'] = now
+        save_log(log, log_file)
+
+        if verbose:
+            print(
+                f'\nResumo: {summary["total_records"]} linhas adicionadas, '
+                f'{summary["total_skipped"]} puladas, '
+                f'{summary["total_duplicates"]} duplicatas ignoradas.'
+            )
+            print(f'CSV: {output_csv}')
+            print(f'Log: {log_file}')
+
+        return {
+            'status': 'processed',
+            'pending': [name for name, _, _ in pending],
+            'summary': summary,
+        }
+    finally:
+        try:
+            os.remove(LOCK_FILE)
+        except FileNotFoundError:
+            pass
 
 
 if __name__ == '__main__':

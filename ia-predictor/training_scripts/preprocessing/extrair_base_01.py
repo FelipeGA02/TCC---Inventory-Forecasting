@@ -202,14 +202,28 @@ def load_existing_record_keys(csv_path, key_fields=DUPLICATE_KEY_FIELDS):
 # --------------------------------------------------------------------------- #
 
 def _load_rows(input_path):
-    """Carrega todas as linhas do XLSX como uma lista de dicts {coluna: valor}."""
-    wb = openpyxl.load_workbook(input_path)
-    ws = wb.active
-    rows = []
-    for row in ws.iter_rows(min_row=1, max_row=ws.max_row, max_col=ws.max_column, values_only=False):
-        cell_map = {c.column: c.value for c in row}
-        rows.append(cell_map)
-    return rows
+    """Carrega todas as linhas do XLSX como uma lista de dicts {coluna: valor}.
+
+    `read_only=True` faz o openpyxl ler a planilha em streaming, em vez de materializar a
+    pasta de trabalho inteira em memoria; `values_only=True` devolve os valores direto,
+    sem construir um objeto por celula. Sem os dois, a extracao das 26 planilhas levava
+    ~50 min com a CPU saturada.
+
+    A chave do dict continua sendo o indice 1-based da coluna: `iter_rows` percorre as
+    colunas 1..max_column em ordem, entao `enumerate(row, 1)` reproduz exatamente o
+    `cell.column` que a versao anterior usava. (Em read_only, celula vazia vem como
+    `EmptyCell`, que nao tem `.column` — por isso o indice posicional.)
+    """
+    wb = openpyxl.load_workbook(input_path, read_only=True)
+    try:
+        ws = wb.active
+        rows = []
+        for row in ws.iter_rows(min_row=1, max_row=ws.max_row, max_col=ws.max_column,
+                                values_only=True):
+            rows.append(dict(enumerate(row, start=1)))
+        return rows
+    finally:
+        wb.close()  # em read_only o handle do zip fica aberto ate o close explicito
 
 
 def _parse_products(rows, i, total_rows):

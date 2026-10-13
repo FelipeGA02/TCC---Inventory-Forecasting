@@ -7,8 +7,11 @@
                               e mantém só as colunas que o SARIMAX do L1 usa)
   5. separa_unidades05       BaseTreino.csv → BaseTreino_<unidade>.csv (1 série por loja)
   6. remove_encomendas06     BaseClassificada03.csv → BaseTreino_<unidade>_sem_encomendas.csv
-                              (ramo experimental: só vendas de CONSUMIDOR — ver docstring do
-                              módulo sobre por que isso não é a decisão de escopo atual)
+                              + BaseTreino_<unidade>_encomendas.csv. Separa os dois fluxos
+                              pelo tamanho da VENDA (documento > 2.000 un = encomenda, um
+                              evento de logística que a loja atende encomendando do
+                              fornecedor). Não é descarte: a previsão final é a soma dos
+                              dois. Ver ADR-013
   10. dados_externos10       calendário diário por loja (exógenas do L1 — não depende da base
                               transacional, por isso numerada fora da sequência 1→6)
 

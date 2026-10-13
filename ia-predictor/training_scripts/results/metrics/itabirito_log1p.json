@@ -1,0 +1,231 @@
+{
+  "nome": "itabirito_log1p",
+  "usar_log1p": true,
+  "unidade": "Itabirito",
+  "gerado_em": "2026-10-13T00:29:32",
+  "config": {
+    "m": 7,
+    "d": 1,
+    "D": 0,
+    "grid_pq": [
+      0,
+      2
+    ],
+    "grid_PQ": [
+      0,
+      1
+    ],
+    "horizonte_dias": 14,
+    "passo_origem_dias": 1,
+    "primeira_origem": "2025-03-02",
+    "n_origens": 351,
+    "exogenas": [
+      "dia_seg",
+      "dia_ter",
+      "dia_qua",
+      "dia_qui",
+      "dia_sex",
+      "dia_sab",
+      "loja_fechada",
+      "abertura_excepcional"
+    ],
+    "alpha_ic": 0.05,
+    "ordem_usada": {
+      "order": [
+        0,
+        1,
+        2
+      ],
+      "seasonal_order": [
+        0,
+        0,
+        1,
+        7
+      ],
+      "aic_na_serie_crua": 7555.4266130540755,
+      "selecionada_em": "serie crua, dados < primeira_origem"
+    },
+    "ordem_que_log1p_escolheria": {
+      "order": [
+        0,
+        1,
+        1
+      ],
+      "seasonal_order": [
+        0,
+        0,
+        1,
+        7
+      ],
+      "aic": 860.86272463194
+    }
+  },
+  "metricas": {
+    "geral_todos_horizontes": {
+      "n": 4914,
+      "mae": 1916.483649565485,
+      "rmse": 6041.577051387282,
+      "mase": 1.1510233058103518,
+      "mae_relativo_naive": 0.6056524716251324,
+      "cobertura_ic95_pct": 89.66218966218966,
+      "largura_ic95": 4457.252591683863,
+      "vies_previsto_sobre_real_pct": 46.064927990934066
+    },
+    "operacional_h1": {
+      "n": 351,
+      "mae": 1906.404448439842,
+      "rmse": 6043.843165959945,
+      "mase": 1.1339884738554946,
+      "mae_relativo_naive": 0.6214731467033228,
+      "cobertura_ic95_pct": 89.45868945868945,
+      "largura_ic95": 4412.572778787881,
+      "vies_previsto_sobre_real_pct": 46.14980591672593
+    },
+    "por_horizonte": {
+      "1": {
+        "n": 351,
+        "mae": 1906.404448439842,
+        "rmse": 6043.843165959945,
+        "mase": 1.1339884738554946,
+        "mae_relativo_naive": 0.6214731467033228,
+        "cobertura_ic95_pct": 89.45868945868945,
+        "largura_ic95": 4412.572778787881,
+        "vies_previsto_sobre_real_pct": 46.14980591672593
+      },
+      "2": {
+        "n": 351,
+        "mae": 1904.9547110535361,
+        "rmse": 6041.423885733873,
+        "mase": 1.1344490050978204,
+        "mae_relativo_naive": 0.6205227805451028,
+        "cobertura_ic95_pct": 89.45868945868945,
+        "largura_ic95": 4412.252078873569,
+        "vies_previsto_sobre_real_pct": 46.137001749797825
+      },
+      "3": {
+        "n": 351,
+        "mae": 1904.9440666361775,
+        "rmse": 6040.819304758512,
+        "mase": 1.136557655162876,
+        "mae_relativo_naive": 0.6206660785186999,
+        "cobertura_ic95_pct": 89.45868945868945,
+        "largura_ic95": 4416.424924860006,
+        "vies_previsto_sobre_real_pct": 46.14593103506382
+      },
+      "4": {
+        "n": 351,
+        "mae": 1913.398329158129,
+        "rmse": 6044.3627900538995,
+        "mase": 1.142047253728398,
+        "mae_relativo_naive": 0.6213286058662937,
+        "cobertura_ic95_pct": 89.45868945868945,
+        "largura_ic95": 4427.642523782721,
+        "vies_previsto_sobre_real_pct": 46.02901577923719
+      },
+      "5": {
+        "n": 351,
+        "mae": 1917.1152856455592,
+        "rmse": 6041.585050099998,
+        "mase": 1.1445647218067925,
+        "mae_relativo_naive": 0.6221335648175743,
+        "cobertura_ic95_pct": 89.45868945868945,
+        "largura_ic95": 4433.751955658892,
+        "vies_previsto_sobre_real_pct": 46.04002247073357
+      },
+      "6": {
+        "n": 351,
+        "mae": 1916.3299739558709,
+        "rmse": 6036.803544835883,
+        "mase": 1.1436780650868124,
+        "mae_relativo_naive": 0.6217911082037015,
+        "cobertura_ic95_pct": 89.45868945868945,
+        "largura_ic95": 4450.9041072352875,
+        "vies_previsto_sobre_real_pct": 46.132736157780705
+      },
+      "7": {
+        "n": 351,
+        "mae": 1917.3299084449802,
+        "rmse": 6035.945620265415,
+        "mase": 1.1505734571423738,
+        "mae_relativo_naive": 0.6221210201301952,
+        "cobertura_ic95_pct": 89.45868945868945,
+        "largura_ic95": 4453.513852649242,
+        "vies_previsto_sobre_real_pct": 46.11944042199534
+      },
+      "8": {
+        "n": 351,
+        "mae": 1920.7969681282423,
+        "rmse": 6045.388225244885,
+        "mase": 1.1559778074615956,
+        "mae_relativo_naive": 0.59271080746867,
+        "cobertura_ic95_pct": 89.74358974358975,
+        "largura_ic95": 4453.71166655763,
+        "vies_previsto_sobre_real_pct": 45.916431680314226
+      },
+      "9": {
+        "n": 351,
+        "mae": 1921.302005080472,
+        "rmse": 6043.878690166776,
+        "mase": 1.1614762410622583,
+        "mae_relativo_naive": 0.5928478865748779,
+        "cobertura_ic95_pct": 89.74358974358975,
+        "largura_ic95": 4474.510530983552,
+        "vies_previsto_sobre_real_pct": 46.03796303120115
+      },
+      "10": {
+        "n": 351,
+        "mae": 1913.850421540203,
+        "rmse": 6037.8872662594495,
+        "mase": 1.1549871697395286,
+        "mae_relativo_naive": 0.591760277967276,
+        "cobertura_ic95_pct": 90.02849002849003,
+        "largura_ic95": 4481.404063141168,
+        "vies_previsto_sobre_real_pct": 46.17380828460509
+      },
+      "11": {
+        "n": 351,
+        "mae": 1914.8135517632377,
+        "rmse": 6037.601095139195,
+        "mase": 1.156805163395097,
+        "mae_relativo_naive": 0.5886165483901288,
+        "cobertura_ic95_pct": 90.02849002849003,
+        "largura_ic95": 4484.206662369006,
+        "vies_previsto_sobre_real_pct": 46.175047997954124
+      },
+      "12": {
+        "n": 351,
+        "mae": 1913.137417387202,
+        "rmse": 6035.393523304414,
+        "mase": 1.1580085379250444,
+        "mae_relativo_naive": 0.5879589248022291,
+        "cobertura_ic95_pct": 90.02849002849003,
+        "largura_ic95": 4492.246689472065,
+        "vies_previsto_sobre_real_pct": 46.17340043474884
+      },
+      "13": {
+        "n": 351,
+        "mae": 1932.8547381104509,
+        "rmse": 6043.019036402839,
+        "mase": 1.1674249127527885,
+        "mae_relativo_naive": 0.590486007348983,
+        "cobertura_ic95_pct": 89.74358974358975,
+        "largura_ic95": 4503.673140113739,
+        "vies_previsto_sobre_real_pct": 45.85762336445025
+      },
+      "14": {
+        "n": 351,
+        "mae": 1933.539268572887,
+        "rmse": 6054.101500243511,
+        "mase": 1.1737878171280436,
+        "mae_relativo_naive": 0.5907389632116352,
+        "cobertura_ic95_pct": 89.74358974358975,
+        "largura_ic95": 4504.721309089328,
+        "vies_previsto_sobre_real_pct": 45.82433802187002
+      }
+    }
+  },
+  "arquivos": {
+    "previsoes": "/home/dev/TCC---Inventory-Forecasting/ia-predictor/training_scripts/results/metrics/itabirito_log1p_previsoes.csv",
+    "operacional": "/home/dev/TCC---Inventory-Forecasting/ia-predictor/training_scripts/results/metrics/itabirito_log1p_operacional.csv"
+  }
+}

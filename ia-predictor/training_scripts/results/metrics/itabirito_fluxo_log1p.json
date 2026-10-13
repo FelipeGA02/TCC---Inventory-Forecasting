@@ -2,11 +2,11 @@
   "nome": "itabirito_fluxo_log1p",
   "usar_log1p": true,
   "unidade": "Itabirito",
-  "gerado_em": "2026-10-13T02:59:36",
+  "gerado_em": "2026-10-13T16:12:31",
   "config": {
-    "base_csv": "/home/dev/TCC---Inventory-Forecasting/ia-predictor/training_scripts/output/BaseTreino_itabirito_sem_encomendas.csv",
+    "base_csv": "C:\\Users\\felip\\OneDrive\\Documentos\\Estudos\\TCC\\TCC---Inventory-Forecasting\\ia-predictor\\training_scripts\\output\\BaseTreino_itabirito_sem_encomendas.csv",
     "encomendas_separadas": true,
-    "encomendas_csv": "/home/dev/TCC---Inventory-Forecasting/ia-predictor/training_scripts/output/BaseTreino_itabirito_encomendas.csv",
+    "encomendas_csv": "C:\\Users\\felip\\OneDrive\\Documentos\\Estudos\\TCC\\TCC---Inventory-Forecasting\\ia-predictor\\training_scripts\\output\\BaseTreino_itabirito_encomendas.csv",
     "m": 7,
     "d": 1,
     "D": 0,
@@ -45,7 +45,7 @@
         1,
         7
       ],
-      "aic_na_serie_crua": 6426.938131648143,
+      "aic_na_serie_crua": 6426.938131677956,
       "selecionada_em": "serie crua, dados < primeira_origem"
     },
     "ordem_que_log1p_escolheria": {
@@ -60,197 +60,197 @@
         1,
         7
       ],
-      "aic": 513.1911785704162
+      "aic": 513.1911776059612
     }
   },
   "metricas": {
     "geral_todos_horizontes": {
       "n": 4914,
-      "mae": 318.9522286850462,
-      "rmse": 518.0341139996949,
-      "mase": 0.6299610774386403,
-      "mae_relativo_naive": 0.6237305028244949,
+      "mae": 318.9519273239095,
+      "rmse": 518.033654716762,
+      "mase": 0.6299604751548223,
+      "mae_relativo_naive": 0.6237299134944435,
       "cobertura_ic95_pct": 93.73219373219374,
-      "largura_ic95": 1581.5535332330676,
-      "vies_previsto_sobre_real_pct": 89.63581707499972
+      "largura_ic95": 1581.5541923769215,
+      "vies_previsto_sobre_real_pct": 89.63584137348471
     },
     "operacional_h1": {
       "n": 351,
-      "mae": 312.1899723112908,
-      "rmse": 513.4481182340818,
-      "mase": 0.6168388121584912,
-      "mae_relativo_naive": 0.6048861026890325,
+      "mae": 312.1887368302771,
+      "rmse": 513.4466730142799,
+      "mase": 0.616836387147926,
+      "mae_relativo_naive": 0.6048837088732101,
       "cobertura_ic95_pct": 93.73219373219374,
-      "largura_ic95": 1546.9186377108144,
-      "vies_previsto_sobre_real_pct": 89.53646190016526
+      "largura_ic95": 1546.921447978286,
+      "vies_previsto_sobre_real_pct": 89.53662423987517
     },
     "por_horizonte": {
       "1": {
         "n": 351,
-        "mae": 312.1899723112908,
-        "rmse": 513.4481182340818,
-        "mase": 0.6168388121584912,
-        "mae_relativo_naive": 0.6048861026890325,
+        "mae": 312.1887368302771,
+        "rmse": 513.4466730142799,
+        "mase": 0.616836387147926,
+        "mae_relativo_naive": 0.6048837088732101,
         "cobertura_ic95_pct": 93.73219373219374,
-        "largura_ic95": 1546.9186377108144,
-        "vies_previsto_sobre_real_pct": 89.53646190016526
+        "largura_ic95": 1546.921447978286,
+        "vies_previsto_sobre_real_pct": 89.53662423987517
       },
       "2": {
         "n": 351,
-        "mae": 313.8377726587983,
-        "rmse": 515.4058260717995,
-        "mase": 0.620076668225963,
-        "mae_relativo_naive": 0.6053088154914301,
+        "mae": 313.8378101470445,
+        "rmse": 515.406030418867,
+        "mase": 0.6200767099044359,
+        "mae_relativo_naive": 0.6053088877961934,
         "cobertura_ic95_pct": 93.44729344729345,
-        "largura_ic95": 1556.4296674484356,
-        "vies_previsto_sobre_real_pct": 89.54845760627435
+        "largura_ic95": 1556.4306682273002,
+        "vies_previsto_sobre_real_pct": 89.54853553746781
       },
       "3": {
         "n": 351,
-        "mae": 314.16550144191046,
-        "rmse": 515.3587128956357,
-        "mase": 0.620535816689198,
-        "mae_relativo_naive": 0.6067904935616911,
+        "mae": 314.16451570284204,
+        "rmse": 515.3575024115006,
+        "mase": 0.62053390790995,
+        "mae_relativo_naive": 0.6067885896699745,
         "cobertura_ic95_pct": 93.73219373219374,
-        "largura_ic95": 1560.600358997004,
-        "vies_previsto_sobre_real_pct": 89.53321089778008
+        "largura_ic95": 1560.59912087471,
+        "vies_previsto_sobre_real_pct": 89.53313879733581
       },
       "4": {
         "n": 351,
-        "mae": 316.7227927014851,
-        "rmse": 515.1256208781939,
-        "mase": 0.6256377393298368,
-        "mae_relativo_naive": 0.6125310866465288,
+        "mae": 316.72228474382104,
+        "rmse": 515.1251428404369,
+        "mase": 0.6256367176712456,
+        "mae_relativo_naive": 0.6125301042737185,
         "cobertura_ic95_pct": 93.44729344729345,
-        "largura_ic95": 1567.4096505178725,
-        "vies_previsto_sobre_real_pct": 89.50022355531804
+        "largura_ic95": 1567.4068905226127,
+        "vies_previsto_sobre_real_pct": 89.5001342684451
       },
       "5": {
         "n": 351,
-        "mae": 319.9798532892114,
-        "rmse": 516.4413715381004,
-        "mase": 0.6319885662691496,
-        "mae_relativo_naive": 0.6164576029426792,
+        "mae": 319.97934141721043,
+        "rmse": 516.4411905496971,
+        "mase": 0.631987539430135,
+        "mae_relativo_naive": 0.6164566167950093,
         "cobertura_ic95_pct": 93.73219373219374,
-        "largura_ic95": 1572.5676011251232,
-        "vies_previsto_sobre_real_pct": 89.60453565180515
+        "largura_ic95": 1572.5665680289749,
+        "vies_previsto_sobre_real_pct": 89.60449632489788
       },
       "6": {
         "n": 351,
-        "mae": 320.76984515679567,
-        "rmse": 517.1231850159595,
-        "mase": 0.6335880295030293,
-        "mae_relativo_naive": 0.6174630638900311,
+        "mae": 320.7705154929627,
+        "rmse": 517.1232390797795,
+        "mase": 0.63358934460467,
+        "mae_relativo_naive": 0.617464354247681,
         "cobertura_ic95_pct": 93.44729344729345,
-        "largura_ic95": 1578.1020863691672,
-        "vies_previsto_sobre_real_pct": 89.65133118640132
+        "largura_ic95": 1578.1027650390645,
+        "vies_previsto_sobre_real_pct": 89.65140268468392
       },
       "7": {
         "n": 351,
-        "mae": 320.3883819508737,
-        "rmse": 518.0422646455386,
-        "mase": 0.6326863285961908,
-        "mae_relativo_naive": 0.616760902643453,
+        "mae": 320.3889566961344,
+        "rmse": 518.0428557663978,
+        "mase": 0.6326874157714705,
+        "mae_relativo_naive": 0.6167620090518803,
         "cobertura_ic95_pct": 94.01709401709401,
-        "largura_ic95": 1579.8957803640537,
-        "vies_previsto_sobre_real_pct": 89.60569848491575
+        "largura_ic95": 1579.896938660091,
+        "vies_previsto_sobre_real_pct": 89.60575346627174
       },
       "8": {
         "n": 351,
-        "mae": 320.402614999325,
-        "rmse": 516.7934625378656,
-        "mase": 0.6329304911646284,
-        "mae_relativo_naive": 0.6350853366283467,
+        "mae": 320.40122270294677,
+        "rmse": 516.7891504249442,
+        "mase": 0.6329277325484877,
+        "mae_relativo_naive": 0.6350825768911514,
         "cobertura_ic95_pct": 94.01709401709401,
-        "largura_ic95": 1580.2427706338678,
-        "vies_previsto_sobre_real_pct": 89.50247681695537
+        "largura_ic95": 1580.2458545826462,
+        "vies_previsto_sobre_real_pct": 89.50258500607413
       },
       "9": {
         "n": 351,
-        "mae": 320.5067608757079,
-        "rmse": 517.314065775826,
-        "mase": 0.6330113363165103,
-        "mae_relativo_naive": 0.6351626423546284,
+        "mae": 320.5069535755609,
+        "rmse": 517.3139955896381,
+        "mase": 0.6330117165472213,
+        "mae_relativo_naive": 0.6351630242365814,
         "cobertura_ic95_pct": 94.01709401709401,
-        "largura_ic95": 1590.0464767833573,
-        "vies_previsto_sobre_real_pct": 89.5560285029266
+        "largura_ic95": 1590.0484141387722,
+        "vies_previsto_sobre_real_pct": 89.55608797858798
       },
       "10": {
         "n": 351,
-        "mae": 319.50793406306803,
-        "rmse": 515.6882067882389,
-        "mase": 0.6310252415522786,
-        "mae_relativo_naive": 0.6359508387390191,
+        "mae": 319.50907341599407,
+        "rmse": 515.6882531854343,
+        "mase": 0.6310274818552924,
+        "mae_relativo_naive": 0.6359531065150951,
         "cobertura_ic95_pct": 94.30199430199431,
-        "largura_ic95": 1593.8291982729127,
-        "vies_previsto_sobre_real_pct": 89.87935827389086
+        "largura_ic95": 1593.8281818096682,
+        "vies_previsto_sobre_real_pct": 89.8793113649989
       },
       "11": {
         "n": 351,
-        "mae": 320.1935316586263,
-        "rmse": 518.331447218989,
-        "mase": 0.6323950570667276,
-        "mae_relativo_naive": 0.6378860773856951,
+        "mae": 320.19424476513194,
+        "rmse": 518.3315527695968,
+        "mase": 0.63239645383416,
+        "mae_relativo_naive": 0.6378874980287335,
         "cobertura_ic95_pct": 94.01709401709401,
-        "largura_ic95": 1597.0026570358848,
-        "vies_previsto_sobre_real_pct": 89.99333013640293
+        "largura_ic95": 1597.0002561863612,
+        "vies_previsto_sobre_real_pct": 89.99318284201111
       },
       "12": {
         "n": 351,
-        "mae": 319.7885241742308,
-        "rmse": 518.745984410541,
-        "mase": 0.6316159494576021,
-        "mae_relativo_naive": 0.6360809949755643,
+        "mae": 319.786964435316,
+        "rmse": 518.74609654802,
+        "mase": 0.6316128717911478,
+        "mae_relativo_naive": 0.6360778925494113,
         "cobertura_ic95_pct": 93.44729344729345,
-        "largura_ic95": 1602.0162505156732,
-        "vies_previsto_sobre_real_pct": 89.96379079282893
+        "largura_ic95": 1602.0186598902308,
+        "vies_previsto_sobre_real_pct": 89.96388065005189
       },
       "13": {
         "n": 351,
-        "mae": 324.094920943387,
-        "rmse": 527.6349751769889,
-        "mase": 0.6398802777078038,
-        "mae_relativo_naive": 0.6382031803370934,
+        "mae": 324.0937481309037,
+        "rmse": 527.6349848958279,
+        "mase": 0.6398779508629142,
+        "mae_relativo_naive": 0.638200870851173,
         "cobertura_ic95_pct": 93.44729344729345,
-        "largura_ic95": 1607.2957588555987,
-        "vies_previsto_sobre_real_pct": 89.53894339702735
+        "largura_ic95": 1607.2978978592269,
+        "vies_previsto_sobre_real_pct": 89.53899481779197
       },
       "14": {
         "n": 351,
-        "mae": 322.78279536593647,
-        "rmse": 526.8079255463634,
-        "mase": 0.6372447701035557,
-        "mae_relativo_naive": 0.6359235047663561,
+        "mae": 322.7826144785875,
+        "rmse": 526.8080356221672,
+        "mase": 0.6372444222884555,
+        "mae_relativo_naive": 0.6359231483950792,
         "cobertura_ic95_pct": 93.44729344729345,
-        "largura_ic95": 1609.3925706331845,
-        "vies_previsto_sobre_real_pct": 89.49208646756406
+        "largura_ic95": 1609.3950294789552,
+        "vies_previsto_sobre_real_pct": 89.4921454071141
       }
     },
     "total_com_encomendas_conhecidas": {
       "geral_todos_horizontes": {
         "n": 4914,
-        "mae": 318.9522286850462,
-        "rmse": 518.034113999695,
-        "mase": 0.19364770387293265,
-        "mae_relativo_naive": 0.10079616681167101,
+        "mae": 318.9519273239095,
+        "rmse": 518.033654716762,
+        "mase": 0.19364754604584802,
+        "mae_relativo_naive": 0.10079607157468982,
         "cobertura_ic95_pct": 93.73219373219374,
-        "largura_ic95": 1581.5535332330678,
-        "vies_previsto_sobre_real_pct": 96.16198859092462
+        "largura_ic95": 1581.5541923769215,
+        "vies_previsto_sobre_real_pct": 96.16199758901577
       },
       "operacional_h1": {
         "n": 351,
-        "mae": 312.1899723112907,
-        "rmse": 513.4481182340818,
-        "mase": 0.18936978345702288,
-        "mae_relativo_naive": 0.10177152315202617,
+        "mae": 312.1887368302771,
+        "rmse": 513.4466730142799,
+        "mase": 0.18936899975091104,
+        "mae_relativo_naive": 0.10177112039474459,
         "cobertura_ic95_pct": 93.73219373219374,
-        "largura_ic95": 1546.9186377108144,
-        "vies_previsto_sobre_real_pct": 96.11164482940967
+        "largura_ic95": 1546.921447978286,
+        "vies_previsto_sobre_real_pct": 96.11170515646582
       }
     }
   },
   "arquivos": {
-    "previsoes": "/home/dev/TCC---Inventory-Forecasting/ia-predictor/training_scripts/results/metrics/itabirito_fluxo_log1p_previsoes.csv",
-    "operacional": "/home/dev/TCC---Inventory-Forecasting/ia-predictor/training_scripts/results/metrics/itabirito_fluxo_log1p_operacional.csv"
+    "previsoes": "C:\\Users\\felip\\OneDrive\\Documentos\\Estudos\\TCC\\TCC---Inventory-Forecasting\\ia-predictor\\training_scripts\\results\\metrics\\itabirito_fluxo_log1p_previsoes.csv",
+    "operacional": "C:\\Users\\felip\\OneDrive\\Documentos\\Estudos\\TCC\\TCC---Inventory-Forecasting\\ia-predictor\\training_scripts\\results\\metrics\\itabirito_fluxo_log1p_operacional.csv"
   }
 }

@@ -1,437 +1,246 @@
-import { useState, useMemo } from "react";
-import {
-  ChevronLeft,
-  ChevronRight,
-  Search,
-  X,
-  SlidersHorizontal,
-} from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "../ui/card";
+import { useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight, Copy, FileSpreadsheet, Rows3, Search, ShieldCheck, X } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "../ui/table";
-import {
-  tabelaPreVisualizacao,
-  produtos,
-  unidades,
-} from "../../data/mockData";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
+import type { RegistroVenda } from "@/domain/types";
+import { CORES_CATEGORIA, categorias, dados, nomeUnidade, unidades } from "../../data/mockData";
+import { Kpi, MarcaCategoria, Segmentado } from "../shared";
+import { formatarData, formatarMesAno, formatarMoeda, formatarNumero, formatarPercentual, formatarQtd } from "@/lib/format";
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 15;
 
-const filtrosVazios = {
-  busca: "",
-  produto: "todos",
-  unidade: "todos",
-};
+type FiltroCat = RegistroVenda["categoria"] | "todas";
+type FiltroLojaReg = RegistroVenda["unidade"] | "todas";
+
+const NOME_CATEGORIA: Record<RegistroVenda["categoria"], string> = {
+  ...(Object.fromEntries(categorias.map((c) => [c.id, c.nome])) as Record<string, string>),
+  "flores-de-corte": "Flores de corte",
+} as Record<RegistroVenda["categoria"], string>;
 
 export function PreVisualizacao() {
-  const [filtros, setFiltros] = useState(filtrosVazios);
+  const [busca, setBusca] = useState("");
+  const [loja, setLoja] = useState<FiltroLojaReg>("todas");
+  const [categoria, setCategoria] = useState<FiltroCat>("todas");
   const [pagina, setPagina] = useState(1);
 
-  const setFiltro = (
-    campo: keyof typeof filtrosVazios,
-    valor: string,
-  ) => {
-    setFiltros((prev) => ({ ...prev, [campo]: valor }));
-    setPagina(1);
-  };
-
-  const limparFiltros = () => {
-    setFiltros(filtrosVazios);
-    setPagina(1);
-  };
-
-  const filtrosAtivos =
-    filtros.busca !== "" ||
-    filtros.produto !== "todos" ||
-    filtros.unidade !== "todos";
+  const registros = dados.registros_amostra;
+  const imp = dados.importacao;
 
   const filtrados = useMemo(() => {
-    const nomeProduto = produtos.find(
-      (p) => p.id === filtros.produto,
-    )?.nome;
-    const nomeUnidade = unidades.find(
-      (u) => u.id === filtros.unidade,
-    )?.nome;
+    const termo = busca.trim().toLowerCase();
+    return registros.filter(
+      (r) =>
+        (loja === "todas" || r.unidade === loja) &&
+        (categoria === "todas" || r.categoria === categoria) &&
+        (!termo || r.produto.toLowerCase().includes(termo) || r.codigo.includes(termo) || r.documento.includes(termo)),
+    );
+  }, [registros, busca, loja, categoria]);
 
-    return tabelaPreVisualizacao.filter((r) => {
-      const matchBusca =
-        filtros.busca === "" ||
-        r.produto
-          .toLowerCase()
-          .includes(filtros.busca.toLowerCase()) ||
-        r.unidade
-          .toLowerCase()
-          .includes(filtros.busca.toLowerCase()) ||
-        r.data.includes(filtros.busca);
-      const matchProduto =
-        filtros.produto === "todos" ||
-        r.produto === nomeProduto;
-      const matchUnidade =
-        filtros.unidade === "todos" ||
-        r.unidade === nomeUnidade;
-      return matchBusca && matchProduto && matchUnidade;
-    });
-  }, [filtros]);
+  const totalPaginas = Math.max(1, Math.ceil(filtrados.length / PAGE_SIZE));
+  const paginaAtual = Math.min(pagina, totalPaginas);
+  const paginados = filtrados.slice((paginaAtual - 1) * PAGE_SIZE, paginaAtual * PAGE_SIZE);
+  const filtrosAtivos = busca !== "" || loja !== "todas" || categoria !== "todas";
 
-  const totalPaginas = Math.ceil(filtrados.length / PAGE_SIZE);
-  const paginaAtual = Math.min(
-    pagina,
-    Math.max(1, totalPaginas),
-  );
-  const paginados = filtrados.slice(
-    (paginaAtual - 1) * PAGE_SIZE,
-    paginaAtual * PAGE_SIZE,
-  );
-
-  const inicio =
-    filtrados.length === 0
-      ? 0
-      : (paginaAtual - 1) * PAGE_SIZE + 1;
-  const fim = Math.min(
-    paginaAtual * PAGE_SIZE,
-    filtrados.length,
-  );
+  const mudar = <T,>(set: (v: T) => void) => (v: T) => {
+    set(v);
+    setPagina(1);
+  };
 
   return (
     <div className="p-6 flex flex-col gap-5">
-      {/* Summary cards */}
-      <div className="grid grid-cols-3 gap-4">
-        {[
-          {
-            label: "Total de registros",
-            value: tabelaPreVisualizacao.length,
-          },
-          { label: "Produtos", value: produtos.length },
-          { label: "Unidades", value: unidades.length },
-        ].map((stat) => (
-          <Card
-            key={stat.label}
-            className="border"
-            style={{ borderColor: "var(--border)" }}
-          >
-            <CardContent className="p-5">
-              <p
-                className="text-2xl"
-                style={{
-                  color: "var(--foreground)",
-                  fontWeight: 700,
-                  lineHeight: 1,
-                }}
-              >
-                {stat.value}
-              </p>
-              <p
-                className="text-sm mt-1"
-                style={{ color: "var(--muted-foreground)" }}
-              >
-                {stat.label}
-              </p>
-            </CardContent>
-          </Card>
-        ))}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <Kpi icone={FileSpreadsheet} rotulo="Planilhas carregadas" valor={imp.arquivos.length}
+          detalhe={`${formatarMesAno(imp.arquivos[0]!.competencia)} a ${formatarMesAno(imp.arquivos[imp.arquivos.length - 1]!.competencia)} · uma por mês`} />
+        <Kpi icone={Rows3} rotulo="Linhas de venda lidas" valor={formatarNumero(imp.qualidade.linhas_lidas)}
+          detalhe={`${formatarNumero(dados.base.linhas)} usadas na previsão (fretes e serviços ficam de fora)`} />
+        <Kpi icone={Copy} rotulo="Duplicatas encontradas" valor={imp.qualidade.duplicatas}
+          detalhe="Cada planilha tem uma assinatura: carregar a mesma de novo não duplica vendas" />
+        <Kpi icone={ShieldCheck} rotulo="Linhas com problema" valor={imp.qualidade.linhas_removidas}
+          detalhe={`${imp.qualidade.clientes_sem_nome_corrigidos} vendas sem nome de cliente foram ajustadas`} />
       </div>
 
-      {/* Table card */}
-      <Card
-        className="border"
-        style={{ borderColor: "var(--border)" }}
-      >
-        {/* Card header */}
-        <CardHeader className="pb-0 pt-5 px-5">
-          <div className="flex items-center justify-between">
-            <CardTitle
-              className="text-sm"
-              style={{
-                color: "var(--foreground)",
-                fontWeight: 600,
-              }}
-            >
-              Dados do arquivo enviado
+      {/* Volume por loja e categoria */}
+      <Card className="border" style={{ borderColor: "var(--border)" }}>
+        <CardHeader className="pb-2 pt-4 px-5">
+          <CardTitle className="text-sm" style={{ fontWeight: 600 }}>
+            O que está na base · {formatarData(dados.base.inicio)} a {formatarData(dados.base.fim)}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="px-0 pb-2 overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow style={{ background: "var(--muted)" }}>
+                <TableHead className="text-xs pl-5">Loja</TableHead>
+                <TableHead className="text-xs text-right">Linhas de venda</TableHead>
+                <TableHead className="text-xs text-right">Produtos diferentes</TableHead>
+                {categorias.map((c) => (
+                  <TableHead key={c.id} className="text-xs text-right">
+                    <span className="inline-flex items-center gap-1.5">
+                      <MarcaCategoria id={c.id} tamanho={8} /> {c.nome}
+                    </span>
+                  </TableHead>
+                ))}
+                <TableHead className="text-xs text-right pr-5">Flores de corte</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {unidades.map((u) => {
+                const total = u.volume_total + u.volume_flores_de_corte;
+                return (
+                  <TableRow key={u.id}>
+                    <TableCell className="text-xs pl-5" style={{ fontWeight: 600 }}>
+                      {u.nome} <span style={{ color: "var(--muted-foreground)", fontWeight: 400 }}>· {u.cidade}</span>
+                    </TableCell>
+                    <TableCell className="text-xs text-right">{formatarNumero(u.linhas)}</TableCell>
+                    <TableCell className="text-xs text-right">{formatarNumero(u.skus_vendidos)}</TableCell>
+                    {categorias.map((c) => (
+                      <TableCell key={c.id} className="text-xs text-right">
+                        {formatarNumero(u.volume_por_categoria[c.id])}{" "}
+                        <span style={{ color: "var(--muted-foreground)" }}>({formatarPercentual(u.volume_por_categoria[c.id] / total)})</span>
+                      </TableCell>
+                    ))}
+                    <TableCell className="text-xs text-right pr-5" style={{ color: "var(--muted-foreground)" }}>
+                      {formatarNumero(u.volume_flores_de_corte)} ({formatarPercentual(u.volume_flores_de_corte / total)})
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+          <p className="text-xs px-5 pt-2" style={{ color: "var(--muted-foreground)" }}>
+            Quantidades somadas na unidade de venda de cada produto (m², bandeja, saco, unidade). Flores de corte entram na
+            previsão da loja, mas não têm painel próprio.
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Registros */}
+      <Card className="border" style={{ borderColor: "var(--border)" }}>
+        <CardHeader className="pb-3 pt-4 px-5 flex flex-col gap-3">
+          <div>
+            <CardTitle className="text-sm" style={{ fontWeight: 600 }}>
+              Últimas vendas registradas
             </CardTitle>
+            <p className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>
+              Os 2 últimos dias com venda em cada loja, como vieram da planilha. O nome do cliente não é exibido.
+            </p>
+          </div>
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="relative">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: "var(--muted-foreground)" }} />
+              <Input
+                value={busca}
+                onChange={(e) => mudar(setBusca)(e.target.value)}
+                placeholder="Produto, código ou nota"
+                className="h-8 text-xs pl-8 w-56"
+              />
+            </div>
+            <Segmentado
+              rotulo="Loja"
+              opcoes={[{ valor: "todas" as FiltroLojaReg, label: "Todas" }, ...unidades.map((u) => ({ valor: u.id as FiltroLojaReg, label: u.nome }))]}
+              valor={loja}
+              onChange={mudar(setLoja)}
+            />
+            <Segmentado
+              rotulo="Categoria"
+              opcoes={[
+                { valor: "todas" as FiltroCat, label: "Todas" },
+                ...categorias.map((c) => ({ valor: c.id as FiltroCat, label: c.nome })),
+                { valor: "flores-de-corte" as FiltroCat, label: "Flores de corte" },
+              ]}
+              valor={categoria}
+              onChange={mudar(setCategoria)}
+            />
             {filtrosAtivos && (
-              <button
-                onClick={limparFiltros}
-                className="flex items-center gap-1 text-xs"
-                style={{ color: "var(--muted-foreground)" }}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1 text-xs"
+                onClick={() => {
+                  setBusca("");
+                  setLoja("todas");
+                  setCategoria("todas");
+                  setPagina(1);
+                }}
               >
-                <X size={12} />
-                Limpar filtros
-              </button>
+                <X size={12} /> Limpar
+              </Button>
             )}
           </div>
         </CardHeader>
-
-        {/* Filter bar */}
-        <div
-          className="mx-5 mt-4 mb-1 p-3 rounded-lg flex items-center gap-3 flex-wrap"
-          style={{
-            background: "var(--muted)",
-            border: "1px solid var(--border)",
-          }}
-        >
-          <SlidersHorizontal
-            size={14}
-            style={{
-              color: "var(--muted-foreground)",
-              flexShrink: 0,
-            }}
-          />
-
-          {/* Free text search */}
-          <div className="relative flex-1 min-w-48">
-            <Search
-              size={13}
-              className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
-              style={{ color: "var(--muted-foreground)" }}
-            />
-            <Input
-              value={filtros.busca}
-              onChange={(e) =>
-                setFiltro("busca", e.target.value)
-              }
-              placeholder="Buscar por produto, unidade ou data…"
-              className="h-8 pl-8 text-xs bg-white"
-              style={{ borderColor: "var(--border)" }}
-            />
-          </div>
-
-          {/* Divider */}
-          <div
-            className="w-px h-5"
-            style={{ background: "var(--border)" }}
-          />
-
-          {/* Product select */}
-          <div className="flex items-center gap-2">
-            <span
-              className="text-xs whitespace-nowrap"
-              style={{ color: "var(--muted-foreground)" }}
-            >
-              Produto
-            </span>
-            <Select
-              value={filtros.produto}
-              onValueChange={(v) => setFiltro("produto", v)}
-            >
-              <SelectTrigger
-                className="h-8 text-xs w-44 bg-white"
-                style={{ borderColor: "var(--border)" }}
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos</SelectItem>
-                {produtos.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Unit select */}
-          <div className="flex items-center gap-2">
-            <span
-              className="text-xs whitespace-nowrap"
-              style={{ color: "var(--muted-foreground)" }}
-            >
-              Unidade
-            </span>
-            <Select
-              value={filtros.unidade}
-              onValueChange={(v) => setFiltro("unidade", v)}
-            >
-              <SelectTrigger
-                className="h-8 text-xs w-36 bg-white"
-                style={{ borderColor: "var(--border)" }}
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todas</SelectItem>
-                {unidades.map((u) => (
-                  <SelectItem key={u.id} value={u.id}>
-                    {u.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <CardContent className="px-0 pb-0 mt-3">
-          {filtrados.length === 0 ? (
-            <div
-              className="flex flex-col items-center justify-center py-16 gap-2"
-              style={{ color: "var(--muted-foreground)" }}
-            >
-              <Search size={24} strokeWidth={1.5} />
-              <p className="text-sm">
-                Nenhum registro encontrado.
-              </p>
-              {filtrosAtivos && (
-                <button
-                  onClick={limparFiltros}
-                  className="text-xs underline underline-offset-2 mt-1"
-                  style={{ color: "var(--muted-foreground)" }}
-                >
-                  Limpar filtros
-                </button>
+        <CardContent className="px-0 pb-0 overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow style={{ background: "var(--muted)" }}>
+                <TableHead className="text-xs pl-5">Data</TableHead>
+                <TableHead className="text-xs">Loja</TableHead>
+                <TableHead className="text-xs">Nota</TableHead>
+                <TableHead className="text-xs">Produto</TableHead>
+                <TableHead className="text-xs">Categoria</TableHead>
+                <TableHead className="text-xs text-right">Qtd.</TableHead>
+                <TableHead className="text-xs text-right">Valor</TableHead>
+                <TableHead className="text-xs pr-5">Cliente</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {paginados.map((r, i) => (
+                <TableRow key={`${r.documento}-${r.codigo}-${i}`}>
+                  <TableCell className="text-xs pl-5 whitespace-nowrap">{formatarData(r.data)}</TableCell>
+                  <TableCell className="text-xs whitespace-nowrap">{nomeUnidade(r.unidade)}</TableCell>
+                  <TableCell className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                    {r.documento}
+                  </TableCell>
+                  <TableCell className="text-xs">
+                    <span style={{ fontWeight: 500 }}>{r.produto}</span>
+                    <span className="ml-2" style={{ color: "var(--muted-foreground)" }}>
+                      {r.codigo}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-xs whitespace-nowrap">
+                    <span className="inline-flex items-center gap-1.5">
+                      <span
+                        className="inline-block w-2 h-2 rounded-sm"
+                        style={{ background: r.categoria === "flores-de-corte" ? "#c0c8c2" : CORES_CATEGORIA[r.categoria] }}
+                      />
+                      {NOME_CATEGORIA[r.categoria]}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-xs text-right">{formatarQtd(r.quantidade)}</TableCell>
+                  <TableCell className="text-xs text-right whitespace-nowrap">{formatarMoeda(r.valor)}</TableCell>
+                  <TableCell className="text-xs pr-5" style={{ color: "var(--muted-foreground)" }}>
+                    {r.tipo_cliente}
+                  </TableCell>
+                </TableRow>
+              ))}
+              {paginados.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-xs text-center py-8" style={{ color: "var(--muted-foreground)" }}>
+                    Nenhuma venda encontrada com esses filtros.
+                  </TableCell>
+                </TableRow>
               )}
+            </TableBody>
+          </Table>
+          <div className="flex items-center justify-between px-5 py-3 border-t text-xs" style={{ borderColor: "var(--border)", color: "var(--muted-foreground)" }}>
+            <span>
+              {filtrados.length === 0
+                ? "0 registros"
+                : `${formatarNumero((paginaAtual - 1) * PAGE_SIZE + 1)}–${formatarNumero(Math.min(paginaAtual * PAGE_SIZE, filtrados.length))} de ${formatarNumero(filtrados.length)} registros`}
+            </span>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" className="h-7 w-7 p-0" disabled={paginaAtual <= 1} onClick={() => setPagina(paginaAtual - 1)} aria-label="Página anterior">
+                <ChevronLeft size={14} />
+              </Button>
+              <span>
+                Página {paginaAtual} de {totalPaginas}
+              </span>
+              <Button variant="outline" size="sm" className="h-7 w-7 p-0" disabled={paginaAtual >= totalPaginas} onClick={() => setPagina(paginaAtual + 1)} aria-label="Próxima página">
+                <ChevronRight size={14} />
+              </Button>
             </div>
-          ) : (
-            <>
-              <Table>
-                <TableHeader>
-                  <TableRow
-                    style={{ background: "var(--muted)" }}
-                  >
-                    <TableHead className="text-xs pl-5">
-                      Data
-                    </TableHead>
-                    <TableHead className="text-xs">
-                      Produto
-                    </TableHead>
-                    <TableHead className="text-xs">
-                      Unidade
-                    </TableHead>
-                    <TableHead className="text-xs text-right pr-5">
-                      Quantidade
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginados.map((row) => (
-                    <TableRow key={row.id}>
-                      <TableCell
-                        className="text-xs pl-5"
-                        style={{
-                          color: "var(--muted-foreground)",
-                        }}
-                      >
-                        {row.data}
-                      </TableCell>
-                      <TableCell
-                        className="text-xs"
-                        style={{
-                          color: "var(--foreground)",
-                          fontWeight: 500,
-                        }}
-                      >
-                        {row.produto}
-                      </TableCell>
-                      <TableCell
-                        className="text-xs"
-                        style={{
-                          color: "var(--muted-foreground)",
-                        }}
-                      >
-                        {row.unidade}
-                      </TableCell>
-                      <TableCell
-                        className="text-xs text-right pr-5 tabular-nums"
-                        style={{
-                          color: "var(--foreground)",
-                          fontWeight: 500,
-                        }}
-                      >
-                        {row.quantidade.toLocaleString("pt-BR")}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-
-              {/* Pagination */}
-              <div
-                className="flex items-center justify-between px-5 py-3 border-t"
-                style={{ borderColor: "var(--border)" }}
-              >
-                <span
-                  className="text-xs"
-                  style={{ color: "var(--muted-foreground)" }}
-                >
-                  {filtrosAtivos
-                    ? `${filtrados.length} de ${tabelaPreVisualizacao.length} registros`
-                    : `${filtrados.length} registros`}
-                  {filtrados.length > 0 &&
-                    ` · mostrando ${inicio}–${fim}`}
-                </span>
-
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 w-7 p-0"
-                    disabled={paginaAtual === 1}
-                    onClick={() => setPagina(1)}
-                    title="Primeira página"
-                  >
-                    <ChevronLeft size={14} className="-mr-1" />
-                    <ChevronLeft size={14} className="-ml-1" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 w-7 p-0"
-                    disabled={paginaAtual === 1}
-                    onClick={() => setPagina((p) => p - 1)}
-                  >
-                    <ChevronLeft size={14} />
-                  </Button>
-
-                  <span
-                    className="text-xs px-2"
-                    style={{ color: "var(--foreground)" }}
-                  >
-                    {paginaAtual} / {totalPaginas || 1}
-                  </span>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 w-7 p-0"
-                    disabled={paginaAtual >= totalPaginas}
-                    onClick={() => setPagina((p) => p + 1)}
-                  >
-                    <ChevronRight size={14} />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 w-7 p-0"
-                    disabled={paginaAtual >= totalPaginas}
-                    onClick={() => setPagina(totalPaginas)}
-                    title="Última página"
-                  >
-                    <ChevronRight size={14} className="-mr-1" />
-                    <ChevronRight size={14} className="-ml-1" />
-                  </Button>
-                </div>
-              </div>
-            </>
-          )}
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -1,10 +1,12 @@
+import { dados } from "../../data/mockData";
+import { formatarData } from "@/lib/format";
 import { NavLink } from "react-router";
 import {
   LayoutDashboard,
   Upload,
   Table2,
   TrendingUp,
-  FlaskConical,
+  ShieldCheck,
   FileDown,
   Flower2,
 } from "lucide-react";
@@ -20,17 +22,17 @@ const navItems = [
   {
     to: "/previsao",
     icon: TrendingUp,
-    label: "Previsão de Compras",
+    label: "Previsão de Vendas",
   },
   {
-    to: "/simulador",
-    icon: FlaskConical,
-    label: "Simular Promoções",
+    to: "/acerto",
+    icon: ShieldCheck,
+    label: "Acerto das Previsões",
   },
   {
     to: "/exportar",
     icon: FileDown,
-    label: "Baixar Relatórios",
+    label: "Relatórios",
   },
 ];
 
@@ -102,7 +104,9 @@ export function Sidebar() {
           color: "rgba(232,245,224,0.4)",
         }}
       >
-        v2.4.1 · Floricultura SA
+        Dados até {formatarData(dados.base.fim)}
+        <br />
+        Jardim Canadá · Itabirito
       </div>
     </aside>
   );

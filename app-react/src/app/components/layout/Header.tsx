@@ -3,12 +3,12 @@ import { Bell, User, RefreshCw } from "lucide-react";
 import { Button } from "../ui/button";
 
 const routeTitles: Record<string, { title: string; subtitle: string }> = {
-  "/": { title: "Início", subtitle: "Resumo geral das vendas e previsões de hoje" },
-  "/importar": { title: "Carregar Planilha de Vendas", subtitle: "Envie os dados de vendas para atualizar as previsões" },
-  "/pre-visualizacao": { title: "Conferir Dados Enviados", subtitle: "Verifique se os dados estão corretos antes de calcular" },
-  "/previsao": { title: "Previsão de Compras", subtitle: "Veja quanto comprar de cada produto nas próximas semanas" },
-  "/simulador": { title: "Simular Promoções", subtitle: "Veja o impacto estimado de descontos e ofertas especiais" },
-  "/exportar": { title: "Baixar Relatórios", subtitle: "Gere e salve relatórios em PDF ou Excel" },
+  "/": { title: "Início", subtitle: "Resumo da previsão de vendas dos próximos 14 dias" },
+  "/importar": { title: "Carregar Planilha de Vendas", subtitle: "Envie o relatório mensal de vendas para atualizar as previsões" },
+  "/pre-visualizacao": { title: "Conferir Dados", subtitle: "Veja o que foi carregado antes de confiar na previsão" },
+  "/previsao": { title: "Previsão de Vendas", subtitle: "Quanto cada loja, categoria e produto deve vender por dia, nos próximos 14 dias" },
+  "/acerto": { title: "Acerto das Previsões", subtitle: "Como a previsão se saiu quando testada contra vendas que já aconteceram" },
+  "/exportar": { title: "Relatórios", subtitle: "Escolha, confira a prévia e baixe em Excel, CSV ou PDF" },
 };
 
 export function Header() {

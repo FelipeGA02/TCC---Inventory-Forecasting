@@ -164,15 +164,26 @@ def origens(y: pd.Series) -> list[pd.Timestamp]:
     return list(pd.date_range(PRIMEIRA_ORIGEM, ultima, freq=f"{PASSO_ORIGEM}D"))
 
 
+def janela_de_treino(serie: pd.Series, origem: pd.Timestamp, janela_dias: int | None) -> pd.Series:
+    """Dados de treino de uma origem.
+
+    `janela_dias=None` -> janela EXPANSIVA: tudo antes da origem (o treino cresce a cada
+    rodada). Com um inteiro -> janela DESLIZANTE: so os ultimos `janela_dias` dias antes da
+    origem (o inicio anda junto com a origem e o tamanho fica fixo).
+    """
+    treino = serie[serie.index < origem]
+    return treino if janela_dias is None else treino.iloc[-janela_dias:]
+
+
 def walk_forward(y: pd.Series, X: pd.DataFrame, ordem: dict, usar_log1p: bool,
-                 verbose: bool = True) -> pd.DataFrame:
+                 verbose: bool = True, janela_dias: int | None = None) -> pd.DataFrame:
     """Uma linha por (origem, data prevista). Reajusta o modelo em cada origem."""
     linhas, falhas = [], 0
     lista_origens = origens(y)
     t0 = time.time()
 
     for n, origem in enumerate(lista_origens, start=1):
-        treino = y[y.index < origem]
+        treino = janela_de_treino(y, origem, janela_dias)
         futuro = pd.date_range(origem, periods=HORIZONTE, freq="D")
         z = transformar(treino, usar_log1p)
 
@@ -247,8 +258,11 @@ def metricas(prev: pd.DataFrame) -> dict:
 # Execucao
 # --------------------------------------------------------------------------- #
 def executar(nome: str, usar_log1p: bool, base_csv: str = BASE_ITABIRITO,
-             encomendas_csv: str | None = None) -> dict:
+             encomendas_csv: str | None = None, janela_dias: int | None = None) -> dict:
     """Roda um experimento completo.
+
+    `janela_dias=None` usa janela expansiva (padrao dos treinos A-D); um inteiro usa janela
+    deslizante desse tamanho (ver `janela_de_treino`).
 
     `base_csv` e o alvo do SARIMAX: a venda total (padrao) ou so o fluxo diario, quando as
     encomendas foram separadas pela Etapa 6 (ADR-013).
@@ -270,7 +284,8 @@ def executar(nome: str, usar_log1p: bool, base_csv: str = BASE_ITABIRITO,
     print(f"[serie] {y.index.min().date()} -> {y.index.max().date()} · {len(y)} dias · "
           f"CV {y.std() / y.mean():.2f}", flush=True)
     print(f"[walk-forward] {len(lista_origens)} origens ({lista_origens[0].date()} -> "
-          f"{lista_origens[-1].date()}) · h={HORIZONTE} · passo={PASSO_ORIGEM}d", flush=True)
+          f"{lista_origens[-1].date()}) · h={HORIZONTE} · passo={PASSO_ORIGEM}d · janela "
+          f"{'expansiva' if janela_dias is None else f'deslizante de {janela_dias} dias'}", flush=True)
 
     # Selecao de ordem: so com dados anteriores a 1a origem (sem vazamento).
     pre = y[y.index < PRIMEIRA_ORIGEM]
@@ -282,7 +297,7 @@ def executar(nome: str, usar_log1p: bool, base_csv: str = BASE_ITABIRITO,
     print(f"[ordem] (diagnostico) a escala log1p teria escolhido "
           f"{ordem_log['order']}{ordem_log['seasonal_order']}", flush=True)
 
-    prev = walk_forward(y, X, ordem, usar_log1p)
+    prev = walk_forward(y, X, ordem, usar_log1p, janela_dias=janela_dias)
     met = metricas(prev)
 
     # Bloco extra: previsao do fluxo + encomendas conhecidas, contra a venda total.
@@ -297,7 +312,7 @@ def executar(nome: str, usar_log1p: bool, base_csv: str = BASE_ITABIRITO,
         # A naive e a escala do MASE passam a ser as do total, para bater com o novo alvo.
         naive_por_origem, escala_por_origem = {}, {}
         for origem in prev["origem"].unique():
-            tr = total[total.index < origem]
+            tr = janela_de_treino(total, origem, janela_dias)
             ult7 = tr.values[-M:]
             naive_por_origem[origem] = {h: ult7[(h - 1) % M] for h in range(1, HORIZONTE + 1)}
             escala_por_origem[origem] = float(np.mean(np.abs(tr.values[M:] - tr.values[:-M])))
@@ -328,6 +343,8 @@ def executar(nome: str, usar_log1p: bool, base_csv: str = BASE_ITABIRITO,
             "m": M, "d": D_REGULAR, "D": D_SAZONAL,
             "grid_pq": [min(GRID_PQ), max(GRID_PQ)], "grid_PQ": [min(GRID_SPQ), max(GRID_SPQ)],
             "horizonte_dias": HORIZONTE, "passo_origem_dias": PASSO_ORIGEM,
+            "janela": "expansiva" if janela_dias is None else "deslizante",
+            "janela_dias": janela_dias,
             "primeira_origem": str(PRIMEIRA_ORIGEM.date()),
             "n_origens": len(lista_origens),
             "exogenas": COLS_EXOG,

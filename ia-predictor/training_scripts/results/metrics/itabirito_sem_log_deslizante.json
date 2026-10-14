@@ -1,0 +1,236 @@
+{
+  "nome": "itabirito_sem_log_deslizante",
+  "usar_log1p": false,
+  "unidade": "Itabirito",
+  "gerado_em": "2026-10-13T23:19:00",
+  "config": {
+    "base_csv": "C:\\Users\\felip\\OneDrive\\Documentos\\Estudos\\TCC\\TCC---Inventory-Forecasting\\ia-predictor\\training_scripts\\output\\BaseTreino_itabirito.csv",
+    "encomendas_separadas": false,
+    "encomendas_csv": null,
+    "m": 7,
+    "d": 1,
+    "D": 0,
+    "grid_pq": [
+      0,
+      2
+    ],
+    "grid_PQ": [
+      0,
+      1
+    ],
+    "horizonte_dias": 14,
+    "passo_origem_dias": 1,
+    "janela": "deslizante",
+    "janela_dias": 425,
+    "primeira_origem": "2025-03-02",
+    "n_origens": 351,
+    "exogenas": [
+      "dia_seg",
+      "dia_ter",
+      "dia_qua",
+      "dia_qui",
+      "dia_sex",
+      "dia_sab",
+      "loja_fechada",
+      "abertura_excepcional"
+    ],
+    "alpha_ic": 0.05,
+    "ordem_usada": {
+      "order": [
+        0,
+        1,
+        2
+      ],
+      "seasonal_order": [
+        0,
+        0,
+        1,
+        7
+      ],
+      "aic_na_serie_crua": 7555.426613054073,
+      "selecionada_em": "serie crua, dados < primeira_origem"
+    },
+    "ordem_que_log1p_escolheria": {
+      "order": [
+        0,
+        1,
+        1
+      ],
+      "seasonal_order": [
+        0,
+        0,
+        1,
+        7
+      ],
+      "aic": 860.8627245943096
+    }
+  },
+  "metricas": {
+    "geral_todos_horizontes": {
+      "n": 4914,
+      "mae": 2729.9706811780493,
+      "rmse": 5942.508002129613,
+      "mase": 1.3580585127154046,
+      "mae_relativo_naive": 0.8627328967270356,
+      "cobertura_ic95_pct": 92.67399267399267,
+      "largura_ic95": 9309.186198688985,
+      "vies_previsto_sobre_real_pct": 98.46688809041298
+    },
+    "operacional_h1": {
+      "n": 351,
+      "mae": 2743.69122499234,
+      "rmse": 6004.936932528233,
+      "mase": 1.3528622566882582,
+      "mae_relativo_naive": 0.8944221781341959,
+      "cobertura_ic95_pct": 92.5925925925926,
+      "largura_ic95": 9239.505031033763,
+      "vies_previsto_sobre_real_pct": 97.42044998516495
+    },
+    "por_horizonte": {
+      "1": {
+        "n": 351,
+        "mae": 2743.69122499234,
+        "rmse": 6004.936932528233,
+        "mase": 1.3528622566882582,
+        "mae_relativo_naive": 0.8944221781341959,
+        "cobertura_ic95_pct": 92.5925925925926,
+        "largura_ic95": 9239.505031033763,
+        "vies_previsto_sobre_real_pct": 97.42044998516495
+      },
+      "2": {
+        "n": 351,
+        "mae": 2733.0955524304363,
+        "rmse": 5982.467629618117,
+        "mase": 1.3487764537626257,
+        "mae_relativo_naive": 0.8902826097905725,
+        "cobertura_ic95_pct": 92.5925925925926,
+        "largura_ic95": 9268.951294116825,
+        "vies_previsto_sobre_real_pct": 98.41876490692715
+      },
+      "3": {
+        "n": 351,
+        "mae": 2724.0319019396425,
+        "rmse": 5976.604874243923,
+        "mase": 1.3455633238853208,
+        "mae_relativo_naive": 0.8875400742459809,
+        "cobertura_ic95_pct": 92.5925925925926,
+        "largura_ic95": 9263.38953679786,
+        "vies_previsto_sobre_real_pct": 98.15733676126935
+      },
+      "4": {
+        "n": 351,
+        "mae": 2730.599527056082,
+        "rmse": 5971.052575163865,
+        "mase": 1.3523719472205327,
+        "mae_relativo_naive": 0.8866944072598822,
+        "cobertura_ic95_pct": 92.3076923076923,
+        "largura_ic95": 9274.541174240785,
+        "vies_previsto_sobre_real_pct": 97.91758798186133
+      },
+      "5": {
+        "n": 351,
+        "mae": 2712.160921056774,
+        "rmse": 5943.876986686914,
+        "mase": 1.343897198843016,
+        "mae_relativo_naive": 0.8801381715590387,
+        "cobertura_ic95_pct": 92.5925925925926,
+        "largura_ic95": 9274.088555547989,
+        "vies_previsto_sobre_real_pct": 97.80386038086203
+      },
+      "6": {
+        "n": 351,
+        "mae": 2710.3843491249777,
+        "rmse": 5929.43688954732,
+        "mase": 1.3437440297169128,
+        "mae_relativo_naive": 0.8794377330650661,
+        "cobertura_ic95_pct": 92.5925925925926,
+        "largura_ic95": 9278.332076976927,
+        "vies_previsto_sobre_real_pct": 97.88432250878884
+      },
+      "7": {
+        "n": 351,
+        "mae": 2723.984013715947,
+        "rmse": 5957.760800567134,
+        "mase": 1.355933706505116,
+        "mae_relativo_naive": 0.8838581748332113,
+        "cobertura_ic95_pct": 92.5925925925926,
+        "largura_ic95": 9284.439718950118,
+        "vies_previsto_sobre_real_pct": 98.04223473702804
+      },
+      "8": {
+        "n": 351,
+        "mae": 2738.3246007905464,
+        "rmse": 5915.328152271943,
+        "mase": 1.365782751522514,
+        "mae_relativo_naive": 0.8449797725511227,
+        "cobertura_ic95_pct": 92.5925925925926,
+        "largura_ic95": 9329.740744026474,
+        "vies_previsto_sobre_real_pct": 98.71122867036662
+      },
+      "9": {
+        "n": 351,
+        "mae": 2747.4988691207554,
+        "rmse": 5929.426678617823,
+        "mase": 1.3719176518864462,
+        "mae_relativo_naive": 0.8477838953053525,
+        "cobertura_ic95_pct": 92.5925925925926,
+        "largura_ic95": 9343.85077277309,
+        "vies_previsto_sobre_real_pct": 98.99915002177964
+      },
+      "10": {
+        "n": 351,
+        "mae": 2729.875173346868,
+        "rmse": 5916.93371823441,
+        "mase": 1.3623169378221407,
+        "mae_relativo_naive": 0.84407416233483,
+        "cobertura_ic95_pct": 92.87749287749287,
+        "largura_ic95": 9349.059841553915,
+        "vies_previsto_sobre_real_pct": 99.35109253300742
+      },
+      "11": {
+        "n": 351,
+        "mae": 2729.311400817072,
+        "rmse": 5906.282769802899,
+        "mase": 1.3636965713252633,
+        "mae_relativo_naive": 0.8389944048345727,
+        "cobertura_ic95_pct": 92.87749287749287,
+        "largura_ic95": 9353.329594117371,
+        "vies_previsto_sobre_real_pct": 99.41249117033291
+      },
+      "12": {
+        "n": 351,
+        "mae": 2727.8138249899894,
+        "rmse": 5912.221673087119,
+        "mase": 1.3648578509357403,
+        "mae_relativo_naive": 0.8383310414743544,
+        "cobertura_ic95_pct": 92.87749287749287,
+        "largura_ic95": 9356.324166304983,
+        "vies_previsto_sobre_real_pct": 99.36443456252991
+      },
+      "13": {
+        "n": 351,
+        "mae": 2724.838457394576,
+        "rmse": 5892.698865126052,
+        "mase": 1.3619184385659946,
+        "mae_relativo_naive": 0.8324365766621524,
+        "cobertura_ic95_pct": 92.87749287749287,
+        "largura_ic95": 9357.743067784362,
+        "vies_previsto_sobre_real_pct": 98.6105246162421
+      },
+      "14": {
+        "n": 351,
+        "mae": 2743.97971971668,
+        "rmse": 5954.879921661348,
+        "mase": 1.379180059335783,
+        "mae_relativo_naive": 0.8383464256692339,
+        "cobertura_ic95_pct": 92.87749287749287,
+        "largura_ic95": 9355.31120742134,
+        "vies_previsto_sobre_real_pct": 98.44796121070885
+      }
+    }
+  },
+  "arquivos": {
+    "previsoes": "C:\\Users\\felip\\OneDrive\\Documentos\\Estudos\\TCC\\TCC---Inventory-Forecasting\\ia-predictor\\training_scripts\\results\\metrics\\itabirito_sem_log_deslizante_previsoes.csv",
+    "operacional": "C:\\Users\\felip\\OneDrive\\Documentos\\Estudos\\TCC\\TCC---Inventory-Forecasting\\ia-predictor\\training_scripts\\results\\metrics\\itabirito_sem_log_deslizante_operacional.csv"
+  }
+}

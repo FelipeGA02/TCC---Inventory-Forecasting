@@ -1,0 +1,2046 @@
+{
+  "unidade": "Itabirito",
+  "gerado_em": "2026-10-13T23:09:46",
+  "regra": {
+    "metodo": "Iglewicz & Hoaglin (1993), z-score modificado em log1p(venda do produto)",
+    "limiar_M": 3.5,
+    "cauda": "superior",
+    "recalculo": "por rodada, so passado",
+    "aplicada_apos": "regra da loja (venda > 2.000 un. no documento)"
+  },
+  "volume_tirado_pct_teste": 13.0,
+  "volume_tirado_por_sku_pct": {
+    "00013475": 0.0,
+    "00030197": 43.3,
+    "00180002": 72.3,
+    "00200579": 0.0,
+    "00240057": 39.7,
+    "1372": 38.7,
+    "2753": 28.4,
+    "2909": 35.1,
+    "434": 23.4,
+    "637": 68.6,
+    "72": 10.2,
+    "73": 31.9
+  },
+  "metricas_dias_abertos": {
+    "d0|sem_log|antes": {
+      "n_dias": 2764,
+      "n_sku_rodada": 240,
+      "mae": 33.41,
+      "mase": 0.983,
+      "erro_relativo_naive": 0.831,
+      "vence_naive_pct": 63.3,
+      "cobertura_ic95_pct": 95.9,
+      "largura_ic95": 133.41,
+      "previsto_sobre_real_pct": 99.0,
+      "erro_total_14d_pct": 47.2,
+      "passa_criterio_diario": true,
+      "limite_sup_sobre_previsto_mediana": 4.09,
+      "largura_sobre_venda_media": 3.58
+    },
+    "d0|sem_log|depois": {
+      "n_dias": 2764,
+      "n_sku_rodada": 240,
+      "mae": 27.78,
+      "mase": 0.871,
+      "erro_relativo_naive": 0.871,
+      "vence_naive_pct": 72.5,
+      "cobertura_ic95_pct": 94.2,
+      "largura_ic95": 105.01,
+      "previsto_sobre_real_pct": 102.6,
+      "erro_total_14d_pct": 43.2,
+      "passa_criterio_diario": true,
+      "limite_sup_sobre_previsto_mediana": 2.95,
+      "largura_sobre_venda_media": 3.24
+    },
+    "d0|log1p|antes": {
+      "n_dias": 2764,
+      "n_sku_rodada": 240,
+      "mae": 28.76,
+      "mase": 0.868,
+      "erro_relativo_naive": 0.715,
+      "vence_naive_pct": 85.8,
+      "cobertura_ic95_pct": 92.3,
+      "largura_ic95": 212.04,
+      "previsto_sobre_real_pct": 49.5,
+      "erro_total_14d_pct": 52.7,
+      "passa_criterio_diario": true,
+      "limite_sup_sobre_previsto_mediana": 9.67,
+      "largura_sobre_venda_media": 5.69
+    },
+    "d0|log1p|depois": {
+      "n_dias": 2764,
+      "n_sku_rodada": 240,
+      "mae": 24.29,
+      "mase": 0.824,
+      "erro_relativo_naive": 0.762,
+      "vence_naive_pct": 82.5,
+      "cobertura_ic95_pct": 92.9,
+      "largura_ic95": 197.31,
+      "previsto_sobre_real_pct": 53.4,
+      "erro_total_14d_pct": 49.4,
+      "passa_criterio_diario": true,
+      "limite_sup_sobre_previsto_mediana": 7.23,
+      "largura_sobre_venda_media": 6.09
+    },
+    "d1|sem_log|antes": {
+      "n_dias": 2764,
+      "n_sku_rodada": 240,
+      "mae": 32.77,
+      "mase": 1.009,
+      "erro_relativo_naive": 0.815,
+      "vence_naive_pct": 65.4,
+      "cobertura_ic95_pct": 96.3,
+      "largura_ic95": 133.15,
+      "previsto_sobre_real_pct": 99.8,
+      "erro_total_14d_pct": 42.8,
+      "passa_criterio_diario": false,
+      "limite_sup_sobre_previsto_mediana": 3.94,
+      "largura_sobre_venda_media": 3.57
+    },
+    "d1|sem_log|depois": {
+      "n_dias": 2764,
+      "n_sku_rodada": 240,
+      "mae": 26.54,
+      "mase": 0.865,
+      "erro_relativo_naive": 0.832,
+      "vence_naive_pct": 75.8,
+      "cobertura_ic95_pct": 94.4,
+      "largura_ic95": 103.65,
+      "previsto_sobre_real_pct": 100.6,
+      "erro_total_14d_pct": 36.2,
+      "passa_criterio_diario": true,
+      "limite_sup_sobre_previsto_mediana": 2.89,
+      "largura_sobre_venda_media": 3.2
+    },
+    "d1|log1p|antes": {
+      "n_dias": 2764,
+      "n_sku_rodada": 240,
+      "mae": 28.65,
+      "mase": 0.867,
+      "erro_relativo_naive": 0.712,
+      "vence_naive_pct": 88.3,
+      "cobertura_ic95_pct": 92.4,
+      "largura_ic95": 209.97,
+      "previsto_sobre_real_pct": 49.0,
+      "erro_total_14d_pct": 53.0,
+      "passa_criterio_diario": true,
+      "limite_sup_sobre_previsto_mediana": 9.85,
+      "largura_sobre_venda_media": 5.64
+    },
+    "d1|log1p|depois": {
+      "n_dias": 2764,
+      "n_sku_rodada": 240,
+      "mae": 24.14,
+      "mase": 0.816,
+      "erro_relativo_naive": 0.757,
+      "vence_naive_pct": 83.3,
+      "cobertura_ic95_pct": 93.2,
+      "largura_ic95": 193.77,
+      "previsto_sobre_real_pct": 52.4,
+      "erro_total_14d_pct": 49.6,
+      "passa_criterio_diario": true,
+      "limite_sup_sobre_previsto_mediana": 7.19,
+      "largura_sobre_venda_media": 5.98
+    }
+  },
+  "por_sku": {
+    "00013475": {
+      "ordens": {
+        "d0|sem_log": {
+          "order": [
+            0,
+            0,
+            2
+          ],
+          "seasonal_order": [
+            0,
+            0,
+            1,
+            7
+          ]
+        },
+        "d0|log1p": {
+          "order": [
+            1,
+            0,
+            2
+          ],
+          "seasonal_order": [
+            0,
+            0,
+            1,
+            7
+          ]
+        },
+        "d1|sem_log": {
+          "order": [
+            0,
+            1,
+            2
+          ],
+          "seasonal_order": [
+            1,
+            0,
+            1,
+            7
+          ]
+        },
+        "d1|log1p": {
+          "order": [
+            0,
+            1,
+            2
+          ],
+          "seasonal_order": [
+            0,
+            0,
+            1,
+            7
+          ]
+        }
+      },
+      "limites": [
+        {
+          "origem": "2025-03-02",
+          "limite": 2377.4546761671995,
+          "pct_volume_passado_marcado": 0.0
+        },
+        {
+          "origem": "2025-03-16",
+          "limite": 2377.4546761671995,
+          "pct_volume_passado_marcado": 0.0
+        },
+        {
+          "origem": "2025-03-30",
+          "limite": 2377.4546761671995,
+          "pct_volume_passado_marcado": 0.0
+        },
+        {
+          "origem": "2025-04-13",
+          "limite": 2377.4546761671995,
+          "pct_volume_passado_marcado": 0.0
+        },
+        {
+          "origem": "2025-04-27",
+          "limite": 2377.4546761671995,
+          "pct_volume_passado_marcado": 0.0
+        },
+        {
+          "origem": "2025-05-11",
+          "limite": 2377.4546761671995,
+          "pct_volume_passado_marcado": 0.0
+        },
+        {
+          "origem": "2025-05-25",
+          "limite": 2377.4546761671995,
+          "pct_volume_passado_marcado": 0.0
+        },
+        {
+          "origem": "2025-06-08",
+          "limite": 2377.4546761671995,
+          "pct_volume_passado_marcado": 0.0
+        },
+        {
+          "origem": "2025-06-22",
+          "limite": 2377.4546761671995,
+          "pct_volume_passado_marcado": 0.0
+        },
+        {
+          "origem": "2025-07-06",
+          "limite": 2377.4546761671995,
+          "pct_volume_passado_marcado": 0.0
+        },
+        {
+          "origem": "2025-07-20",
+          "limite": 2377.4546761671995,
+          "pct_volume_passado_marcado": 0.0
+        },
+        {
+          "origem": "2025-08-03",
+          "limite": 2377.4546761671995,
+          "pct_volume_passado_marcado": 0.0
+        },
+        {
+          "origem": "2025-08-17",
+          "limite": 2377.4546761671995,
+          "pct_volume_passado_marcado": 0.0
+        },
+        {
+          "origem": "2025-08-31",
+          "limite": 2377.4546761671995,
+          "pct_volume_passado_marcado": 0.0
+        },
+        {
+          "origem": "2025-09-14",
+          "limite": 2377.4546761671995,
+          "pct_volume_passado_marcado": 0.0
+        },
+        {
+          "origem": "2025-09-28",
+          "limite": 2377.4546761671995,
+          "pct_volume_passado_marcado": 0.0
+        },
+        {
+          "origem": "2025-10-12",
+          "limite": 2377.4546761671995,
+          "pct_volume_passado_marcado": 0.0
+        },
+        {
+          "origem": "2025-10-26",
+          "limite": 2377.4546761671995,
+          "pct_volume_passado_marcado": 0.0
+        },
+        {
+          "origem": "2025-11-09",
+          "limite": 2377.4546761671995,
+          "pct_volume_passado_marcado": 0.0
+        },
+        {
+          "origem": "2025-11-23",
+          "limite": 2377.4546761671995,
+          "pct_volume_passado_marcado": 0.0
+        },
+        {
+          "origem": "2025-12-07",
+          "limite": 2377.4546761671995,
+          "pct_volume_passado_marcado": 0.0
+        },
+        {
+          "origem": "2025-12-21",
+          "limite": 2377.4546761671995,
+          "pct_volume_passado_marcado": 0.0
+        },
+        {
+          "origem": "2026-01-04",
+          "limite": 2377.4546761671995,
+          "pct_volume_passado_marcado": 0.0
+        },
+        {
+          "origem": "2026-01-18",
+          "limite": 2377.4546761671995,
+          "pct_volume_passado_marcado": 0.0
+        },
+        {
+          "origem": "2026-02-01",
+          "limite": 2377.4546761671995,
+          "pct_volume_passado_marcado": 0.0
+        },
+        {
+          "origem": "2026-02-15",
+          "limite": 2377.4546761671995,
+          "pct_volume_passado_marcado": 0.0
+        }
+      ]
+    },
+    "00030197": {
+      "ordens": {
+        "d0|sem_log": {
+          "order": [
+            0,
+            0,
+            2
+          ],
+          "seasonal_order": [
+            1,
+            0,
+            1,
+            7
+          ]
+        },
+        "d0|log1p": {
+          "order": [
+            0,
+            0,
+            2
+          ],
+          "seasonal_order": [
+            1,
+            0,
+            1,
+            7
+          ]
+        },
+        "d1|sem_log": {
+          "order": [
+            0,
+            1,
+            2
+          ],
+          "seasonal_order": [
+            0,
+            0,
+            1,
+            7
+          ]
+        },
+        "d1|log1p": {
+          "order": [
+            0,
+            1,
+            1
+          ],
+          "seasonal_order": [
+            0,
+            0,
+            1,
+            7
+          ]
+        }
+      },
+      "limites": [
+        {
+          "origem": "2025-03-02",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 29.703440094899168
+        },
+        {
+          "origem": "2025-03-16",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 29.712460063897762
+        },
+        {
+          "origem": "2025-03-30",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 31.286360698125403
+        },
+        {
+          "origem": "2025-04-13",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 30.313152400835076
+        },
+        {
+          "origem": "2025-04-27",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 30.238726790450926
+        },
+        {
+          "origem": "2025-05-11",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 30.408892417626042
+        },
+        {
+          "origem": "2025-05-25",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 31.127590796729415
+        },
+        {
+          "origem": "2025-06-08",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 30.410551736949653
+        },
+        {
+          "origem": "2025-06-22",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 29.861364465523533
+        },
+        {
+          "origem": "2025-07-06",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 29.102222222222224
+        },
+        {
+          "origem": "2025-07-20",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 32.1773270080157
+        },
+        {
+          "origem": "2025-08-03",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 35.21599755762479
+        },
+        {
+          "origem": "2025-08-17",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 34.47399880454274
+        },
+        {
+          "origem": "2025-08-31",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 36.12610053961943
+        },
+        {
+          "origem": "2025-09-14",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 35.459429673508744
+        },
+        {
+          "origem": "2025-09-28",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 35.76300655343052
+        },
+        {
+          "origem": "2025-10-12",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 37.68850589278925
+        },
+        {
+          "origem": "2025-10-26",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 36.889109402133464
+        },
+        {
+          "origem": "2025-11-09",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 37.49697994684706
+        },
+        {
+          "origem": "2025-11-23",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 37.00965780374389
+        },
+        {
+          "origem": "2025-12-07",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 36.71634729122309
+        },
+        {
+          "origem": "2025-12-21",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 36.87608069164265
+        },
+        {
+          "origem": "2026-01-04",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 36.801914748119444
+        },
+        {
+          "origem": "2026-01-18",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 36.875843454790825
+        },
+        {
+          "origem": "2026-02-01",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 36.50228208838918
+        },
+        {
+          "origem": "2026-02-15",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 36.51108904336313
+        }
+      ]
+    },
+    "00180002": {
+      "ordens": {
+        "d0|sem_log": {
+          "order": [
+            1,
+            0,
+            2
+          ],
+          "seasonal_order": [
+            0,
+            0,
+            1,
+            7
+          ]
+        },
+        "d0|log1p": {
+          "order": [
+            0,
+            0,
+            1
+          ],
+          "seasonal_order": [
+            1,
+            0,
+            1,
+            7
+          ]
+        },
+        "d1|sem_log": {
+          "order": [
+            0,
+            1,
+            2
+          ],
+          "seasonal_order": [
+            0,
+            0,
+            1,
+            7
+          ]
+        },
+        "d1|log1p": {
+          "order": [
+            0,
+            1,
+            2
+          ],
+          "seasonal_order": [
+            1,
+            0,
+            1,
+            7
+          ]
+        }
+      },
+      "limites": [
+        {
+          "origem": "2025-03-02",
+          "limite": 4.625324739321597,
+          "pct_volume_passado_marcado": 45.173041894353375
+        },
+        {
+          "origem": "2025-03-16",
+          "limite": 4.591092106338724,
+          "pct_volume_passado_marcado": 44.285714285714285
+        },
+        {
+          "origem": "2025-03-30",
+          "limite": 4.645097884897876,
+          "pct_volume_passado_marcado": 44.32686654908877
+        },
+        {
+          "origem": "2025-04-13",
+          "limite": 4.681197475315714,
+          "pct_volume_passado_marcado": 44.476576055523424
+        },
+        {
+          "origem": "2025-04-27",
+          "limite": 4.683125582750337,
+          "pct_volume_passado_marcado": 44.311034877072615
+        }
+      ]
+    },
+    "00200579": {
+      "ordens": {
+        "d0|sem_log": {
+          "order": [
+            1,
+            0,
+            2
+          ],
+          "seasonal_order": [
+            0,
+            0,
+            1,
+            7
+          ]
+        },
+        "d0|log1p": {
+          "order": [
+            1,
+            0,
+            1
+          ],
+          "seasonal_order": [
+            0,
+            0,
+            1,
+            7
+          ]
+        },
+        "d1|sem_log": {
+          "order": [
+            0,
+            1,
+            2
+          ],
+          "seasonal_order": [
+            0,
+            0,
+            1,
+            7
+          ]
+        },
+        "d1|log1p": {
+          "order": [
+            0,
+            1,
+            2
+          ],
+          "seasonal_order": [
+            0,
+            0,
+            1,
+            7
+          ]
+        }
+      },
+      "limites": [
+        {
+          "origem": "2025-03-02",
+          "limite": 2.24459687517959,
+          "pct_volume_passado_marcado": 26.823793490460158
+        },
+        {
+          "origem": "2025-03-16",
+          "limite": 2.212666318610485,
+          "pct_volume_passado_marcado": 26.438053097345133
+        },
+        {
+          "origem": "2025-03-30",
+          "limite": 2.20552564546508,
+          "pct_volume_passado_marcado": 26.350606394707825
+        }
+      ]
+    },
+    "00240057": {
+      "ordens": {
+        "d0|sem_log": {
+          "order": [
+            0,
+            0,
+            2
+          ],
+          "seasonal_order": [
+            1,
+            0,
+            1,
+            7
+          ]
+        },
+        "d0|log1p": {
+          "order": [
+            1,
+            0,
+            2
+          ],
+          "seasonal_order": [
+            0,
+            0,
+            1,
+            7
+          ]
+        },
+        "d1|sem_log": {
+          "order": [
+            2,
+            1,
+            2
+          ],
+          "seasonal_order": [
+            1,
+            0,
+            1,
+            7
+          ]
+        },
+        "d1|log1p": {
+          "order": [
+            0,
+            1,
+            2
+          ],
+          "seasonal_order": [
+            1,
+            0,
+            1,
+            7
+          ]
+        }
+      },
+      "limites": [
+        {
+          "origem": "2025-06-08",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 35.45891699770019
+        },
+        {
+          "origem": "2025-06-22",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 36.86329776525065
+        },
+        {
+          "origem": "2025-07-06",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 37.49050873196659
+        },
+        {
+          "origem": "2025-07-20",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 37.747979426891995
+        },
+        {
+          "origem": "2025-08-03",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 37.56855575868373
+        },
+        {
+          "origem": "2025-08-17",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 37.14079161395264
+        },
+        {
+          "origem": "2025-09-14",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 37.684898520811835
+        },
+        {
+          "origem": "2025-09-28",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 37.42100768573869
+        },
+        {
+          "origem": "2025-10-12",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 38.789164490861616
+        },
+        {
+          "origem": "2025-10-26",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 38.90046481807982
+        },
+        {
+          "origem": "2025-11-09",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 38.699110903135235
+        },
+        {
+          "origem": "2025-11-23",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 38.801646592468366
+        },
+        {
+          "origem": "2025-12-07",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 39.20369818073367
+        },
+        {
+          "origem": "2025-12-21",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 38.52014652014652
+        },
+        {
+          "origem": "2026-01-04",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 38.44713339095362
+        },
+        {
+          "origem": "2026-01-18",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 37.885024840312276
+        },
+        {
+          "origem": "2026-02-01",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 37.58625545697789
+        },
+        {
+          "origem": "2026-02-15",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 37.6377074327151
+        }
+      ]
+    },
+    "1372": {
+      "ordens": {
+        "d0|sem_log": {
+          "order": [
+            1,
+            0,
+            2
+          ],
+          "seasonal_order": [
+            1,
+            0,
+            1,
+            7
+          ]
+        },
+        "d0|log1p": {
+          "order": [
+            1,
+            0,
+            1
+          ],
+          "seasonal_order": [
+            1,
+            0,
+            1,
+            7
+          ]
+        },
+        "d1|sem_log": {
+          "order": [
+            0,
+            1,
+            2
+          ],
+          "seasonal_order": [
+            0,
+            0,
+            1,
+            7
+          ]
+        },
+        "d1|log1p": {
+          "order": [
+            0,
+            1,
+            2
+          ],
+          "seasonal_order": [
+            1,
+            0,
+            1,
+            7
+          ]
+        }
+      },
+      "limites": [
+        {
+          "origem": "2025-12-07",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 33.44035564336873
+        },
+        {
+          "origem": "2025-12-21",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 34.48768297036773
+        },
+        {
+          "origem": "2026-01-04",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 34.431381678500756
+        },
+        {
+          "origem": "2026-01-18",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 34.52299245024022
+        },
+        {
+          "origem": "2026-02-01",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 34.38418079096045
+        },
+        {
+          "origem": "2026-02-15",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 34.08759941749748
+        }
+      ]
+    },
+    "2753": {
+      "ordens": {
+        "d0|sem_log": {
+          "order": [
+            1,
+            0,
+            2
+          ],
+          "seasonal_order": [
+            0,
+            0,
+            1,
+            7
+          ]
+        },
+        "d0|log1p": {
+          "order": [
+            1,
+            0,
+            1
+          ],
+          "seasonal_order": [
+            0,
+            0,
+            1,
+            7
+          ]
+        },
+        "d1|sem_log": {
+          "order": [
+            0,
+            1,
+            2
+          ],
+          "seasonal_order": [
+            0,
+            0,
+            1,
+            7
+          ]
+        },
+        "d1|log1p": {
+          "order": [
+            0,
+            1,
+            2
+          ],
+          "seasonal_order": [
+            1,
+            0,
+            1,
+            7
+          ]
+        }
+      },
+      "limites": [
+        {
+          "origem": "2025-03-02",
+          "limite": 1.830297908458375,
+          "pct_volume_passado_marcado": 34.71477328132618
+        },
+        {
+          "origem": "2025-03-16",
+          "limite": 1.811343096429813,
+          "pct_volume_passado_marcado": 34.13940256045519
+        },
+        {
+          "origem": "2025-03-30",
+          "limite": 1.8088609115580359,
+          "pct_volume_passado_marcado": 34.07477520113583
+        },
+        {
+          "origem": "2025-04-13",
+          "limite": 1.8669852767018567,
+          "pct_volume_passado_marcado": 35.787594823739404
+        },
+        {
+          "origem": "2025-04-27",
+          "limite": 1.8640709520727774,
+          "pct_volume_passado_marcado": 35.49369290996085
+        },
+        {
+          "origem": "2025-05-11",
+          "limite": 1.848026389964911,
+          "pct_volume_passado_marcado": 35.01912452188695
+        },
+        {
+          "origem": "2025-05-25",
+          "limite": 1.8489601922175054,
+          "pct_volume_passado_marcado": 34.898213543830494
+        },
+        {
+          "origem": "2025-06-08",
+          "limite": 1.8188473749844585,
+          "pct_volume_passado_marcado": 34.13246647704185
+        },
+        {
+          "origem": "2025-06-22",
+          "limite": 1.809673938546772,
+          "pct_volume_passado_marcado": 33.82528919026725
+        },
+        {
+          "origem": "2025-07-06",
+          "limite": 1.789744642550966,
+          "pct_volume_passado_marcado": 33.26825458805154
+        },
+        {
+          "origem": "2025-07-20",
+          "limite": 1.8069568193020467,
+          "pct_volume_passado_marcado": 34.14088706671636
+        },
+        {
+          "origem": "2025-08-03",
+          "limite": 1.790390853920651,
+          "pct_volume_passado_marcado": 33.63669457590098
+        },
+        {
+          "origem": "2025-08-17",
+          "limite": 1.7831678145786078,
+          "pct_volume_passado_marcado": 33.34520840755255
+        },
+        {
+          "origem": "2025-08-31",
+          "limite": 1.7556967182926635,
+          "pct_volume_passado_marcado": 32.60188087774294
+        },
+        {
+          "origem": "2025-09-14",
+          "limite": 1.7607462845036244,
+          "pct_volume_passado_marcado": 32.6108702900967
+        },
+        {
+          "origem": "2025-09-28",
+          "limite": 1.740506209566425,
+          "pct_volume_passado_marcado": 32.055063913470995
+        },
+        {
+          "origem": "2025-10-12",
+          "limite": 1.7564474084933979,
+          "pct_volume_passado_marcado": 32.55813953488372
+        },
+        {
+          "origem": "2025-10-26",
+          "limite": 1.7514498432367227,
+          "pct_volume_passado_marcado": 32.3062558356676
+        },
+        {
+          "origem": "2025-11-09",
+          "limite": 1.7606225438266696,
+          "pct_volume_passado_marcado": 32.7261869214691
+        },
+        {
+          "origem": "2025-11-23",
+          "limite": 1.7367448204087812,
+          "pct_volume_passado_marcado": 32.04194581998252
+        },
+        {
+          "origem": "2025-12-07",
+          "limite": 1.725248920720297,
+          "pct_volume_passado_marcado": 31.666190340097174
+        },
+        {
+          "origem": "2025-12-21",
+          "limite": 1.7162675766435904,
+          "pct_volume_passado_marcado": 31.385831216483208
+        },
+        {
+          "origem": "2026-01-04",
+          "limite": 1.7105909701424387,
+          "pct_volume_passado_marcado": 31.171722794322292
+        },
+        {
+          "origem": "2026-01-18",
+          "limite": 1.7081193845776497,
+          "pct_volume_passado_marcado": 31.024930747922436
+        },
+        {
+          "origem": "2026-02-01",
+          "limite": 1.7322885561010257,
+          "pct_volume_passado_marcado": 31.97424892703863
+        },
+        {
+          "origem": "2026-02-15",
+          "limite": 1.7136934598082751,
+          "pct_volume_passado_marcado": 31.42406726221755
+        }
+      ]
+    },
+    "2909": {
+      "ordens": {
+        "d0|sem_log": {
+          "order": [
+            1,
+            0,
+            2
+          ],
+          "seasonal_order": [
+            0,
+            0,
+            1,
+            7
+          ]
+        },
+        "d0|log1p": {
+          "order": [
+            1,
+            0,
+            1
+          ],
+          "seasonal_order": [
+            1,
+            0,
+            0,
+            7
+          ]
+        },
+        "d1|sem_log": {
+          "order": [
+            0,
+            1,
+            2
+          ],
+          "seasonal_order": [
+            1,
+            0,
+            1,
+            7
+          ]
+        },
+        "d1|log1p": {
+          "order": [
+            0,
+            1,
+            1
+          ],
+          "seasonal_order": [
+            1,
+            0,
+            1,
+            7
+          ]
+        }
+      },
+      "limites": [
+        {
+          "origem": "2025-03-02",
+          "limite": 5.150864772871267,
+          "pct_volume_passado_marcado": 28.700251452354113
+        },
+        {
+          "origem": "2025-03-16",
+          "limite": 5.103793829204113,
+          "pct_volume_passado_marcado": 28.52079993249515
+        },
+        {
+          "origem": "2025-03-30",
+          "limite": 5.073941381711944,
+          "pct_volume_passado_marcado": 28.071328786260167
+        },
+        {
+          "origem": "2025-04-13",
+          "limite": 5.138567109281622,
+          "pct_volume_passado_marcado": 28.36392657621708
+        },
+        {
+          "origem": "2025-04-27",
+          "limite": 5.146462825673333,
+          "pct_volume_passado_marcado": 28.16614420062696
+        },
+        {
+          "origem": "2025-05-11",
+          "limite": 5.167528136530016,
+          "pct_volume_passado_marcado": 28.02977972215826
+        },
+        {
+          "origem": "2025-05-25",
+          "limite": 5.179732522100173,
+          "pct_volume_passado_marcado": 28.76580640390446
+        },
+        {
+          "origem": "2025-06-08",
+          "limite": 5.2214477639937025,
+          "pct_volume_passado_marcado": 29.326269062790868
+        },
+        {
+          "origem": "2025-06-22",
+          "limite": 5.22398819073784,
+          "pct_volume_passado_marcado": 29.018452255665473
+        },
+        {
+          "origem": "2025-07-06",
+          "limite": 5.316936401169642,
+          "pct_volume_passado_marcado": 29.401287847650366
+        },
+        {
+          "origem": "2025-07-20",
+          "limite": 5.3665135658985275,
+          "pct_volume_passado_marcado": 29.320075248589088
+        },
+        {
+          "origem": "2025-08-03",
+          "limite": 5.427754612424098,
+          "pct_volume_passado_marcado": 29.682809032763345
+        },
+        {
+          "origem": "2025-08-17",
+          "limite": 5.4930692158323575,
+          "pct_volume_passado_marcado": 29.9099784455433
+        },
+        {
+          "origem": "2025-08-31",
+          "limite": 5.486690975843434,
+          "pct_volume_passado_marcado": 29.56045324368074
+        },
+        {
+          "origem": "2025-09-14",
+          "limite": 5.588848672841324,
+          "pct_volume_passado_marcado": 30.16252390057361
+        },
+        {
+          "origem": "2025-09-28",
+          "limite": 5.611160393767851,
+          "pct_volume_passado_marcado": 30.655415558894926
+        },
+        {
+          "origem": "2025-10-12",
+          "limite": 5.58750609182851,
+          "pct_volume_passado_marcado": 32.46090534979424
+        },
+        {
+          "origem": "2025-10-26",
+          "limite": 5.675790911644061,
+          "pct_volume_passado_marcado": 32.2835486281627
+        },
+        {
+          "origem": "2025-11-09",
+          "limite": 5.693659978176178,
+          "pct_volume_passado_marcado": 32.03227327500393
+        },
+        {
+          "origem": "2025-11-23",
+          "limite": 5.717953278336255,
+          "pct_volume_passado_marcado": 31.986462926879295
+        },
+        {
+          "origem": "2025-12-07",
+          "limite": 5.73797624375639,
+          "pct_volume_passado_marcado": 32.04359128174365
+        },
+        {
+          "origem": "2025-12-21",
+          "limite": 5.749298812954316,
+          "pct_volume_passado_marcado": 32.236039990246276
+        },
+        {
+          "origem": "2026-01-04",
+          "limite": 5.728503208896143,
+          "pct_volume_passado_marcado": 32.15916190110049
+        },
+        {
+          "origem": "2026-01-18",
+          "limite": 5.705163282302757,
+          "pct_volume_passado_marcado": 32.003780718336486
+        },
+        {
+          "origem": "2026-02-01",
+          "limite": 5.729802041151665,
+          "pct_volume_passado_marcado": 31.954817027632558
+        },
+        {
+          "origem": "2026-02-15",
+          "limite": 5.740654944776904,
+          "pct_volume_passado_marcado": 31.853761856524542
+        }
+      ]
+    },
+    "434": {
+      "ordens": {
+        "d0|sem_log": {
+          "order": [
+            2,
+            0,
+            2
+          ],
+          "seasonal_order": [
+            1,
+            0,
+            1,
+            7
+          ]
+        },
+        "d0|log1p": {
+          "order": [
+            0,
+            0,
+            2
+          ],
+          "seasonal_order": [
+            0,
+            0,
+            1,
+            7
+          ]
+        },
+        "d1|sem_log": {
+          "order": [
+            1,
+            1,
+            2
+          ],
+          "seasonal_order": [
+            1,
+            0,
+            1,
+            7
+          ]
+        },
+        "d1|log1p": {
+          "order": [
+            2,
+            1,
+            2
+          ],
+          "seasonal_order": [
+            0,
+            0,
+            1,
+            7
+          ]
+        }
+      },
+      "limites": [
+        {
+          "origem": "2025-03-02",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 20.44800968669593
+        },
+        {
+          "origem": "2025-03-16",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 21.144492131616595
+        },
+        {
+          "origem": "2025-03-30",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 21.00653413040456
+        },
+        {
+          "origem": "2025-04-13",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 20.588636053958307
+        },
+        {
+          "origem": "2025-04-27",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 20.382165605095544
+        },
+        {
+          "origem": "2025-05-11",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 20.528195968359274
+        },
+        {
+          "origem": "2025-05-25",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 20.524178663713545
+        },
+        {
+          "origem": "2025-06-08",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 21.470482576936895
+        },
+        {
+          "origem": "2025-06-22",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 21.670588235294115
+        },
+        {
+          "origem": "2025-07-06",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 21.44853283651607
+        },
+        {
+          "origem": "2025-07-20",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 21.02979792213723
+        },
+        {
+          "origem": "2025-08-03",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 20.806506269061334
+        },
+        {
+          "origem": "2025-08-17",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 20.42128603104213
+        },
+        {
+          "origem": "2025-08-31",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 20.980223559759242
+        },
+        {
+          "origem": "2025-09-14",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 21.402368724452366
+        },
+        {
+          "origem": "2025-09-28",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 21.276376737004632
+        },
+        {
+          "origem": "2025-10-12",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 21.275309761257176
+        },
+        {
+          "origem": "2025-10-26",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 21.237358715050565
+        },
+        {
+          "origem": "2025-11-09",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 22.524463596373103
+        },
+        {
+          "origem": "2025-11-23",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 22.823695097262565
+        },
+        {
+          "origem": "2025-12-07",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 22.341892124763056
+        },
+        {
+          "origem": "2025-12-21",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 22.758214976048407
+        },
+        {
+          "origem": "2026-01-04",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 22.380165289256198
+        },
+        {
+          "origem": "2026-01-18",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 22.14589466797514
+        },
+        {
+          "origem": "2026-02-01",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 22.191714447226037
+        },
+        {
+          "origem": "2026-02-15",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 21.96818290830602
+        }
+      ]
+    },
+    "637": {
+      "ordens": {
+        "d0|sem_log": {
+          "order": [
+            0,
+            0,
+            2
+          ],
+          "seasonal_order": [
+            0,
+            0,
+            1,
+            7
+          ]
+        },
+        "d0|log1p": {
+          "order": [
+            0,
+            0,
+            2
+          ],
+          "seasonal_order": [
+            0,
+            0,
+            1,
+            7
+          ]
+        },
+        "d1|sem_log": {
+          "order": [
+            0,
+            1,
+            2
+          ],
+          "seasonal_order": [
+            0,
+            0,
+            1,
+            7
+          ]
+        },
+        "d1|log1p": {
+          "order": [
+            0,
+            1,
+            1
+          ],
+          "seasonal_order": [
+            0,
+            0,
+            1,
+            7
+          ]
+        }
+      },
+      "limites": [
+        {
+          "origem": "2025-03-02",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 46.85495292843456
+        },
+        {
+          "origem": "2025-03-16",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 45.62712964465358
+        },
+        {
+          "origem": "2025-03-30",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 45.093008338678644
+        },
+        {
+          "origem": "2025-04-13",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 46.36869808622631
+        },
+        {
+          "origem": "2025-04-27",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 46.146512944260735
+        },
+        {
+          "origem": "2025-05-11",
+          "limite": 23.595966270782075,
+          "pct_volume_passado_marcado": 46.41239986067573
+        },
+        {
+          "origem": "2025-05-25",
+          "limite": 27.649991657616766,
+          "pct_volume_passado_marcado": 43.39484227752384
+        },
+        {
+          "origem": "2025-06-08",
+          "limite": 27.649991657616766,
+          "pct_volume_passado_marcado": 42.601517921444795
+        },
+        {
+          "origem": "2025-06-22",
+          "limite": 27.649991657616766,
+          "pct_volume_passado_marcado": 41.70338534958446
+        },
+        {
+          "origem": "2025-07-06",
+          "limite": 27.649991657616766,
+          "pct_volume_passado_marcado": 41.544522410431235
+        },
+        {
+          "origem": "2025-07-20",
+          "limite": 27.649991657616766,
+          "pct_volume_passado_marcado": 46.34114721446334
+        },
+        {
+          "origem": "2025-08-03",
+          "limite": 27.649991657616766,
+          "pct_volume_passado_marcado": 47.253099126297975
+        },
+        {
+          "origem": "2025-08-17",
+          "limite": 27.649991657616766,
+          "pct_volume_passado_marcado": 49.80235483120891
+        },
+        {
+          "origem": "2025-08-31",
+          "limite": 27.649991657616766,
+          "pct_volume_passado_marcado": 51.2753981876971
+        },
+        {
+          "origem": "2025-09-14",
+          "limite": 27.649991657616766,
+          "pct_volume_passado_marcado": 51.77936979439688
+        },
+        {
+          "origem": "2025-09-28",
+          "limite": 27.649991657616766,
+          "pct_volume_passado_marcado": 57.72008140221887
+        },
+        {
+          "origem": "2025-10-12",
+          "limite": 27.649991657616766,
+          "pct_volume_passado_marcado": 57.138679490512075
+        },
+        {
+          "origem": "2025-10-26",
+          "limite": 27.649991657616766,
+          "pct_volume_passado_marcado": 56.71071510673885
+        },
+        {
+          "origem": "2025-11-09",
+          "limite": 27.649991657616766,
+          "pct_volume_passado_marcado": 56.83300908671838
+        },
+        {
+          "origem": "2025-11-23",
+          "limite": 27.649991657616766,
+          "pct_volume_passado_marcado": 57.93321360171102
+        },
+        {
+          "origem": "2025-12-07",
+          "limite": 27.649991657616766,
+          "pct_volume_passado_marcado": 57.85516480465297
+        },
+        {
+          "origem": "2025-12-21",
+          "limite": 27.649991657616766,
+          "pct_volume_passado_marcado": 57.26104469948437
+        },
+        {
+          "origem": "2026-01-04",
+          "limite": 27.649991657616766,
+          "pct_volume_passado_marcado": 56.63440837142101
+        },
+        {
+          "origem": "2026-01-18",
+          "limite": 27.649991657616766,
+          "pct_volume_passado_marcado": 56.619227295955874
+        },
+        {
+          "origem": "2026-02-01",
+          "limite": 27.649991657616766,
+          "pct_volume_passado_marcado": 56.28823361565603
+        },
+        {
+          "origem": "2026-02-15",
+          "limite": 27.649991657616766,
+          "pct_volume_passado_marcado": 59.43840430061066
+        }
+      ]
+    },
+    "72": {
+      "ordens": {
+        "d0|sem_log": {
+          "order": [
+            0,
+            0,
+            2
+          ],
+          "seasonal_order": [
+            1,
+            0,
+            1,
+            7
+          ]
+        },
+        "d0|log1p": {
+          "order": [
+            1,
+            0,
+            2
+          ],
+          "seasonal_order": [
+            0,
+            0,
+            1,
+            7
+          ]
+        },
+        "d1|sem_log": {
+          "order": [
+            0,
+            1,
+            2
+          ],
+          "seasonal_order": [
+            0,
+            0,
+            1,
+            7
+          ]
+        },
+        "d1|log1p": {
+          "order": [
+            0,
+            1,
+            2
+          ],
+          "seasonal_order": [
+            0,
+            0,
+            1,
+            7
+          ]
+        }
+      },
+      "limites": [
+        {
+          "origem": "2025-03-02",
+          "limite": 72.05948871462675,
+          "pct_volume_passado_marcado": 6.740990407052114
+        },
+        {
+          "origem": "2025-03-16",
+          "limite": 43.554214220234726,
+          "pct_volume_passado_marcado": 19.45181255526083
+        },
+        {
+          "origem": "2025-03-30",
+          "limite": 43.554214220234726,
+          "pct_volume_passado_marcado": 19.493297257409914
+        },
+        {
+          "origem": "2025-04-13",
+          "limite": 56.05355476227842,
+          "pct_volume_passado_marcado": 13.718765311122
+        },
+        {
+          "origem": "2025-04-27",
+          "limite": 56.05355476227842,
+          "pct_volume_passado_marcado": 13.374731311201337
+        },
+        {
+          "origem": "2025-05-11",
+          "limite": 43.554214220234726,
+          "pct_volume_passado_marcado": 18.372551292453924
+        },
+        {
+          "origem": "2025-05-25",
+          "limite": 43.554214220234726,
+          "pct_volume_passado_marcado": 17.944073361258916
+        },
+        {
+          "origem": "2025-06-08",
+          "limite": 43.554214220234726,
+          "pct_volume_passado_marcado": 17.54871567759079
+        },
+        {
+          "origem": "2025-06-22",
+          "limite": 43.554214220234726,
+          "pct_volume_passado_marcado": 17.29028035344169
+        },
+        {
+          "origem": "2025-07-06",
+          "limite": 43.554214220234726,
+          "pct_volume_passado_marcado": 17.074221695572554
+        },
+        {
+          "origem": "2025-07-20",
+          "limite": 39.119973894072,
+          "pct_volume_passado_marcado": 17.692634260241988
+        },
+        {
+          "origem": "2025-08-03",
+          "limite": 39.119973894072,
+          "pct_volume_passado_marcado": 17.45915374947633
+        },
+        {
+          "origem": "2025-08-17",
+          "limite": 39.119973894072,
+          "pct_volume_passado_marcado": 17.13786367842089
+        },
+        {
+          "origem": "2025-08-31",
+          "limite": 39.119973894072,
+          "pct_volume_passado_marcado": 17.26136931534233
+        },
+        {
+          "origem": "2025-09-14",
+          "limite": 39.119973894072,
+          "pct_volume_passado_marcado": 16.829078152406936
+        },
+        {
+          "origem": "2025-09-28",
+          "limite": 39.119973894072,
+          "pct_volume_passado_marcado": 16.6089632621658
+        },
+        {
+          "origem": "2025-10-12",
+          "limite": 39.119973894072,
+          "pct_volume_passado_marcado": 16.36191378493605
+        },
+        {
+          "origem": "2025-10-26",
+          "limite": 39.119973894072,
+          "pct_volume_passado_marcado": 16.20683183183183
+        },
+        {
+          "origem": "2025-11-09",
+          "limite": 39.119973894072,
+          "pct_volume_passado_marcado": 17.025511127193777
+        },
+        {
+          "origem": "2025-11-23",
+          "limite": 39.119973894072,
+          "pct_volume_passado_marcado": 18.26755151938526
+        },
+        {
+          "origem": "2025-12-07",
+          "limite": 39.119973894072,
+          "pct_volume_passado_marcado": 18.011192423590185
+        },
+        {
+          "origem": "2025-12-21",
+          "limite": 39.119973894072,
+          "pct_volume_passado_marcado": 17.591658257652202
+        },
+        {
+          "origem": "2026-01-04",
+          "limite": 39.119973894072,
+          "pct_volume_passado_marcado": 17.463895149845563
+        },
+        {
+          "origem": "2026-01-18",
+          "limite": 39.119973894072,
+          "pct_volume_passado_marcado": 17.306419589675713
+        },
+        {
+          "origem": "2026-02-01",
+          "limite": 39.119973894072,
+          "pct_volume_passado_marcado": 17.160200147649906
+        },
+        {
+          "origem": "2026-02-15",
+          "limite": 39.119973894072,
+          "pct_volume_passado_marcado": 17.005364981303853
+        }
+      ]
+    },
+    "73": {
+      "ordens": {
+        "d0|sem_log": {
+          "order": [
+            0,
+            0,
+            2
+          ],
+          "seasonal_order": [
+            1,
+            0,
+            1,
+            7
+          ]
+        },
+        "d0|log1p": {
+          "order": [
+            0,
+            0,
+            2
+          ],
+          "seasonal_order": [
+            1,
+            0,
+            1,
+            7
+          ]
+        },
+        "d1|sem_log": {
+          "order": [
+            0,
+            1,
+            2
+          ],
+          "seasonal_order": [
+            0,
+            0,
+            1,
+            7
+          ]
+        },
+        "d1|log1p": {
+          "order": [
+            2,
+            1,
+            1
+          ],
+          "seasonal_order": [
+            0,
+            0,
+            1,
+            7
+          ]
+        }
+      },
+      "limites": [
+        {
+          "origem": "2025-03-02",
+          "limite": 69.81896572366865,
+          "pct_volume_passado_marcado": 29.04632972322503
+        },
+        {
+          "origem": "2025-03-16",
+          "limite": 69.81896572366865,
+          "pct_volume_passado_marcado": 28.510261331758453
+        },
+        {
+          "origem": "2025-03-30",
+          "limite": 69.81896572366865,
+          "pct_volume_passado_marcado": 28.066860465116278
+        },
+        {
+          "origem": "2025-04-13",
+          "limite": 69.81896572366865,
+          "pct_volume_passado_marcado": 27.74026720298808
+        },
+        {
+          "origem": "2025-04-27",
+          "limite": 69.81896572366865,
+          "pct_volume_passado_marcado": 27.362902083038122
+        },
+        {
+          "origem": "2025-05-11",
+          "limite": 69.81896572366865,
+          "pct_volume_passado_marcado": 27.059977578475337
+        },
+        {
+          "origem": "2025-05-25",
+          "limite": 69.81896572366865,
+          "pct_volume_passado_marcado": 27.358490566037734
+        },
+        {
+          "origem": "2025-06-08",
+          "limite": 69.81896572366865,
+          "pct_volume_passado_marcado": 27.379861202042687
+        },
+        {
+          "origem": "2025-06-22",
+          "limite": 69.81896572366865,
+          "pct_volume_passado_marcado": 26.643730886850154
+        },
+        {
+          "origem": "2025-07-06",
+          "limite": 69.81896572366865,
+          "pct_volume_passado_marcado": 25.881916078722618
+        },
+        {
+          "origem": "2025-07-20",
+          "limite": 69.81896572366865,
+          "pct_volume_passado_marcado": 28.6495103621043
+        },
+        {
+          "origem": "2025-08-03",
+          "limite": 69.81896572366865,
+          "pct_volume_passado_marcado": 37.21804511278196
+        },
+        {
+          "origem": "2025-08-17",
+          "limite": 69.81896572366865,
+          "pct_volume_passado_marcado": 36.486486486486484
+        },
+        {
+          "origem": "2025-08-31",
+          "limite": 69.81896572366865,
+          "pct_volume_passado_marcado": 35.63780690419051
+        },
+        {
+          "origem": "2025-09-14",
+          "limite": 69.81896572366865,
+          "pct_volume_passado_marcado": 35.0585671479161
+        },
+        {
+          "origem": "2025-09-28",
+          "limite": 69.81896572366865,
+          "pct_volume_passado_marcado": 35.16299559471366
+        },
+        {
+          "origem": "2025-10-12",
+          "limite": 69.81896572366865,
+          "pct_volume_passado_marcado": 34.81332868108862
+        },
+        {
+          "origem": "2025-10-26",
+          "limite": 69.81896572366865,
+          "pct_volume_passado_marcado": 34.68222865905606
+        },
+        {
+          "origem": "2025-11-09",
+          "limite": 69.81896572366865,
+          "pct_volume_passado_marcado": 33.96745932415519
+        },
+        {
+          "origem": "2025-11-23",
+          "limite": 69.81896572366865,
+          "pct_volume_passado_marcado": 33.35518230233511
+        },
+        {
+          "origem": "2025-12-07",
+          "limite": 69.81896572366865,
+          "pct_volume_passado_marcado": 32.464114832535884
+        },
+        {
+          "origem": "2025-12-21",
+          "limite": 69.81896572366865,
+          "pct_volume_passado_marcado": 32.3223704623022
+        },
+        {
+          "origem": "2026-01-04",
+          "limite": 69.81896572366865,
+          "pct_volume_passado_marcado": 32.016903572800615
+        },
+        {
+          "origem": "2026-01-18",
+          "limite": 69.81896572366865,
+          "pct_volume_passado_marcado": 31.748571428571427
+        },
+        {
+          "origem": "2026-02-01",
+          "limite": 69.81896572366865,
+          "pct_volume_passado_marcado": 31.444310292785993
+        },
+        {
+          "origem": "2026-02-15",
+          "limite": 69.81896572366865,
+          "pct_volume_passado_marcado": 31.002157577561196
+        }
+      ]
+    }
+  }
+}

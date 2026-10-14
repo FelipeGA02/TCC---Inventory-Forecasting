@@ -3,6 +3,12 @@ import { Upload, FileSpreadsheet, CheckCircle2, Loader2, Sparkles, X } from "luc
 import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
 import { Progress } from "../ui/progress";
+import { useNavigate } from "react-router";
+import { dados, unidades } from "../../data/mockData";
+import { formatarMesAno, formatarNumero } from "@/lib/format";
+
+const arquivos = dados.importacao.arquivos;
+const lojasConfiaveis = unidades.filter((u) => u.modelo.status === "trained").length;
 
 const steps = [
   { id: 1, label: "Enviar arquivo" },
@@ -20,6 +26,7 @@ function stepStatus(step: number, current: number): StepStatus {
 }
 
 export function ImportarPlanilha() {
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [dragging, setDragging] = useState(false);
   const [file, setFile] = useState<{ name: string; size: string } | null>(null);
@@ -162,7 +169,7 @@ export function ImportarPlanilha() {
                 ))}
               </div>
               <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-                Tamanho máximo: 50 MB
+                Relatório “Contas a Receber” do sistema da loja, um arquivo por mês · até 50 MB
               </p>
             </div>
             <input
@@ -249,14 +256,14 @@ export function ImportarPlanilha() {
                 Previsões calculadas com sucesso!
               </p>
               <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
-                7 produtos · 2 lojas · Próximas 4 semanas
+                {formatarNumero(dados.base.skus)} produtos · {unidades.length} lojas · próximos {dados.configuracao.horizonte_dias} dias
               </p>
             </div>
             <div className="grid grid-cols-3 gap-4 w-full">
               {[
-                { label: "Vendas analisadas", value: "2.847" },
-                { label: "Período coberto", value: "Jan–Jun 2026" },
-                { label: "Precisão média (MAPE)", value: "7.4%" },
+                { label: "Vendas analisadas", value: formatarNumero(dados.base.linhas) },
+                { label: "Período coberto", value: `${formatarMesAno(dados.base.inicio)} a ${formatarMesAno(dados.base.fim)}` },
+                { label: "Lojas com previsão confiável", value: `${lojasConfiaveis} de ${unidades.length}` },
               ].map((stat) => (
                 <div
                   key={stat.label}
@@ -276,13 +283,43 @@ export function ImportarPlanilha() {
               <Button variant="outline" onClick={reset}>
                 Enviar outro arquivo
               </Button>
-              <Button style={{ background: "var(--primary)", color: "#fff" }}>
-                Ver quanto comprar →
+              <Button style={{ background: "var(--primary)", color: "#fff" }} onClick={() => navigate("/previsao")}>
+                Ver a previsão →
               </Button>
             </div>
           </CardContent>
         </Card>
       )}
+
+      <Card className="border" style={{ borderColor: "var(--border)" }}>
+        <CardContent className="p-5 flex flex-col gap-3">
+          <div className="flex items-baseline justify-between gap-2 flex-wrap">
+            <p className="text-sm" style={{ fontWeight: 600 }}>
+              Planilhas já carregadas
+            </p>
+            <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+              {arquivos.length} meses · {formatarNumero(arquivos.reduce((s, a) => s + a.registros, 0))} linhas · nenhuma duplicada
+            </p>
+          </div>
+          <div className="grid grid-cols-3 sm:grid-cols-6 lg:grid-cols-9 gap-2">
+            {arquivos.map((a) => (
+              <div
+                key={a.arquivo}
+                className="rounded-md px-2 py-1.5 text-center"
+                style={{ background: "var(--secondary)", border: "1px solid var(--border)" }}
+                title={`${a.arquivo} · ${formatarNumero(a.registros)} linhas · assinatura ${a.hash.slice(0, 8)}`}
+              >
+                <p className="text-xs" style={{ fontWeight: 600, color: "var(--secondary-foreground)" }}>
+                  {formatarMesAno(a.competencia)}
+                </p>
+                <p className="text-[11px]" style={{ color: "var(--muted-foreground)" }}>
+                  {formatarNumero(a.registros)}
+                </p>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

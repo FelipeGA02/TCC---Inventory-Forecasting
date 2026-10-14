@@ -1,14 +1,14 @@
 import { useLocation } from "react-router";
-import { Bell, User, RefreshCw } from "lucide-react";
+import { User, RefreshCw } from "lucide-react";
 import { Button } from "../ui/button";
+import { Notificacoes } from "./Notificacoes";
 
 const routeTitles: Record<string, { title: string; subtitle: string }> = {
-  "/": { title: "Início", subtitle: "Resumo geral das vendas e previsões de hoje" },
-  "/importar": { title: "Carregar Planilha de Vendas", subtitle: "Envie os dados de vendas para atualizar as previsões" },
-  "/pre-visualizacao": { title: "Conferir Dados Enviados", subtitle: "Verifique se os dados estão corretos antes de calcular" },
-  "/previsao": { title: "Previsão de Compras", subtitle: "Veja quanto comprar de cada produto nas próximas semanas" },
-  "/simulador": { title: "Simular Promoções", subtitle: "Veja o impacto estimado de descontos e ofertas especiais" },
-  "/exportar": { title: "Baixar Relatórios", subtitle: "Gere e salve relatórios em PDF ou Excel" },
+  "/": { title: "Início", subtitle: "Visão geral das vendas da base: faturamento, mix, clientes e produtos" },
+  "/importar": { title: "Carregar Planilha de Vendas", subtitle: "Envie o relatório mensal de vendas para atualizar as previsões" },
+  "/pre-visualizacao": { title: "Conferir Dados", subtitle: "Gerencie os dados importados pelas planilhas" },
+  "/previsao": { title: "Previsão de Vendas", subtitle: "Previsão diária por loja, categoria e produto, e como ela foi testada" },
+  "/exportar": { title: "Relatórios", subtitle: "Escolha, confira a prévia e baixe em Excel, CSV ou PDF" },
 };
 
 export function Header() {
@@ -31,16 +31,7 @@ export function Header() {
           <RefreshCw size={14} />
           Atualizar
         </Button>
-        <button
-          className="relative w-9 h-9 rounded-lg flex items-center justify-center hover:opacity-80 transition-colors"
-          style={{ background: "var(--muted)" }}
-        >
-          <Bell size={16} style={{ color: "var(--muted-foreground)" }} />
-          <span
-            className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full"
-            style={{ background: "var(--destructive)" }}
-          />
-        </button>
+        <Notificacoes />
         <div
           className="w-9 h-9 rounded-lg flex items-center justify-center"
           style={{ background: "var(--primary)" }}

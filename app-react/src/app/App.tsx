@@ -6,7 +6,7 @@ import { Dashboard } from "./components/screens/Dashboard";
 import { ImportarPlanilha } from "./components/screens/ImportarPlanilha";
 import { PreVisualizacao } from "./components/screens/PreVisualizacao";
 import { PrevisaoSarimax } from "./components/screens/PrevisaoSarimax";
-import { SimuladorCenarios } from "./components/screens/SimuladorCenarios";
+import { FiltroLojaProvider } from "./components/shared";
 import { ExportarRelatorios } from "./components/screens/ExportarRelatorios";
 
 function Layout({ children }: { children: React.ReactNode }) {
@@ -26,16 +26,17 @@ function Layout({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <BrowserRouter>
-      <Layout>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/importar" element={<ImportarPlanilha />} />
-          <Route path="/pre-visualizacao" element={<PreVisualizacao />} />
-          <Route path="/previsao" element={<PrevisaoSarimax />} />
-          <Route path="/simulador" element={<SimuladorCenarios />} />
-          <Route path="/exportar" element={<ExportarRelatorios />} />
-        </Routes>
-      </Layout>
+      <FiltroLojaProvider>
+        <Layout>
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/importar" element={<ImportarPlanilha />} />
+            <Route path="/pre-visualizacao" element={<PreVisualizacao />} />
+            <Route path="/previsao" element={<PrevisaoSarimax />} />
+            <Route path="/exportar" element={<ExportarRelatorios />} />
+          </Routes>
+        </Layout>
+      </FiltroLojaProvider>
       <Toaster richColors position="top-right" />
     </BrowserRouter>
   );

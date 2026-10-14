@@ -15,6 +15,15 @@ export const formatarQtd = (valor: number): string =>
 
 export const formatarMoeda = (valor: number): string => moeda.format(valor);
 
+/** R$ 52,9 mi · R$ 318 mil · R$ 940 — para eixos e indicadores. */
+export function formatarMoedaCompacta(valor: number): string {
+  const abs = Math.abs(valor);
+  const fmt = (v: number, casas: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas });
+  if (abs >= 1e6) return `R$ ${fmt(valor / 1e6, 1)} mi`;
+  if (abs >= 1e3) return `R$ ${fmt(valor / 1e3, 0)} mil`;
+  return `R$ ${fmt(valor, 0)}`;
+}
+
 export const formatarPercentual = (fracao: number): string => percentual.format(fracao);
 
 export const formatarDecimal = (valor: number, casas = 2): string =>

@@ -2,6 +2,12 @@
  * Tipos do frontend. Reproduzem o JSON gerado por
  * `ia-predictor/training_scripts/frontend_mock/gerar_dados_frontend.py`, que por sua vez
  * segue o formato que os endpoints `/api/v1/*` devolverão.
+ *
+ * Metodologia (etapa de testes, e-mail ao orientador):
+ *  - encomendas (venda > 2.000 un. na nota) ficam fora da previsão e aparecem à parte;
+ *  - loja: SARIMAX na venda sem encomendas, sem log1p, janela deslizante;
+ *  - categoria: participação na previsão da loja (filtro de leitura, sem modelo próprio);
+ *  - produto regular: SARIMAX no próprio produto; demais produtos só com histórico.
  */
 
 export type StatusModelo = "trained" | "low_confidence" | "insufficient_data" | "training";
@@ -18,6 +24,8 @@ export type CategoriaId = "grama" | "plantas-diversas" | "produtos-de-jardim";
 export type UnidadeId = "jardim-canada" | "itabirito";
 /** Filtro de loja nas telas: uma unidade ou as duas somadas. */
 export type FiltroUnidade = UnidadeId | "todas";
+/** Filtro de categoria nas telas. */
+export type FiltroCategoria = CategoriaId | "todas";
 
 export type PorCategoria<T> = Record<CategoriaId, T>;
 
@@ -45,7 +53,10 @@ export interface DiaPrevisto extends Faixa {
 export interface DiaHistorico {
   data: string;
   dia_semana: string;
+  /** Venda sem encomendas (soma das 3 categorias). */
   total: number;
+  /** Volume vendido em encomendas no dia (fora da previsão). */
+  encomendas: number;
   categorias: PorCategoria<number>;
 }
 
@@ -53,23 +64,8 @@ export interface SemanaHistorico {
   /** Segunda-feira da semana (AAAA-MM-DD). */
   semana: string;
   total: number;
+  encomendas: number;
   categorias: PorCategoria<number>;
-}
-
-export interface ProdutoPrevisto {
-  codigo: string;
-  nome: string;
-  categoria: CategoriaId;
-  subcategoria: string;
-  vendido_8_semanas: number;
-  vendido_total: number;
-  dias_com_venda: number;
-  vendas: number;
-  participacao_categoria: number;
-  /** Venda das últimas 8 semanas, da mais antiga para a mais recente. */
-  historico_semanal: number[];
-  previsao_14d: number;
-  previsao: (Faixa & { data: string })[];
 }
 
 export interface MetricasModelo {
@@ -78,11 +74,12 @@ export interface MetricasModelo {
   dias_avaliados: number;
   mae: number;
   mase: number;
-  erro_relativo_naive: number;
+  erro_relativo_naive: number | null;
   cobertura_ic95_pct: number;
   largura_ic95: number;
-  previsto_sobre_real_pct: number;
-  mape_dias_abertos_pct: number;
+  venda_media_dia: number;
+  previsto_sobre_real_pct: number | null;
+  erro_total_14d_pct: number | null;
 }
 
 export interface RodadaValidacao {
@@ -96,10 +93,51 @@ export interface ModeloUnidade {
   ordem_sazonal: number[];
   aic: number;
   transformacao: string;
+  janela: string;
+  janela_dias: number;
+  base: string;
   exogenas: string[];
   status: StatusModelo;
   metricas: MetricasModelo;
   rodadas: RodadaValidacao[];
+}
+
+export interface ModeloProduto {
+  ordem: number[];
+  ordem_sazonal: number[];
+  metricas: MetricasModelo | null;
+  status: StatusModelo;
+}
+
+export interface Produto {
+  codigo: string;
+  nome: string;
+  categoria: CategoriaId;
+  subcategoria: string;
+  /** Venda regular (ADI < 1,32) → tem modelo e previsão diária próprios. */
+  regular: boolean;
+  dias_com_venda: number;
+  pct_dias_abertos_com_venda: number;
+  media_dia_aberto: number;
+  vendido_8_semanas: number;
+  vendido_total: number;
+  vendido_em_encomendas: number;
+  /** Venda das últimas 8 semanas, da mais antiga para a mais recente. */
+  historico_semanal: number[];
+  modelo: ModeloProduto | null;
+  previsao: (Faixa & { data: string })[];
+  previsao_14d: number | null;
+}
+
+/** Produto com a loja a que pertence (para o filtro "Todas as lojas"). */
+export type ProdutoDaLoja = Produto & { unidade: UnidadeId; nomeUnidade: string };
+
+export interface Encomendas {
+  vendas: number;
+  dias: number;
+  volume: number;
+  pct_volume: number;
+  ultimas: { data: string; volume: number; produtos: string[] }[];
 }
 
 export interface DiaBacktest extends Faixa {
@@ -119,13 +157,16 @@ export interface UnidadeDados {
   volume_flores_de_corte: number;
   volume_por_categoria: PorCategoria<number>;
   skus_por_categoria: PorCategoria<number>;
-  /** Participação de cada categoria por dia da semana (seg…dom) nas últimas 8 semanas. */
-  participacao_dia_semana: PorCategoria<number[]>;
+  regulares_por_categoria: PorCategoria<number>;
+  /** % da venda (sem encomendas) das últimas 8 semanas que vem dos produtos regulares. */
+  volume_regulares_8_semanas_pct: PorCategoria<number>;
+  flores_regulares_fora_do_painel: number;
+  encomendas: Encomendas;
   modelo: ModeloUnidade;
   previsao: DiaPrevisto[];
   historico_diario: DiaHistorico[];
   historico_semanal: SemanaHistorico[];
-  produtos: ProdutoPrevisto[];
+  produtos: Produto[];
   backtest: DiaBacktest[];
 }
 
@@ -139,6 +180,7 @@ export interface RegistroVenda {
   quantidade: number;
   valor: number;
   tipo_cliente: "Consumidor" | "Cadastrado";
+  encomenda: boolean;
 }
 
 export interface ArquivoImportado {
@@ -167,6 +209,10 @@ export interface BaseReal {
     janela_participacao_dias: number;
     primeira_origem_validacao: string;
     passo_origem_dias: number;
+    limiar_encomenda_un: number;
+    criterio_regular: { adi_corte: number; min_span_dias: number; fonte: string };
+    modelo_loja: string;
+    modelo_produto: string;
   };
   categorias: Categoria[];
   unidades: UnidadeDados[];

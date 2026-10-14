@@ -6,7 +6,6 @@ import {
   Upload,
   Table2,
   TrendingUp,
-  ShieldCheck,
   FileDown,
   Flower2,
 } from "lucide-react";
@@ -23,11 +22,6 @@ const navItems = [
     to: "/previsao",
     icon: TrendingUp,
     label: "Previsão de Vendas",
-  },
-  {
-    to: "/acerto",
-    icon: ShieldCheck,
-    label: "Acerto das Previsões",
   },
   {
     to: "/exportar",

@@ -2,15 +2,18 @@
  * Catálogo de relatórios para download. Cada relatório monta uma tabela a partir dos dados
  * reais (`mockData`) e dos filtros escolhidos; a tela decide o formato (XLSX, CSV ou PDF).
  */
-import type { CategoriaId, FiltroUnidade } from "@/domain/types";
+import type { CategoriaId, FiltroCategoria, FiltroUnidade } from "@/domain/types";
 import { estiloStatus } from "@/styles/tokens";
 import { formatarData, formatarDecimal, formatarDiaMes, formatarNumero, formatarPercentual, formatarQtd } from "@/lib/format";
 import { tabelaHtml, type Celula, type Tabela, type TipoColuna } from "@/lib/exportar";
 import {
   HORIZONTE_DIAS,
   IDS_CATEGORIA,
+  LIMIAR_ENCOMENDA,
   categorias,
   dados,
+  encomendasDe,
+  faixaDoDia,
   nomeCategoria,
   nomeUnidade,
   previsaoDe,
@@ -20,7 +23,7 @@ import {
 } from "./mockData";
 
 export type Formato = "xlsx" | "csv" | "pdf";
-export type FiltroCategoria = CategoriaId | "todas";
+export type { FiltroCategoria };
 
 export interface FiltrosRelatorio {
   unidade: FiltroUnidade;
@@ -39,8 +42,6 @@ export interface Relatorio {
   filtros: ("unidade" | "categoria")[];
   formatos: Formato[];
   gerar: (f: FiltrosRelatorio) => Tabela;
-  /** Relatório só em PDF, com layout próprio (não é uma tabela única). */
-  html?: (f: FiltrosRelatorio) => string;
 }
 
 const cats = (f: FiltrosRelatorio): CategoriaId[] => (f.categoria === "todas" ? IDS_CATEGORIA : [f.categoria]);
@@ -58,7 +59,7 @@ export const relatorios: Relatorio[] = [
     id: "previsao-diaria",
     grupo: "Previsão",
     titulo: `Previsão diária · próximos ${HORIZONTE_DIAS} dias`,
-    descricao: "Venda mais provável e faixa provável (95%) por dia, loja e categoria.",
+    descricao: "Previsão e faixa provável (95%) por dia, loja e categoria. Venda do dia a dia, sem as encomendas grandes.",
     uso: "Planejar o recebimento de mercadoria e a equipe de cada dia.",
     filtros: ["unidade", "categoria"],
     formatos: ["xlsx", "csv", "pdf"],
@@ -68,7 +69,7 @@ export const relatorios: Relatorio[] = [
         { titulo: "Dia", tipo: "texto" },
         { titulo: "Loja", tipo: "texto" },
         { titulo: "Categoria", tipo: "texto" },
-        { titulo: "Venda mais provável", tipo: "numero" },
+        { titulo: "Previsão", tipo: "numero" },
         { titulo: "Mínimo provável", tipo: "numero" },
         { titulo: "Máximo provável", tipo: "numero" },
         { titulo: "Observação", tipo: "texto" },
@@ -92,42 +93,34 @@ export const relatorios: Relatorio[] = [
   {
     id: "previsao-produtos",
     grupo: "Previsão",
-    titulo: "Previsão por produto",
-    descricao: `Os 10 produtos de maior venda em cada categoria, com o total previsto e a previsão de cada um dos ${HORIZONTE_DIAS} dias.`,
-    uso: "Conferir o volume esperado dos itens que mais giram antes de fazer o pedido.",
+    titulo: "Previsão por produto regular",
+    descricao: `Produtos que vendem quase todo dia, cada um com o seu modelo: total previsto e previsão de cada um dos ${HORIZONTE_DIAS} dias.`,
+    uso: "Conferir o volume esperado dos itens de giro constante antes de fazer o pedido.",
     filtros: ["unidade", "categoria"],
     formatos: ["xlsx", "csv", "pdf"],
     gerar: (f) => {
       const dias = previsaoDe(f.unidade).map((d) => d.data);
-      const linhas: Celula[][] = [];
-      for (const u of unidadesDoFiltro(f.unidade)) {
-        for (const p of u.produtos.filter((p) => cats(f).includes(p.categoria)).sort((a, b) => b.previsao_14d - a.previsao_14d)) {
-          linhas.push([
-            u.nome,
-            p.codigo,
-            p.nome,
-            nomeCategoria(p.categoria),
-            p.subcategoria,
-            r1(p.participacao_categoria * 100),
-            p.vendido_8_semanas,
-            p.previsao_14d,
-            ...p.previsao.map((d) => d.previsto),
-          ]);
-        }
-      }
       return {
         colunas: [
           { titulo: "Loja", tipo: "texto" },
           { titulo: "Código", tipo: "texto" },
           { titulo: "Produto", tipo: "texto" },
           { titulo: "Categoria", tipo: "texto" },
-          { titulo: "Tipo", tipo: "texto" },
-          { titulo: "Parte da categoria (%)", tipo: "numero" },
+          { titulo: "Confiança", tipo: "texto" },
           { titulo: "Vendido 8 semanas", tipo: "numero" },
           { titulo: `Previsto ${HORIZONTE_DIAS} dias`, tipo: "numero" },
           ...dias.map((d) => ({ titulo: formatarDiaMes(d), tipo: "numero" as const })),
         ],
-        linhas,
+        linhas: produtosDe(f.unidade, f.categoria, true).map((p) => [
+          p.nomeUnidade,
+          p.codigo,
+          p.nome,
+          nomeCategoria(p.categoria),
+          p.modelo ? estiloStatus[p.modelo.status].label : "",
+          p.vendido_8_semanas,
+          p.previsao_14d,
+          ...p.previsao.map((d) => d.previsto),
+        ]),
       };
     },
   },
@@ -135,7 +128,7 @@ export const relatorios: Relatorio[] = [
     id: "vendas-semanais",
     grupo: "Histórico de vendas",
     titulo: "Vendas por semana · base completa",
-    descricao: `Quantidade vendida por semana e categoria, de ${formatarData(dados.base.inicio)} a ${formatarData(dados.base.fim)}.`,
+    descricao: `Quantidade vendida por semana e categoria, de ${formatarData(dados.base.inicio)} a ${formatarData(dados.base.fim)}, com as encomendas em coluna à parte.`,
     uso: "Comparar com o mesmo período do ano anterior e ver a sazonalidade.",
     filtros: ["unidade", "categoria"],
     formatos: ["xlsx", "csv"],
@@ -144,7 +137,8 @@ export const relatorios: Relatorio[] = [
         { titulo: "Semana (segunda)", tipo: "data" },
         { titulo: "Loja", tipo: "texto" },
         ...cats(f).map((c) => ({ titulo: nomeCategoria(c), tipo: "numero" as const })),
-        { titulo: "Total", tipo: "numero" },
+        { titulo: "Total sem encomendas", tipo: "numero" },
+        { titulo: "Encomendas", tipo: "numero" },
       ],
       linhas: unidadesDoFiltro(f.unidade).flatMap((u) =>
         u.historico_semanal.map((s) => [
@@ -152,6 +146,7 @@ export const relatorios: Relatorio[] = [
           u.nome,
           ...cats(f).map((c) => s.categorias[c]),
           r1(somar(cats(f).map((c) => s.categorias[c]))),
+          s.encomendas,
         ]),
       ),
     }),
@@ -160,7 +155,7 @@ export const relatorios: Relatorio[] = [
     id: "vendas-diarias",
     grupo: "Histórico de vendas",
     titulo: "Vendas por dia · últimas 8 semanas",
-    descricao: "O histórico recente usado para repartir a previsão entre as categorias.",
+    descricao: "O histórico recente usado para repartir a previsão da loja entre as categorias.",
     uso: "Conferir o movimento recente dia a dia.",
     filtros: ["unidade", "categoria"],
     formatos: ["xlsx", "csv", "pdf"],
@@ -170,7 +165,8 @@ export const relatorios: Relatorio[] = [
         { titulo: "Dia", tipo: "texto" },
         { titulo: "Loja", tipo: "texto" },
         ...cats(f).map((c) => ({ titulo: nomeCategoria(c), tipo: "numero" as const })),
-        { titulo: "Total", tipo: "numero" },
+        { titulo: "Total sem encomendas", tipo: "numero" },
+        { titulo: "Encomendas", tipo: "numero" },
       ],
       linhas: unidadesDoFiltro(f.unidade).flatMap((u) =>
         u.historico_diario.map((d) => [
@@ -179,15 +175,39 @@ export const relatorios: Relatorio[] = [
           u.nome,
           ...cats(f).map((c) => d.categorias[c]),
           r1(somar(cats(f).map((c) => d.categorias[c]))),
+          d.encomendas,
         ]),
+      ),
+    }),
+  },
+  {
+    id: "encomendas",
+    grupo: "Histórico de vendas",
+    titulo: "Encomendas por semana",
+    descricao: `Volume vendido em notas com mais de ${formatarNumero(LIMIAR_ENCOMENDA)} unidades, que fica fora da previsão.`,
+    uso: "Acompanhar quando as vendas grandes acontecem e quanto pesam.",
+    filtros: ["unidade"],
+    formatos: ["xlsx", "csv"],
+    gerar: (f) => ({
+      colunas: [
+        { titulo: "Semana (segunda)", tipo: "data" },
+        { titulo: "Loja", tipo: "texto" },
+        { titulo: "Encomendas", tipo: "numero" },
+        { titulo: "Venda sem encomendas", tipo: "numero" },
+        { titulo: "Encomendas no total (%)", tipo: "numero" },
+      ],
+      linhas: unidadesDoFiltro(f.unidade).flatMap((u) =>
+        u.historico_semanal
+          .filter((s) => s.encomendas > 0)
+          .map((s) => [s.semana, u.nome, s.encomendas, s.total, r1((s.encomendas / (s.total + s.encomendas)) * 100)]),
       ),
     }),
   },
   {
     id: "acerto-resumo",
     grupo: "Qualidade da previsão",
-    titulo: "Resumo de acerto por loja",
-    descricao: "Indicadores dos testes de acerto (MASE, faixa provável, comparação com a regra simples).",
+    titulo: "Acerto da previsão da loja",
+    descricao: "Indicadores dos testes de acerto da previsão de cada loja (venda sem encomendas).",
     uso: "Saber quanto confiar na previsão de cada loja.",
     filtros: ["unidade"],
     formatos: ["xlsx", "csv", "pdf"],
@@ -196,13 +216,11 @@ export const relatorios: Relatorio[] = [
         { titulo: "Loja", tipo: "texto" },
         { titulo: "Situação", tipo: "texto" },
         { titulo: "MASE", tipo: "decimal" },
-        { titulo: "Erro ÷ regra simples", tipo: "decimal" },
-        { titulo: "Dias dentro da faixa (%)", tipo: "numero" },
+        { titulo: "Erro ÷ naive sazonal", tipo: "decimal" },
+        { titulo: "Cobertura do intervalo de 95% (%)", tipo: "numero" },
         { titulo: "Rodadas vencidas", tipo: "texto" },
         { titulo: "Erro médio por dia", tipo: "numero" },
-        { titulo: "Largura média da faixa", tipo: "numero" },
-        { titulo: "Previsto ÷ vendido (%)", tipo: "numero" },
-        { titulo: "Dias testados", tipo: "numero" },
+        { titulo: "Volume previsto ÷ vendido (%)", tipo: "numero" },
         { titulo: "Modelo", tipo: "texto" },
       ],
       linhas: unidadesDoFiltro(f.unidade).map((u) => {
@@ -215,19 +233,57 @@ export const relatorios: Relatorio[] = [
           m.cobertura_ic95_pct,
           `${m.rodadas_vence_naive} de ${m.rodadas}`,
           m.mae,
-          m.largura_ic95,
           m.previsto_sobre_real_pct,
-          m.dias_avaliados,
-          `SARIMAX(${u.modelo.ordem.join(",")})(${u.modelo.ordem_sazonal.join(",")}) · ${u.modelo.transformacao}`,
+          `SARIMAX(${u.modelo.ordem.join(",")})(${u.modelo.ordem_sazonal.join(",")}) · sem encomendas · sem log1p · janela deslizante de ${u.modelo.janela_dias} dias`,
         ];
       }),
     }),
   },
   {
+    id: "acerto-produtos",
+    grupo: "Qualidade da previsão",
+    titulo: "Acerto de cada produto regular",
+    descricao: "Indicadores dos testes de acerto do modelo de cada produto regular.",
+    uso: "Saber em quais produtos a previsão diária é confiável.",
+    filtros: ["unidade", "categoria"],
+    formatos: ["xlsx", "csv", "pdf"],
+    gerar: (f) => ({
+      colunas: [
+        { titulo: "Loja", tipo: "texto" },
+        { titulo: "Código", tipo: "texto" },
+        { titulo: "Produto", tipo: "texto" },
+        { titulo: "Categoria", tipo: "texto" },
+        { titulo: "Situação", tipo: "texto" },
+        { titulo: "MASE", tipo: "decimal" },
+        { titulo: "Cobertura do intervalo de 95% (%)", tipo: "numero" },
+        { titulo: "Volume previsto ÷ vendido (%)", tipo: "numero" },
+        { titulo: "Erro no total de 14 dias (%)", tipo: "numero" },
+        { titulo: "Rodadas vencidas", tipo: "texto" },
+      ],
+      linhas: produtosDe(f.unidade, f.categoria, true)
+        .filter((p) => p.modelo?.metricas)
+        .map((p) => {
+          const m = p.modelo!.metricas!;
+          return [
+            p.nomeUnidade,
+            p.codigo,
+            p.nome,
+            nomeCategoria(p.categoria),
+            estiloStatus[p.modelo!.status].label,
+            m.mase,
+            m.cobertura_ic95_pct,
+            m.previsto_sobre_real_pct,
+            m.erro_total_14d_pct,
+            `${m.rodadas_vence_naive} de ${m.rodadas}`,
+          ];
+        }),
+    }),
+  },
+  {
     id: "acerto-dias",
     grupo: "Qualidade da previsão",
-    titulo: "Testes de acerto · dia a dia",
-    descricao: "Cada dia testado: o que o sistema previu, a faixa, o que foi vendido e a regra simples.",
+    titulo: "Testes de acerto da loja · dia a dia",
+    descricao: "Cada dia testado: o que o sistema previu, a faixa, o que foi vendido (sem encomendas) e o naive sazonal.",
     uso: "Auditar a previsão em datas específicas (feriados, picos de venda).",
     filtros: ["unidade"],
     formatos: ["xlsx", "csv"],
@@ -240,7 +296,7 @@ export const relatorios: Relatorio[] = [
         { titulo: "Mínimo provável", tipo: "numero" },
         { titulo: "Máximo provável", tipo: "numero" },
         { titulo: "Dentro da faixa", tipo: "texto" },
-        { titulo: "Regra simples (semana anterior)", tipo: "numero" },
+        { titulo: "Naive sazonal", tipo: "numero" },
       ],
       linhas: unidadesDoFiltro(f.unidade).flatMap((u) =>
         u.backtest.map((d) => [d.data, u.nome, d.real, d.previsto, d.inf, d.sup, d.real >= d.inf && d.real <= d.sup ? "Sim" : "Não", d.naive]),
@@ -289,7 +345,7 @@ const CSS_IMPRESSAO = `
   .num { text-align: right; }
   tr:nth-child(even) td { background: #f4f9f1; }
   .nota { color: #5a7260; margin-top: 6px; }
-  @media print { body { margin: 10mm; } h2 { break-after: avoid; } table { break-inside: auto; } tr { break-inside: avoid; } }
+  @media print { body { margin: 10mm; } h2 { break-after: avoid; } tr { break-inside: avoid; } }
 `;
 
 export function documentoImpressao(titulo: string, subtitulo: string, corpo: string): string {
@@ -301,23 +357,33 @@ export function documentoImpressao(titulo: string, subtitulo: string, corpo: str
 export function relatorioGerencialHtml(f: FiltrosRelatorio): string {
   const previsao = previsaoDe(f.unidade);
   const lojas = unidadesDoFiltro(f.unidade);
-  const total = somar(previsao.map((d) => d.previsto));
-  const inf = somar(previsao.map((d) => d.inf));
-  const sup = somar(previsao.map((d) => d.sup));
+  const faixas = previsao.map((d) => faixaDoDia(d, f.categoria));
+  const total = somar(faixas.map((d) => d.previsto));
   const abertos = previsao.filter((d) => !d.loja_fechada).length;
+  const enc = encomendasDe(f.unidade);
   const ini = previsao[0]!.data;
   const fim = previsao[previsao.length - 1]!.data;
+  const regulares = produtosDe(f.unidade, f.categoria, true);
 
   const kpis = `<div class="kpis">
-    <div class="kpi"><span>Venda prevista (${HORIZONTE_DIAS} dias)</span><b>${formatarNumero(total)}</b><span>faixa ${formatarNumero(inf)} a ${formatarNumero(sup)}</span></div>
+    <div class="kpi"><span>Previsão (${HORIZONTE_DIAS} dias)</span><b>${formatarNumero(total)}</b><span>faixa ${formatarNumero(somar(faixas.map((d) => d.inf)))} a ${formatarNumero(somar(faixas.map((d) => d.sup)))}</span></div>
     <div class="kpi"><span>Média por dia aberto</span><b>${formatarNumero(total / Math.max(1, abertos))}</b><span>${abertos} dias abertos</span></div>
-    ${lojas
-      .map(
-        (u) =>
-          `<div class="kpi"><span>Confiança · ${u.nome}</span><b>${estiloStatus[u.modelo.status].label}</b><span>MASE ${formatarDecimal(u.modelo.metricas.mase)} · faixa acertou ${formatarDecimal(u.modelo.metricas.cobertura_ic95_pct, 1)}%</span></div>`,
-      )
-      .join("")}
+    <div class="kpi"><span>Produtos regulares</span><b>${regulares.length}</b><span>com previsão própria</span></div>
+    <div class="kpi"><span>Encomendas (fora da previsão)</span><b>${formatarNumero(enc.vendas)}</b><span>${formatarPercentual(enc.pctVolume / 100)} do volume histórico</span></div>
   </div>`;
+
+  const confianca = tabelaHtml(
+    {
+      colunas: [
+        { titulo: "Loja", tipo: "texto" },
+        { titulo: "Situação", tipo: "texto" },
+        { titulo: "MASE", tipo: "decimal" },
+        { titulo: "Intervalo acertou (%)", tipo: "numero" },
+      ],
+      linhas: lojas.map((u) => [u.nome, estiloStatus[u.modelo.status].label, u.modelo.metricas.mase, u.modelo.metricas.cobertura_ic95_pct]),
+    },
+    formatarCelula,
+  );
 
   const porCategoria = tabelaHtml(
     {
@@ -328,7 +394,8 @@ export function relatorioGerencialHtml(f: FiltrosRelatorio): string {
       ],
       linhas: categorias.map((c) => {
         const v = somar(previsao.map((d) => d.categorias[c.id].previsto));
-        return [c.nome, v, formatarPercentual(total ? v / total : 0)];
+        const t = somar(previsao.map((d) => d.previsto));
+        return [c.nome, v, formatarPercentual(t ? v / t : 0)];
       }),
     },
     formatarCelula,
@@ -339,19 +406,14 @@ export function relatorioGerencialHtml(f: FiltrosRelatorio): string {
       colunas: [
         { titulo: "Data", tipo: "data" },
         { titulo: "Dia", tipo: "texto" },
-        ...categorias.map((c) => ({ titulo: c.nome, tipo: "numero" as const })),
-        { titulo: "Total provável", tipo: "numero" },
+        { titulo: "Previsão", tipo: "numero" },
         { titulo: "Faixa", tipo: "texto" },
         { titulo: "Obs.", tipo: "texto" },
       ],
-      linhas: previsao.map((d) => [
-        d.data,
-        d.dia_semana,
-        ...categorias.map((c) => d.categorias[c.id].previsto),
-        d.previsto,
-        `${formatarNumero(d.inf)} – ${formatarNumero(d.sup)}`,
-        [d.loja_fechada ? "Fechada" : "", d.evento ?? ""].filter(Boolean).join(" · "),
-      ]),
+      linhas: previsao.map((d) => {
+        const fx = faixaDoDia(d, f.categoria);
+        return [d.data, d.dia_semana, fx.previsto, `${formatarNumero(fx.inf)} – ${formatarNumero(fx.sup)}`, [d.loja_fechada ? "Fechada" : "", d.evento ?? ""].filter(Boolean).join(" · ")];
+      }),
     },
     formatarCelula,
   );
@@ -360,36 +422,31 @@ export function relatorioGerencialHtml(f: FiltrosRelatorio): string {
     {
       colunas: [
         { titulo: "Produto", tipo: "texto" },
-        { titulo: "Código", tipo: "texto" },
+        { titulo: "Loja", tipo: "texto" },
         { titulo: "Categoria", tipo: "texto" },
-        { titulo: "Vendido 8 sem.", tipo: "numero" },
+        { titulo: "Confiança", tipo: "texto" },
         { titulo: `Previsto ${HORIZONTE_DIAS} dias`, tipo: "numero" },
       ],
-      linhas: produtosDe(f.unidade)
-        .sort((a, b) => b.previsao_14d - a.previsao_14d)
+      linhas: regulares
         .slice(0, 15)
-        .map((p) => [p.nome, p.codigo, nomeCategoria(p.categoria), p.vendido_8_semanas, p.previsao_14d]),
+        .map((p) => [p.nome, p.nomeUnidade, nomeCategoria(p.categoria), p.modelo ? estiloStatus[p.modelo.status].label : "", p.previsao_14d]),
     },
     formatarCelula,
   );
 
-  const nota =
-    f.unidade === "todas"
-      ? `<p class="nota">Todas as lojas: soma das previsões de cada loja. A faixa somada é conservadora (mais larga que a faixa exata da soma).</p>`
-      : "";
-
   return documentoImpressao(
-    `Previsão de vendas · ${nomeUnidade(f.unidade)}`,
+    `Previsão de vendas · ${nomeUnidade(f.unidade)} · ${nomeCategoria(f.categoria)}`,
     `Próximos ${HORIZONTE_DIAS} dias: ${formatarData(ini)} a ${formatarData(fim)} · vendas registradas até ${formatarData(dados.base.fim)}`,
-    `${kpis}${nota}<h2>Por categoria</h2>${porCategoria}<h2>Dia a dia</h2>${diaria}<h2>Produtos com maior venda prevista</h2>${top}
-     <p class="nota">Venda mais provável = valor do meio (metade dos dias vende mais, metade menos). Faixa provável = intervalo de 95%.
-     Flores de corte (~2% do volume) entram na previsão da loja, mas não têm painel próprio.</p>`,
+    `${kpis}<h2>Confiança da previsão</h2>${confianca}${f.categoria === "todas" ? `<h2>Por categoria</h2>${porCategoria}` : ""}<h2>Dia a dia</h2>${diaria}<h2>Produtos regulares</h2>${top}
+     <p class="nota">A previsão é da venda do dia a dia; as encomendas (notas com mais de ${formatarNumero(LIMIAR_ENCOMENDA)} unidades) ficam fora.
+     A categoria é a parte dela na previsão da loja. Produtos regulares têm modelo próprio; os demais vendem de forma irregular e não têm previsão diária.
+     Faixa provável = intervalo de 95%.</p>`,
   );
 }
 
 export const relatorioGerencial = {
   id: "gerencial",
   titulo: "Relatório gerencial",
-  descricao: "Resumo para a gestão: previsão dos próximos 14 dias, por categoria e dia, produtos de maior venda e confiança da previsão.",
+  descricao: "Resumo para a gestão: previsão dos próximos 14 dias, por categoria e dia, produtos regulares, encomendas e confiança da previsão.",
   uso: "Levar para a reunião semanal ou enviar para os gerentes das lojas.",
 };

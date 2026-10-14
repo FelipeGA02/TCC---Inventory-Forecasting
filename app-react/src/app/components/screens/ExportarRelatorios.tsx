@@ -94,9 +94,9 @@ const opcoesCategoria: { valor: FiltroCategoria; label: string }[] = [
 ];
 
 export function ExportarRelatorios() {
-  const { unidade: unidadeGlobal } = useFiltroLoja();
+  const { unidade: unidadeGlobal, categoria: categoriaGlobal } = useFiltroLoja();
   const [selecionado, setSelecionado] = useState<string>(relatorios[0]!.id);
-  const [filtros, setFiltros] = useState<FiltrosRelatorio>({ unidade: unidadeGlobal, categoria: "todas" });
+  const [filtros, setFiltros] = useState<FiltrosRelatorio>({ unidade: unidadeGlobal, categoria: categoriaGlobal });
   const [lojaGerencial, setLojaGerencial] = useState<FiltroUnidade>(unidadeGlobal);
   const [historico, setHistorico] = useState<Baixado[]>(lerHistorico);
 

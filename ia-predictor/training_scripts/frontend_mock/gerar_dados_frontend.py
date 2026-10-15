@@ -7,8 +7,10 @@ modelos escolhidos na etapa de testes (branch `feat/desagregacao-l2`, e-mail ao 
     previsao e aparecem a parte (historico e lista das ultimas).
   * Loja (L1): SARIMAX na venda SEM encomendas, SEM log1p, d = 1, m = 7, exogenas de
     calendario, janela DESLIZANTE do tamanho do treino da 1a origem (treino C deslizante).
-  * Categoria: participacao da categoria na previsao da loja (ultimas 8 semanas, por dia da
-    semana). E um filtro de leitura; categoria nao tem modelo proprio.
+  * Categoria (L2, desagregacao loja -> categoria): previsao da loja x participacao da
+    categoria no mesmo dia da semana nas ultimas 8 semanas (participacao movel x perfil de
+    dia da semana, CLAUDE.md L2). Testada nas mesmas rodadas da loja, com a participacao
+    calculada so com as 8 semanas antes de cada origem.
   * Produto regular (ADI < 1,32 em dias de loja aberta e >= 180 dias de historico —
     Syntetos, Boylan & Croston, 2005): SARIMAX no proprio produto, d = 0 com constante,
     SEM log1p (sem vies, faixa calibrada no teste de ajuste). Ordem por AIC.
@@ -17,11 +19,9 @@ modelos escolhidos na etapa de testes (branch `feat/desagregacao-l2`, e-mail ao 
 Validacao (as duas lojas): walk-forward com 26 rodadas a cada 14 dias desde 2025-03-02,
 h = 14; metricas nos dias de loja aberta.
 
-Categorias do painel (vocabulario da loja, a partir do `grupo` da Etapa 3):
-    Grama               <- grupo "Grama"
-    Plantas diversas    <- grupo "Plantas diversas" (todas as plantas, exceto flores de corte)
-    Produtos de jardim  <- grupo "Insumos e acessorios" (substrato, adubo, vaso, insumo)
-"Flores de corte" (~1,8% do volume) entra no modelo da loja mas nao tem painel proprio.
+Categorias: as 4 da coluna `categoria` da Etapa 3 (Grama, Plantas diversas — todas as
+plantas exceto flores de corte —, Produtos de jardim — substrato, adubo, vaso, insumo — e
+Flores de corte, ~1,8% do volume).
 
 Uso (a partir de `ia-predictor/`, depois do pre-processamento):
     python -m training_scripts.frontend_mock.gerar_dados_frontend
@@ -87,11 +87,14 @@ CATEGORIAS = [
     {"id": "plantas-diversas", "nome": "Plantas diversas", "grupo": "Plantas diversas",
      "descricao": "Todas as plantas, exceto flores de corte: mudas, forrações, plantas em vaso, "
                   "arbustos, hortaliças e ervas"},
-    {"id": "produtos-de-jardim", "nome": "Produtos de jardim", "grupo": "Insumos e acessórios",
+    {"id": "produtos-de-jardim", "nome": "Produtos de jardim", "grupo": "Produtos de jardim",
      "descricao": "Substratos, adubos, vasos, ferramentas e demais insumos de jardinagem"},
+    {"id": "flores-de-corte", "nome": "Flores de corte", "grupo": "Flores de corte",
+     "descricao": "Flores de corte (rosas, girassóis, crisântemos…)"},
 ]
+# `grupo` = rotulo da coluna `categoria` da BaseClassificada03 (nome mantido no JSON do front)
 CAT_POR_GRUPO = {c["grupo"]: c["id"] for c in CATEGORIAS}
-CAT_FORA = "flores-de-corte"
+CAT_FORA = "outros"        # grupo sem categoria (nao ocorre depois de tirar servicos e taxas)
 IDS_CAT = [c["id"] for c in CATEGORIAS]
 DIA_CURTO = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"]
 
@@ -105,12 +108,12 @@ def r1(v) -> float:
 # --------------------------------------------------------------------------- #
 def carregar_base() -> pd.DataFrame:
     cols = ["doc_numero", "emissao", "cliente_nome", "produto_cod", "produto_nome", "qtdade",
-            "vl_total", "unidade", "categoria", "categoria_fina", "grupo"]
+            "vl_total", "unidade", "categoria", "categoria_fina"]
     df = pd.read_csv(BASE, sep=";", usecols=cols, dtype={"produto_cod": str, "doc_numero": str,
                                                          "cliente_nome": str})
-    df = df[df["grupo"] != "Servico e taxa"].copy()
+    df = df[df["categoria"] != "Servico e taxa"].copy()
     df["emissao"] = pd.to_datetime(df["emissao"])
-    df["cat"] = df["grupo"].map(CAT_POR_GRUPO).fillna(CAT_FORA)
+    df["cat"] = df["categoria"].map(CAT_POR_GRUPO).fillna(CAT_FORA)
     df["encomenda"] = marcar_encomendas(df, LIMIAR_QTD_VENDA)
     return df
 
@@ -256,6 +259,9 @@ def _modelo_produto(args):
         "metricas": met, "status": status(met) if met else "insufficient_data",
         "previsao": [{"data": str(futuro[i].date()), "previsto": r1(p[i]), "inf": r1(lo[i]),
                       "sup": r1(hi[i])} for i in range(HORIZONTE)],
+        # Teste dia a dia (rodadas de 14 dias sem sobreposicao) para o historico da tela
+        "backtest": [{"data": str(r["data"].date()), "previsto": r1(r["previsto"]), "inf": r1(r["inf"]),
+                      "sup": r1(r["sup"]), "real": r1(r["real"]), "naive": r1(r["naive"])} for r in linhas],
     }
 
 
@@ -309,6 +315,29 @@ def gerar_unidade(df: pd.DataFrame, cal: pd.DataFrame, u: dict, workers: int) ->
                 "erro_naive": r1(g.loc[~g.data.isin(fechados), "naive"].sub(g.real).abs().sum())}
                for o, g in bt.groupby("origem")]
     prev, lo, hi = prever(y.iloc[-janela:], X, ordem, futuro)
+
+    # ---- Desagregacao loja -> categoria, testada nas mesmas rodadas
+    cat_dia = (fluxo.groupby(["emissao", "cat"])["qtdade"].sum().unstack(fill_value=0.0)
+               .reindex(index=idx, columns=IDS_CAT, fill_value=0.0))
+    desagregacao = {}
+    for k in IDS_CAT:
+        linhas_k = []
+        for o, g in bt.groupby("origem"):
+            sh = shares_por_dia_semana(fluxo, o - pd.Timedelta(days=1))[k]
+            fut = pd.DatetimeIndex(g["data"])
+            f = np.array([sh[d.weekday()] for d in fut])
+            treino_k = cat_dia.loc[cat_dia.index < o, k].iloc[-janela:]
+            linhas_k += linhas_rodada(o, fut, cat_dia.loc[fut, k].values, g["previsto"].values * f,
+                                      g["inf"].values * f, g["sup"].values * f, treino_k)
+        met_k = metricas(linhas_k, fechados)
+        desagregacao[k] = {
+            "metricas": met_k, "status": status(met_k),
+            "backtest": [{"data": str(r["data"].date()), "previsto": r1(r["previsto"]), "inf": r1(r["inf"]),
+                          "sup": r1(r["sup"]), "real": r1(r["real"]), "naive": r1(r["naive"])} for r in linhas_k],
+        }
+    print(f"[{u['nome']}] desagregacao · " + " · ".join(
+        f"{k}: acerto 14d {100 - (desagregacao[k]['metricas']['erro_total_14d_pct'] or 0):.0f}%, "
+        f"faixa {desagregacao[k]['metricas']['cobertura_ic95_pct']}%" for k in IDS_CAT), flush=True)
     print(f"[{u['nome']}] loja {ordem['order']}{ordem['seasonal_order']} · janela {janela} d · "
           f"MASE {met['mase']} · IC95 {met['cobertura_ic95_pct']}% · {time.time() - t0:.0f}s", flush=True)
 
@@ -392,6 +421,7 @@ def gerar_unidade(df: pd.DataFrame, cal: pd.DataFrame, u: dict, workers: int) ->
             "modelo": None if mod is None else {k: mod[k] for k in ("ordem", "ordem_sazonal", "metricas", "status")},
             "previsao": [] if mod is None else mod["previsao"],
             "previsao_14d": r1(sum(x["previsto"] for x in mod["previsao"])) if mod else None,
+            "backtest": [] if mod is None else mod["backtest"],
         })
 
     # ---- Encomendas: resumo e ultimas
@@ -413,7 +443,7 @@ def gerar_unidade(df: pd.DataFrame, cal: pd.DataFrame, u: dict, workers: int) ->
         "periodo": {"inicio": str(ini.date()), "fim": str(fim.date()), "dias": len(idx)},
         "linhas": int(len(v)), "skus_vendidos": int(v["produto_cod"].nunique()),
         "volume_total": r1(painel["qtdade"].sum()),
-        "volume_flores_de_corte": r1(fluxo.loc[fluxo["cat"] == CAT_FORA, "qtdade"].sum()),
+        "volume_flores_de_corte": r1(fluxo.loc[fluxo["cat"] == "flores-de-corte", "qtdade"].sum()),
         "volume_por_categoria": {k: r1(painel.loc[painel["cat"] == k, "qtdade"].sum()) for k in IDS_CAT},
         "skus_por_categoria": {k: int(painel.loc[painel["cat"] == k, "produto_cod"].nunique()) for k in IDS_CAT},
         "regulares_por_categoria": {k: sum(1 for s in regulares if cat_sku[s] == k) for k in IDS_CAT},
@@ -427,6 +457,7 @@ def gerar_unidade(df: pd.DataFrame, cal: pd.DataFrame, u: dict, workers: int) ->
                    "janela": "deslizante", "janela_dias": janela,
                    "base": f"sem encomendas (venda > {LIMIAR_QTD_VENDA} un. na nota)",
                    "exogenas": COLS_EXOG, "status": status(met), "metricas": met, "rodadas": rodadas},
+        "desagregacao": desagregacao,
         "previsao": previsao,
         "historico_diario": historico_diario,
         "historico_semanal": historico_semanal,

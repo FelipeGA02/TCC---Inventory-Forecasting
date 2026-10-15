@@ -51,7 +51,9 @@ METRICS_DIR = os.path.join(_TRAINING_SCRIPTS_DIR, "results", "metrics")
 # relatório: o CSV da Etapa 3 é gravado em cp1252 neste ambiente Windows).
 # --------------------------------------------------------------------------- #
 UNIDADES = ["Jardim Canadá", "Itabirito"]
-CATEGORIAS_L1 = ["Grama", "Flores de corte", "Produtos de jardim"]
+# As 4 categorias do negocio (coluna `categoria` da Etapa 3 desde 2026-10-14). Os relatorios
+# de EDA anteriores usaram o antigo nivel L1 de 3 categorias.
+CATEGORIAS_L1 = ["Grama", "Plantas diversas", "Produtos de jardim", "Flores de corte"]
 NAO_PRODUTO = "Servico e taxa"
 
 _UNIDADE_FIX = {
@@ -63,6 +65,7 @@ _CATEGORIA_FIX = {
     "grama": "Grama",
     "flores de corte": "Flores de corte",
     "produtos de jardim": "Produtos de jardim",
+    "plantas diversas": "Plantas diversas",
     "servico e taxa": "Servico e taxa",
     "serviço e taxa": "Servico e taxa",
 }

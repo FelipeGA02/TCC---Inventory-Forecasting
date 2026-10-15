@@ -37,6 +37,7 @@ export const CORES_CATEGORIA: PorCategoria<string> = {
   grama: "#1f7a4a",
   "plantas-diversas": "#b8860b",
   "produtos-de-jardim": "#6a5acd",
+  "flores-de-corte": "#c97b98",
 };
 /** Encomendas: neutro, para não competir com as categorias. */
 export const COR_ENCOMENDA = "#9aa4b1";

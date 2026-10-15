@@ -1,15 +1,14 @@
 import { useMemo, useState } from "react";
-import { CalendarDays, CheckCircle2, Info, Scale, Search, Target, TrendingUp, type LucideIcon } from "lucide-react";
+import { CalendarDays, History, Info, Search } from "lucide-react";
 import { Area, Bar, CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Input } from "../ui/input";
-import type { DiaPrevisto, MetricasModelo, ProdutoDaLoja, UnidadeDados } from "@/domain/types";
+import type { DiaPrevisto, ProdutoDaLoja, UnidadeDados } from "@/domain/types";
 import {
   CORES_CATEGORIA,
   HORIZONTE_DIAS,
   categorias,
   corCategoria,
-  dados,
   faixaDoDia,
   historicoDiarioDe,
   nomeCategoria,
@@ -20,13 +19,13 @@ import {
   vendaDe,
 } from "../../data/mockData";
 import { BarraFiltros, MarcaCategoria, MiniBarras, Segmentado, StatusBadge, useFiltroLoja } from "../shared";
-import { AcertoConteudo } from "./AcertoConteudo";
+import { HistoricoPrevisao } from "./HistoricoPrevisao";
 import { eixo, estiloTooltip } from "@/styles/tokens";
 import { formatarData, formatarDiaMes, formatarNumero, formatarQtd } from "@/lib/format";
 
 const DIAS_HISTORICO_GRAFICO = 28;
 
-type Aba = "previsao" | "acerto";
+type Aba = "previsao" | "historico";
 type Visao = "categoria" | "produto";
 
 const chave = (p: ProdutoDaLoja) => `${p.unidade}-${p.codigo}`;
@@ -57,10 +56,9 @@ export function PrevisaoSarimax() {
         <CardContent className="p-4 flex items-center justify-between gap-4 flex-wrap">
           <BarraFiltros />
           <Segmentado
-            rotulo="Ver"
             opcoes={[
               { valor: "previsao" as Aba, label: "Previsão" },
-              { valor: "acerto" as Aba, label: "Como a previsão foi testada" },
+              { valor: "historico" as Aba, label: "Ver histórico de previsão" },
             ]}
             valor={aba}
             onChange={setAba}
@@ -68,12 +66,10 @@ export function PrevisaoSarimax() {
         </CardContent>
       </Card>
 
-      {aba === "acerto" ? (
-        <AcertoConteudo />
+      {aba === "historico" ? (
+        <HistoricoPrevisao produtoSelecionado={selecionado} onSelecionarProduto={setSelecionado} />
       ) : (
         <>
-          <ResumoTreino lojas={lojas} />
-
           {eventos.length > 0 && (
             <div className="rounded-lg px-4 py-2.5 flex items-center gap-2 text-sm" style={{ background: "#fff8e1", border: "1px solid #ffe0a0", color: "#8a5a00" }}>
               <CalendarDays size={16} />
@@ -107,7 +103,11 @@ export function PrevisaoSarimax() {
             </CardHeader>
             <CardContent className="px-0 pb-0">
               {visao === "categoria" ? (
-                <PrevisaoCategoria previsao={previsao} lojas={lojas} />
+                <div className="flex flex-col">
+                  {lojas.map((l, i) => (
+                    <PrevisaoCategoria key={l.id} loja={l} mostrarLoja={lojas.length > 1} primeira={i === 0} />
+                  ))}
+                </div>
               ) : (
                 <PrevisaoProduto
                   produtos={filtrarBusca(produtos)}
@@ -115,6 +115,10 @@ export function PrevisaoSarimax() {
                   busca={busca}
                   onBusca={setBusca}
                   onSelecionar={setSelecionado}
+                  onVerHistorico={(k) => {
+                    setSelecionado(k);
+                    setAba("historico");
+                  }}
                   todasLojas={unidade === "todas"}
                 />
               )}
@@ -153,7 +157,7 @@ export function PrevisaoSarimax() {
               </div>
             </CardHeader>
             <CardContent className="px-0 pb-2">
-              <TabelaDiaria previsao={previsao} visao={visaoTabela} produtos={filtrarBusca(produtos)} todasLojas={unidade === "todas"} />
+              <TabelaDiaria previsao={previsao} lojas={lojas} visao={visaoTabela} produtos={filtrarBusca(produtos)} todasLojas={unidade === "todas"} />
             </CardContent>
           </Card>
         </>
@@ -166,9 +170,10 @@ export function PrevisaoSarimax() {
 // Previsão por categoria
 // ---------------------------------------------------------------------------
 
-function PrevisaoCategoria({ previsao, lojas }: { previsao: DiaPrevisto[]; lojas: UnidadeDados[] }) {
-  const { unidade, categoria, setCategoria } = useFiltroLoja();
-  const historico = useMemo(() => historicoDiarioDe(unidade).slice(-DIAS_HISTORICO_GRAFICO), [unidade]);
+function PrevisaoCategoria({ loja, mostrarLoja, primeira }: { loja: UnidadeDados; mostrarLoja: boolean; primeira: boolean }) {
+  const { categoria, setCategoria } = useFiltroLoja();
+  const previsao = useMemo(() => previsaoDe(loja.id), [loja.id]);
+  const historico = useMemo(() => historicoDiarioDe(loja.id).slice(-DIAS_HISTORICO_GRAFICO), [loja.id]);
   const cor = corCategoria(categoria);
 
   const grafico = useMemo(() => {
@@ -186,10 +191,11 @@ function PrevisaoCategoria({ previsao, lojas }: { previsao: DiaPrevisto[]; lojas
   const totLoja = somar(previsao.map((d) => d.previsto));
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px]">
+    <div className={`grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] ${primeira ? "" : "border-t pt-4"}`} style={{ borderColor: "var(--border)" }}>
       <div className="px-3 pb-4 min-w-0">
         <div className="flex items-center gap-4 text-xs px-2 pb-2 flex-wrap" style={{ color: "var(--muted-foreground)" }}>
           <span style={{ color: "var(--foreground)", fontWeight: 600 }}>
+            {mostrarLoja ? `${loja.nome} · ` : ""}
             {nomeCategoria(categoria)} · últimos {DIAS_HISTORICO_GRAFICO} dias e próximos {HORIZONTE_DIAS}
           </span>
           <span className="inline-flex items-center gap-1.5">
@@ -226,6 +232,11 @@ function PrevisaoCategoria({ previsao, lojas }: { previsao: DiaPrevisto[]; lojas
 
       <div className="border-t xl:border-t-0 xl:border-l px-5 pb-5 pt-1 flex flex-col gap-4" style={{ borderColor: "var(--border)" }}>
         <div>
+          {mostrarLoja && (
+            <p className="text-xs mb-1" style={{ fontWeight: 700 }}>
+              {loja.nome}
+            </p>
+          )}
           <p className="text-3xl" style={{ fontWeight: 700, lineHeight: 1, color: cor }}>
             {formatarNumero(total)}
           </p>
@@ -254,8 +265,8 @@ function PrevisaoCategoria({ previsao, lojas }: { previsao: DiaPrevisto[]; lojas
         </div>
         <p className="text-xs flex gap-1.5 pt-3 border-t" style={{ color: "var(--muted-foreground)", borderColor: "var(--border)" }}>
           <Info size={13} className="flex-shrink-0 mt-0.5" />
-          Venda do dia a dia, sem as encomendas grandes. A categoria é a parte dela na previsão {lojas.length > 1 ? "das lojas" : "da loja"}, pelo que vendeu nas
-          últimas 8 semanas em cada dia da semana.
+          Venda do dia a dia, sem as encomendas grandes. A categoria é a parte dela na previsão da loja, pelo que vendeu nas últimas 8
+          semanas em cada dia da semana.
         </p>
       </div>
     </div>
@@ -272,6 +283,7 @@ function PrevisaoProduto({
   busca,
   onBusca,
   onSelecionar,
+  onVerHistorico,
   todasLojas,
 }: {
   produtos: ProdutoDaLoja[];
@@ -279,6 +291,7 @@ function PrevisaoProduto({
   busca: string;
   onBusca: (v: string) => void;
   onSelecionar: (k: string) => void;
+  onVerHistorico: (k: string) => void;
   todasLojas: boolean;
 }) {
   return (
@@ -323,14 +336,13 @@ function PrevisaoProduto({
           )}
         </div>
       </div>
-      <div className="p-5 min-w-0">{produto ? <DetalheProduto p={produto} /> : null}</div>
+      <div className="p-5 min-w-0">{produto ? <DetalheProduto p={produto} onVerHistorico={() => onVerHistorico(chave(produto))} /> : null}</div>
     </div>
   );
 }
 
-function DetalheProduto({ p }: { p: ProdutoDaLoja }) {
+function DetalheProduto({ p, onVerHistorico }: { p: ProdutoDaLoja; onVerHistorico: () => void }) {
   const cor = CORES_CATEGORIA[p.categoria];
-  const m = p.modelo?.metricas;
   const faixaTot = { inf: somar(p.previsao.map((d) => d.inf)), sup: somar(p.previsao.map((d) => d.sup)) };
   return (
     <div className="flex flex-col gap-4">
@@ -343,7 +355,12 @@ function DetalheProduto({ p }: { p: ProdutoDaLoja }) {
             cód. {p.codigo} · {p.subcategoria} · {p.nomeUnidade}
           </p>
         </div>
-        {p.modelo && <StatusBadge status={p.modelo.status} compacto />}
+        <div className="flex items-center gap-3">
+          {p.modelo && <StatusBadge status={p.modelo.status} compacto />}
+          <button className="text-xs inline-flex items-center gap-1 hover:underline" style={{ color: "var(--primary)", fontWeight: 600 }} onClick={onVerHistorico}>
+            <History size={13} /> Ver histórico deste produto
+          </button>
+        </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="rounded-lg p-3" style={{ background: "var(--background)", border: "1px solid var(--border)" }}>
@@ -357,11 +374,9 @@ function DetalheProduto({ p }: { p: ProdutoDaLoja }) {
           <MiniBarras valores={p.historico_semanal} cor={cor} />
         </div>
         <div className="rounded-lg p-3" style={{ background: "var(--background)", border: "1px solid var(--border)" }}>
-          <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>Acerto no total de 2 semanas</p>
-          <p className="text-lg" style={{ fontWeight: 700 }}>{m ? acerto14d(m) : "—"}</p>
-          <p className="text-[11px]" style={{ color: "var(--muted-foreground)" }}>
-            {m ? `venda dentro da faixa em ${pct(m.cobertura_ic95_pct)} dos dias` : ""}
-          </p>
+          <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>Média por dia de loja aberta</p>
+          <p className="text-lg" style={{ fontWeight: 700 }}>{formatarQtd(p.media_dia_aberto)}</p>
+          <p className="text-[11px]" style={{ color: "var(--muted-foreground)" }}>vende em {formatarNumero(Math.round(p.pct_dias_abertos_com_venda))}% dos dias abertos</p>
         </div>
       </div>
       <ResponsiveContainer width="100%" height={240}>
@@ -394,25 +409,50 @@ interface LinhaDiaria {
   detalhe?: string;
   cor: string;
   dias: { previsto: number; inf: number; sup: number }[];
+  /** Dias de loja fechada desta linha (cada loja tem seu calendário). */
+  fechados: boolean[];
   destaque?: boolean;
+  /** Linha de título de um grupo (a loja), sem valores. */
+  grupo?: boolean;
 }
 
-function TabelaDiaria({ previsao, visao, produtos, todasLojas }: { previsao: DiaPrevisto[]; visao: Visao; produtos: ProdutoDaLoja[]; todasLojas: boolean }) {
+function TabelaDiaria({
+  previsao,
+  lojas,
+  visao,
+  produtos,
+  todasLojas,
+}: {
+  previsao: DiaPrevisto[];
+  lojas: UnidadeDados[];
+  visao: Visao;
+  produtos: ProdutoDaLoja[];
+  todasLojas: boolean;
+}) {
   const { categoria } = useFiltroLoja();
   const cats = categoria === "todas" ? categorias : categorias.filter((c) => c.id === categoria);
+  const fechadosDe = (id: UnidadeDados["id"]) => previsaoDe(id).map((d) => d.loja_fechada);
 
   const linhas: LinhaDiaria[] =
     visao === "categoria"
-      ? [
-          ...cats.map((c) => ({ id: c.id, nome: c.nome, cor: CORES_CATEGORIA[c.id], dias: previsao.map((d) => d.categorias[c.id]) })),
-          ...(categoria === "todas" ? [{ id: "total", nome: "Total", cor: "var(--foreground)", dias: previsao.map((d) => ({ previsto: d.previsto, inf: d.inf, sup: d.sup })), destaque: true }] : []),
-        ]
+      ? lojas.flatMap((l) => {
+          const prev = previsaoDe(l.id);
+          const fechados = prev.map((d) => d.loja_fechada);
+          return [
+            ...(lojas.length > 1 ? [{ id: `${l.id}-grupo`, nome: l.nome, cor: "transparent", dias: [], fechados, grupo: true }] : []),
+            ...cats.map((c) => ({ id: `${l.id}-${c.id}`, nome: c.nome, cor: CORES_CATEGORIA[c.id], dias: prev.map((d) => d.categorias[c.id]), fechados })),
+            ...(categoria === "todas"
+              ? [{ id: `${l.id}-total`, nome: `Total ${l.nome}`, cor: "var(--foreground)", dias: prev.map((d) => ({ previsto: d.previsto, inf: d.inf, sup: d.sup })), fechados, destaque: true }]
+              : []),
+          ];
+        })
       : produtos.map((p) => ({
           id: chave(p),
           nome: p.nome,
           detalhe: `${nomeCategoria(p.categoria)}${todasLojas ? ` · ${p.nomeUnidade}` : ""}`,
           cor: CORES_CATEGORIA[p.categoria],
           dias: p.previsao,
+          fechados: fechadosDe(p.unidade),
         }));
 
   const fmt = visao === "categoria" ? formatarNumero : formatarQtd;
@@ -448,6 +488,15 @@ function TabelaDiaria({ previsao, visao, produtos, todasLojas }: { previsao: Dia
         <tbody>
           {linhas.map((l) => {
             const fundo = l.destaque ? "#f7faf5" : "#fff";
+            if (l.grupo)
+              return (
+                <tr key={l.id}>
+                  <td className={`${fixa} pl-5 pr-3 pt-4 pb-1.5`} style={{ background: "#fff", borderBottom: "1px solid var(--border)", fontWeight: 700 }}>
+                    {l.nome}
+                  </td>
+                  <td colSpan={previsao.length + 1} style={{ background: "#fff", borderBottom: "1px solid var(--border)" }} />
+                </tr>
+              );
             return (
               <tr key={l.id}>
                 <td className={`${fixa} pl-5 pr-3 py-2`} style={{ background: fundo, borderBottom: "1px solid var(--border)" }}>
@@ -466,7 +515,7 @@ function TabelaDiaria({ previsao, visao, produtos, todasLojas }: { previsao: Dia
                   </span>
                 </td>
                 {l.dias.map((d, i) => {
-                  const fechado = previsao[i]?.loja_fechada;
+                  const fechado = l.fechados[i];
                   return (
                     <td
                       key={i}
@@ -497,92 +546,5 @@ function TabelaDiaria({ previsao, visao, produtos, todasLojas }: { previsao: Dia
         — loja fechada · ● data comemorativa (passe o mouse no dia)
       </p>
     </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Acerto do último treino, resumido e em linguagem simples
-// ---------------------------------------------------------------------------
-
-const pct = (v: number) => `${formatarNumero(Math.round(v))}%`;
-const acerto14d = (m: MetricasModelo) => (m.erro_total_14d_pct != null ? pct(Math.max(0, 100 - m.erro_total_14d_pct)) : "—");
-
-function equilibrio(previstoSobreReal: number | null): string {
-  if (previstoSobreReal == null) return "—";
-  const d = previstoSobreReal - 100;
-  if (Math.abs(d) < 3) return "na medida";
-  return d > 0 ? `${pct(d)} acima` : `${pct(-d)} abaixo`;
-}
-
-const INDICADORES: { icone: LucideIcon; titulo: string; dica: string; valor: (m: MetricasModelo) => string }[] = [
-  {
-    icone: Target,
-    titulo: "Acerto no total de 2 semanas",
-    dica: "Quanto o total previsto para 14 dias chegou perto do que foi vendido, em média.",
-    valor: acerto14d,
-  },
-  {
-    icone: CheckCircle2,
-    titulo: "Venda dentro da faixa",
-    dica: "Dias em que a venda real ficou entre o mínimo e o máximo que a previsão indicou.",
-    valor: (m) => pct(m.cobertura_ic95_pct),
-  },
-  {
-    icone: TrendingUp,
-    titulo: "Melhor que repetir a semana anterior",
-    dica: "Testes em que a previsão errou menos do que só copiar a venda da semana passada.",
-    valor: (m) => `${m.rodadas_vence_naive} de ${m.rodadas}`,
-  },
-  {
-    icone: Scale,
-    titulo: "Previsto x vendido",
-    dica: "Somando todos os testes, se a previsão tende a exagerar ou a ficar curta.",
-    valor: (m) => equilibrio(m.previsto_sobre_real_pct),
-  },
-];
-
-function ResumoTreino({ lojas }: { lojas: UnidadeDados[] }) {
-  const varias = lojas.length > 1;
-  return (
-    <Card className="border" style={{ borderColor: "var(--border)" }}>
-      <CardContent className="p-0 grid grid-cols-2 xl:grid-cols-[180px_repeat(4,minmax(0,1fr))]">
-        <div className="col-span-2 xl:col-span-1 px-5 py-3 flex flex-col justify-center border-b xl:border-b-0" style={{ borderColor: "var(--border)" }}>
-          <p className="text-sm" style={{ fontWeight: 600 }}>
-            Acerto da previsão
-          </p>
-          <p className="text-[11px]" style={{ color: "var(--muted-foreground)" }}>
-            último treino · {formatarData(dados.gerado_em.slice(0, 10))}
-          </p>
-        </div>
-        {INDICADORES.map((ind) => {
-          const Icone = ind.icone;
-          return (
-            <div key={ind.titulo} className="px-4 py-3 xl:border-l" style={{ borderColor: "var(--border)" }} title={ind.dica}>
-              <p className="text-[11px] inline-flex items-center gap-1.5" style={{ color: "var(--muted-foreground)", fontWeight: 600 }}>
-                <Icone size={13} style={{ color: "var(--primary)" }} /> {ind.titulo}
-              </p>
-              {varias ? (
-                <div className="mt-1 flex flex-col">
-                  {lojas.map((l) => (
-                    <div key={l.id} className="flex items-baseline justify-between gap-2">
-                      <span className="text-[11px]" style={{ color: "var(--muted-foreground)" }}>
-                        {l.nome}
-                      </span>
-                      <span className="text-sm" style={{ fontWeight: 700 }}>
-                        {ind.valor(l.modelo.metricas)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xl mt-0.5" style={{ fontWeight: 700 }}>
-                  {ind.valor(lojas[0]!.modelo.metricas)}
-                </p>
-              )}
-            </div>
-          );
-        })}
-      </CardContent>
-    </Card>
   );
 }

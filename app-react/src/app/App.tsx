@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router";
+import { BrowserRouter, Navigate, Routes, Route } from "react-router";
 import { Toaster } from "sonner";
 import { Sidebar } from "./components/layout/Sidebar";
 import { Header } from "./components/layout/Header";
@@ -34,6 +34,7 @@ export default function App() {
             <Route path="/pre-visualizacao" element={<PreVisualizacao />} />
             <Route path="/previsao" element={<PrevisaoSarimax />} />
             <Route path="/exportar" element={<ExportarRelatorios />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Layout>
       </FiltroLojaProvider>

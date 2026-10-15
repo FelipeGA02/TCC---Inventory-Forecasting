@@ -34,19 +34,19 @@ _AQUI = os.path.dirname(os.path.abspath(__file__))
 _REPO = os.path.dirname(os.path.dirname(os.path.dirname(_AQUI)))
 SAIDA = os.path.join(_REPO, "app-react", "src", "app", "data", "analises.json")
 
-CATS_ANALISE = IDS_CAT + [CAT_FORA]          # no painel descritivo, flores de corte aparecem
+CATS_ANALISE = IDS_CAT          # as 4 categorias, flores de corte incluida
 TOP_PRODUTOS = 10
 TOP_PAGAMENTOS = 6
 
 
 def carregar() -> pd.DataFrame:
     cols = ["doc_numero", "emissao", "pagamento", "cliente_nome", "produto_cod", "produto_nome",
-            "qtdade", "tot_liq", "unidade", "categoria", "grupo"]
+            "qtdade", "tot_liq", "unidade", "categoria"]
     df = pd.read_csv(BASE, sep=";", usecols=cols, dtype={"produto_cod": str, "doc_numero": str,
                                                          "cliente_nome": str, "pagamento": str})
-    df = df[df["grupo"] != "Servico e taxa"].copy()
+    df = df[df["categoria"] != "Servico e taxa"].copy()
     df["emissao"] = pd.to_datetime(df["emissao"])
-    df["cat"] = df["grupo"].map(CAT_POR_GRUPO).fillna(CAT_FORA)
+    df["cat"] = df["categoria"].map(CAT_POR_GRUPO).fillna(CAT_FORA)
     df["encomenda"] = marcar_encomendas(df, LIMIAR_QTD_VENDA)
     df["cadastrado"] = df["cliente_nome"].fillna("").str.strip().str.upper() != "CONSUMIDOR"
     df["pagamento"] = df["pagamento"].fillna("").str.strip().replace("", "NÃO INFORMADO")

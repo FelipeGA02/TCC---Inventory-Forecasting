@@ -52,13 +52,15 @@ export function Segmentado<T extends string>({
   opcoes: Opcao<T>[];
   valor: T;
   onChange: (v: T) => void;
-  rotulo: string;
+  rotulo?: string;
 }) {
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      <span className="text-xs font-medium" style={{ color: "var(--muted-foreground)" }}>
-        {rotulo}
-      </span>
+      {rotulo && (
+        <span className="text-xs font-medium" style={{ color: "var(--muted-foreground)" }}>
+          {rotulo}
+        </span>
+      )}
       <div
         role="radiogroup"
         aria-label={rotulo}

@@ -53,7 +53,7 @@ function useNotificacoes(): Notificacao[] {
   if (lojasCautela.length || cautela.length) {
     const partes = [
       lojasCautela.length ? `loja ${lojasCautela.map((u) => u.nome).join(" e ")}` : "",
-      cautela.length ? `${cautela.length} de ${regulares.length} produtos regulares` : "",
+      cautela.length ? `${cautela.length} de ${regulares.length} produtos com previsão própria` : "",
     ].filter(Boolean);
     lista.push({
       id: "confianca",

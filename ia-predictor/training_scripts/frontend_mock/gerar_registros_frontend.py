@@ -38,12 +38,12 @@ def num(v: float, casas: int = 2):
 
 def main():
     cols = ["doc_numero", "emissao", "pagamento", "cliente_nome", "produto_cod", "produto_nome",
-            "qtdade", "vl_unit", "vl_desconto", "tot_liq", "unidade", "categoria", "grupo"]
+            "qtdade", "vl_unit", "vl_desconto", "tot_liq", "unidade", "categoria"]
     df = pd.read_csv(BASE, sep=";", usecols=cols, dtype={"produto_cod": str, "doc_numero": str,
                                                          "cliente_nome": str, "pagamento": str})
-    df = df[df["grupo"] != "Servico e taxa"].copy()
+    df = df[df["categoria"] != "Servico e taxa"].copy()
     df["emissao"] = pd.to_datetime(df["emissao"])
-    df["cat"] = df["grupo"].map(CAT_POR_GRUPO).fillna(CAT_FORA)
+    df["cat"] = df["categoria"].map(CAT_POR_GRUPO).fillna(CAT_FORA)
     df["encomenda"] = marcar_encomendas(df, LIMIAR_QTD_VENDA)
     df["cadastrado"] = df["cliente_nome"].fillna("").str.strip().str.upper() != "CONSUMIDOR"
     df["pagamento"] = df["pagamento"].fillna("").str.strip().replace("", "NÃO INFORMADO").str.title()

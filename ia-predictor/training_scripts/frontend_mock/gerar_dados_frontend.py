@@ -418,6 +418,10 @@ def gerar_unidade(df: pd.DataFrame, cal: pd.DataFrame, u: dict, workers: int) ->
             "vendido_total": r1(hf["qtdade"].sum()),
             "vendido_em_encomendas": r1(hist.loc[hist["encomenda"], "qtdade"].sum()),
             "historico_semanal": [r1(x) for x in sem8.values],
+            # Venda diaria (sem encomendas) dos ultimos 28 dias, para o grafico da previsao
+            "historico_diario": [{"data": str(dt.date()), "vendido": r1(x)} for dt, x in
+                                 (matriz[s] if s in matriz else pd.Series(0.0, index=idx))
+                                 .loc[fim - pd.Timedelta(days=27):fim].items()],
             "modelo": None if mod is None else {k: mod[k] for k in ("ordem", "ordem_sazonal", "metricas", "status")},
             "previsao": [] if mod is None else mod["previsao"],
             "previsao_14d": r1(sum(x["previsto"] for x in mod["previsao"])) if mod else None,
@@ -505,7 +509,8 @@ def log_importacao() -> dict:
         "linhas_lidas": t["linhas_lidas"],
         "linhas_removidas": sum(t["linhas_removidas"].values()),
         "clientes_sem_nome_corrigidos": t["clientes_sem_nome_corrigidos"],
-        "duplicatas": rel["1_extrair_base01"]["duplicatas_ignoradas"],
+        # soma do log de importacao: o resumo da etapa 1 so traz o total quando ha planilha nova
+        "duplicatas": sum(a["duplicatas"] for a in arquivos),
     }}
 
 

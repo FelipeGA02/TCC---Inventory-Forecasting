@@ -124,6 +124,8 @@ export interface Produto {
   vendido_em_encomendas: number;
   /** Venda das últimas 8 semanas, da mais antiga para a mais recente. */
   historico_semanal: number[];
+  /** Venda diária (sem encomendas) dos últimos 28 dias. */
+  historico_diario?: { data: string; vendido: number }[];
   modelo: ModeloProduto | null;
   previsao: (Faixa & { data: string })[];
   previsao_14d: number | null;

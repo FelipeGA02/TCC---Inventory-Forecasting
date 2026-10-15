@@ -5,8 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Input } from "../ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import type { CategoriaId, DiaBacktest, MetricasModelo, ProdutoDaLoja, StatusModelo, UnidadeId } from "@/domain/types";
-import { CORES_CATEGORIA, COR_TOTAL, categorias, nomeCategoria, produtosDe, unidades, unidadesDoFiltro } from "../../data/mockData";
-import { Segmentado, StatusBadge, useFiltroLoja } from "../shared";
+import { CORES_CATEGORIA, COR_TOTAL, categorias, nomeCategoria, produtosDe, unidades } from "../../data/mockData";
+import { Segmentado, StatusBadge } from "../shared";
 import { eixo, estiloTooltip } from "@/styles/tokens";
 import { formatarData, formatarDiaMes, formatarMesAno, formatarNumero, formatarQtd } from "@/lib/format";
 
@@ -90,22 +90,19 @@ function marcasEixo(datas: string[], periodo: Periodo): string[] {
 // ---------------------------------------------------------------------------
 
 export function HistoricoPrevisao({ produtoSelecionado, onSelecionarProduto }: { produtoSelecionado: string | null; onSelecionarProduto: (k: string) => void }) {
-  const { unidade, categoria } = useFiltroLoja();
-  const lojas = unidadesDoFiltro(unidade);
   const [tipo, setTipo] = useState<Tipo>(produtoSelecionado ? "produto" : "loja");
-  const [lojaId, setLojaId] = useState<UnidadeId>(lojas[0]!.id);
-  const [catSel, setCatSel] = useState<CategoriaId>(categoria === "todas" ? categorias[0]!.id : categoria);
+  const [lojaId, setLojaId] = useState<UnidadeId>(unidades[0]!.id);
+  const [cat, setCat] = useState<CategoriaId>(categorias[0]!.id);
   const [periodo, setPeriodo] = useState<Periodo>("3m");
   const [busca, setBusca] = useState("");
 
-  const produtos = useMemo(() => produtosDe(unidade, categoria, true), [unidade, categoria]);
+  const produtos = useMemo(() => produtosDe("todas", "todas", true), []);
   const visiveis = useMemo(() => {
     const t = busca.trim().toLowerCase();
     return t ? produtos.filter((p) => p.nome.toLowerCase().includes(t) || p.codigo.includes(t)) : produtos;
   }, [produtos, busca]);
   const produto = produtos.find((p) => chave(p) === produtoSelecionado) ?? produtos[0];
-  const loja = unidade === "todas" ? unidades.find((u) => u.id === lojaId)! : lojas[0]!;
-  const cat = categoria === "todas" ? catSel : categoria;
+  const loja = unidades.find((u) => u.id === lojaId)!;
   const desag = loja.desagregacao?.[cat];
 
   const meses = useMemo(() => [...new Set(unidades[0]!.backtest.map((d) => d.data.slice(0, 7)))], []);
@@ -130,11 +127,11 @@ export function HistoricoPrevisao({ produtoSelecionado, onSelecionarProduto }: {
           />
         </div>
         <div className="flex items-center gap-4 flex-wrap">
-          {tipo !== "produto" && unidade === "todas" && (
+          {tipo !== "produto" && (
             <Segmentado rotulo="Loja" opcoes={unidades.map((u) => ({ valor: u.id, label: u.nome }))} valor={lojaId} onChange={setLojaId} />
           )}
-          {tipo === "categoria" && categoria === "todas" && (
-            <Segmentado rotulo="Categoria" opcoes={categorias.map((c) => ({ valor: c.id, label: c.nome }))} valor={catSel} onChange={setCatSel} />
+          {tipo === "categoria" && (
+            <Segmentado rotulo="Categoria" opcoes={categorias.map((c) => ({ valor: c.id, label: c.nome }))} valor={cat} onChange={setCat} />
           )}
           <div className="flex items-center gap-2 ml-auto">
             <Segmentado
@@ -224,8 +221,7 @@ export function HistoricoPrevisao({ produtoSelecionado, onSelecionarProduto }: {
                           {p.nome}
                         </span>
                         <span className="block text-[11px] truncate" style={{ color: "var(--muted-foreground)" }}>
-                          {nomeCategoria(p.categoria)}
-                          {unidade === "todas" ? ` · ${p.nomeUnidade}` : ""}
+                          {nomeCategoria(p.categoria)} · {p.nomeUnidade}
                         </span>
                       </span>
                       <span className="text-right">
@@ -348,7 +344,7 @@ function PainelHistorico({
             </span>
           </div>
           <ResponsiveContainer width="100%" height={340}>
-            <ComposedChart data={dadosGrafico}>
+            <ComposedChart data={dadosGrafico} margin={{ top: 5, right: 24, bottom: 0, left: 0 }}>
               <CartesianGrid vertical={false} stroke="var(--border)" />
               <XAxis
                 dataKey="data"

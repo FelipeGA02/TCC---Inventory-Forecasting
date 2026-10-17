@@ -1,28 +1,28 @@
 <!-- Sync Impact Report
-  Version change: 2.0.0 → 3.0.0
-  Motivação: EDA de separação (docs/prediction/ADR-011-escopo-previsao-sem-reposicao.md
-    §4, training_scripts/eda/eda_separacao.py) mostrou que separar a série L1 por
-    categoria não reduz o erro de previsão (nenhuma das 6 séries unidade×categoria ganha
-    o mínimo de 5% de MASE ao ser modelada direto; a soma das 3 categorias por unidade
-    fica a menos de 5% do modelo da própria unidade); separar por unidade tem apoio
-    (Itabirito ganha 17%/11% de MASE com modelo próprio nos dois previsores testados).
-  MAJOR porque redefine o escopo (a granularidade) do Princípio II.
+  Version change: 3.0.0 → 3.1.0
+  Motivação: a previsão deixa de ser regerada todo dia. Com o mesmo modelo e os mesmos
+    dados, regerar a previsão todo dia repete os mesmos números. Cada treino (ou mudança
+    em `calendar_days` depois dele, conferida às 03:00) gera uma vez a previsão de
+    FORECAST_STORED_DAYS (60) dias a partir do último dia com venda, gravada em
+    `forecast_runs` + `forecasts_cache`; a API entrega os 14 dias a partir de hoje. O
+    treino agendado de segunda é pulado (`skipped`) sem venda nova e com a mesma config.
+  MINOR porque amplia uma exigência do Princípio V (treino pulado registrado) e
+    redefine o gatilho da geração, sem remover nem renomear princípio.
   Modified:
-    - Princípio II — a camada agregada L1 passa a ser uma série por `unidade` (2 séries:
-      Jardim Canadá, Itabirito), não mais por `unidade × categoria` (6 séries).
-      `categoria` e SKU passam a ser obtidos por desagregação proporcional em CASCATA
-      (unidade→categoria→SKU, dois passos pelo mesmo método), não um por SARIMAX
-      próprio e outro por desagregação. Croston/TSB/SBA continuam permitidos no SKU.
-    - Quality Gates — "Observações mínimas L1" muda de `unidade × categoria` para
-      `unidade`.
+    - Princípio V — "geração diária de previsão/reposição MUST registrar data e contagem
+      de SKUs" → toda geração da previsão MUST registrar em `forecast_runs` data, período
+      previsto e contagem de SKUs atendidos; treino pulado MUST ficar como `skipped` em
+      `retrain_history`.
+    - Critérios de Aceitação da API — "Geração diária de previsão + reposição < 15min" →
+      "Geração da previsão < 15min".
   Templates updated:
-    ✅ .specify/templates/spec-template.md (compatible)
+    ✅ .specify/templates/spec-template.md (compatible — sem referência à geração diária)
     ✅ .specify/templates/plan-template.md (compatible)
     ✅ .specify/templates/tasks-template.md (compatible)
+    ✅ CLAUDE.md (regra 5 e agendamento já descrevem o novo comportamento)
   Follow-up TODOs:
-    - Propagar a granularidade `unidade` do L1 a SPECS.md, openapi.yaml e
-      specs/001-sistema-previsao-vendas/{spec,plan,tasks}.md (ver ADR-011, seção
-      "Pendente").
+    - Propagar a SPECS.md e specs/001-sistema-previsao-vendas/{spec,plan,tasks}.md.
+    - Pendência anterior (v3.0.0): simulação de reposição nos Quality Gates (ADR-011).
 -->
 
 # Sistema de Previsão de Vendas — Floricultura Constitution
@@ -98,7 +98,10 @@ Todo upload de planilha MUST gerar registro em `processing_log` com: nome do arq
 hash, data, registros adicionados/pulados/duplicados.
 Todo retrain (ajuste semanal dos modelos L1) MUST gerar registro em `retrain_history`
 com: trigger, data de início/fim, categorias treinadas e falhas.
-A geração diária de previsão/reposição MUST registrar data e contagem de SKUs atendidos.
+Treino agendado pulado por falta de venda nova MUST ficar registrado em `retrain_history`
+com `status = "skipped"`.
+Toda geração da previsão (ao fim de um treino ou após mudança no calendário) MUST
+registrar em `forecast_runs` data, período previsto e contagem de SKUs atendidos.
 Logs de execução MUST ser consultáveis via API (`GET /api/v1/models/status`).
 **Rationale**: RNF-02 do artigo; auditabilidade é requisito de confiabilidade operacional
 e rastreabilidade para a entidade parceira.
@@ -134,7 +137,7 @@ dados operacionais da empresa parceira; evitar acesso não autorizado ao sistema
 - Todos os endpoints MUST retornar em < 2s para dados de até 50 produtos.
 - Upload de XLSX ≤ 50 MB MUST processar em < 30s.
 - Ajuste semanal dos modelos L1 MUST concluir em < 2h (RNF-03).
-- Geração diária de previsão + reposição MUST concluir em < 15min.
+- Geração da previsão MUST concluir em < 15min.
 
 ### Critérios de Aceitação da Interface
 
@@ -165,4 +168,4 @@ Versionamento semântico: MAJOR = remoção/redefinição de princípio; MINOR =
 PATCH = clarificação ou correção de texto.
 Revisão obrigatória a cada Sprint concluído.
 
-**Version**: 3.0.0 | **Ratified**: 2026-07-28 | **Last Amended**: 2026-09-21
+**Version**: 3.1.0 | **Ratified**: 2026-07-28 | **Last Amended**: 2026-10-17

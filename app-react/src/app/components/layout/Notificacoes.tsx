@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router";
 import { AlertTriangle, Bell, CalendarClock, CheckCircle2, Database, type LucideIcon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { AGENDA, proximaHora, proximoDiaSemana } from "@/config/agenda";
+import { AGENDA, proximoDiaSemana } from "@/config/agenda";
 import { dados, produtosDe, unidadesDoFiltro } from "../../data/mockData";
 import { useFiltroLoja } from "../shared";
 import { formatarData, formatarNumero } from "@/lib/format";
@@ -71,7 +71,6 @@ export function Notificacoes() {
   const notificacoes = useNotificacoes();
   const agora = new Date();
   const treino = proximoDiaSemana(agora, AGENDA.treinoDiaSemana, AGENDA.treinoHora);
-  const previsao = proximaHora(agora, AGENDA.previsaoHora);
   const n = notificacoes.length;
 
   return (
@@ -129,8 +128,8 @@ export function Notificacoes() {
         <div className="px-4 py-2.5 border-t flex items-start gap-2 text-[11px]" style={{ borderColor: "var(--border)", color: "var(--muted-foreground)" }}>
           <CalendarClock size={13} className="flex-shrink-0 mt-0.5" />
           <span>
-            Próximo treino dos modelos: {DIAS_SEMANA[treino.getDay()]}, {dataCurta(treino)} às {hora(treino)} ({quando(treino, agora)}) · próxima
-            atualização da previsão: {quando(previsao, agora)} às {hora(previsao)}
+            Próximo treino dos modelos: {DIAS_SEMANA[treino.getDay()]}, {dataCurta(treino)} às {hora(treino)} ({quando(treino, agora)}), se
+            houver vendas novas. A previsão é atualizada logo depois de cada treino.
           </span>
         </div>
       </PopoverContent>

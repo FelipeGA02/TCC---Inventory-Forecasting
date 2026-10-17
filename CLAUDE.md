@@ -39,7 +39,7 @@ pipeline de dados e modelagem preditiva
 | Análise exploratória (EDA) | Jupyter Notebooks + matplotlib, seaborn, plotly (não entram no runtime de produção) |
 | Auth | python-jose (JWT HS256) + passlib (bcrypt) |
 | Banco | SQLite via SQLAlchemy 2.0 |
-| Scheduler | APScheduler 3.10 (ajuste dos modelos L1 segunda 02:00 · geração da previsão diária 03:00) |
+| Scheduler | APScheduler 3.10 (ajuste dos modelos segunda 02:00, pulado sem venda nova · conferência do calendário 03:00, gera de novo a previsão só se ele mudou) |
 | Serialização | joblib (modelos), openpyxl (XLSX), reportlab (PDF) |
 | Frontend | React 18 + Recharts + MUI (em `app-react/`) — decisão pós-prototipagem; o projeto técnico original cogitava Streamlit/Dash |
 | Cliente HTTP | gerado de `openapi.yaml` via openapi-typescript-codegen |
@@ -109,7 +109,7 @@ TCC---Inventory-Forecasting/
 
 ---
 
-## Regras Invioláveis (Constituição v3.0.0)
+## Regras Invioláveis (Constituição v3.1.0)
 
 Consulte `.specify/memory/constitution.md` para o texto completo. Resumo:
 
@@ -125,8 +125,9 @@ Consulte `.specify/memory/constitution.md` para o texto completo. Resumo:
    A simulação de perda/ruptura caiu junto com a L3 (ADR-011); a constituição ainda a
    exige (Princípio III e Quality Gates) e precisa de emenda via `/speckit-constitution`.
 4. **Linguagem do usuário**: mensagens de erro e alertas em PT-BR sem jargão técnico.
-5. **Rastreabilidade**: todo upload e retrain gravados em `processing_log` e `retrain_history`;
-   geração diária registra data e contagem de SKUs atendidos.
+5. **Rastreabilidade**: todo upload e retrain gravados em `processing_log` e `retrain_history`
+   (treino pulado por falta de venda nova fica como `skipped`); toda geração da previsão
+   registra data, período previsto e contagem de SKUs atendidos em `forecast_runs`.
 6. **Segurança por padrão**: JWT obrigatório em todos os `/api/v1/*`; bcrypt para senhas; API não expõe dados pessoais de clientes.
 
 ---
@@ -189,31 +190,45 @@ VIEWER_PASSWORD=<senha_forte>
 
 # Pipeline ML — camada agregada L1 (unidade, diário — 2 séries)
 TOP_N_PRODUCTS=20               # SKUs com desagregação (L2) detalhada
-FORECAST_HORIZON_DAYS=14        # horizonte da previsão
+FORECAST_HORIZON_DAYS=14        # horizonte da previsão (a API mostra 14 dias a partir de hoje)
+FORECAST_STORED_DAYS=60         # dias previstos e gravados por geração, a partir do último dia com venda
 TEST_DAYS=28                    # hold-out para avaliação
 MIN_OBSERVATIONS_DAYS=180       # mínimo de dias por unidade para treinar L1
 SEASONAL_PERIOD=7              # sazonalidade semanal do SARIMAX (m=7)
 LOG_CV_THRESHOLD=0.7           # log1p acima deste CV
 
 # Scheduler
-RETRAIN_DAY_OF_WEEK=mon        # ajuste (fit) dos modelos L1
+RETRAIN_DAY_OF_WEEK=mon        # ajuste (fit) dos modelos; pulado sem venda nova desde o último treino
 RETRAIN_HOUR=2
-DAILY_FORECAST_HOUR=3          # geração diária da previsão a partir do cache
+DAILY_FORECAST_HOUR=3          # confere o calendário; gera de novo a previsão só se ele mudou
 ```
 
 ---
 
 ## Modelo de Dados — Tabelas SQLite
 
+Definidas em `ia-predictor/backend/infrastructure/database.py` (docstrings com o detalhe);
+diagrama em `docs/database/modelo_dados.drawio`, gerado por `docs/database/gerar_diagrama_er.py`.
+
 | Tabela | Propósito |
 | --- | --- |
 | `users` | Usuários com e-mail, hash bcrypt, role (admin/viewer) |
-| `products` | Catálogo com `categoria`, `unidade`, `total_sold`, `updated_at` |
-| `categories` | Categoria × unidade: participação (share) e métricas da desagregação L2 |
-| `model_artifacts` | Ordem, métricas (MASE/RMSSE/cobertura), paths de artefatos, status por `unidade` |
-| `forecasts_cache` | Previsão diária por SKU (regenerada todo dia às 03:00) |
-| `processing_log` | Log de cada upload XLSX (filename, hash, rows) |
-| `retrain_history` | Histórico de ajustes semanais dos modelos L1 (trigger, duração, contagens) |
+| `units` | As 2 lojas (`jardim-canada`, `itabirito`) |
+| `categories` | As 4 categorias do negócio (coluna `categoria` da Etapa 3: Grama, Plantas diversas, Produtos de jardim, Flores de corte) + Serviço e taxa, com `show_on_dashboard` falso |
+| `products` | Catálogo: código, nome mais recente, categoria, subcategoria (`categoria_fina`) |
+| `sales` | Uma linha de produto por nota, só com os campos da planilha que o sistema usa (sem cliente, vendedor, operador); `is_bulk_order` = encomenda (ADR-013). Índice da deduplicação entre planilhas |
+| `calendar_days` | Calendário por loja (loja fechada, abertura excepcional, feriado, data comemorativa); cobre até o fim da previsão gravada |
+| `processing_log` | Cada planilha recebida (nome, SHA-256, linhas lidas/novas/duplicadas, qualidade); a planilha não é guardada |
+| `retrain_history` | Cada treino (trigger, período usado, config, contagens); `skipped` quando não há venda nova |
+| `model_artifacts` | Previsor de cada loja, categoria (desagregação, sem modelo próprio) e produto regular por treino: ordem, MASE, cobertura, `artifact_path` (joblib), métricas do walk-forward |
+| `backtest_points` | Previsto × real × naïve de cada dia do walk-forward de cada previsor (loja, categoria, produto) — tela de histórico da previsão |
+| `forecast_runs` | Cada geração da previsão (ao fim do treino ou quando o calendário muda): período previsto e SKUs atendidos |
+| `forecasts_cache` | Previsão diária com IC 95% por geração, em 3 níveis (loja, categoria, produto); grava `FORECAST_STORED_DAYS` dias e a API entrega os 14 a partir de hoje |
+
+Resumos (volume por loja/categoria, histórico, encomendas, venda das últimas 8 semanas)
+não são gravados: saem de `sales`. A previsão não é recalculada todo dia: com o mesmo
+modelo e os mesmos dados ela daria os mesmos números, então a janela de 14 dias só anda
+sobre o que já foi gravado.
 
 ---
 
@@ -340,7 +355,7 @@ Comandos disponíveis (invocar via Skill tool ou como `/speckit-*`):
 | `specs/001-sistema-previsao-vendas/spec.md` | User Stories e requisitos funcionais |
 | `specs/001-sistema-previsao-vendas/plan.md` | Plano técnico com constitution check |
 | `specs/001-sistema-previsao-vendas/tasks.md` | Tarefas organizadas por fase (TDD) |
-| `.specify/memory/constitution.md` | 6 princípios governantes (v3.0.0) |
+| `.specify/memory/constitution.md` | 6 princípios governantes (v3.1.0) |
 | `docs/prediction/ADR-009-granularidade-diaria-e-reposicao.md` | **Espinha da revisão de escopo mensal→diário** — arquitetura L1/L2/L3, validação, shelf-life (L3 e grão `unidade × categoria` revisados pelo ADR-011) |
 | `docs/prediction/ADR-011-escopo-previsao-sem-reposicao.md` | **Escopo atual**: previsão de demanda sem reposição (L3 fora), 2 unidades, 3 categorias + `Servico e taxa`, L1 por `unidade` (teste de separação §4). Lista o que ainda falta propagar |
 | `docs/README.md` | Índice da documentação por área + convenção de ADRs |

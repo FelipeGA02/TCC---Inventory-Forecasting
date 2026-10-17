@@ -11,8 +11,9 @@ unidades. Recebe planilhas XLSX de vendas, processa 324k+ transações históric
 um modelo SARIMAX por `unidade × categoria` sobre a série **diária agregada** (camada L1),
 desagrega a previsão para cada SKU do Top-N (camada L2) e aplica uma política de reposição
 perecível-consciente (camada L3). Os resultados são expostos via API REST consumida por um
-dashboard React. Os modelos L1 são reajustados semanalmente; a previsão e a reposição são
-regeneradas diariamente.
+dashboard React. Os modelos L1 são reajustados semanalmente (o treino é pulado sem venda
+nova); cada treino gera uma vez a previsão de 60 dias e o dashboard mostra os 14 dias a
+partir de hoje. A previsão só é gerada de novo se o calendário mudar depois do treino.
 
 Revisão de escopo (2026-08-30): antes o entregável era previsão **mensal** por produto.
 Ver `docs/prediction/ADR-009-granularidade-diaria-e-reposicao.md`.
@@ -46,13 +47,13 @@ modelo L1 (um por `unidade × categoria`).
 - Upload 50 MB XLSX → processado em < 30s
 - Endpoint de previsão / reposição → resposta em < 2s
 - Reajuste semanal dos modelos L1 → concluído em < 2h
-- Geração diária de previsão + reposição → concluída em < 15min
+- Geração da previsão → concluída em < 15min
 
 **Constraints**:
 - Série histórica: ~26 meses → ~790 dias por `unidade × categoria`
 - Mínimo de 180 dias para treinar um modelo L1
 - Série diária por SKU é >90% zeros → SKU nunca é modelado isoladamente (camada L2)
-- Reajuste e geração diária não podem bloquear o dashboard (rodam em background)
+- Reajuste e geração da previsão não podem bloquear o dashboard (rodam em background)
 - `shelf_life_dias` por categoria é dado externo — default parametrizado até a parceira confirmar
 - Categorias sem dados suficientes DEVEM ter status explícito, nunca silencioso
 
@@ -70,7 +71,7 @@ simultâneos.
 | II. Estatística antes de ML | ✅ PASS | L1 é SARIMAX; Croston/TSB só na trilha de comparação por SKU (série esparsa, SARIMAX inaplicável); NN/boosting exigem evidência empírica |
 | III. Validação obrigatória | ✅ PASS | Walk-forward CV (≥4 folds, origem móvel, h=14d) + MASE < 1.0 + simulação de perda/ruptura antes de `status = "trained"` |
 | IV. Interface para não-técnico | ✅ PASS | Recomendação e alertas em PT-BR sem jargão; SC-006 |
-| V. Rastreabilidade total | ✅ PASS | `processing_log`, `retrain_history` e log da geração diária |
+| V. Rastreabilidade total | ✅ PASS | `processing_log`, `retrain_history` (inclusive treinos `skipped`) e `forecast_runs` (cada geração da previsão) |
 | VI. Segurança por Padrão | ✅ PASS | JWT em todos os `/api/v1/*`; bcrypt; sem dados pessoais na API |
 
 **Resultado**: APROVADO — sem violações. Constituição v2.0.0.
@@ -170,8 +171,8 @@ ia-predictor/
 │       │   ├── file_manager.py
 │       │   └── model_registry.py
 │       └── scheduler/
-│           ├── weekly_retrain.py     # APScheduler — segunda 02:00 (fit L1)
-│           └── daily_generation.py   # APScheduler — todo dia 03:00 (forecast + reposição)
+│           ├── weekly_retrain.py     # APScheduler — segunda 02:00 (fit L1; pula sem venda nova)
+│           └── calendar_check.py     # APScheduler — todo dia 03:00 (gera a previsão de novo só se o calendário mudou)
 │
 ├── data/
 │   ├── raw/
@@ -377,10 +378,17 @@ expected_waste, stockout_risk, reorder_in_days, cover_until → replenishment_ca
 
 ### Agendamento
 
-- **`weekly_retrain.py`** — `CronTrigger(day_of_week="mon", hour=2)` → reajusta (fit) todos
-  os modelos L1, grava `retrain_history`.
-- **`daily_generation.py`** — `CronTrigger(hour=3)` → carrega modelos L1 do cache, estende
-  o horizonte 14 dias, roda L2 + L3, popula `forecasts_cache` e `replenishment_cache`.
+- **`weekly_retrain.py`** — `CronTrigger(day_of_week="mon", hour=2)` → se não há venda nova
+  desde o último treino `done` e a config é a mesma, grava `retrain_history` como `skipped`
+  e para; senão reajusta (fit) todos os modelos L1, grava `retrain_history` e gera a
+  previsão (`forecast_runs` com `trigger = retrain`): `FORECAST_STORED_DAYS` (60) dias a
+  partir do último dia com venda, com L2, em `forecasts_cache`.
+- **`calendar_check.py`** — `CronTrigger(hour=3)` → se algum `calendar_days.updated_at` é
+  posterior à última geração, carrega os modelos do último treino (`artifact_path`) e gera
+  a previsão de novo (`trigger = calendar`). Senão não faz nada: com o mesmo modelo e os
+  mesmos dados, a previsão seria a mesma.
+- A API entrega os `FORECAST_HORIZON_DAYS` (14) dias a partir de hoje da última geração
+  `done`; a janela anda com a data sem recalcular.
 
 ---
 

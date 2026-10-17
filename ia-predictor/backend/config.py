@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     # Pipeline ML — camada L1 (unidade x categoria, diario). Ver ADR-009.
     TOP_N_PRODUCTS: int = 20              # SKUs com desagregacao (L2) e reposicao (L3) detalhadas
     FORECAST_HORIZON_DAYS: int = 14       # horizonte da previsao e da recomendacao de reposicao
+    FORECAST_STORED_DAYS: int = 60        # dias previstos e gravados por geracao; a API mostra 14 a partir de hoje
     TEST_DAYS: int = 28                   # hold-out para avaliacao
     MIN_OBSERVATIONS_DAYS: int = 180      # minimo de dias por unidade x categoria para treinar L1
     SEASONAL_PERIOD: int = 7             # m — sazonalidade semanal do SARIMAX
@@ -39,9 +40,9 @@ class Settings(BaseSettings):
     SHELF_LIFE_DEFAULT_DAYS: int = 7     # validade usada quando a categoria nao tem parametro proprio
 
     # Scheduler
-    RETRAIN_DAY_OF_WEEK: str = "mon"     # reajuste (fit) dos modelos L1
+    RETRAIN_DAY_OF_WEEK: str = "mon"     # reajuste (fit) dos modelos L1; pulado sem venda nova
     RETRAIN_HOUR: int = 2                # 02:00
-    DAILY_FORECAST_HOUR: int = 3         # geracao diaria de previsao + reposicao a partir do cache
+    DAILY_FORECAST_HOUR: int = 3         # confere o calendario; gera de novo a previsao so se ele mudou
 
     # CORS
     CORS_ORIGINS: list[str] = ["http://localhost:5173"]

@@ -514,12 +514,17 @@ def log_importacao() -> dict:
     }}
 
 
-def main(workers: int = 8):
+def gerar_painel(workers: int = 8) -> dict:
+    """Treina os modelos e monta o painel (sem o bloco `importacao`).
+
+    Usado por `main()` (JSON do frontend) e pelo backend (`backend/jobs`), que grava o
+    resultado no banco.
+    """
     df = carregar_base()
     cal = carregar_calendario()
     prods = df.groupby("cat")["produto_cod"].nunique()
     unidades = [gerar_unidade(df, cal, u, workers) for u in UNIDADES]
-    saida = {
+    return {
         "gerado_em": pd.Timestamp.now().isoformat(timespec="seconds"),
         "fonte": "training_scripts/output/BaseClassificada03.csv + calendario_diario.csv",
         "base": {
@@ -540,8 +545,11 @@ def main(workers: int = 8):
         "categorias": CATEGORIAS,
         "unidades": unidades,
         "registros_amostra": amostra_registros(df),
-        "importacao": log_importacao(),
     }
+
+
+def main(workers: int = 8):
+    saida = {**gerar_painel(workers), "importacao": log_importacao()}
     os.makedirs(os.path.dirname(SAIDA), exist_ok=True)
     with open(SAIDA, "w", encoding="utf-8") as fh:
         json.dump(saida, fh, ensure_ascii=False, separators=(",", ":"))

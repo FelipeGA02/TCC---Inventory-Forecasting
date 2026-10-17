@@ -19,7 +19,7 @@ info:
     ## Perfis
     - **admin**: upload, retrain, acesso completo
     - **viewer**: somente visualização (forecast, alerts, simulation, export)
-  version: "3.0.0"
+  version: "3.1.0"
   contact:
     name: Daniel Nunes da Silva & Felipe Gurgel Araújo
     email: felipegurgel5@gmail.com
@@ -615,14 +615,25 @@ components:
           type: string
           format: date-time
           nullable: true
-        last_daily_generation_at:
+        last_forecast_generation_at:
           type: string
           format: date-time
           nullable: true
-          description: Última geração diária de previsão
+          description: >-
+            Última geração da previsão (ao fim de um treino ou após mudança no calendário).
+            A previsão não é recalculada todo dia: cada geração grava 60 dias e a API
+            entrega os 14 a partir de hoje.
+        forecast_until:
+          type: string
+          format: date
+          nullable: true
+          description: >-
+            Último dia com previsão gravada. Se hoje + 14 dias passa desta data, a base
+            está desatualizada e é preciso carregar planilhas novas.
+          example: "2026-04-29"
         skus_covered:
           type: integer
-          description: SKUs com previsão desagregada na última rodada diária
+          description: SKUs com previsão na última geração
           example: 20
         total_models:
           type: integer

@@ -31,8 +31,8 @@ flowchart TD
     K -- sim --> L[retrain_service.schedule_async_retrain<br/>dispara reajuste L1 em background]
     L --> M[Pipeline L1 por unidade × categoria<br/>ver diagrama (b)]
     M --> N[model_registry.save_artifact<br/>persiste ordem, MASE/RMSSE, status]
-    N --> O[Invalida forecasts_cache +<br/>replenishment_cache]
-    O --> P([Fim — modelos atualizados;<br/>previsão/reposição regeneradas na<br/>próxima rodada diária — ver (c)])
+    N --> O["Gera a previsão de 60 dias<br/>trigger='retrain' — ver (c)"]
+    O --> P([Fim — modelos e previsão atualizados])
     K -- não --> P
 
     style C1 fill:#f94144,color:#fff
@@ -53,7 +53,9 @@ SARIMAX por `unidade × categoria` sobre a série **diária agregada**.
 
 ```mermaid
 flowchart TD
-    A([APScheduler dispara job<br/>toda segunda-feira 02:00]) --> B[RetrainService.run_full_retrain<br/>trigger='scheduled']
+    A([APScheduler dispara job<br/>toda segunda-feira 02:00]) --> A1{Venda nova desde o último<br/>treino done ou config mudou?}
+    A1 -- não --> A2[Registra RetrainHistory<br/>status = skipped] --> A3([Fim — mesmo modelo,<br/>mesma previsão])
+    A1 -- sim --> B[RetrainService.run_full_retrain<br/>trigger='scheduled']
     B --> C[Carrega contas_a_receber.csv<br/>completo]
     C --> D[Agrupa por unidade × categoria]
     D --> E{Para cada<br/>unidade × categoria}
@@ -74,10 +76,11 @@ flowchart TD
     M3 --> N
     N --> O{Mais categorias?}
     O -- sim --> E
-    O -- não --> P[Invalida forecasts_cache +<br/>replenishment_cache]
-    P --> Q[Registra RetrainHistory<br/>started_at, finished_at, contagens]
-    Q --> R([Fim — modelos L1 prontos;<br/>previsão/reposição na rodada diária (c)])
+    O -- não --> Q[Registra RetrainHistory<br/>started_at, finished_at, contagens]
+    Q --> P["Gera a previsão de 60 dias<br/>trigger='retrain' — ver (c)"]
+    P --> R([Fim — modelos L1 e previsão prontos])
 
+    style A2 fill:#f9c74f
     style G1 fill:#f9c74f
     style M3 fill:#f9c74f
     style M2 fill:#90be6d
@@ -91,32 +94,36 @@ reposição antes de `status = "trained"`).
 
 ---
 
-## (c) Fluxo de Geração Diária de Previsão + Reposição
+## (c) Fluxo de Geração da Previsão
 
-Cobre FR-003/FR-006 e SPECS.md §10 (`daily_generation.py`). Roda todo dia às 03:00, a
-partir dos modelos L1 em cache — **não reajusta**, só estende o horizonte e aplica L2/L3.
+Roda ao fim de cada treino (`trigger='retrain'`) e, todo dia às 03:00, só se o calendário
+mudou depois da última geração (`trigger='calendar'`). **Não reajusta**: usa os modelos do
+último treino. Prevê de uma vez 60 dias (`FORECAST_STORED_DAYS`) a partir do último dia com
+venda; a API entrega os 14 dias a partir de hoje, então a janela anda com a data sem
+recalcular — com o mesmo modelo e os mesmos dados, gerar todo dia repetiria os mesmos
+números.
 
 ```mermaid
 flowchart TD
-    A([APScheduler dispara job<br/>todo dia 03:00]) --> B[Para cada unidade × categoria<br/>com modelo trained/low_confidence]
-    B --> C[forecaster.generate_daily_forecast<br/>modelo L1 + exógenas de calendário futuras<br/>→ 14 dias, IC 95%]
-    C --> D{Para cada SKU do Top-N<br/>dessa categoria}
-    D --> E[disaggregation.sku_split<br/>share móvel 4–8 sem × perfil dia-da-semana]
-    E --> E1{SKU com ≥ 28 dias c/ venda<br/>ou ≥ 8 vendas?}
-    E1 -- não --> E2[fallback: rateio uniforme<br/>da categoria]
-    E1 -- sim --> F
-    E2 --> F[previsão diária por SKU<br/>→ forecasts_cache]
-    F --> G[replenishment.policy.recommend<br/>cobertura = min shelf_life, 14<br/>qty = max 0, demanda + seguro − estoque]
-    G --> H[calcula cadência, cobre-até,<br/>expected_waste, stockout_risk, risk_label]
-    H --> I[→ replenishment_cache]
-    I --> J{Mais SKUs / categorias?}
-    J -- sim --> D
-    J -- não --> K[Registra data + contagem<br/>de SKUs atendidos]
-    K --> L([Fim — 'Reposição de Hoje'<br/>disponível no dashboard])
+    A0(["Fim de um treino — ver (a) e (b)"]) --> B
+    A([APScheduler — todo dia 03:00]) --> A1{calendar_days mudou depois<br/>da última forecast_runs done?}
+    A1 -- não --> Z0([Fim — nada a gerar])
+    A1 -- sim --> B[Abre forecast_runs<br/>start_date = data_until + 1<br/>end_date = start_date + 59]
+    B --> C{Para cada unidade<br/>com modelo trained/low_confidence}
+    C --> D[Carrega o modelo da loja<br/>model_artifacts.artifact_path]
+    D --> E[Prevê start_date…end_date<br/>exógenas de calendar_days, IC 95%]
+    E --> F[Previsão por categoria<br/>e por produto da loja]
+    F --> G[→ forecasts_cache<br/>níveis unit, category, product]
+    G --> H{Mais unidades?}
+    H -- sim --> C
+    H -- não --> K[Fecha forecast_runs<br/>status, unidades e SKUs atendidos]
+    K --> L([Fim — dashboard mostra os<br/>14 dias a partir de hoje])
 
-    style E2 fill:#f9c74f
+    style Z0 fill:#90be6d
     style L fill:#43aa8b,color:#fff
 ```
 
-**Notas de rastreabilidade**: FR-012 (log da geração diária), SC-004 (conclui em < 15min),
-Princípio V (rastreabilidade — data e contagem de SKUs por rodada).
+**Notas de rastreabilidade**: FR-012 (log de cada geração), SC-004 (conclui em < 15min),
+Princípio V (rastreabilidade — data, período previsto e contagem de SKUs por geração, em
+`forecast_runs`). Se hoje + 14 dias passa de `end_date`, a base está desatualizada e o
+dashboard avisa para carregar planilhas novas.

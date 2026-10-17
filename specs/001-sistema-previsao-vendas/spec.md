@@ -177,7 +177,11 @@ a reposição sugerida dos top 10 produtos para os próximos 14 dias e os alerta
   desagregado para o SKU.
 - **FR-004**: O sistema MUST exibir intervalo de confiança de 95% junto à previsão diária.
 - **FR-005**: O sistema MUST reajustar automaticamente os modelos toda segunda-feira às
-  02h00 e **regenerar a previsão e a reposição todo dia** às 03h00, sem intervenção do usuário.
+  02h00 (pulando o treino, registrado como `skipped`, quando não há venda nova desde o
+  último) e, ao fim de cada treino, **gerar uma vez a previsão de 60 dias** a partir do
+  último dia com venda; o dashboard mostra os 14 dias a partir de hoje, sem recalcular a
+  cada dia. Às 03h00 o sistema MUST conferir o calendário e gerar a previsão de novo só se
+  ele mudou depois da última geração. Tudo sem intervenção do usuário.
 - **FR-006**: O sistema MUST produzir, por produto e por dia, uma **quantidade sugerida de
   reposição** que considere a validade do produto (`shelf_life_dias`), um estoque de
   segurança e o estoque atual (quando informado; 0 por padrão), além de cadência sugerida
@@ -193,8 +197,8 @@ a reposição sugerida dos top 10 produtos para os próximos 14 dias e os alerta
   diária e alertas.
 - **FR-011**: O sistema MUST exibir indicadores de qualidade do modelo em linguagem
   acessível (ex.: "Precisão estimada: 92%"), não em jargão técnico.
-- **FR-012**: O sistema MUST registrar log de cada upload, cada reajuste semanal e cada
-  geração diária, consultável no dashboard.
+- **FR-012**: O sistema MUST registrar log de cada upload, cada reajuste semanal (inclusive
+  os pulados) e cada geração da previsão, consultável no dashboard.
 - **FR-013**: O sistema MUST sinalizar categorias com histórico insuficiente (< 180 dias)
   sem exibir previsão, e SKUs de baixo giro com aviso de "estimativa aproximada".
 - **FR-014** *(fora do MVP — fase 2)*: O sistema SHOULD identificar produtos comprados
@@ -229,8 +233,8 @@ a reposição sugerida dos top 10 produtos para os próximos 14 dias e os alerta
   em walk-forward CV (≥ 4 folds, horizonte 14 dias) — bate a previsão ingênua sazonal semanal.
 - **SC-003**: A **simulação de reposição** sobre o hold-out reduz a soma de perda (murcha) +
   ruptura em relação à regra ingênua "repor a média dos últimos 7 dias" para os top 10 produtos.
-- **SC-004**: O reajuste semanal automático conclui em menos de 2 horas; a geração diária
-  de previsão + reposição conclui em menos de 15 minutos.
+- **SC-004**: O reajuste semanal automático conclui em menos de 2 horas; a geração da
+  previsão conclui em menos de 15 minutos.
 - **SC-005**: A gestora acessa a lista de reposição do dia e exporta o relatório PDF em
   menos de 3 cliques a partir da tela inicial.
 - **SC-006**: 100% dos alertas e recomendações têm justificativa em português sem termos técnicos.

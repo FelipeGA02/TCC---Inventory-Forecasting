@@ -8,7 +8,7 @@
 import bruto from "./analises.json";
 import type { CategoriaId, FiltroUnidade, UnidadeId } from "@/domain/types";
 
-export type CategoriaAnalise = CategoriaId | "flores-de-corte";
+export type CategoriaAnalise = CategoriaId;
 
 export interface Agregado {
   notas: number;
@@ -59,7 +59,7 @@ interface AnalisesJson {
 export const analises = bruto as unknown as AnalisesJson;
 
 export const CATEGORIAS_ANALISE: CategoriaAnalise[] = ["grama", "plantas-diversas", "produtos-de-jardim", "flores-de-corte"];
-export const COR_FLORES = "#c97b98";
+export const COR_FLORES = "#c97b98"; // = CORES_CATEGORIA["flores-de-corte"]
 
 const somar = (v: number[]) => v.reduce((s, x) => s + x, 0);
 const somaAgregado = (lista: Agregado[]): Agregado => ({

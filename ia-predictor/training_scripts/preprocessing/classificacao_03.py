@@ -8,10 +8,10 @@ de/para versionadas em `taxonomy/`:
   * `categoria_fina`   classificação detalhada (~10 rótulos) pela cascata de
                        `taxonomy/categorias.py`: de/para por código → regra pelo nome →
                        "Outros";
-  * `categoria`        nível de desagregação da L2: Grama, Flores de corte, Produtos de
-                       jardim e "Servico e taxa" (não é produto);
-  * `grupo`            vocabulário do cliente (Grama, Flores de corte, Plantas diversas,
-                       Insumos e acessórios), para apresentar a previsão;
+  * `categoria`        as 4 categorias do negócio, no vocabulário da loja: Grama, Plantas
+                       diversas, Produtos de jardim e Flores de corte; mais "Servico e
+                       taxa" (frete, mão de obra — não é produto, sai na etapa 04). É o
+                       nível da desagregação L2 (loja → categoria);
   * `origem_categoria` como a `categoria_fina` foi decidida: `codigo` (de/para por
                        produto_cod), `nome` (regra sobre o nome) ou `padrao` (nenhuma regra
                        casou → "Outros"). Serve para auditar e priorizar a curadoria.
@@ -42,8 +42,8 @@ import pandas as pd
 from .extrair_base_01 import OUTPUT_DIR
 from .tratamento_de_dados_02 import FORMATTED_CSV
 from .taxonomy.categorias import (
-    CATEGORIA_DEFAULT, CATEGORIA_L1, CATEGORIA_L1_DEFAULT, CATEGORIA_POR_SKU,
-    GRUPO_PRODUTO, GRUPO_PRODUTO_DEFAULT, map_categoria,
+    CATEGORIA_DEFAULT, CATEGORIA_NEGOCIO, CATEGORIA_NEGOCIO_DEFAULT, CATEGORIA_POR_SKU,
+    map_categoria,
 )
 from .taxonomy.unidades import UNIDADE_DEFAULT, map_unidade
 
@@ -51,7 +51,7 @@ CLASSIFIED_CSV = os.path.join(OUTPUT_DIR, 'BaseClassificada03.csv')
 CLASSIFIED_REPORT_JSON = os.path.join(OUTPUT_DIR, 'classificacao03_resumo.json')
 CLASSIFIED_PRODUCTS_CSV = os.path.join(OUTPUT_DIR, 'produtos_classificados03.csv')
 
-COLUNAS_CLASSIFICACAO = ['unidade', 'categoria', 'categoria_fina', 'grupo', 'origem_categoria']
+COLUNAS_CLASSIFICACAO = ['unidade', 'categoria', 'categoria_fina', 'origem_categoria']
 TOP_OUTROS = 30
 
 
@@ -82,8 +82,7 @@ def _classificar_produtos(df: pd.DataFrame) -> tuple[pd.DataFrame, list]:
 
     produtos['categoria_fina'] = [map_categoria(c, n) for c, n in
                                   zip(produtos['produto_cod'], produtos['nome_referencia'])]
-    produtos['categoria'] = produtos['categoria_fina'].map(CATEGORIA_L1).fillna(CATEGORIA_L1_DEFAULT)
-    produtos['grupo'] = produtos['categoria_fina'].map(GRUPO_PRODUTO).fillna(GRUPO_PRODUTO_DEFAULT)
+    produtos['categoria'] = produtos['categoria_fina'].map(CATEGORIA_NEGOCIO).fillna(CATEGORIA_NEGOCIO_DEFAULT)
     produtos['origem_categoria'] = [_origem(c, f) for c, f in
                                     zip(produtos['produto_cod'], produtos['categoria_fina'])]
 
@@ -169,7 +168,6 @@ def classificar(
         'volume_por_categoria': _volume(df, ['categoria']),
         'volume_por_unidade_e_categoria': _volume(df, ['unidade', 'categoria']),
         'volume_por_categoria_fina': _volume(df, ['categoria_fina']),
-        'volume_por_grupo': _volume(df, ['grupo']),
         'outros': {
             'produtos': len(outros),
             'linhas': int(outros['linhas'].sum()),

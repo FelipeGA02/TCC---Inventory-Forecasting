@@ -20,7 +20,7 @@ export interface Usuario {
   perfil: Perfil;
 }
 
-export type CategoriaId = "grama" | "plantas-diversas" | "produtos-de-jardim";
+export type CategoriaId = "grama" | "plantas-diversas" | "produtos-de-jardim" | "flores-de-corte";
 export type UnidadeId = "jardim-canada" | "itabirito";
 /** Filtro de loja nas telas: uma unidade ou as duas somadas. */
 export type FiltroUnidade = UnidadeId | "todas";
@@ -124,9 +124,13 @@ export interface Produto {
   vendido_em_encomendas: number;
   /** Venda das últimas 8 semanas, da mais antiga para a mais recente. */
   historico_semanal: number[];
+  /** Venda diária (sem encomendas) dos últimos 28 dias. */
+  historico_diario?: { data: string; vendido: number }[];
   modelo: ModeloProduto | null;
   previsao: (Faixa & { data: string })[];
   previsao_14d: number | null;
+  /** Previsto × vendido em todo o período testado (rodadas de 14 dias). */
+  backtest?: DiaBacktest[];
 }
 
 /** Produto com a loja a que pertence (para o filtro "Todas as lojas"). */
@@ -144,6 +148,12 @@ export interface DiaBacktest extends Faixa {
   data: string;
   real: number;
   naive: number;
+}
+
+export interface DesagregacaoCategoria {
+  metricas: MetricasModelo;
+  status: StatusModelo;
+  backtest: DiaBacktest[];
 }
 
 export interface UnidadeDados {
@@ -168,6 +178,8 @@ export interface UnidadeDados {
   historico_semanal: SemanaHistorico[];
   produtos: Produto[];
   backtest: DiaBacktest[];
+  /** Desagregação loja → categoria, testada nas mesmas rodadas da loja. */
+  desagregacao: PorCategoria<DesagregacaoCategoria>;
 }
 
 export interface RegistroVenda {

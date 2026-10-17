@@ -93,7 +93,7 @@ export const relatorios: Relatorio[] = [
   {
     id: "previsao-produtos",
     grupo: "Previsão",
-    titulo: "Previsão por produto regular",
+    titulo: "Previsão por produto",
     descricao: `Produtos que vendem quase todo dia, cada um com o seu modelo: total previsto e previsão de cada um dos ${HORIZONTE_DIAS} dias.`,
     uso: "Conferir o volume esperado dos itens de giro constante antes de fazer o pedido.",
     filtros: ["unidade", "categoria"],
@@ -242,8 +242,8 @@ export const relatorios: Relatorio[] = [
   {
     id: "acerto-produtos",
     grupo: "Qualidade da previsão",
-    titulo: "Acerto de cada produto regular",
-    descricao: "Indicadores dos testes de acerto do modelo de cada produto regular.",
+    titulo: "Acerto de cada produto",
+    descricao: "Como a previsão de cada produto se saiu nos testes de acerto.",
     uso: "Saber em quais produtos a previsão diária é confiável.",
     filtros: ["unidade", "categoria"],
     formatos: ["xlsx", "csv", "pdf"],
@@ -368,7 +368,7 @@ export function relatorioGerencialHtml(f: FiltrosRelatorio): string {
   const kpis = `<div class="kpis">
     <div class="kpi"><span>Previsão (${HORIZONTE_DIAS} dias)</span><b>${formatarNumero(total)}</b><span>faixa ${formatarNumero(somar(faixas.map((d) => d.inf)))} a ${formatarNumero(somar(faixas.map((d) => d.sup)))}</span></div>
     <div class="kpi"><span>Média por dia aberto</span><b>${formatarNumero(total / Math.max(1, abertos))}</b><span>${abertos} dias abertos</span></div>
-    <div class="kpi"><span>Produtos regulares</span><b>${regulares.length}</b><span>com previsão própria</span></div>
+    <div class="kpi"><span>Produtos com previsão</span><b>${regulares.length}</b><span>vendem quase todo dia</span></div>
     <div class="kpi"><span>Encomendas (fora da previsão)</span><b>${formatarNumero(enc.vendas)}</b><span>${formatarPercentual(enc.pctVolume / 100)} do volume histórico</span></div>
   </div>`;
 
@@ -437,9 +437,9 @@ export function relatorioGerencialHtml(f: FiltrosRelatorio): string {
   return documentoImpressao(
     `Previsão de vendas · ${nomeUnidade(f.unidade)} · ${nomeCategoria(f.categoria)}`,
     `Próximos ${HORIZONTE_DIAS} dias: ${formatarData(ini)} a ${formatarData(fim)} · vendas registradas até ${formatarData(dados.base.fim)}`,
-    `${kpis}<h2>Confiança da previsão</h2>${confianca}${f.categoria === "todas" ? `<h2>Por categoria</h2>${porCategoria}` : ""}<h2>Dia a dia</h2>${diaria}<h2>Produtos regulares</h2>${top}
+    `${kpis}<h2>Confiança da previsão</h2>${confianca}${f.categoria === "todas" ? `<h2>Por categoria</h2>${porCategoria}` : ""}<h2>Dia a dia</h2>${diaria}<h2>Produtos com previsão própria</h2>${top}
      <p class="nota">A previsão é da venda do dia a dia; as encomendas (notas com mais de ${formatarNumero(LIMIAR_ENCOMENDA)} unidades) ficam fora.
-     A categoria é a parte dela na previsão da loja. Produtos regulares têm modelo próprio; os demais vendem de forma irregular e não têm previsão diária.
+     A categoria é a parte dela na previsão da loja. Os produtos que vendem quase todo dia têm previsão própria; os de venda irregular ficam dentro da previsão da categoria.
      Faixa provável = intervalo de 95%.</p>`,
   );
 }
@@ -447,6 +447,6 @@ export function relatorioGerencialHtml(f: FiltrosRelatorio): string {
 export const relatorioGerencial = {
   id: "gerencial",
   titulo: "Relatório gerencial",
-  descricao: "Resumo para a gestão: previsão dos próximos 14 dias, por categoria e dia, produtos regulares, encomendas e confiança da previsão.",
+  descricao: "Resumo para a gestão: previsão dos próximos 14 dias, por categoria e dia, por produto, encomendas e confiança da previsão.",
   uso: "Levar para a reunião semanal ou enviar para os gerentes das lojas.",
 };

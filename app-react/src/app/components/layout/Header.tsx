@@ -7,7 +7,7 @@ const routeTitles: Record<string, { title: string; subtitle: string }> = {
   "/": { title: "Início", subtitle: "Visão geral das vendas da base: faturamento, mix, clientes e produtos" },
   "/importar": { title: "Carregar Planilha de Vendas", subtitle: "Envie o relatório mensal de vendas para atualizar as previsões" },
   "/pre-visualizacao": { title: "Conferir Dados", subtitle: "Gerencie os dados importados pelas planilhas" },
-  "/previsao": { title: "Previsão de Vendas", subtitle: "Previsão diária por loja, categoria e produto, e como ela foi testada" },
+  "/previsao": { title: "Previsão de Vendas", subtitle: "Previsão diária por loja, categoria e produto, e o histórico das previsões" },
   "/exportar": { title: "Relatórios", subtitle: "Escolha, confira a prévia e baixe em Excel, CSV ou PDF" },
 };
 

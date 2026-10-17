@@ -214,14 +214,14 @@ diagrama em `docs/database/modelo_dados.drawio`, gerado por `docs/database/gerar
 | --- | --- |
 | `users` | Usuários com e-mail, hash bcrypt, role (admin/viewer) |
 | `units` | As 2 lojas (`jardim-canada`, `itabirito`) |
-| `categories` | Categorias (`grupo` da Etapa 3); `show_on_dashboard` falso para Flores de corte e Serviço e taxa |
+| `categories` | As 4 categorias do negócio (coluna `categoria` da Etapa 3: Grama, Plantas diversas, Produtos de jardim, Flores de corte) + Serviço e taxa, com `show_on_dashboard` falso |
 | `products` | Catálogo: código, nome mais recente, categoria, subcategoria (`categoria_fina`) |
 | `sales` | Uma linha de produto por nota, só com os campos da planilha que o sistema usa (sem cliente, vendedor, operador); `is_bulk_order` = encomenda (ADR-013). Índice da deduplicação entre planilhas |
 | `calendar_days` | Calendário por loja (loja fechada, abertura excepcional, feriado, data comemorativa); cobre até o fim da previsão gravada |
 | `processing_log` | Cada planilha recebida (nome, SHA-256, linhas lidas/novas/duplicadas, qualidade); a planilha não é guardada |
 | `retrain_history` | Cada treino (trigger, período usado, config, contagens); `skipped` quando não há venda nova |
-| `model_artifacts` | Modelo de cada loja e produto regular por treino: ordem, MASE, cobertura, `artifact_path` (joblib), métricas do walk-forward |
-| `backtest_points` | Previsto × real × naïve de cada dia do walk-forward do modelo da loja |
+| `model_artifacts` | Previsor de cada loja, categoria (desagregação, sem modelo próprio) e produto regular por treino: ordem, MASE, cobertura, `artifact_path` (joblib), métricas do walk-forward |
+| `backtest_points` | Previsto × real × naïve de cada dia do walk-forward de cada previsor (loja, categoria, produto) — tela de histórico da previsão |
 | `forecast_runs` | Cada geração da previsão (ao fim do treino ou quando o calendário muda): período previsto e SKUs atendidos |
 | `forecasts_cache` | Previsão diária com IC 95% por geração, em 3 níveis (loja, categoria, produto); grava `FORECAST_STORED_DAYS` dias e a API entrega os 14 a partir de hoje |
 

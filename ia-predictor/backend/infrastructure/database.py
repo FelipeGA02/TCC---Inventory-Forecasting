@@ -80,14 +80,15 @@ class Unit(Base):
 
 
 class Category(Base):
-    """Categoria. `show_on_dashboard = False` para Flores de corte e Serviço e taxa, que
-    entram na base mas não têm painel próprio."""
+    """Uma das 4 categorias do negócio (Grama, Plantas diversas, Produtos de jardim, Flores
+    de corte) ou Serviço e taxa, que entra na base mas não é produto
+    (`show_on_dashboard = False`, fica fora da previsão)."""
 
     __tablename__ = "categories"
 
     id = Column(String, primary_key=True, info={"hint": "grama|plantas-diversas|..."})
     name = Column(String, nullable=False)
-    source_group = Column(String, nullable=False)  # `grupo` da Etapa 3
+    source_category = Column(String, unique=True, nullable=False)  # `categoria` da Etapa 3
     description = Column(String, nullable=False, default="")
     show_on_dashboard = Column(Boolean, nullable=False, default=True)
     sort_order = Column(Integer, nullable=False, default=0)
@@ -217,7 +218,14 @@ class RetrainHistory(Base):
 
 
 class ModelArtifact(Base):
-    """Modelo ajustado: da loja (`product_code` nulo) ou de um produto regular.
+    """Previsor de um treino, em três níveis:
+
+    * `unit`: SARIMAX da loja;
+    * `category` (`category_id`): desagregação loja → categoria — previsão da loja ×
+      participação da categoria no mesmo dia da semana (últimas 8 semanas). Não tem modelo
+      próprio (`sarimax_order` e `artifact_path` nulos); é testada nas mesmas rodadas da
+      loja e por isso tem `status`, `metrics` e `backtest_points` como os outros;
+    * `product` (`product_code`): SARIMAX do produto regular.
 
     Só `mase` e `ci95_coverage_pct` são colunas porque definem o `status`; o resto do
     walk-forward fica em `metrics` e a configuração do ajuste em `params`. Produto regular
@@ -233,15 +241,17 @@ class ModelArtifact(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     retrain_id = Column(Integer, ForeignKey("retrain_history.id", ondelete="CASCADE"), nullable=False, index=True)
     unit_id = Column(String, ForeignKey("units.id"), nullable=False)
+    category_id = Column(String, ForeignKey("categories.id"), nullable=True)
     product_code = Column(String, ForeignKey("products.code"), nullable=True)
-    level = Column(String, nullable=False, info={"hint": "unit|product"})
+    level = Column(String, nullable=False, info={"hint": "unit|category|product"})
     status = Column(String, nullable=False, info={"hint": "trained|low_confidence|..."})
     sarimax_order = Column(JSON, nullable=True, info={"hint": "[p,d,q]"})
     seasonal_order = Column(JSON, nullable=True, info={"hint": "[P,D,Q,m]"})
     artifact_path = Column(String, nullable=True)
     mase = Column(Float, nullable=True)
     ci95_coverage_pct = Column(Float, nullable=True)
-    # {aic, transformation, window_type, window_days, training_base, exog_features}
+    # unit/product: {aic, transformation, window_type, window_days, training_base, exog_features}
+    # category: {share_window_weeks}
     params = Column(JSON, nullable=True)
     # {folds, folds_beating_naive, days_evaluated, mae, relative_error_naive, ci95_width,
     #  mean_daily_sales, forecast_to_actual_pct, total_error_14d_pct}
@@ -280,12 +290,9 @@ class ForecastRun(Base):
 
 
 class ForecastCache(Base):
-    """Previsão diária com faixa de 95%, em três níveis (`run_id` dá a geração; `model_id`,
-    a loja e o produto):
-
-    * `unit`: total da loja nas 3 categorias do painel (modelo da loja);
-    * `category`: participação da categoria na previsão da loja (modelo da loja + `category_id`);
-    * `product`: modelo próprio do produto regular.
+    """Previsão diária com faixa de 95%. `run_id` dá a geração; `model_id`, o previsor —
+    a loja (total das 4 categorias), uma categoria ou um produto regular. `level` repete o
+    `model_artifacts.level` para filtrar sem junção.
 
     Loja fechada e evento do dia vêm de `calendar_days`.
     """
@@ -296,7 +303,6 @@ class ForecastCache(Base):
     run_id = Column(Integer, ForeignKey("forecast_runs.id", ondelete="CASCADE"), nullable=False)
     model_id = Column(Integer, ForeignKey("model_artifacts.id", ondelete="CASCADE"), nullable=False, index=True)
     level = Column(String, nullable=False, info={"hint": "unit|category|product"})
-    category_id = Column(String, ForeignKey("categories.id"), nullable=True)
     forecast_date = Column(Date, nullable=False)
     predicted = Column(Float, nullable=False)
     lower_95 = Column(Float, nullable=False)
@@ -306,7 +312,8 @@ class ForecastCache(Base):
 
 
 class BacktestPoint(Base):
-    """Dia do walk-forward do modelo da loja: previsto × real × naïve.
+    """Dia do walk-forward de um previsor (loja, categoria ou produto): previsto × real ×
+    naïve. Alimenta o histórico da previsão e o gráfico de acerto de cada nível.
 
     Rodadas a cada 14 dias com horizonte de 14: cada dia pertence a uma só origem. O erro
     da rodada é a soma de |predicted − actual| por `origin_date` nos dias de loja aberta.

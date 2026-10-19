@@ -27,6 +27,8 @@ pip-wheel-metadata/
 # ─── Artefatos ML (joblib) ────────────────────────────────────────────────────
 ia-predictor/models/*.joblib
 ia-predictor/models/*.pkl
+# registro gerado pelo forecast_service
+ia-predictor/models/registro_modelos.json
 
 # ─── Dados brutos e processados ───────────────────────────────────────────────
 ia-predictor/data/raw/
@@ -36,6 +38,8 @@ ia-predictor/data/external/
 # ─── Logs e relatórios gerados ────────────────────────────────────────────────
 *.log
 ia-predictor/exports/
+# saídas da previsão semanal (previsões, métricas, logs)
+ia-predictor/results/
 
 # ─── Testes ───────────────────────────────────────────────────────────────────
 .pytest_cache/

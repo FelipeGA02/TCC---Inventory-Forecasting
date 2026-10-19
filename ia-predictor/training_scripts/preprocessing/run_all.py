@@ -14,6 +14,10 @@
                               dois. Ver ADR-013
   10. dados_externos10       calendário diário por loja (exógenas do L1 — não depende da base
                               transacional, por isso numerada fora da sequência 1→6)
+  7. exporta_base_previsao07 BaseClassificada03.csv + calendário → data/processed/ (venda
+                              diária por loja × categoria × produto, fluxo e encomendas a
+                              parte). É a base que o backend de previsão lê; roda por último
+                              porque depende da Etapa 10
 
 O pipeline está sendo refeito: a etapa antiga de séries diárias (build_daily_series)
 saiu daqui e volta conforme for reescrita sobre a base nova. `reduce_schema.py`,
@@ -37,6 +41,7 @@ from datetime import datetime
 
 from .classificacao_03 import classificar
 from .dados_externos_10 import build_calendar
+from .exporta_base_previsao_07 import exportar
 from .extrair_base_01 import OUTPUT_DIR, extrair_base01
 from .limpeza_para_treino_04 import limpar
 from .remove_encomendas_06 import remover
@@ -74,6 +79,7 @@ def run_all(verbose: bool = True) -> dict:
     etapas['5_separa_unidades05'] = separar(verbose=verbose)
     etapas['6_remove_encomendas06'] = remover(verbose=verbose)
     etapas['10_dados_externos10'] = build_calendar(verbose=verbose)
+    etapas['7_exporta_base_previsao07'] = exportar(verbose=verbose)
     rel = {'gerado_em': datetime.now().isoformat(timespec='seconds'), 'etapas': etapas}
     with open(REPORT_JSON, 'w', encoding='utf-8') as fh:
         json.dump(rel, fh, ensure_ascii=False, indent=2, default=str)

@@ -61,17 +61,16 @@ TCC---Inventory-Forecasting/
 │   │   ├── api/                 ← routers HTTP (um por recurso)
 │   │   ├── schemas/             ← Pydantic (contratos request/response)
 │   │   ├── services/            ← casos de uso (orquestração)
+│   │   │   └── forecast_service.py  ← retreino + previsão semanal (terça): orquestra, grava CSV/logs, CLI
 │   │   ├── domain/              ← lógica pura SEM I/O
 │   │   │   ├── etl/             ← parser, normalizer, deduplicator
-│   │   │   ├── features/        ← daily_series (unidade), calendar_exogenous, importance
-│   │   │   ├── models/          ← L1: stationarity, order_selection, trainer, evaluator, forecaster
-│   │   │   └── disaggregation/  ← L2: rateio em cascata unidade→categoria→SKU (share móvel × perfil dia-da-semana)
-│   │   └── infrastructure/      ← DB, storage, scheduler
+│   │   │   └── previsao.py      ← séries (loja, categoria, produto regular), exógenas, SARIMAX, horizonte, métricas
+│   │   └── infrastructure/      ← DB, scheduler (job de terça)
 │   ├── data/
 │   │   ├── raw/                 ← XLSX brutos (upload)
-│   │   └── processed/
-│   │       └── contas_a_receber.csv   ← base consolidada (sep=";")
-│   ├── models/                  ← artefatos joblib por unidade (L1) + params de desagregação L2 (categoria/SKU)
+│   │   └── processed/           ← base tratada que o backend lê (Etapa 7): vendas_diarias.csv, calendario_diario.csv, manifesto.json
+│   ├── models/                  ← registro_modelos.json: ordem, parâmetros, versão e status de cada série
+│   ├── results/                 ← saídas da previsão semanal: previsoes/, metricas/, logs/
 │   ├── training_scripts/        ← experimentação pré-produção (fora do backend)
 │   │   ├── preprocessing/       ← XLSX bruto → base limpa → encomendas → calendário por loja → séries diárias (L1 e desagregação); `run_all.py` roda as 7 etapas (docs/prediction/01-pre_processing.md)
 │   │   ├── eda/                 ← análise exploratória (base transacional, séries do L1, granularidade das categorias, classificação de demanda)
@@ -150,6 +149,9 @@ uvicorn backend.main:app --reload --app-dir ia-predictor
 
 # Pré-processamento completo (Etapas 1–7 + relatório de qualidade), a partir de ia-predictor/
 python -m training_scripts.preprocessing.run_all
+
+# Retreino + previsão semanal (toda terça, depois do pré-processamento), a partir de ia-predictor/
+python -m backend.services.forecast_service            # --forcar · --reselecionar-ordens · --data-carga AAAA-MM-DD
 
 # Rodar testes unitários
 pytest ia-predictor/tests/unit/ -v

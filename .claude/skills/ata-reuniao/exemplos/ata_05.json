@@ -1,0 +1,202 @@
+{
+  "projeto": "Sistema de Previsão de Estoque",
+  "entidade": "Floricultura Verde Perto",
+  "numero": "05",
+  "data": "20/10/2026",
+  "inicio": "10:56",
+  "termino": "11:28",
+  "local": "online",
+  "plataforma": "Google Meet",
+  "participantes": [
+    {
+      "nome": "Felipe Gurgel Araújo",
+      "papel": "Desenvolvedor da Solução"
+    },
+    {
+      "nome": "Arthur Vasconcelos",
+      "papel": "Auxiliar Administrativo Terceirizado"
+    },
+    {
+      "nome": "Carolina Araujo Nonato",
+      "papel": "Sócia Administrativa Proprietária"
+    }
+  ],
+  "objetivo": "Apresentar ao cliente o andamento da implementação do sistema de previsão de vendas (painel por unidade, envio e conferência das planilhas, previsão diária de 14 dias e histórico de acertos), validar a classificação dos produtos em categorias e o tratamento das vendas muito acima do padrão, e definir o nível de detalhe da previsão.",
+  "pauta": {
+    "marcados": [
+      "Validação de funcionalidades",
+      "Alterações solicitadas pelo cliente",
+      "Apresentação de protótipo",
+      "Acompanhamento do cronograma"
+    ],
+    "outros": "Tratamento das vendas muito acima do padrão na previsão"
+  },
+  "decisoes": [
+    "Foi apresentado ao cliente o sistema em desenvolvimento: painel de vendas por unidade (Jardim Canadá e Itabirito), envio e conferência das planilhas, previsão diária de 14 dias com faixa de confiança, histórico de acertos da previsão e relatórios de processamento.",
+    "O cliente considerou o sistema satisfatório e aprovou a continuidade do desenvolvimento.",
+    "O sistema funcionará separado do sistema de gestão usado hoje pela loja, que não oferece integração (API); os dados continuarão chegando pelas planilhas exportadas, com atualização semanal.",
+    "O sistema será publicado em um servidor online gratuito, com acesso restrito à equipe da floricultura.",
+    "Foi mantida, neste primeiro estudo, a classificação dos produtos em quatro categorias (Grama, Plantas diversas, Produtos de jardim e Flores de corte), feita pela equipe a partir do nome do produto, já que o sistema da loja não informa o grupo de cada produto.",
+    "O tipo de documento da venda (ex.: “N”, venda com nota fiscal) será usado como filtro no sistema.",
+    "Apenas as vendas muito acima do padrão (pedidos grandes de empresas, que a loja prepara junto aos fornecedores) serão retiradas da série usada na previsão do dia a dia; as demais vendas grandes continuam sendo previstas.",
+    "Essas vendas passarão a se chamar “encomendas grandes” na tela e na classificação do sistema, e não apenas “encomendas”, pois nem toda venda grande é encomenda.",
+    {
+      "texto": "A previsão será feita por unidade e por categoria; a previsão por produto começará apenas pela categoria Gramas:",
+      "subitens": [
+        "todos os produtos de grama da loja (ex.: esmeralda, amendoim e São Carlos), sem se limitar aos de venda regular;",
+        "Flores de corte (cerca de 30 produtos) será avaliada depois do teste em Gramas;",
+        "Plantas diversas fica apenas no nível da categoria."
+      ]
+    },
+    "O cliente manterá as quatro reuniões de acompanhamento exigidas no semestre, agendadas com antecedência."
+  ],
+  "requisitos": [
+    {
+      "codigo": "REQ-01",
+      "descricao": "Poder enviar planilhas com dados de vendas e financeiro de forma simples",
+      "prioridade": null
+    },
+    {
+      "codigo": "REQ-02",
+      "descricao": "Ter uma previsão de quanto de cada produto será necessário no futuro",
+      "prioridade": null
+    },
+    {
+      "codigo": "REQ-03",
+      "descricao": "O sistema deve se atualizar sozinho toda “semana” com novos dados",
+      "prioridade": null
+    },
+    {
+      "codigo": "REQ-04",
+      "descricao": "Mostrar se o modelo está funcionando bem (com indicadores simples e explicados)",
+      "prioridade": null
+    },
+    {
+      "codigo": "REQ-05",
+      "descricao": "Mostrar gráficos que ajudam a entender o desempenho do sistema",
+      "prioridade": null
+    },
+    {
+      "codigo": "REQ-06",
+      "descricao": "Ver quais produtos vendem mais em cada período (ex: datas especiais)",
+      "prioridade": null
+    },
+    {
+      "codigo": "REQ-07",
+      "descricao": "Identificar produtos que costumam ser comprados juntos",
+      "prioridade": null
+    },
+    {
+      "codigo": "REQ-08",
+      "descricao": "Simular promoções e vendas casadas e prever o impacto nas vendas",
+      "prioridade": null
+    },
+    {
+      "codigo": "REQ-09",
+      "descricao": "Receber avisos quando for necessário repor estoque",
+      "prioridade": null
+    },
+    {
+      "codigo": "REQ-10",
+      "descricao": "Poder exportar relatórios (PDF ou Excel)",
+      "prioridade": null
+    },
+    {
+      "codigo": "REQ-11",
+      "descricao": "Ter um painel (dashboard) para ver dados, gráficos e fazer uploads",
+      "prioridade": null
+    },
+    {
+      "codigo": "REQ-12",
+      "descricao": "Ter documentações funcionais e técnicas explicando como utilizar e como funciona o sistema.",
+      "prioridade": null
+    },
+    {
+      "codigo": "REQ-13",
+      "descricao": "Permitir upload de planilhas semanais em formato CSV e XLSX seguindo modelo padronizado",
+      "prioridade": null
+    },
+    {
+      "codigo": "REQ-14",
+      "descricao": "Disponibilizar acesso separado aos módulos de previsão de estoque, recomendação de produtos e simulação de promoções",
+      "prioridade": null
+    },
+    {
+      "codigo": "REQ-15",
+      "descricao": "Ver vendas, relatórios e previsões separados por unidade (Jardim Canadá e Itabirito)",
+      "prioridade": null
+    },
+    {
+      "codigo": "REQ-16",
+      "descricao": "Filtrar as vendas pelo tipo de documento (ex.: venda com nota fiscal)",
+      "prioridade": null
+    },
+    {
+      "codigo": "REQ-17",
+      "descricao": "Ter a previsão por produto nas categorias Gramas e Flores de corte",
+      "prioridade": null
+    }
+  ],
+  "pendencias": [
+    {
+      "acao": "Testar a previsão por produto em todas as gramas",
+      "prazo": "Próxima reunião"
+    },
+    {
+      "acao": "Enviar as planilhas de vendas atualizadas até 30/06/2026 (cliente)",
+      "prazo": "Próxima reunião"
+    },
+    {
+      "acao": "Explicar o significado de cada tipo de documento (cliente)",
+      "prazo": "Próxima reunião"
+    },
+    {
+      "acao": "Confirmar com Rosely e Carolina como são tratados os pedidos grandes de empresas (cliente)",
+      "prazo": "Próxima reunião"
+    },
+    {
+      "acao": "Incluir o filtro por tipo de documento no sistema",
+      "prazo": "TCC2"
+    },
+    {
+      "acao": "Trocar “encomendas” por “encomendas grandes” na tela e na classificação",
+      "prazo": "TCC2"
+    },
+    {
+      "acao": "Refinar o critério que separa as encomendas grandes",
+      "prazo": "TCC2"
+    },
+    {
+      "acao": "Publicar o sistema em servidor online com acesso restrito ao cliente",
+      "prazo": "TCC2"
+    },
+    {
+      "acao": "Definir com o cliente a prioridade de cada item do backlog",
+      "prazo": "Após a criação do backlog sólido"
+    }
+  ],
+  "impactos": {
+    "marcados": [
+      "Alteração de escopo"
+    ],
+    "descricao": [
+      "A reunião incluiu no escopo a previsão por produto de todas as gramas e o filtro das vendas por tipo de documento. Também definiu que apenas as vendas muito acima do padrão, chamadas de encomendas grandes, saem da série usada na previsão do dia a dia."
+    ],
+    "pontos_de_atencao": [
+      "A base de vendas está desatualizada (233 dias sem planilha nova); a previsão com dados recentes depende do envio das planilhas até 30/06/2026.",
+      "O servidor gratuito tem capacidade limitada de processamento e armazenamento.",
+      "A classificação dos produtos pelo nome pode conter erros, pois o sistema da loja não informa o grupo de cada produto."
+    ]
+  },
+  "proxima_reuniao": {
+    "data": "A definir, com aviso prévio ao cliente",
+    "objetivo": "Apresentar o teste de previsão por produto de todas as gramas e a previsão com os dados atualizados"
+  },
+  "validacao": {
+    "representante_cliente": "Carolina Araujo Nonato",
+    "responsaveis": [
+      "Felipe Gurgel Araújo",
+      "Daniel Nunes da Silva"
+    ]
+  }
+}

@@ -18,8 +18,16 @@ info:
 
     ## Perfis
     - **admin**: upload, retrain, acesso completo
-    - **viewer**: somente visualização (forecast, alerts, simulation, export)
-  version: "3.1.0"
+    - **viewer**: somente visualização (painel, análises, registros, status dos modelos)
+
+    ## Telas do frontend
+    Cada tela pede só o que usa, quando é aberta. Logo após o login o front lê só
+    `GET /api/v1/contexto` (leve); a Visão Geral lê `/api/v1/analises`, Previsão e
+    Relatórios leem `/api/v1/painel` (o teste de acerto de cada produto vem à parte, ao abrir
+    o produto) e Conferir Dados consulta a base **paginada** em `/api/v1/registros/*`. Os
+    endpoints de products, forecast, alerts, simulation e reports estão no contrato mas
+    **ainda não implementados** (marcados com `x-implementado: false`).
+  version: "3.3.0"
   contact:
     name: Daniel Nunes da Silva & Felipe Gurgel Araújo
     email: felipegurgel5@gmail.com
@@ -33,6 +41,8 @@ tags:
     description: Status do sistema
   - name: auth
     description: Autenticação e autorização
+  - name: painel
+    description: Dados das telas do frontend (previsão, histórico, análises, base linha a linha)
   - name: upload
     description: Envio das planilhas de vendas
   - name: products
@@ -677,6 +687,199 @@ components:
           type: string
           format: date-time
 
+    # --- Painel (telas do frontend) ---
+    Painel:
+      description: |
+        Formato `BaseReal` de `app-react/src/domain/types.ts` (fonte do detalhe de cada
+        campo): previsão de 14 dias por loja e categoria com faixa de 95%, histórico diário
+        (8 semanas) e semanal, produtos regulares com previsão própria, encomendas, testes
+        de acerto (walk-forward) e planilhas carregadas. Montado de `sales` até o fim do
+        último treino concluído e das tabelas do treino. Sem dados pessoais de clientes.
+      type: object
+      required: [gerado_em, base, configuracao, categorias, unidades, importacao]
+      properties:
+        gerado_em:
+          type: string
+          format: date-time
+        fonte:
+          type: string
+        base:
+          type: object
+          properties:
+            inicio: {type: string, format: date}
+            fim: {type: string, format: date}
+            linhas: {type: integer}
+            skus: {type: integer}
+            skus_por_categoria:
+              type: object
+              additionalProperties: {type: integer}
+        configuracao:
+          type: object
+          description: Configuração do treino (horizonte, m, limiar de encomenda, critério de produto regular...)
+          additionalProperties: true
+        categorias:
+          type: array
+          items:
+            type: object
+            properties:
+              id: {type: string, example: grama}
+              nome: {type: string}
+              grupo: {type: string}
+              descricao: {type: string}
+        unidades:
+          type: array
+          description: Uma entrada por loja (`UnidadeDados` em types.ts)
+          items:
+            type: object
+            additionalProperties: true
+        importacao:
+          type: object
+          description: Planilhas carregadas (`processing_log`) e resumo da limpeza
+          additionalProperties: true
+
+    Analises:
+      description: |
+        Análises descritivas por loja (`AnalisesJson` em `app-react/src/app/data/analises.ts`):
+        resumo, categorias, mês a mês, dia da semana, consumidor × cadastrado, formas de
+        pagamento e produtos mais vendidos no último ano.
+      type: object
+      properties:
+        gerado_em: {type: string, format: date-time}
+        limiar_encomenda_un: {type: number, example: 2000}
+        unidades:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties: true
+
+    Contexto:
+      description: |
+        O que o layout precisa logo após o login (`Contexto` em `app-react/src/domain/types.ts`),
+        montado só com consultas agregadas — sem ler a base de vendas inteira.
+      type: object
+      properties:
+        lojas:
+          type: array
+          items:
+            type: object
+            properties:
+              id: {type: string, example: jardim-canada}
+              nome: {type: string}
+              cidade: {type: string}
+        categorias:
+          type: array
+          items: {type: object, additionalProperties: true}
+        configuracao:
+          type: object
+          properties:
+            horizonte_dias: {type: integer, example: 14}
+            limiar_encomenda_un: {type: number, example: 2000}
+        base:
+          type: object
+          properties:
+            inicio: {type: string, format: date, nullable: true}
+            fim: {type: string, format: date, nullable: true, description: Última venda carregada}
+            linhas: {type: integer}
+            skus: {type: integer}
+        previsao:
+          type: object
+          nullable: true
+          description: Última geração concluída; nulo antes do primeiro treino
+          properties:
+            gerada_em: {type: string, format: date-time}
+            dados_ate: {type: string, format: date}
+            lojas:
+              type: array
+              items:
+                type: object
+                properties:
+                  id: {type: string}
+                  status: {type: string, enum: [trained, low_confidence, insufficient_data]}
+            produtos:
+              type: array
+              description: Produtos com previsor próprio e o status de cada um
+              items:
+                type: object
+                properties:
+                  loja: {type: string}
+                  codigo: {type: string}
+                  nome: {type: string}
+                  status: {type: string, nullable: true}
+        importacao:
+          type: object
+          additionalProperties: true
+
+    IndiceRegistros:
+      description: Meses com venda na base, quantas linhas cada um tem por loja, e as opções dos filtros (tela Conferir Dados).
+      type: object
+      properties:
+        lojas:
+          type: array
+          items: {type: string}
+        pagamentos:
+          type: array
+          description: "Formas de pagamento como a tela mostra (ex.: Pix); é o valor aceito no filtro `pagamentos`"
+          items: {type: string}
+        limiar_encomenda_un: {type: number}
+        total_registros: {type: integer}
+        meses:
+          type: array
+          items:
+            type: object
+            properties:
+              mes: {type: string, example: "2026-02"}
+              registros: {type: integer}
+              por_loja:
+                type: object
+                additionalProperties: {type: integer}
+
+    Registro:
+      description: Uma linha de produto de uma nota. Sem nome de cliente, vendedor ou operador.
+      type: object
+      properties:
+        id: {type: integer}
+        data: {type: string, format: date}
+        loja: {type: string}
+        nota: {type: string}
+        cod: {type: string}
+        nome: {type: string}
+        cat: {type: string, description: id da categoria}
+        qtd: {type: number}
+        unit: {type: number}
+        desc: {type: number}
+        liq: {type: number}
+        pag: {type: string}
+        cad: {type: boolean, description: cliente cadastrado (× consumidor)}
+        enc: {type: boolean, description: encomenda (nota com mais de 2.000 un.)}
+
+    PaginaRegistros:
+      type: object
+      properties:
+        pagina: {type: integer}
+        tamanho: {type: integer}
+        linhas:
+          type: array
+          items:
+            $ref: "#/components/schemas/Registro"
+
+    ResumoRegistros:
+      description: Totais do filtro. `por_visao` conta cada aba com os mesmos filtros; o resto vale para a aba pedida.
+      type: object
+      properties:
+        por_visao:
+          type: object
+          properties:
+            todos: {type: integer}
+            encomendas: {type: integer}
+            cadastrados: {type: integer}
+            descontos: {type: integer}
+            devolucoes: {type: integer}
+        registros: {type: integer}
+        notas: {type: integer}
+        quantidade: {type: number}
+        desconto: {type: number}
+        valor_liquido: {type: number}
+
     # --- Errors ---
     ErrorDetail:
       type: object
@@ -823,16 +1026,263 @@ paths:
                 $ref: "#/components/schemas/ErrorDetail"
 
   # ── Upload ───────────────────────────────────
+  # ── Painel (telas do frontend) ───────────────
+  /api/v1/contexto:
+    get:
+      tags: [painel]
+      summary: Contexto do layout (lojas, categorias, última venda, status dos previsores)
+      description: Lido logo após o login. Leve — consultas agregadas, sem ler a base inteira.
+      operationId: getContexto
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Contexto
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contexto"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/painel:
+    get:
+      tags: [painel]
+      summary: Painel de previsão (dados das telas Visão Geral, Previsão e Relatórios)
+      description: |
+        Previsão de 14 dias da última geração concluída, histórico, produtos, encomendas e
+        testes de acerto, no formato `BaseReal` do frontend — **sem** o teste de acerto de
+        cada produto (`/painel/produtos/{unidade}/{codigo}/backtest`, pedido ao abrir o
+        produto). Fica em cache na API até as vendas, o calendário ou a previsão mudarem.
+      operationId: getPainel
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Painel montado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Painel"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          description: Ainda não há previsão gravada (nenhum treino concluído)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+              example:
+                detail: "A previsão ainda não foi gerada. Peça à gestora para atualizar os modelos e tente de novo."
+
+  /api/v1/painel/produtos/{unidade}/{codigo}/backtest:
+    get:
+      tags: [painel]
+      summary: Teste de acerto de um produto (previsto × vendido em cada dia do walk-forward)
+      operationId: getBacktestProduto
+      security:
+        - BearerAuth: []
+      parameters:
+        - {name: unidade, in: path, required: true, schema: {type: string}, example: jardim-canada}
+        - {name: codigo, in: path, required: true, schema: {type: string}, example: "2163"}
+      responses:
+        "200":
+          description: Pontos do teste
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {type: object, additionalProperties: true}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Produto sem previsor próprio na loja
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+
+  /api/v1/analises:
+    get:
+      tags: [painel]
+      summary: Análises descritivas da base de vendas, por loja
+      operationId: getAnalises
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Análises por loja
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Analises"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/registros:
+    get:
+      tags: [painel]
+      summary: Índice da base linha a linha (meses disponíveis)
+      operationId: getIndiceRegistros
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Meses com venda
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IndiceRegistros"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/registros/linhas:
+    get:
+      tags: [painel]
+      summary: Uma página da base linha a linha (filtro, busca, aba e ordem feitos no banco)
+      operationId: getLinhasRegistros
+      security:
+        - BearerAuth: []
+      parameters:
+        - {name: meses, in: query, schema: {type: array, items: {type: string, pattern: '^\d{4}-\d{2}$'}}, style: form, explode: true, description: "AAAA-MM; vazio = todos"}
+        - {name: lojas, in: query, schema: {type: array, items: {type: string}}, style: form, explode: true}
+        - {name: categorias, in: query, schema: {type: array, items: {type: string}}, style: form, explode: true}
+        - {name: pagamentos, in: query, schema: {type: array, items: {type: string}}, style: form, explode: true}
+        - {name: cliente, in: query, schema: {type: string, enum: [todos, consumidor, cadastrado], default: todos}}
+        - {name: tipo, in: query, schema: {type: string, enum: [todos, dia, encomenda], default: todos}}
+        - {name: data_de, in: query, schema: {type: string, format: date}}
+        - {name: data_ate, in: query, schema: {type: string, format: date}}
+        - {name: valor_min, in: query, schema: {type: number}}
+        - {name: valor_max, in: query, schema: {type: number}}
+        - {name: busca, in: query, schema: {type: string, maxLength: 100}, description: produto, código ou nº da nota}
+        - {name: visao, in: query, schema: {type: string, enum: [todos, encomendas, cadastrados, descontos, devolucoes], default: todos}}
+        - {name: ordem, in: query, schema: {type: string, enum: [data, loja, nota, produto, categoria, qtd, unit, desc, liq, pag, cliente, tipo], default: data}}
+        - {name: direcao, in: query, schema: {type: string, enum: [asc, desc], default: desc}}
+        - {name: pagina, in: query, schema: {type: integer, minimum: 1, default: 1}}
+        - {name: tamanho, in: query, schema: {type: integer, minimum: 1, maximum: 200, default: 50}}
+      responses:
+        "200":
+          description: Página
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginaRegistros"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          description: "Filtro inválido (ex.: mês fora do formato AAAA-MM, tamanho acima de 200)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationError"
+
+  /api/v1/registros/resumo:
+    get:
+      tags: [painel]
+      summary: Totais do filtro e contagem de cada aba
+      operationId: getResumoRegistros
+      security:
+        - BearerAuth: []
+      parameters:
+        - {name: meses, in: query, schema: {type: array, items: {type: string, pattern: '^\d{4}-\d{2}$'}}, style: form, explode: true, description: "AAAA-MM; vazio = todos"}
+        - {name: lojas, in: query, schema: {type: array, items: {type: string}}, style: form, explode: true}
+        - {name: categorias, in: query, schema: {type: array, items: {type: string}}, style: form, explode: true}
+        - {name: pagamentos, in: query, schema: {type: array, items: {type: string}}, style: form, explode: true}
+        - {name: cliente, in: query, schema: {type: string, enum: [todos, consumidor, cadastrado], default: todos}}
+        - {name: tipo, in: query, schema: {type: string, enum: [todos, dia, encomenda], default: todos}}
+        - {name: data_de, in: query, schema: {type: string, format: date}}
+        - {name: data_ate, in: query, schema: {type: string, format: date}}
+        - {name: valor_min, in: query, schema: {type: number}}
+        - {name: valor_max, in: query, schema: {type: number}}
+        - {name: busca, in: query, schema: {type: string, maxLength: 100}, description: produto, código ou nº da nota}
+        - {name: visao, in: query, schema: {type: string, enum: [todos, encomendas, cadastrados, descontos, devolucoes], default: todos}}
+      responses:
+        "200":
+          description: Totais
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResumoRegistros"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/registros/nota:
+    get:
+      tags: [painel]
+      summary: Itens de uma nota (painel lateral)
+      operationId: getItensDaNota
+      security:
+        - BearerAuth: []
+      parameters:
+        - {name: loja, in: query, required: true, schema: {type: string}}
+        - {name: data, in: query, required: true, schema: {type: string, format: date}}
+        - {name: nota, in: query, required: true, schema: {type: string}}
+      responses:
+        "200":
+          description: Itens
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Registro"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/registros/exportar:
+    get:
+      tags: [painel]
+      summary: Todas as linhas do filtro, para o arquivo Excel/CSV (só quando a pessoa exporta)
+      operationId: getExportarRegistros
+      security:
+        - BearerAuth: []
+      parameters:
+        - {name: meses, in: query, schema: {type: array, items: {type: string, pattern: '^\d{4}-\d{2}$'}}, style: form, explode: true, description: "AAAA-MM; vazio = todos"}
+        - {name: lojas, in: query, schema: {type: array, items: {type: string}}, style: form, explode: true}
+        - {name: categorias, in: query, schema: {type: array, items: {type: string}}, style: form, explode: true}
+        - {name: pagamentos, in: query, schema: {type: array, items: {type: string}}, style: form, explode: true}
+        - {name: cliente, in: query, schema: {type: string, enum: [todos, consumidor, cadastrado], default: todos}}
+        - {name: tipo, in: query, schema: {type: string, enum: [todos, dia, encomenda], default: todos}}
+        - {name: data_de, in: query, schema: {type: string, format: date}}
+        - {name: data_ate, in: query, schema: {type: string, format: date}}
+        - {name: valor_min, in: query, schema: {type: number}}
+        - {name: valor_max, in: query, schema: {type: number}}
+        - {name: busca, in: query, schema: {type: string, maxLength: 100}, description: produto, código ou nº da nota}
+        - {name: visao, in: query, schema: {type: string, enum: [todos, encomendas, cadastrados, descontos, devolucoes], default: todos}}
+        - {name: ordem, in: query, schema: {type: string, enum: [data, loja, nota, produto, categoria, qtd, unit, desc, liq, pag, cliente, tipo], default: data}}
+        - {name: direcao, in: query, schema: {type: string, enum: [asc, desc], default: desc}}
+      responses:
+        "200":
+          description: Linhas em listas, na ordem de `colunas`
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  colunas:
+                    type: array
+                    items: {type: string}
+                  linhas:
+                    type: array
+                    items:
+                      type: array
+                      items: {}
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   /api/v1/upload:
     post:
       tags: [upload]
       summary: Enviar planilha XLSX de vendas
       description: |
-        Processa arquivo XLSX exportado do sistema financeiro.
-        Deduplica contra arquivos já enviados pela chave
+        Processa o relatório "Contas a Receber" (XLSX) com as Etapas 1–3 do
+        pré-processamento (leitura, limpeza, loja e categoria) e grava em `sales` só as
+        vendas novas. Deduplica contra o que já está no banco pela chave
         (doc_numero, produto_cod, emissao, qtdade, vl_total); linhas iguais dentro do
-        mesmo arquivo são vendas reais e são mantidas (01-pre_processing.md §2).
-        Agenda retrain automático dos modelos após processamento.
+        mesmo arquivo são vendas reais e são mantidas (01-pre_processing.md §2). O mesmo
+        arquivo (mesmo SHA-256) não é carregado duas vezes. A planilha não é guardada: fica
+        a linha de `processing_log`. As vendas novas entram no próximo treino semanal
+        (`retrain_scheduled`), que só é pulado quando não há venda nova.
         **Requer perfil admin.**
       operationId: uploadFile
       security:
@@ -878,6 +1328,14 @@ paths:
                 $ref: "#/components/schemas/ErrorDetail"
               example:
                 detail: "Você não tem permissão para esta ação."
+        "409":
+          description: A mesma planilha já foi carregada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+              example:
+                detail: "Esta planilha já foi carregada antes. Nada foi duplicado."
         "413":
           description: Arquivo maior que 50 MB
           content:
@@ -888,6 +1346,7 @@ paths:
   # ── Products ─────────────────────────────────
   /api/v1/products:
     get:
+      x-implementado: false
       tags: [products]
       summary: Listar produtos
       description: Lista produtos com status do modelo e métricas de desempenho. Requer perfil viewer ou superior.
@@ -937,6 +1396,7 @@ paths:
 
   /api/v1/products/{produto_cod}:
     get:
+      x-implementado: false
       tags: [products]
       summary: Detalhes de um produto
       description: Retorna histórico diário de vendas do SKU, categoria/unidade e métricas do modelo L1 da unidade. Sem dados pessoais de clientes (LGPD).
@@ -969,6 +1429,7 @@ paths:
   # ── Forecast (diário) ────────────────────────
   /api/v1/forecast/{produto_cod}:
     get:
+      x-implementado: false
       tags: [forecast]
       summary: Previsão de demanda diária para um produto
       description: |
@@ -1019,6 +1480,7 @@ paths:
 
   /api/v1/forecast/batch:
     get:
+      x-implementado: false
       tags: [forecast]
       summary: Previsão diária resumida para os top N produtos
       description: Retorna a demanda prevista para os próximos 7 dias (somada) dos N produtos de maior volume. Ideal para o dashboard principal.
@@ -1053,6 +1515,7 @@ paths:
   # ── Alerts ───────────────────────────────────
   /api/v1/alerts:
     get:
+      x-implementado: false
       tags: [alerts]
       summary: Alertas de pico de demanda e risco de sobra
       description: |
@@ -1088,6 +1551,7 @@ paths:
   # ── Simulation ───────────────────────────────
   /api/v1/simulation:
     post:
+      x-implementado: false
       tags: [simulation]
       summary: Simular impacto de promoções ou vendas casadas
       description: |
@@ -1121,6 +1585,7 @@ paths:
   # ── Reports ──────────────────────────────────
   /api/v1/reports/export:
     get:
+      x-implementado: false
       tags: [reports]
       summary: Exportar relatório de previsões e alertas
       description: |
@@ -1193,7 +1658,9 @@ paths:
       tags: [models]
       summary: Disparar reajuste manual dos modelos
       description: |
-        Inicia reajuste assíncrono dos modelos L1 (um por unidade).
+        Inicia em segundo plano o treino dos modelos (loja, desagregação por categoria e
+        produtos regulares, com o walk-forward) sobre as vendas do banco e grava a nova
+        previsão. Leva cerca de 40 minutos; o andamento fica em `retrain_history`.
         **Requer perfil admin.**
         Retorna 409 se já houver reajuste em andamento.
       operationId: triggerRetrain

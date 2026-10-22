@@ -1,28 +1,53 @@
+import logging
+import threading
+from contextlib import asynccontextmanager
+
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 
-from backend.api import (
-    router_alerts,
-    router_auth,
-    router_forecast,
-    router_health,
-    router_models,
-    router_products,
-    router_reports,
-    router_simulation,
-    router_upload,
-)
+from backend.api import router_auth, router_health, router_models, router_painel, router_upload
 from backend.auth.dependencies import get_current_user
 from backend.auth.seed_users import seed_initial_users
 from backend.config import settings
-from backend.infrastructure.database import create_tables
-from backend.infrastructure.scheduler import start_scheduler
+from backend.infrastructure.database import SessionLocal, create_tables
+from backend.infrastructure.scheduler import start_scheduler, stop_scheduler
+
+log = logging.getLogger(__name__)
+
+
+def _aquecer_cache() -> None:
+    """Monta painel e análises logo ao subir: a primeira leitura das vendas leva de segundos
+    (SQLite) a perto de um minuto (Neon), e assim não cai na primeira requisição."""
+    from backend.services import painel_service
+
+    try:
+        with SessionLocal() as db:
+            painel_service.analises(db)
+        with SessionLocal() as db:
+            painel_service.painel_leve(db)
+    except painel_service.PrevisaoIndisponivel:
+        log.info("cache: ainda não há previsão gravada")
+    except Exception:
+        log.exception("cache: falha ao montar o painel na subida")
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    create_tables()
+    seed_initial_users()
+    start_scheduler()
+    threading.Thread(target=_aquecer_cache, daemon=True, name="aquecer-cache").start()
+    yield
+    stop_scheduler()
+
 
 app = FastAPI(
     title="Floricultura — API de Previsão de Vendas",
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -32,13 +57,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-@app.on_event("startup")
-async def startup() -> None:
-    create_tables()
-    seed_initial_users()
-    start_scheduler()
+# o painel tem ~2 MB de JSON; comprimido fica perto de 10%
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 
 # Endpoints públicos / autenticação (sem prefixo /api/v1)
@@ -47,12 +67,10 @@ app.include_router(router_auth.router, prefix="/auth", tags=["auth"])
 
 # Endpoints protegidos — exigem Authorization: Bearer <access_token> em todos.
 # Perfis mínimos (admin em upload/retrain) são aplicados dentro de cada router.
+# products, forecast, alerts, simulation e reports (openapi.yaml) ainda não têm
+# implementação (os routers estão vazios): as telas leem tudo de /api/v1/painel.
 _v1_auth = [Depends(get_current_user)]
 
+app.include_router(router_painel.router, prefix="/api/v1", tags=["painel"], dependencies=_v1_auth)
 app.include_router(router_upload.router, prefix="/api/v1", tags=["upload"], dependencies=_v1_auth)
-app.include_router(router_products.router, prefix="/api/v1", tags=["products"], dependencies=_v1_auth)
-app.include_router(router_forecast.router, prefix="/api/v1", tags=["forecast"], dependencies=_v1_auth)
-app.include_router(router_alerts.router, prefix="/api/v1", tags=["alerts"], dependencies=_v1_auth)
-app.include_router(router_simulation.router, prefix="/api/v1", tags=["simulation"], dependencies=_v1_auth)
-app.include_router(router_reports.router, prefix="/api/v1", tags=["reports"], dependencies=_v1_auth)
 app.include_router(router_models.router, prefix="/api/v1", tags=["models"], dependencies=_v1_auth)

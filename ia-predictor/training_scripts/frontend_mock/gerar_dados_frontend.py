@@ -57,7 +57,7 @@ BASE = os.path.join(OUTPUT_DIR, "BaseClassificada03.csv")
 CALENDARIO = os.path.join(OUTPUT_DIR, "calendario_diario.csv")
 LOG_IMPORTACAO = os.path.join(OUTPUT_DIR, "processamento_log.json")
 RELATORIO_PRE = os.path.join(OUTPUT_DIR, "preprocessamento_relatorio.json")
-SAIDA = os.path.join(_REPO, "app-react", "src", "app", "data", "baseReal.json")
+SAIDA = os.path.join(_REPO, "ia-predictor", "training_scripts", "output", "baseReal.json")  # entrada de gravar_previsao --de-json
 
 M = 7
 GRID_PQ, GRID_SPQ = range(0, 3), range(0, 2)

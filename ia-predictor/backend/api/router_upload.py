@@ -2,7 +2,7 @@
 
 O processamento é síncrono (alguns segundos por planilha mensal) e só grava as vendas que
 ainda não estão no banco. Ver `upload_service`. Com venda nova, agenda o treino para daqui a
-`RETRAIN_AFTER_UPLOAD_MINUTES` (outra planilha no intervalo adia; ver `scheduler`).
+`RETRAIN_AFTER_UPLOAD_MINUTES` (outra planilha no intervalo adia; ver `disparo_treino`).
 """
 from __future__ import annotations
 
@@ -13,10 +13,9 @@ from sqlalchemy.orm import Session
 
 from backend.auth.dependencies import require_admin
 from backend.config import settings
-from backend.infrastructure import scheduler
 from backend.infrastructure.database import User, get_db
 from backend.schemas.upload import UploadResponse
-from backend.services import upload_service
+from backend.services import disparo_treino, upload_service
 
 router = APIRouter()
 
@@ -42,5 +41,5 @@ def upload(
         raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail=_MSG_GRANDE)
     except Exception:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=_MSG_FALHA)
-    treino = scheduler.agendar_treino_pos_upload() if resultado.retrain_scheduled else None
+    treino = disparo_treino.apos_upload(user.id) if resultado.retrain_scheduled else None
     return UploadResponse(**asdict(resultado), retrain_at=treino)

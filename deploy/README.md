@@ -1,143 +1,141 @@
-# Publicação — API na Oracle Cloud, front na Vercel
+# Publicação: API no Google Cloud Run, front na Vercel
 
-Decisão e alternativas: [ADR-015](../docs/backend/ADR-015-publicacao-oracle-vercel.md).
+A decisão e as alternativas estão no [ADR-015](../docs/backend/ADR-015-publicacao-cloud-run-vercel.md).
 
 ```
-navegador ──► Vercel (front estático)
-         └──► https://<API_DOMINIO> ──► Caddy (HTTPS) ──► API (Docker) ──► Neon (São Paulo)
-                  máquina Oracle Always Free, região São Paulo
+navegador ──► Vercel (front estático, grátis)
+         └──► Cloud Run "api" (São Paulo) ──► Neon (São Paulo)
+                  │ upload com venda nova / botão "Atualizar os modelos"
+                  ▼
+              Cloud Run Job "treino" (4 CPUs, 8 GB, só enquanto treina) ◄── Cloud Scheduler (seg 02:00)
 ```
 
 | Arquivo | Para quê |
 | --- | --- |
-| `../ia-predictor/Dockerfile` | imagem da API (Python 3.14, ARM ou x86) |
-| `docker-compose.yml` | API + Caddy |
-| `Caddyfile` | HTTPS automático e proxy para a API |
-| `.env.example` | modelo do `deploy/.env` do servidor (segredos — nunca versionar) |
-| `atualizar.sh` | puxa a `main` e reconstrói a API |
-| `../app-react/vercel.json` | rotas do React no build da Vercel |
+| `../ia-predictor/Dockerfile` | imagem única da API e do Job de treino |
+| `../ia-predictor/.gcloudignore` | o que não sobe para o build |
+| `configurar.sh` | preparação do projeto, feita **uma vez** |
+| `publicar.sh` | build e publicação da API e do Job (a cada atualização) |
+| `env.cloudrun.example.yaml` | modelo do `deploy/env.cloudrun.yaml`, que tem as senhas e **nunca vai para o git** |
+| `limpeza-imagens.json` | guarda só as 2 últimas imagens, para caber na cota grátis |
+| `../app-react/vercel.json` | rotas do React na Vercel |
+
+## Como fica sem custo
+
+Tudo o que o sistema usa cabe na cota grátis mensal do Google Cloud
+(<https://cloud.google.com/run/pricing>, conferido em out/2026):
+
+| Recurso | Cota grátis por mês | Uso esperado |
+| --- | --- | --- |
+| Cloud Run, API | 180 mil vCPU-s, 360 mil GiB-s, 2 milhões de requisições | só conta enquanto responde: `min-instances=0`, CPU só durante a requisição, no máximo 1 instância |
+| Cloud Run Jobs, treino | 240 mil vCPU-s, 450 mil GiB-s | um treino de ~1 h com 4 CPUs e 8 GB gasta perto de 15 mil vCPU-s e 30 mil GiB-s: cabem vários por mês |
+| Artifact Registry, imagens | 0,5 GB | 1 a 2 imagens (a política apaga as antigas) |
+| Cloud Build | 2.500 min de build | ~5 min por publicação |
+| Cloud Scheduler | 3 agendamentos | 1 (treino de segunda) |
+
+São Paulo é região "Tier 2". A cota é aplicada como desconto no preço do Tier 1, então lá
+ela rende um pouco menos, mas ainda sobra muito para o nosso uso.
+
+**O único custo possível:** a saída de dados para a internet só tem cota grátis dentro da
+América do Norte (1 GB/mês). As respostas para quem usa o sistema no Brasil são cobradas
+desde o primeiro byte. Com a compressão (gzip) já ligada na API, uma sessão normal
+transfere poucos MB, então a conta esperada fica entre zero e alguns centavos de dólar por
+mês. O orçamento com alerta (passo 1) avisa se algo sair do esperado.
 
 ---
 
-## 1. Criar a máquina na Oracle Cloud
+## 0. Antes de começar
 
-1. Crie a conta em <https://signup.cloud.oracle.com> e escolha a região
-   **Brazil East (São Paulo)**. A região escolhida no cadastro é definitiva: os recursos
-   Always Free só existem nela.
-2. *Compute → Instances → Create instance*:
-   - **Image**: Canonical Ubuntu 24.04 (a versão comum, não a "Minimal").
-   - **Shape**: *Ampere* → `VM.Standard.A1.Flex`, **4 OCPUs e 24 GB** (o limite do
-     Always Free).
-   - **Networking**: deixe criar a VCN nova com sub-rede pública e marque
-     *Assign a public IPv4 address*.
-   - **SSH keys**: *Generate a key pair for me* e baixe a chave privada (`.key`).
-   - Se aparecer *Out of capacity*, tente outro *Availability domain* ou mais tarde.
-3. Anote o **IP público** da máquina.
-4. *Networking → Virtual cloud networks →* (a VCN criada) *→ Security Lists → Default* →
-   *Add Ingress Rules*: origem `0.0.0.0/0`, TCP, portas de destino **80** e depois **443**.
+- Conta Google e um cartão. O Google pede o cartão para ativar o faturamento, mesmo dentro
+  da cota grátis. Conta nova ganha US$ 300 de teste por 90 dias. Ao fim do teste, é preciso
+  **ativar a conta paga** no console (não acontece sozinho); a cota grátis continua valendo.
+- Google Cloud CLI no Windows (PowerShell):
 
-## 2. Endereço com HTTPS (DuckDNS, grátis)
+  ```powershell
+  winget install Google.CloudSDK
+  ```
 
-1. Entre em <https://www.duckdns.org> (login com GitHub ou Google).
-2. Crie um subdomínio, ex.: `verdeperto-api` → `verdeperto-api.duckdns.org`.
-3. Em *current ip*, coloque o IP público da máquina e clique em *update ip*.
+  Feche e abra o terminal. Os comandos abaixo rodam no **Git Bash**, na raiz do repositório.
 
-## 3. Preparar a máquina
+## 1. Projeto, faturamento e alerta de gasto
 
-No seu computador (PowerShell ou Git Bash), com a chave baixada:
+1. Em <https://console.cloud.google.com>, crie um projeto (ex.: `verde-perto`) e anote o
+   **ID do projeto** (aparece embaixo do nome, ex.: `verde-perto-123456`).
+2. *Faturamento*: vincule o projeto à conta de faturamento.
+3. *Faturamento → Orçamentos e alertas → Criar orçamento*: valor de **R$ 5**, alertas em
+   50%, 90% e 100%, enviados por e-mail. O alerta só avisa, não bloqueia; se ele chegar,
+   veja em *Faturamento → Relatórios* o que gastou.
+
+## 2. Preparar o projeto (uma vez)
 
 ```bash
-ssh -i caminho/da/chave.key ubuntu@<IP_PUBLICO>
+gcloud auth login
+PROJETO=verde-perto-123456 deploy/configurar.sh
 ```
 
-Já dentro da máquina:
+O script liga as APIs (Cloud Run, Artifact Registry, Cloud Build, Cloud Scheduler), cria o
+repositório de imagens com a limpeza automática e agenda o treino de segunda às 02:00.
+
+## 3. Variáveis da API
 
 ```bash
-# Docker (pacotes do próprio Ubuntu)
-sudo apt update && sudo apt install -y docker.io docker-compose-v2 git
-sudo usermod -aG docker ubuntu && newgrp docker
-
-# A imagem Ubuntu da Oracle bloqueia as portas no firewall da própria máquina,
-# além da Security List do passo 1.4
-sudo iptables -I INPUT 6 -p tcp --dport 80 -j ACCEPT
-sudo iptables -I INPUT 6 -p tcp --dport 443 -j ACCEPT
-sudo netfilter-persistent save
+cp deploy/env.cloudrun.example.yaml deploy/env.cloudrun.yaml
 ```
 
-## 4. Baixar o código (repositório privado)
+Preencha `deploy/env.cloudrun.yaml` com os mesmos valores do `ia-predictor/.env`
+(`DATABASE_URL`, `JWT_SECRET_KEY`, senhas). `CORS_ORIGINS` fica `'[]'` por enquanto.
 
-O repositório é privado. Crie uma chave de leitura só para o servidor:
+## 4. Publicar a API e o Job de treino
 
 ```bash
-ssh-keygen -t ed25519 -N "" -f ~/.ssh/github_deploy
-cat ~/.ssh/github_deploy.pub
+PROJETO=verde-perto-123456 deploy/publicar.sh
 ```
 
-Cole a chave pública no GitHub em *Settings → Deploy keys → Add deploy key* do
-repositório (só leitura; quem tem acesso de admin do repositório faz isso). Depois:
+Leva uns 5 a 10 minutos: build da imagem, Job `treino` e serviço `api`. No fim, o script
+mostra o endereço da API (`https://api-xxxxx.southamerica-east1.run.app`). Para testar:
 
 ```bash
-cat >> ~/.ssh/config <<'EOF'
-Host github.com
-  IdentityFile ~/.ssh/github_deploy
-EOF
-git clone git@github.com:FelipeGA02/TCC---Inventory-Forecasting.git ~/app
+curl https://api-xxxxx.southamerica-east1.run.app/health
 ```
 
-## 5. Configurar e subir a API
+A API desliga quando ninguém usa. O primeiro acesso depois de um tempo parado leva alguns
+segundos a mais, enquanto ela sobe.
 
-```bash
-cd ~/app/deploy
-cp .env.example .env
-nano .env
-```
+## 5. Publicar o front na Vercel
 
-Preencha com os mesmos valores do `ia-predictor/.env` local (`DATABASE_URL`,
-`JWT_SECRET_KEY`, senhas), mais `API_DOMINIO` (passo 2) e `CORS_ORIGINS` (passo 6; dá
-para subir agora com `[]` e completar depois). Então:
-
-```bash
-chmod 600 .env
-docker compose up -d --build      # o primeiro build leva alguns minutos
-docker compose logs -f api        # espere "Application startup complete", Ctrl+C para sair
-curl https://<API_DOMINIO>/health # {"status":"ok",...}
-```
-
-O Caddy pede o certificado na primeira requisição; se o `curl` falhar no primeiro
-segundo, tente de novo.
-
-## 6. Publicar o front na Vercel
-
-1. Em <https://vercel.com>, *Add New → Project* e importe o repositório do GitHub.
+1. Em <https://vercel.com>: *Add New → Project* e importe o repositório do GitHub.
 2. **Root Directory**: `app-react`. O resto (Vite, `npm run build`, `dist`) é detectado
    sozinho.
-3. *Environment Variables*: `VITE_API_URL` = `https://<API_DOMINIO>`.
-4. *Deploy*. Anote o endereço (ex.: `https://verde-perto.vercel.app`).
-5. No servidor, coloque esse endereço no `deploy/.env` e reinicie a API:
+3. *Environment Variables*: `VITE_API_URL` = o endereço da API do passo 4.
+4. *Deploy*, e anote o endereço do front (ex.: `https://verde-perto.vercel.app`).
+5. Libere esse endereço na API: em `deploy/env.cloudrun.yaml`, coloque
+   `CORS_ORIGINS: '["https://verde-perto.vercel.app"]'` e rode o `publicar.sh` de novo.
 
-   ```bash
-   # deploy/.env
-   CORS_ORIGINS=["https://verde-perto.vercel.app"]
-   ```
+## 6. Primeiro treino pelo backend
 
-   ```bash
-   docker compose up -d
-   ```
+A previsão que está no banco foi importada do treino offline. Para gerar a primeira pelo
+Job:
+
+1. Abra `https://<endereço da API>/docs`, clique em *Authorize* e entre com o e-mail e a
+   senha da gestora (admin).
+2. Em `POST /api/v1/models/retrain`, use *Try it out → Execute*.
+3. Acompanhe em *Cloud Run → Jobs → treino → Execuções → Logs*. Quando terminar, a tela
+   de previsão mostra a previsão nova.
+
+Daí em diante, o treino roda sozinho: 10 minutos depois de uma planilha com venda nova e
+toda segunda às 02:00 (pulado se não houver venda nova).
 
 ## 7. Atualizar depois de um merge na `main`
 
-- **Front**: a Vercel publica sozinha a cada push na `main` (e cria uma prévia para cada
-  PR).
-- **API**: no servidor, `~/app/deploy/atualizar.sh`. Um treino em andamento é
-  interrompido pelo restart. Se havia planilha nova, o treino de segunda (ou o botão
-  "Atualizar os modelos") refaz.
+- **Front**: a Vercel publica sozinha a cada push na `main` e cria uma prévia de cada PR.
+- **API e Job**: `PROJETO=... deploy/publicar.sh` a partir da `main` atualizada.
 
 ## Problemas comuns
 
-| Sintoma | Causa provável |
+| Sintoma | O que ver |
 | --- | --- |
-| `curl` não conecta | portas 80/443 fechadas: confira a Security List (1.4) **e** o `iptables` (3) |
-| Erro de certificado | o DuckDNS não aponta para o IP da máquina, ou a porta 80 está fechada |
-| Front abre, mas o login falha com erro de rede | `CORS_ORIGINS` sem o endereço exato da Vercel (com `https://`, sem `/` no fim) |
-| API não sobe, erro de validação nos logs | valor em formato errado no `deploy/.env` (ex.: `CORS_ORIGINS` precisa ser uma lista JSON). Variável com nome errado é ignorada: confira a grafia |
-| Treino morre no meio | memória: baixe `TRAINING_WORKERS` no `deploy/.env` |
+| `publicar.sh` falha no build com erro de permissão | *IAM*: a conta `<número>-compute@developer.gserviceaccount.com` precisa do papel *Editor* (projetos pessoais já vêm assim) |
+| Front abre, mas o login dá erro de rede | `CORS_ORIGINS` sem o endereço exato da Vercel (com `https://`, sem `/` no fim) e o `publicar.sh` não foi rodado de novo |
+| Upload funciona, mas a previsão não muda | *Cloud Run → Jobs → treino → Execuções*: a execução falhou ou foi pulada; os logs explicam |
+| Treino morre por memória (logs com `OOM` ou `Memory limit`) | suba `--memory` do Job no `publicar.sh` (até 32Gi) ou baixe `TRAINING_WORKERS` |
+| API não sobe (logs com erro de validação) | valor em formato errado no `env.cloudrun.yaml`, ex.: `CORS_ORIGINS` precisa ser uma lista JSON entre aspas simples |

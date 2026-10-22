@@ -13,12 +13,17 @@ de cada loja vai para:
 `importar_painel()` grava as mesmas tabelas a partir de um `baseReal.json` já gerado — o
 treino completo leva ~40 min, e o JSON é o resultado do mesmo código.
 
+Onde o treino roda (`disparo_treino`): numa thread da própria API, ou num Job do Cloud Run.
+No Job, o pedido fica antes registrado como `pending` (`enfileirar`), e o Job o assume
+(`proximo_da_fila` + `treinar(retrain_id=...)`).
+
 Os modelos ajustados não são guardados em joblib (`artifact_path` fica nulo): o gerador
 não devolve o objeto ajustado. Uma nova previsão exige treinar de novo.
 """
 from __future__ import annotations
 
 import threading
+import time
 from datetime import date, datetime, timedelta
 
 import pandas as pd
@@ -63,7 +68,8 @@ PARAMS_EN = {
     "exogenas": "exog_features",
 }
 
-# Um treino por vez neste processo; um `running` com mais de 3 h é de um processo que caiu.
+# Um treino por vez neste processo; um `pending`/`running` com mais de 3 h é de um processo
+# que caiu.
 _TRAVA = threading.Lock()
 _TREINO_TRAVADO_APOS = timedelta(hours=3)
 
@@ -92,18 +98,62 @@ def configuracao() -> dict:
     }
 
 
-def treino_em_andamento(db: Session) -> RetrainHistory | None:
+def treino_em_andamento(db: Session, exceto: int | None = None) -> RetrainHistory | None:
+    """Treino rodando ou pedido ao Job e ainda não iniciado (`pending`), dos últimos 3 h."""
     limite = datetime.now() - _TREINO_TRAVADO_APOS
-    return db.scalar(
-        select(RetrainHistory)
-        .where(RetrainHistory.status == "running", RetrainHistory.started_at >= limite)
-        .order_by(RetrainHistory.id.desc())
-    )
+    consulta = select(RetrainHistory).where(RetrainHistory.status.in_(["pending", "running"]),
+                                            RetrainHistory.started_at >= limite)
+    if exceto is not None:
+        consulta = consulta.where(RetrainHistory.id != exceto)
+    return db.scalar(consulta.order_by(RetrainHistory.id.desc()))
 
 
 def ha_treino_rodando(db: Session) -> bool:
-    """Treino em andamento neste processo ou registrado por outro (`running` recente)."""
+    """Treino em andamento neste processo ou registrado por outro (`pending`/`running` recente)."""
     return _TRAVA.locked() or treino_em_andamento(db) is not None
+
+
+# --------------------------------------------------------------------------- #
+# Fila do Job do Cloud Run
+# --------------------------------------------------------------------------- #
+def enfileirar(trigger: str, user_id: int | None = None) -> int | None:
+    """Registra um pedido de treino (`pending`) para o Job. Devolve None se já há treino na
+    fila ou rodando: ele usa as planilhas novas antes de terminar (`ha_planilha_pendente`)."""
+    with SessionLocal() as db:
+        if treino_em_andamento(db) is not None:
+            return None
+        r = RetrainHistory(trigger=trigger, status="pending", user_id=user_id, config=configuracao())
+        db.add(r)
+        db.commit()
+        return r.id
+
+
+def proximo_da_fila() -> tuple[int, str, int | None] | None:
+    """O pedido `pending` mais antigo ainda válido: (id, trigger, user_id)."""
+    limite = datetime.now() - _TREINO_TRAVADO_APOS
+    with SessionLocal() as db:
+        r = db.scalar(select(RetrainHistory)
+                      .where(RetrainHistory.status == "pending", RetrainHistory.started_at >= limite)
+                      .order_by(RetrainHistory.id))
+        return None if r is None else (r.id, r.trigger, r.user_id)
+
+
+def ha_planilha_pendente() -> bool:
+    """Alguma planilha com venda nova ainda não entrou num treino concluído."""
+    with SessionLocal() as db:
+        return bool(db.scalar(select(func.count()).select_from(ProcessingLog).where(*_PLANILHA_NAO_USADA)))
+
+
+def esperar_planilhas_paradas(espera: timedelta, limite: timedelta = timedelta(hours=2)) -> None:
+    """Espera `espera` sem planilha nova (quem envia várias seguidas espera um treino só)."""
+    fim = datetime.now() + limite
+    while datetime.now() < fim:
+        with SessionLocal() as db:
+            ultima = db.scalar(select(func.max(ProcessingLog.finished_at)).where(ProcessingLog.status == "done"))
+        falta = espera if ultima is None else ultima + espera - datetime.now()
+        if ultima is None or falta <= timedelta(0):
+            return
+        time.sleep(min(falta.total_seconds(), 60))
 
 
 # --------------------------------------------------------------------------- #
@@ -194,12 +244,17 @@ def gravar_unidade(db: Session, retrain_id: int, run_id: int, unidade: dict, con
     return com_previsao
 
 
-def _abrir_execucao(trigger: str, user_id: int | None, config: dict) -> int:
+def _abrir_execucao(trigger: str, user_id: int | None, config: dict, pedido: int | None = None) -> int:
+    """Registra o treino como `running`: assume o `pedido` da fila ou cria uma linha nova."""
     with SessionLocal() as db:
-        if treino_em_andamento(db) is not None:
+        if treino_em_andamento(db, exceto=pedido) is not None:
             raise TreinoEmAndamento()
-        r = RetrainHistory(trigger=trigger, status="running", user_id=user_id, config=config)
-        db.add(r)
+        if pedido is not None:
+            r = db.get(RetrainHistory, pedido)
+            r.status, r.started_at, r.config = "running", datetime.now(), config
+        else:
+            r = RetrainHistory(trigger=trigger, status="running", user_id=user_id, config=config)
+            db.add(r)
         db.commit()
         return r.id
 
@@ -230,7 +285,7 @@ def _gravar_resultado(retrain_id: int, trigger_run: str, unidades: list[dict], d
         return run.id
 
 
-def _marcar_erro(retrain_id: int, erro: Exception) -> None:
+def marcar_erro(retrain_id: int, erro: Exception) -> None:
     with SessionLocal() as db:
         r = db.get(RetrainHistory, retrain_id)
         r.status, r.finished_at = "error", datetime.now()
@@ -242,19 +297,20 @@ def _marcar_erro(retrain_id: int, erro: Exception) -> None:
 # Casos de uso
 # --------------------------------------------------------------------------- #
 def treinar(trigger: str = "manual", user_id: int | None = None, workers: int | None = None,
-            pular_sem_venda_nova: bool = False, ao_terminar_unidade=None) -> int:
+            pular_sem_venda_nova: bool = False, ao_terminar_unidade=None, retrain_id: int | None = None) -> int:
     """Treina as lojas sobre o banco e grava tudo. Devolve o id de `retrain_history`.
 
     Com `pular_sem_venda_nova` (treino agendado ou após upload), registra `skipped` se o
     último treino `done` usou as mesmas vendas — mesmo `data_until` e nenhuma planilha com
     venda nova ainda não usada (`processing_log.retrain_id` nulo) — e a mesma configuração.
+    Com `retrain_id`, assume esse pedido `pending` da fila (Job do Cloud Run).
     """
     workers = workers or settings.TRAINING_WORKERS
     if not _TRAVA.acquire(blocking=False):
         raise TreinoEmAndamento()
     try:
         config = configuracao()
-        retrain_id = _abrir_execucao(trigger, user_id, config)
+        retrain_id = _abrir_execucao(trigger, user_id, config, pedido=retrain_id)
         try:
             with SessionLocal() as db:
                 df = base_vendas.carregar_vendas(db)
@@ -282,7 +338,7 @@ def treinar(trigger: str = "manual", user_id: int | None = None, workers: int | 
             _gravar_resultado(retrain_id, "retrain", resultado, data_until)
             return retrain_id
         except Exception as erro:
-            _marcar_erro(retrain_id, erro)
+            marcar_erro(retrain_id, erro)
             raise
     finally:
         _TRAVA.release()
@@ -307,7 +363,7 @@ def importar_painel(painel: dict, user_id: int | None = None) -> int:
             _gravar_resultado(retrain_id, "retrain", painel["unidades"], data_until)
             return retrain_id
         except Exception as erro:
-            _marcar_erro(retrain_id, erro)
+            marcar_erro(retrain_id, erro)
             raise
     finally:
         _TRAVA.release()

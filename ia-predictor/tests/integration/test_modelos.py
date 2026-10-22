@@ -3,11 +3,13 @@ import time
 from datetime import datetime
 
 import pytest
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 
-from backend.infrastructure import scheduler
+from backend.config import settings
+from backend.infrastructure import cloud_run_job, scheduler
 from backend.infrastructure.database import ProcessingLog, RetrainHistory, SessionLocal
-from backend.services import treino_service
+from backend.scripts import treinar_job
+from backend.services import disparo_treino, treino_service
 
 
 def test_status_dos_modelos(client, viewer, com_previsao):
@@ -79,3 +81,55 @@ def test_treino_e_pulado_so_sem_planilha_nova(client, com_previsao, monkeypatch)
         with SessionLocal() as db:
             db.execute(delete(ProcessingLog).where(ProcessingLog.filename == "jan 26.xlsx"))
             db.commit()
+
+
+@pytest.fixture
+def no_cloud_run(monkeypatch):
+    """API no Cloud Run: o treino vai para o Job (iniciado de mentira, só registrado)."""
+    iniciados = []
+    monkeypatch.setattr(settings, "TRAINING_RUNNER", "cloud_run_job")
+    monkeypatch.setattr(settings, "CLOUD_RUN_JOB", "projects/p/locations/r/jobs/treino")
+    monkeypatch.setattr(cloud_run_job, "executar", iniciados.append)
+    yield iniciados
+    with SessionLocal() as db:
+        db.execute(delete(RetrainHistory).where(RetrainHistory.status.in_(["pending", "running"])))
+        db.commit()
+
+
+def test_upload_no_cloud_run_pede_um_job_so(client, no_cloud_run):
+    assert disparo_treino.apos_upload(None) is not None
+    assert disparo_treino.apos_upload(None) is not None  # segunda planilha: o pedido já está na fila
+    assert no_cloud_run == ["projects/p/locations/r/jobs/treino"]
+    with SessionLocal() as db:
+        assert treino_service.ha_treino_rodando(db)
+
+
+def test_falha_ao_iniciar_o_job_nao_deixa_pedido_preso(client, no_cloud_run, monkeypatch):
+    def falha(job):
+        raise OSError("sem rede")
+
+    monkeypatch.setattr(cloud_run_job, "executar", falha)
+    assert disparo_treino.apos_upload(None) is None
+    with SessionLocal() as db:
+        assert not treino_service.ha_treino_rodando(db)
+
+
+def test_job_assume_o_pedido_da_fila(client, com_previsao, no_cloud_run, monkeypatch):
+    def treinou(*_a, **_k):
+        raise _Treinou()
+
+    monkeypatch.setattr(treino_service.gerador, "gerar_unidade", treinou)
+    pedido = treino_service.enfileirar("manual")
+    with pytest.raises(_Treinou):  # manual: treina mesmo sem venda nova
+        treinar_job.main()
+    with SessionLocal() as db:
+        r = db.get(RetrainHistory, pedido)
+        assert (r.trigger, r.status) == ("manual", "error")
+
+
+def test_job_semanal_sem_venda_nova_e_pulado(client, com_previsao, monkeypatch):
+    monkeypatch.setattr(treino_service.gerador, "gerar_unidade", lambda *a, **k: pytest.fail("não devia treinar"))
+    assert treinar_job.main() == 0
+    with SessionLocal() as db:
+        ultimo = db.scalar(select(RetrainHistory).order_by(RetrainHistory.id.desc()))
+        assert (ultimo.trigger, ultimo.status) == ("scheduled", "skipped")

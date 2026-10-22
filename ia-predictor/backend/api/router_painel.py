@@ -20,10 +20,10 @@ from typing import Any, Literal
 
 import numpy as np
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
-from backend.infrastructure.database import get_db
+from backend.infrastructure.database import SessionLocal, get_db
 from backend.services import painel_service, registros_service
 from backend.services.registros_service import Filtros
 
@@ -132,11 +132,15 @@ def nota_registros(loja: str, data: date, nota: str, db: Session = Depends(get_d
     return RespostaJSON(registros_service.itens_da_nota(db, loja, data, nota))
 
 
-@router.get("/registros/exportar", response_class=RespostaJSON)
+@router.get("/registros/exportar")
 def exportar_registros(
     filtros: Filtros = Depends(filtros_registros),
     ordem: Ordem | None = "data",
     direcao: Literal["asc", "desc"] = "desc",
-    db: Session = Depends(get_db),
-) -> RespostaJSON:
-    return RespostaJSON(registros_service.exportar(db, filtros, ordem, direcao))
+) -> StreamingResponse:
+    def gerar():
+        # sessão própria: vive enquanto a resposta é enviada, em pedaços
+        with SessionLocal() as db:
+            yield from registros_service.exportar(db, filtros, ordem, direcao)
+
+    return StreamingResponse(gerar(), media_type="application/json")

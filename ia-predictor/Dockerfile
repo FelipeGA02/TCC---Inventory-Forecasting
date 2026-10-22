@@ -1,4 +1,4 @@
-# API (FastAPI + agendador do treino) para o servidor. Ver deploy/README.md.
+# Imagem da API e do Job de treino (Cloud Run). Ver deploy/README.md.
 # Mesma versão de Python do ambiente local (os pins de requirements.txt são testados nela).
 FROM python:3.14-slim
 
@@ -27,6 +27,8 @@ RUN useradd --create-home app \
 USER app
 
 EXPOSE 8000
-# um processo só: o agendador e o treino rodam dentro da API
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", \
-     "--proxy-headers", "--forwarded-allow-ips", "*"]
+# Um processo só (o cache e, com TRAINING_RUNNER=local, o agendador ficam na memória dele).
+# O Cloud Run informa a porta em $PORT; o Job de treino troca este comando
+# (python -m backend.scripts.treinar_job).
+CMD exec uvicorn backend.main:app --host 0.0.0.0 --port "${PORT:-8000}" \
+    --proxy-headers --forwarded-allow-ips "*"

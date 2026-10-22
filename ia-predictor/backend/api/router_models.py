@@ -1,12 +1,12 @@
 """Status dos modelos (`GET /models/status`) e treino manual (`POST /models/retrain`, admin).
 
-O treino roda numa thread da API e leva dezenas de minutos (2 lojas, 26 rodadas de
-validação, um SARIMAX por produto regular). O andamento fica em `retrain_history`.
+O treino roda numa thread da API ou num Job do Cloud Run (`disparo_treino`) e leva dezenas
+de minutos (2 lojas, 26 rodadas de validação, um SARIMAX por produto regular). O andamento
+fica em `retrain_history`.
 """
 from __future__ import annotations
 
 import logging
-import threading
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -17,13 +17,14 @@ from backend.auth.dependencies import require_admin
 from backend.infrastructure import scheduler
 from backend.infrastructure.database import ForecastCache, ModelArtifact, RetrainHistory, Unit, User, get_db
 from backend.schemas.models import ModelMetrics, ModelStatusResponse, RetrainResponse, UnitModelStatus
-from backend.services import painel_service, treino_service
+from backend.services import disparo_treino, painel_service, treino_service
 
 log = logging.getLogger(__name__)
 router = APIRouter()
 
 _MSG_TREINO_EM_ANDAMENTO = "Atualização já em andamento. Tente novamente em alguns minutos."
-_MSG_TREINO_INICIADO = "Atualização dos modelos iniciada em segundo plano. Leva cerca de 40 minutos."
+_MSG_TREINO_INICIADO = "Atualização dos modelos iniciada em segundo plano. Leva perto de uma hora."
+_MSG_TREINO_FALHOU = "Não foi possível iniciar a atualização agora. Tente de novo em alguns minutos."
 
 
 def _ordem(valores: list | None) -> str | None:
@@ -78,19 +79,13 @@ def models_status(db: Session = Depends(get_db)) -> ModelStatusResponse:
     return resposta
 
 
-def _treinar_em_segundo_plano(user_id: int) -> None:
-    try:
-        treino_service.treinar("manual", user_id=user_id)
-    except treino_service.TreinoEmAndamento:
-        log.info("treino manual não iniciado: já existe um em andamento")
-    except Exception:
-        log.exception("treino manual falhou (registrado em retrain_history)")
-
-
 @router.post("/models/retrain", response_model=RetrainResponse, status_code=status.HTTP_202_ACCEPTED)
 def retrain(user: User = Depends(require_admin), db: Session = Depends(get_db)) -> RetrainResponse:
     if treino_service.ha_treino_rodando(db):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=_MSG_TREINO_EM_ANDAMENTO)
-    threading.Thread(target=_treinar_em_segundo_plano, args=(user.id,), daemon=True,
-                     name="treino-manual").start()
+    try:
+        disparo_treino.manual(user.id)
+    except Exception:
+        log.exception("treino manual: falha ao iniciar")
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=_MSG_TREINO_FALHOU)
     return RetrainResponse(message=_MSG_TREINO_INICIADO, started_at=datetime.now())

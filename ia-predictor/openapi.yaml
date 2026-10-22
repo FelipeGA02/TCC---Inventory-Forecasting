@@ -27,7 +27,7 @@ info:
     o produto) e Conferir Dados consulta a base **paginada** em `/api/v1/registros/*`. Os
     endpoints de products, forecast, alerts, simulation e reports estão no contrato mas
     **ainda não implementados** (marcados com `x-implementado: false`).
-  version: "3.4.0"
+  version: "3.5.0"
   contact:
     name: Daniel Nunes da Silva & Felipe Gurgel Araújo
     email: felipegurgel5@gmail.com
@@ -1242,6 +1242,7 @@ paths:
     get:
       tags: [painel]
       summary: Todas as linhas do filtro, para o arquivo Excel/CSV (só quando a pessoa exporta)
+      description: Enviado em pedaços (chunked), sem tamanho fixo — a base inteira passa de 40 MB.
       operationId: getExportarRegistros
       security:
         - BearerAuth: []
@@ -1669,7 +1670,8 @@ paths:
       description: |
         Inicia em segundo plano o treino dos modelos (loja, desagregação por categoria e
         produtos regulares, com o walk-forward) sobre as vendas do banco e grava a nova
-        previsão. Leva cerca de 40 minutos; o andamento fica em `retrain_history`.
+        previsão — numa thread da API ou, no Cloud Run, no Job de treino
+        (`TRAINING_RUNNER`). Leva perto de uma hora; o andamento fica em `retrain_history`.
         **Requer perfil admin.**
         Retorna 409 se já houver reajuste em andamento.
       operationId: triggerRetrain
@@ -1698,6 +1700,12 @@ paths:
                 $ref: "#/components/schemas/ErrorDetail"
               example:
                 detail: "Atualização já em andamento. Tente novamente em alguns minutos."
+        "503":
+          description: Não foi possível iniciar o Job de treino no Cloud Run
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
 
 security:
   - BearerAuth: []

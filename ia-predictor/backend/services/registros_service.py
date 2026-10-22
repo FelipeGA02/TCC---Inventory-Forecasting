@@ -11,6 +11,8 @@ das telas. Nenhum dado pessoal sai: o cliente vira só "consumidor" ou "cadastra
 """
 from __future__ import annotations
 
+import json
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from typing import Literal
@@ -23,6 +25,7 @@ from backend.services import base_vendas
 from training_scripts.preprocessing.remove_encomendas_06 import LIMIAR_QTD_VENDA
 
 TAMANHO_MAXIMO = 200
+_LOTE_EXPORTACAO = 5000  # linhas lidas do banco e enviadas por vez na exportação
 SEM_PAGAMENTO = "NÃO INFORMADO"
 
 Visao = Literal["todos", "encomendas", "cadastrados", "descontos", "devolucoes"]
@@ -220,11 +223,20 @@ def itens_da_nota(db: Session, loja: str, dia: date, nota: str) -> list[dict]:
     return [_linha(r) for r in db.execute(consulta)]
 
 
-def exportar(db: Session, f: Filtros, ordem: str | None, direcao: str) -> dict:
-    """Todas as linhas do filtro, em listas (metade do tamanho de objetos), para o arquivo."""
+def exportar(db: Session, f: Filtros, ordem: str | None, direcao: str) -> Iterator[str]:
+    """Todas as linhas do filtro, em listas (metade do tamanho de objetos), como o JSON
+    `{"colunas": [...], "linhas": [[...], ...]}` gerado em pedaços: a base inteira passa de
+    40 MB, não precisa ficar na memória e não cabe numa resposta única do Cloud Run (32 MB)."""
     colunas = ["data", "loja", "nota", "cod", "nome", "cat", "qtd", "unit", "desc", "liq", "pag", "cad", "enc"]
-    saida = []
-    for r in db.execute(_consulta_linhas(db, f, ordem, direcao)):
+    yield '{"colunas":' + json.dumps(colunas) + ',"linhas":['
+    separador, lote = "", []
+    consulta = _consulta_linhas(db, f, ordem, direcao).execution_options(yield_per=_LOTE_EXPORTACAO)
+    for r in db.execute(consulta):
         d = _linha(r)
-        saida.append([d[c] for c in colunas])
-    return {"colunas": colunas, "linhas": saida}
+        lote.append(json.dumps([d[c] for c in colunas], ensure_ascii=False, separators=(",", ":")))
+        if len(lote) == _LOTE_EXPORTACAO:
+            yield separador + ",".join(lote)
+            separador, lote = ",", []
+    if lote:
+        yield separador + ",".join(lote)
+    yield "]}"

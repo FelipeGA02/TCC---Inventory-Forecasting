@@ -17,6 +17,7 @@ pip-wheel-metadata/
 # ─── Variáveis de ambiente ────────────────────────────────────────────────────
 .env
 .env.*
+deploy/env.cloudrun.yaml
 !.env.example
 
 # ─── Banco de dados ───────────────────────────────────────────────────────────

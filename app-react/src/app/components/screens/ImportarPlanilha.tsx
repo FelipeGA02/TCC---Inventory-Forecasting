@@ -318,11 +318,11 @@ export function ImportarPlanilha() {
               <p className="text-sm text-center" style={{ color: "var(--muted-foreground)" }}>
                 {resultado.retrain_at ? (
                   <>
-                    A previsão vai ser atualizada com estas vendas sozinha, a partir das {hora(resultado.retrain_at)}, e
-                    leva cerca de 40 minutos. Se tiver outras planilhas, envie agora: elas entram na mesma atualização.
+                    A previsão vai ser atualizada com estas vendas sozinha, a partir das {hora(resultado.retrain_at)} (leva
+                    perto de uma hora). Se tiver outras planilhas, envie agora: elas entram na mesma atualização.
                   </>
                 ) : (
-                  <>A previsão passa a usar estas vendas na próxima atualização dos modelos. Se preferir, atualize agora — leva cerca de 40 minutos.</>
+                  <>A previsão passa a usar estas vendas na próxima atualização dos modelos. Se preferir, atualize agora — leva perto de uma hora.</>
                 )}
               </p>
             )}

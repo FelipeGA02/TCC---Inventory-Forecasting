@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -51,6 +52,10 @@ class Settings(BaseSettings):
     RETRAIN_DAY_OF_WEEK: str = "mon"     # reajuste (fit) dos modelos L1; pulado sem venda nova
     RETRAIN_HOUR: int = 2                # 02:00
     RETRAIN_AFTER_UPLOAD_MINUTES: int = 10  # treino após planilha com venda nova; outro upload no intervalo adia
+    # onde o treino roda: "local" (thread da API + agendador) ou "cloud_run_job" (Job do Cloud
+    # Run, ver services/disparo_treino.py); CLOUD_RUN_JOB = projects/<p>/locations/<r>/jobs/<nome>
+    TRAINING_RUNNER: Literal["local", "cloud_run_job"] = "local"
+    CLOUD_RUN_JOB: str = ""
     DAILY_FORECAST_HOUR: int = 3         # confere o calendario; gera de novo a previsao so se ele mudou
 
     # CORS

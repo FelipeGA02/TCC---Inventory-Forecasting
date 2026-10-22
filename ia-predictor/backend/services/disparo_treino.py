@@ -1,54 +1,40 @@
 """Onde o treino roda, conforme `TRAINING_RUNNER`.
 
-  * `local` (padrão, desenvolvimento ou servidor sempre ligado): numa thread da própria API.
-    Após o upload, o agendador (`scheduler`) espera `RETRAIN_AFTER_UPLOAD_MINUTES`.
-  * `cloud_run_job` (Cloud Run): a API só registra o pedido (`pending` em `retrain_history`)
-    e inicia o Job de treino (`backend/scripts/treinar_job.py`), que faz a espera após o
-    upload e o treino. No Cloud Run a API só tem CPU durante as requisições, então não
-    pode treinar nem esperar em segundo plano.
+  * `local` (padrão: desenvolvimento ou servidor com memória sobrando): numa thread da
+    própria API. Após o upload, o agendador (`scheduler`) espera
+    `RETRAIN_AFTER_UPLOAD_MINUTES`.
+  * `externo` (API no Render grátis, ADR-015): a API não treina, porque não tem memória nem
+    CPU para isso. A previsão é atualizada pelo script `backend/scripts/gravar_previsao.py`,
+    rodado de outra máquina sobre o mesmo banco.
 """
 from __future__ import annotations
 
 import logging
 import threading
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from backend.config import settings
-from backend.infrastructure import cloud_run_job, scheduler
+from backend.infrastructure import scheduler
 from backend.services import treino_service
 
 log = logging.getLogger(__name__)
 
 
-def no_job() -> bool:
-    return settings.TRAINING_RUNNER == "cloud_run_job"
+class TreinoForaDaApi(Exception):
+    """`TRAINING_RUNNER=externo`: o treino não roda nesta API."""
 
 
-def _pedir_ao_job(trigger: str, user_id: int | None) -> None:
-    pedido = treino_service.enfileirar(trigger, user_id)
-    if pedido is None:
-        return  # já há treino na fila ou rodando: ele inclui esta planilha
-    try:
-        cloud_run_job.executar(settings.CLOUD_RUN_JOB)
-    except Exception as erro:
-        treino_service.marcar_erro(pedido, erro)
-        raise
+def na_api() -> bool:
+    return settings.TRAINING_RUNNER == "local"
 
 
-def apos_upload(user_id: int | None) -> datetime | None:
-    """Pede o treino após uma planilha com venda nova. Devolve quando ele deve começar; None
-    se não foi possível pedir (fica para o treino semanal ou o botão "Atualizar")."""
-    if not no_job():
-        return scheduler.agendar_treino_pos_upload()
-    try:
-        _pedir_ao_job("upload", user_id)
-    except Exception:
-        log.exception("não foi possível iniciar o Job de treino após o upload")
-        return None
-    return datetime.now() + timedelta(minutes=settings.RETRAIN_AFTER_UPLOAD_MINUTES)
+def apos_upload() -> datetime | None:
+    """Agenda o treino após uma planilha com venda nova. Devolve quando ele começa; None
+    se esta API não treina (ou o agendador não está rodando)."""
+    return scheduler.agendar_treino_pos_upload() if na_api() else None
 
 
-def _treinar_na_api(user_id: int) -> None:
+def _treinar(user_id: int) -> None:
     try:
         treino_service.treinar("manual", user_id=user_id)
     except treino_service.TreinoEmAndamento:
@@ -58,9 +44,7 @@ def _treinar_na_api(user_id: int) -> None:
 
 
 def manual(user_id: int) -> None:
-    """Treino pedido pelo botão "Atualizar os modelos" (quem chama já conferiu que não há
-    outro em andamento)."""
-    if no_job():
-        _pedir_ao_job("manual", user_id)
-    else:
-        threading.Thread(target=_treinar_na_api, args=(user_id,), daemon=True, name="treino-manual").start()
+    """Treino pedido pelo botão "Atualizar os modelos", em segundo plano."""
+    if not na_api():
+        raise TreinoForaDaApi()
+    threading.Thread(target=_treinar, args=(user_id,), daemon=True, name="treino-manual").start()

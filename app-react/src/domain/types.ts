@@ -249,7 +249,8 @@ export interface BaseReal {
 export interface Contexto {
   lojas: { id: UnidadeId; nome: string; cidade: string }[];
   categorias: Categoria[];
-  configuracao: { horizonte_dias: number; limiar_encomenda_un: number };
+  /** treino_na_api: falso quando a API não treina (Render) — o front não oferece "Atualizar os modelos" */
+  configuracao: { horizonte_dias: number; limiar_encomenda_un: number; treino_na_api: boolean };
   base: { inicio: string | null; fim: string | null; linhas: number; skus: number };
   previsao: {
     gerada_em: string;

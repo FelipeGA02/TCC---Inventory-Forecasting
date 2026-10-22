@@ -41,5 +41,5 @@ def upload(
         raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail=_MSG_GRANDE)
     except Exception:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=_MSG_FALHA)
-    treino = disparo_treino.apos_upload(user.id) if resultado.retrain_scheduled else None
+    treino = disparo_treino.apos_upload() if resultado.retrain_scheduled else None
     return UploadResponse(**asdict(resultado), retrain_at=treino)

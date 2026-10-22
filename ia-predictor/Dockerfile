@@ -1,4 +1,4 @@
-# Imagem da API e do Job de treino (Cloud Run). Ver deploy/README.md.
+# Imagem da API (Render, ver render.yaml e deploy/README.md).
 # Mesma versão de Python do ambiente local (os pins de requirements.txt são testados nela).
 FROM python:3.14-slim
 
@@ -28,7 +28,6 @@ USER app
 
 EXPOSE 8000
 # Um processo só (o cache e, com TRAINING_RUNNER=local, o agendador ficam na memória dele).
-# O Cloud Run informa a porta em $PORT; o Job de treino troca este comando
-# (python -m backend.scripts.treinar_job).
+# O Render informa a porta em $PORT.
 CMD exec uvicorn backend.main:app --host 0.0.0.0 --port "${PORT:-8000}" \
     --proxy-headers --forwarded-allow-ips "*"

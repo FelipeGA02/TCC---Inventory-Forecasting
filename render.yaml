@@ -1,0 +1,29 @@
+# Blueprint do Render: a API no plano grátis (ADR-015). Passo a passo em deploy/README.md.
+# Os valores com `sync: false` são pedidos na tela do Render ao criar o serviço (não ficam no git).
+services:
+  - type: web
+    name: verde-perto-api
+    runtime: docker
+    plan: free
+    region: virginia            # o mais perto do Neon (São Paulo) entre as regiões do Render
+    branch: main
+    dockerfilePath: ./ia-predictor/Dockerfile
+    dockerContext: ./ia-predictor
+    healthCheckPath: /health
+    envVars:
+      - key: TRAINING_RUNNER    # a API não treina: 512 MB e 0,1 CPU não bastam
+        value: externo
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET_KEY
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: VIEWER_EMAIL
+        sync: false
+      - key: VIEWER_PASSWORD
+        sync: false
+      - key: CORS_ORIGINS       # ex.: ["https://verde-perto.vercel.app"]
+        sync: false

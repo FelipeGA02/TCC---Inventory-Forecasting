@@ -226,7 +226,7 @@ def itens_da_nota(db: Session, loja: str, dia: date, nota: str) -> list[dict]:
 def exportar(db: Session, f: Filtros, ordem: str | None, direcao: str) -> Iterator[str]:
     """Todas as linhas do filtro, em listas (metade do tamanho de objetos), como o JSON
     `{"colunas": [...], "linhas": [[...], ...]}` gerado em pedaços: a base inteira passa de
-    40 MB, não precisa ficar na memória e não cabe numa resposta única do Cloud Run (32 MB)."""
+    40 MB e não precisa ficar na memória (a API no Render tem 512 MB)."""
     colunas = ["data", "loja", "nota", "cod", "nome", "cat", "qtd", "unit", "desc", "liq", "pag", "cad", "enc"]
     yield '{"colunas":' + json.dumps(colunas) + ',"linhas":['
     separador, lote = "", []

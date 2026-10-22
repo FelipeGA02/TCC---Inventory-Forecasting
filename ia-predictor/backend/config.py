@@ -52,10 +52,9 @@ class Settings(BaseSettings):
     RETRAIN_DAY_OF_WEEK: str = "mon"     # reajuste (fit) dos modelos L1; pulado sem venda nova
     RETRAIN_HOUR: int = 2                # 02:00
     RETRAIN_AFTER_UPLOAD_MINUTES: int = 10  # treino após planilha com venda nova; outro upload no intervalo adia
-    # onde o treino roda: "local" (thread da API + agendador) ou "cloud_run_job" (Job do Cloud
-    # Run, ver services/disparo_treino.py); CLOUD_RUN_JOB = projects/<p>/locations/<r>/jobs/<nome>
-    TRAINING_RUNNER: Literal["local", "cloud_run_job"] = "local"
-    CLOUD_RUN_JOB: str = ""
+    # onde o treino roda: "local" (thread da API + agendador) ou "externo" (a API não treina:
+    # script gravar_previsao em outra máquina; API no Render, ver services/disparo_treino.py)
+    TRAINING_RUNNER: Literal["local", "externo"] = "local"
     DAILY_FORECAST_HOUR: int = 3         # confere o calendario; gera de novo a previsao so se ele mudou
 
     # CORS

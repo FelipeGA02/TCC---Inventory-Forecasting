@@ -21,6 +21,7 @@ import pandas as pd
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from backend.config import settings
 from backend.domain import painel as montagem
 from backend.infrastructure.database import (
     BacktestPoint,
@@ -225,7 +226,9 @@ def contexto(db: Session) -> dict:
         "lojas": base_vendas.carregar_lojas(db),
         "categorias": _categorias(db),
         "configuracao": {"horizonte_dias": config.get("horizonte_dias", 14),
-                         "limiar_encomenda_un": config.get("limiar_encomenda_un", LIMIAR_QTD_VENDA)},
+                         "limiar_encomenda_un": config.get("limiar_encomenda_un", LIMIAR_QTD_VENDA),
+                         # falso no Render: o front não oferece "Atualizar os modelos"
+                         "treino_na_api": settings.TRAINING_RUNNER == "local"},
         "base": {"inicio": str(inicio) if inicio else None, "fim": str(fim) if fim else None,
                  "linhas": int(linhas), "skus": int(skus)},
         "previsao": previsao,

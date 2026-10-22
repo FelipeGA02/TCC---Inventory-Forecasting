@@ -182,7 +182,7 @@ components:
           description: |
             Quando o treino começa (`RETRAIN_AFTER_UPLOAD_MINUTES` após o upload; outra
             planilha nesse intervalo adia). Nulo se não houver venda nova ou se o agendador
-            não estiver rodando — aí fica para o treino semanal.
+            não estiver rodando, ou se a API não treina (`TRAINING_RUNNER=externo`, Render).
         errors:
           type: array
           items:
@@ -783,6 +783,9 @@ components:
           properties:
             horizonte_dias: {type: integer, example: 14}
             limiar_encomenda_un: {type: number, example: 2000}
+            treino_na_api:
+              type: boolean
+              description: Falso quando a API não treina (Render); o front não oferece "Atualizar os modelos"
         base:
           type: object
           properties:
@@ -1670,8 +1673,8 @@ paths:
       description: |
         Inicia em segundo plano o treino dos modelos (loja, desagregação por categoria e
         produtos regulares, com o walk-forward) sobre as vendas do banco e grava a nova
-        previsão — numa thread da API ou, no Cloud Run, no Job de treino
-        (`TRAINING_RUNNER`). Leva perto de uma hora; o andamento fica em `retrain_history`.
+        previsão, numa thread da API. Leva cerca de 40 minutos; o andamento fica em
+        `retrain_history`. Responde 503 se a API não treina (`TRAINING_RUNNER=externo`, Render).
         **Requer perfil admin.**
         Retorna 409 se já houver reajuste em andamento.
       operationId: triggerRetrain
@@ -1701,7 +1704,7 @@ paths:
               example:
                 detail: "Atualização já em andamento. Tente novamente em alguns minutos."
         "503":
-          description: Não foi possível iniciar o Job de treino no Cloud Run
+          description: Esta API não treina (`TRAINING_RUNNER=externo`); a previsão é atualizada pelo script `gravar_previsao`
           content:
             application/json:
               schema:

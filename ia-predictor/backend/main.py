@@ -37,7 +37,7 @@ async def lifespan(_app: FastAPI):
     create_tables()
     seed_initial_users()
     if settings.TRAINING_RUNNER == "local":
-        start_scheduler()  # no Cloud Run, o Cloud Scheduler inicia o Job toda segunda
+        start_scheduler()  # com TRAINING_RUNNER=externo a API não treina (ver disparo_treino)
     threading.Thread(target=_aquecer_cache, daemon=True, name="aquecer-cache").start()
     yield
     stop_scheduler()

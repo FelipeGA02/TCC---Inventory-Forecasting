@@ -8,6 +8,7 @@ import { AlertTriangle, Loader2, RefreshCw } from "lucide-react";
 import { ApiError, mensagemDoErro } from "@/lib/http/errors";
 import { useAuth } from "../../auth/AuthContext";
 import { api } from "../../data/api";
+import { useDados } from "../../data/CarregarDados";
 import { estaoProntos, garantir, type Recurso } from "../../data/recursos";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
@@ -25,6 +26,7 @@ export function CarregandoTela({ mensagem }: { mensagem: string }) {
 
 export function ErroTela({ mensagem, onTentar }: { mensagem: string; onTentar: () => void }) {
   const { usuario } = useAuth();
+  const treinoNaApi = useDados().contexto?.configuracao.treino_na_api !== false;
   const [aviso, setAviso] = useState<string | null>(null);
   const atualizarModelos = () => {
     setAviso(null);
@@ -54,7 +56,7 @@ export function ErroTela({ mensagem, onTentar }: { mensagem: string; onTentar: (
             </div>
           </div>
           <div className="flex flex-wrap gap-2 justify-end">
-            {usuario?.perfil === "admin" && (
+            {usuario?.perfil === "admin" && treinoNaApi && (
               <Button variant="outline" onClick={atualizarModelos}>
                 Atualizar os modelos
               </Button>

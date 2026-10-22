@@ -44,6 +44,7 @@ export function ImportarPlanilha() {
   const { recarregar } = useDados();
   const admin = usuario?.perfil === "admin";
   const arquivos = contexto.importacao.arquivos;
+  const treinoNaApi = contexto.configuracao.treino_na_api !== false;
 
   const [resultado, setResultado] = useState<ResultadoUpload | null>(ultimoResultado);
   const [currentStep, setCurrentStep] = useState(ultimoResultado ? 3 : 1);
@@ -319,10 +320,13 @@ export function ImportarPlanilha() {
                 {resultado.retrain_at ? (
                   <>
                     A previsão vai ser atualizada com estas vendas sozinha, a partir das {hora(resultado.retrain_at)} (leva
-                    perto de uma hora). Se tiver outras planilhas, envie agora: elas entram na mesma atualização.
+                    cerca de 40 minutos). Se tiver outras planilhas, envie agora: elas entram na mesma atualização.
                   </>
                 ) : (
-                  <>A previsão passa a usar estas vendas na próxima atualização dos modelos. Se preferir, atualize agora — leva perto de uma hora.</>
+                  <>
+                    A previsão passa a usar estas vendas na próxima atualização dos modelos.
+                    {treinoNaApi ? " Se preferir, atualize agora — leva cerca de 40 minutos." : " A equipe do projeto faz essa atualização."}
+                  </>
                 )}
               </p>
             )}
@@ -330,7 +334,7 @@ export function ImportarPlanilha() {
               <Button variant="outline" onClick={reset}>
                 Enviar outro arquivo
               </Button>
-              {admin && resultado.retrain_scheduled && !resultado.retrain_at && (
+              {admin && treinoNaApi && resultado.retrain_scheduled && !resultado.retrain_at && (
                 <Button variant="outline" onClick={atualizarAgora}>
                   Atualizar a previsão agora
                 </Button>

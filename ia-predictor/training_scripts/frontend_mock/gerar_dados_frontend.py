@@ -41,7 +41,6 @@ from concurrent.futures import ProcessPoolExecutor  # noqa: E402
 
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
-from statsmodels.tsa.statespace.sarimax import SARIMAX  # noqa: E402
 
 from training_scripts.preprocessing.remove_encomendas_06 import (  # noqa: E402
     LIMIAR_QTD_VENDA, marcar_encomendas,
@@ -139,6 +138,9 @@ def exogenas(cal: pd.DataFrame, unidade: str, idx: pd.DatetimeIndex) -> pd.DataF
 # SARIMAX
 # --------------------------------------------------------------------------- #
 def ajustar(z, X, order, sorder):
+    # importado só aqui: a API usa as constantes deste módulo e sobe sem o statsmodels
+    from statsmodels.tsa.statespace.sarimax import SARIMAX
+
     return SARIMAX(z, exog=X, order=order, seasonal_order=sorder,
                    trend="c" if order[1] == 0 else "n",
                    enforce_stationarity=False, enforce_invertibility=False

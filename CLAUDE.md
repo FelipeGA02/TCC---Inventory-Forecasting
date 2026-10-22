@@ -205,8 +205,7 @@ LOG_CV_THRESHOLD=0.7           # log1p acima deste CV
 RETRAIN_DAY_OF_WEEK=mon        # ajuste (fit) dos modelos; pulado sem venda nova desde o último treino
 RETRAIN_HOUR=2
 RETRAIN_AFTER_UPLOAD_MINUTES=10  # treino após planilha com venda nova; outra planilha no intervalo adia
-TRAINING_RUNNER=local          # local: treino em thread da API · cloud_run_job: Job do Cloud Run (ADR-015)
-CLOUD_RUN_JOB=                 # projects/<p>/locations/<r>/jobs/treino (só com cloud_run_job)
+TRAINING_RUNNER=local          # local: treino em thread da API · externo: a API não treina (Render, ADR-015)
 TRAINING_WORKERS=8             # processos no treino dos produtos
 DAILY_FORECAST_HOUR=3          # confere o calendário; gera de novo a previsão só se ele mudou
 ```

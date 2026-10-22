@@ -46,6 +46,10 @@ coverage.xml
 *.cover
 ia-predictor/training_scripts/output/
 
+# ─── Experimentação (gerados pelos training_scripts) ─────────────────────────
+# Métricas, previsões e plots da experimentação: regeráveis rodando os treinos.
+ia-predictor/training_scripts/results/
+
 # ─── Tipagem e linting ────────────────────────────────────────────────────────
 .mypy_cache/
 .ruff_cache/

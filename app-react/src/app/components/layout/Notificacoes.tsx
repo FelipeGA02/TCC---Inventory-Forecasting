@@ -2,7 +2,8 @@ import { useNavigate } from "react-router";
 import { AlertTriangle, Bell, CalendarClock, CheckCircle2, Database, type LucideIcon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { AGENDA, proximoDiaSemana } from "@/config/agenda";
-import { dados, produtosDe, unidadesDoFiltro } from "../../data/mockData";
+import { useDados } from "../../data/CarregarDados";
+import { nomeUnidade } from "../../data/mockData";
 import { useFiltroLoja } from "../shared";
 import { formatarData, formatarNumero } from "@/lib/format";
 
@@ -31,10 +32,12 @@ const dataCurta = (d: Date) => d.toLocaleDateString("pt-BR", { day: "2-digit", m
 /** Só o que pede ação: base desatualizada e previsões que não passaram nos testes. */
 function useNotificacoes(): Notificacao[] {
   const { unidade } = useFiltroLoja();
+  const { contexto } = useDados();
   const agora = new Date();
   const lista: Notificacao[] = [];
+  if (!contexto?.base.fim) return lista;
 
-  const ultimaVenda = new Date(`${dados.base.fim}T23:59:59`);
+  const ultimaVenda = new Date(`${contexto.base.fim}T23:59:59`);
   const diasSemVendas = Math.floor((agora.getTime() - ultimaVenda.getTime()) / UM_DIA);
   if (diasSemVendas > AGENDA.diasParaDesatualizado) {
     const mesSeguinte = new Date(ultimaVenda.getFullYear(), ultimaVenda.getMonth() + 1, 1);
@@ -42,14 +45,18 @@ function useNotificacoes(): Notificacao[] {
       id: "dados",
       icone: Database,
       titulo: `Base sem vendas novas há ${formatarNumero(diasSemVendas)} dias`,
-      texto: `Última venda carregada em ${formatarData(dados.base.fim)}. Carregue as planilhas a partir de ${mesSeguinte.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })} para a previsão usar as vendas recentes.`,
+      texto: `Última venda carregada em ${formatarData(contexto.base.fim)}. Carregue as planilhas a partir de ${mesSeguinte.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })} para a previsão usar as vendas recentes.`,
       acao: { rotulo: "Carregar planilha", destino: "/importar" },
     });
   }
 
-  const regulares = produtosDe(unidade, "todas", true);
-  const cautela = regulares.filter((p) => p.modelo?.status === "low_confidence");
-  const lojasCautela = unidadesDoFiltro(unidade).filter((u) => u.modelo.status !== "trained");
+  const doFiltro = <T extends { loja?: string; id?: string }>(lista: T[], chave: "loja" | "id") =>
+    unidade === "todas" ? lista : lista.filter((x) => x[chave] === unidade);
+  const regulares = doFiltro(contexto.previsao?.produtos ?? [], "loja");
+  const cautela = regulares.filter((p) => p.status === "low_confidence");
+  const lojasCautela = doFiltro(contexto.previsao?.lojas ?? [], "id")
+    .filter((u) => u.status !== "trained")
+    .map((u) => ({ nome: nomeUnidade(u.id) }));
   if (lojasCautela.length || cautela.length) {
     const partes = [
       lojasCautela.length ? `loja ${lojasCautela.map((u) => u.nome).join(" e ")}` : "",

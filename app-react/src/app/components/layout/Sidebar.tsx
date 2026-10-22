@@ -1,4 +1,4 @@
-import { dados } from "../../data/mockData";
+import { useDados } from "../../data/CarregarDados";
 import { formatarData } from "@/lib/format";
 import { NavLink } from "react-router";
 import {
@@ -31,6 +31,7 @@ const navItems = [
 ];
 
 export function Sidebar() {
+  const { contexto } = useDados();
   return (
     <aside
       className="w-60 min-h-screen flex flex-col"
@@ -98,7 +99,7 @@ export function Sidebar() {
           color: "rgba(232,245,224,0.4)",
         }}
       >
-        Dados até {formatarData(dados.base.fim)}
+        {contexto?.base.fim ? `Dados até ${formatarData(contexto.base.fim)}` : "Carregando..."}
         <br />
         Jardim Canadá · Itabirito
       </div>

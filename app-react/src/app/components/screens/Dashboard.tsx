@@ -3,7 +3,7 @@ import { Boxes, Receipt, ShoppingBag, Truck } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
-import { COR_ENCOMENDA, CORES_CATEGORIA, COR_TOTAL, LIMIAR_ENCOMENDA, categorias, dados } from "../../data/mockData";
+import { COR_ENCOMENDA, CORES_CATEGORIA, COR_TOTAL, LIMIAR_ENCOMENDA, categorias, contexto } from "../../data/mockData";
 import { CATEGORIAS_ANALISE, COR_FLORES, analiseDe, type CategoriaAnalise } from "../../data/analises";
 import { FiltroLoja, Kpi, Segmentado, useFiltroLoja } from "../shared";
 import { eixo, estiloTooltip } from "@/styles/tokens";
@@ -83,7 +83,7 @@ export function Dashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <Kpi icone={Receipt} rotulo="Faturamento líquido" valor={formatarMoedaCompacta(r.faturamento)} detalhe={`${formatarMoeda(r.faturamento)} no período, já com descontos`} />
         <Kpi icone={ShoppingBag} rotulo="Notas de venda" valor={formatarNumero(r.notas)} detalhe={`Ticket médio de ${formatarMoeda(ticket)} por nota`} />
-        <Kpi icone={Boxes} rotulo="Quantidade vendida" valor={formatarNumero(r.volume)} detalhe={`${formatarNumero(unidade === "todas" ? dados.base.skus : r.produtos)} produtos diferentes · m², bandeja, saco, unidade`} />
+        <Kpi icone={Boxes} rotulo="Quantidade vendida" valor={formatarNumero(r.volume)} detalhe={`${formatarNumero(unidade === "todas" ? contexto.base.skus : r.produtos)} produtos diferentes · m², bandeja, saco, unidade`} />
         <Kpi
           icone={Truck}
           rotulo="Encomendas"

@@ -1,20 +1,21 @@
-import { useState, useRef, useCallback } from "react";
-import { Upload, FileSpreadsheet, CheckCircle2, Loader2, Sparkles, X } from "lucide-react";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { Upload, FileSpreadsheet, CheckCircle2, Loader2, Sparkles, AlertTriangle, Lock } from "lucide-react";
+import { toast } from "sonner";
 import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
 import { Progress } from "../ui/progress";
 import { useNavigate } from "react-router";
-import { dados, unidades } from "../../data/mockData";
+import { contexto } from "../../data/mockData";
+import { api, type ResultadoUpload } from "../../data/api";
+import { useDados } from "../../data/CarregarDados";
+import { useAuth } from "../../auth/AuthContext";
+import { ApiError, mensagemDoErro } from "@/lib/http/errors";
 import { formatarMesAno, formatarNumero } from "@/lib/format";
-
-const arquivos = dados.importacao.arquivos;
-const lojasConfiaveis = unidades.filter((u) => u.modelo.status === "trained").length;
 
 const steps = [
   { id: 1, label: "Enviar arquivo" },
-  { id: 2, label: "Verificando" },
-  { id: 3, label: "Calculando" },
-  { id: 4, label: "Pronto!" },
+  { id: 2, label: "Conferindo e gravando" },
+  { id: 3, label: "Pronto!" },
 ];
 
 type StepStatus = "pending" | "active" | "done";
@@ -25,55 +26,88 @@ function stepStatus(step: number, current: number): StepStatus {
   return "pending";
 }
 
+// Resultado do último envio: sobrevive ao recarregamento das telas depois da carga
+// (`recarregar()` monta as telas de novo com a lista de planilhas atualizada).
+let ultimoResultado: ResultadoUpload | null = null;
+
+function mensagemDeEnvio(erro: unknown): string {
+  // 400 e 409 trazem a explicação da API (formato do arquivo, planilha repetida).
+  if (erro instanceof ApiError && erro.detail && [400, 409, 413].includes(erro.status)) return erro.detail;
+  return mensagemDoErro(erro);
+}
+
+const dataHora = (iso: string) =>
+  new Date(iso).toLocaleString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+
 export function ImportarPlanilha() {
   const navigate = useNavigate();
-  const [currentStep, setCurrentStep] = useState(1);
+  const { usuario } = useAuth();
+  const { recarregar } = useDados();
+  const admin = usuario?.perfil === "admin";
+  const arquivos = contexto.importacao.arquivos;
+
+  const [resultado, setResultado] = useState<ResultadoUpload | null>(ultimoResultado);
+  const [currentStep, setCurrentStep] = useState(ultimoResultado ? 3 : 1);
   const [dragging, setDragging] = useState(false);
   const [file, setFile] = useState<{ name: string; size: string } | null>(null);
-  const [progress, setProgress] = useState(0);
-  const [processing, setProcessing] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const [proximoTreino, setProximoTreino] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleFile = (f: File) => {
-    const sizeMB = (f.size / 1024 / 1024).toFixed(2);
-    setFile({ name: f.name, size: `${sizeMB} MB` });
-    setCurrentStep(2);
-    simulateProgress();
-  };
+  useEffect(() => {
+    if (currentStep !== 3) return;
+    api
+      .statusModelos()
+      .then((s) => setProximoTreino(s.next_retrain_at))
+      .catch(() => setProximoTreino(null));
+  }, [currentStep]);
 
-  const simulateProgress = () => {
-    setProcessing(true);
-    setProgress(0);
-    let p = 0;
-    const iv = setInterval(() => {
-      p += Math.random() * 18 + 5;
-      if (p >= 100) {
-        p = 100;
-        clearInterval(iv);
-        setProgress(100);
-        setTimeout(() => {
-          setProcessing(false);
+  const handleFile = useCallback(
+    (f: File) => {
+      const sizeMB = (f.size / 1024 / 1024).toFixed(2);
+      setFile({ name: f.name, size: `${sizeMB} MB` });
+      setErro(null);
+      setCurrentStep(2);
+      api
+        .enviarPlanilha(f)
+        .then((r) => {
+          ultimoResultado = r;
+          setResultado(r);
           setCurrentStep(3);
-          setTimeout(() => setCurrentStep(4), 1800);
-        }, 400);
-      }
-      setProgress(Math.min(p, 100));
-    }, 200);
-  };
+          // atualiza a lista de planilhas e a base das telas
+          return recarregar().catch(() => undefined);
+        })
+        .catch((e: unknown) => {
+          setErro(mensagemDeEnvio(e));
+          setCurrentStep(1);
+        });
+    },
+    [recarregar],
+  );
 
-  const onDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setDragging(false);
-    const f = e.dataTransfer.files[0];
-    if (f) handleFile(f);
-  }, []);
+  const onDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setDragging(false);
+      const f = e.dataTransfer.files[0];
+      if (f) handleFile(f);
+    },
+    [handleFile],
+  );
 
   const reset = () => {
+    ultimoResultado = null;
+    setResultado(null);
     setFile(null);
+    setErro(null);
     setCurrentStep(1);
-    setProgress(0);
-    setProcessing(false);
   };
+
+  const atualizarAgora = () =>
+    api
+      .atualizarModelos()
+      .then((r) => toast.success(r.message))
+      .catch((e: unknown) => toast.error(mensagemDeEnvio(e)));
 
   return (
     <div className="p-6 flex flex-col gap-6 max-w-3xl mx-auto">
@@ -125,9 +159,38 @@ export function ImportarPlanilha() {
       </div>
 
       {/* Main content */}
-      {currentStep === 1 && (
+      {currentStep === 1 && !admin && (
         <Card className="border" style={{ borderColor: "var(--border)" }}>
-          <CardContent className="p-8">
+          <CardContent className="p-8 flex items-start gap-4">
+            <Lock size={22} style={{ color: "var(--muted-foreground)", flexShrink: 0 }} />
+            <div>
+              <p className="text-sm" style={{ color: "var(--foreground)", fontWeight: 600 }}>
+                Só a gestora carrega planilhas
+              </p>
+              <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+                Seu acesso é de consulta. Peça à gestora (perfil de administração) para enviar o relatório do mês.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {currentStep === 1 && admin && (
+        <Card className="border" style={{ borderColor: "var(--border)" }}>
+          <CardContent className="p-8 flex flex-col gap-4">
+            {erro && (
+              <div
+                role="alert"
+                className="flex items-start gap-2 rounded-lg px-4 py-3 text-sm"
+                style={{ background: "rgba(212,24,61,0.08)", color: "var(--destructive)" }}
+              >
+                <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: 2 }} />
+                <span>
+                  {file ? <strong>{file.name}: </strong> : null}
+                  {erro}
+                </span>
+              </div>
+            )}
             <div
               className="border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-4 py-16 px-8 cursor-pointer transition-colors"
               style={{
@@ -154,7 +217,7 @@ export function ImportarPlanilha() {
                 </p>
               </div>
               <div className="flex gap-2">
-                {[".xlsx", ".csv"].map((ext) => (
+                {[".xlsx", ".xlsm"].map((ext) => (
                   <span
                     key={ext}
                     className="text-xs px-3 py-1 rounded-full"
@@ -175,10 +238,11 @@ export function ImportarPlanilha() {
             <input
               ref={inputRef}
               type="file"
-              accept=".xlsx,.csv"
+              accept=".xlsx,.xlsm"
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];
+                e.target.value = "";
                 if (f) handleFile(f);
               }}
             />
@@ -201,69 +265,41 @@ export function ImportarPlanilha() {
                   {file.name}
                 </p>
                 <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-                  {file.size} · Verificando se o arquivo está correto...
+                  {file.size} · Lendo a planilha, conferindo vendas já carregadas e gravando as novas...
                 </p>
               </div>
-              <button onClick={reset} className="text-muted-foreground hover:opacity-70">
-                <X size={18} />
-              </button>
             </div>
-            <div className="flex flex-col gap-1.5">
-              <div className="flex justify-between text-xs" style={{ color: "var(--muted-foreground)" }}>
-                <span>Validando estrutura e dados...</span>
-                <span>{Math.round(progress)}%</span>
-              </div>
-              <Progress value={progress} className="h-2" />
+            <Progress value={undefined} className="h-2 animate-pulse" />
+            <div className="flex items-center gap-2 text-sm" style={{ color: "var(--muted-foreground)" }}>
+              <Loader2 size={15} className="animate-spin" />
+              Isso leva alguns segundos por mês de vendas.
             </div>
-            {processing && (
-              <div className="flex items-center gap-2 text-sm" style={{ color: "var(--muted-foreground)" }}>
-                <Loader2 size={15} className="animate-spin" />
-                Conferindo colunas, datas e quantidades...
-              </div>
-            )}
           </CardContent>
         </Card>
       )}
 
-      {currentStep === 3 && (
-        <Card className="border" style={{ borderColor: "var(--border)" }}>
-          <CardContent className="p-8 flex flex-col items-center gap-5">
-            <Loader2 size={40} className="animate-spin" style={{ color: "var(--primary)" }} />
-            <div className="text-center">
-              <p className="text-base mb-1" style={{ color: "var(--foreground)", fontWeight: 600 }}>
-                Calculando as previsões...
-              </p>
-              <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
-                O sistema está estimando a demanda para todos os produtos
-              </p>
-            </div>
-            <Progress value={65} className="w-full h-2" />
-          </CardContent>
-        </Card>
-      )}
-
-      {currentStep === 4 && (
+      {currentStep === 3 && resultado && (
         <Card className="border" style={{ borderColor: "var(--border)", background: "var(--secondary)" }}>
           <CardContent className="p-8 flex flex-col items-center gap-5">
             <div
               className="w-16 h-16 rounded-full flex items-center justify-center"
               style={{ background: "var(--primary)" }}
             >
-              <Sparkles size={28} color="#fff" />
+              {resultado.rows_added > 0 ? <Sparkles size={28} color="#fff" /> : <CheckCircle2 size={28} color="#fff" />}
             </div>
             <div className="text-center">
               <p className="text-lg mb-1" style={{ color: "var(--foreground)", fontWeight: 700 }}>
-                Previsões calculadas com sucesso!
+                {resultado.rows_added > 0 ? "Planilha carregada!" : "Nenhuma venda nova nesta planilha"}
               </p>
               <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
-                {formatarNumero(dados.base.skus)} produtos · {unidades.length} lojas · próximos {dados.configuracao.horizonte_dias} dias
+                {resultado.filename} · processada em {formatarNumero(resultado.processing_time_seconds)} s
               </p>
             </div>
             <div className="grid grid-cols-3 gap-4 w-full">
               {[
-                { label: "Vendas analisadas", value: formatarNumero(dados.base.linhas) },
-                { label: "Período coberto", value: `${formatarMesAno(dados.base.inicio)} a ${formatarMesAno(dados.base.fim)}` },
-                { label: "Lojas com previsão confiável", value: `${lojasConfiaveis} de ${unidades.length}` },
+                { label: "Vendas novas gravadas", value: formatarNumero(resultado.rows_added) },
+                { label: "Já estavam carregadas", value: formatarNumero(resultado.rows_duplicate) },
+                { label: "Linhas ignoradas", value: formatarNumero(resultado.rows_skipped) },
               ].map((stat) => (
                 <div
                   key={stat.label}
@@ -279,12 +315,33 @@ export function ImportarPlanilha() {
                 </div>
               ))}
             </div>
-            <div className="flex gap-3">
+            {resultado.errors.length > 0 && (
+              <ul className="w-full text-xs flex flex-col gap-1" style={{ color: "#8a5a00" }}>
+                {resultado.errors.map((e) => (
+                  <li key={e} className="flex gap-2">
+                    <AlertTriangle size={13} style={{ flexShrink: 0, marginTop: 1 }} /> {e}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {resultado.retrain_scheduled && (
+              <p className="text-sm text-center" style={{ color: "var(--muted-foreground)" }}>
+                A previsão passa a usar estas vendas na próxima atualização dos modelos
+                {proximoTreino ? ` (${dataHora(proximoTreino)})` : ""}.
+                Se preferir, atualize agora — leva cerca de 40 minutos.
+              </p>
+            )}
+            <div className="flex gap-3 flex-wrap justify-center">
               <Button variant="outline" onClick={reset}>
                 Enviar outro arquivo
               </Button>
-              <Button style={{ background: "var(--primary)", color: "#fff" }} onClick={() => navigate("/previsao")}>
-                Ver a previsão →
+              {admin && resultado.retrain_scheduled && (
+                <Button variant="outline" onClick={atualizarAgora}>
+                  Atualizar a previsão agora
+                </Button>
+              )}
+              <Button style={{ background: "var(--primary)", color: "#fff" }} onClick={() => navigate("/pre-visualizacao")}>
+                Conferir os dados →
               </Button>
             </div>
           </CardContent>
@@ -304,7 +361,7 @@ export function ImportarPlanilha() {
           <div className="grid grid-cols-3 sm:grid-cols-6 lg:grid-cols-9 gap-2">
             {arquivos.map((a) => (
               <div
-                key={a.arquivo}
+                key={`${a.arquivo}-${a.hash}`}
                 className="rounded-md px-2 py-1.5 text-center"
                 style={{ background: "var(--secondary)", border: "1px solid var(--border)" }}
                 title={`${a.arquivo} · ${formatarNumero(a.registros)} linhas · assinatura ${a.hash.slice(0, 8)}`}

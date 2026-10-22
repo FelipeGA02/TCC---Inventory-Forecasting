@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   ArrowDown,
   ArrowUp,
@@ -35,6 +35,9 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import type { UnidadeId } from "@/domain/types";
 import { CORES_CATEGORIA, categorias, nomeUnidade } from "../../data/mockData";
 import { COR_FLORES, type CategoriaAnalise } from "../../data/analises";
+import { api, type ConsultaRegistros } from "../../data/api";
+import { mensagemDoErro } from "@/lib/http/errors";
+import { toast } from "sonner";
 import { baixarCsv, baixarXlsx, type Tabela } from "@/lib/exportar";
 import { formatarMesAno, formatarMoeda, formatarNumero, formatarQtd } from "@/lib/format";
 
@@ -47,9 +50,11 @@ import { formatarMesAno, formatarMoeda, formatarNumero, formatarQtd } from "@/li
  * cabeçalho, cabeçalho fixo, escolha de colunas e densidade, linha de totais do filtro,
  * detalhe da nota num painel lateral, exportação do resultado filtrado e paginação numerada.
  *
- * Arquivos: `public/dados/registros/` (um por mês), gerados por
- *   python -m training_scripts.frontend_mock.gerar_registros_frontend   (em ia-predictor/)
- * Nomes de cliente, vendedor e operador não são exportados (dados pessoais).
+ * Dados: paginados no banco. `GET /api/v1/registros` traz só os meses e as opções dos
+ * filtros; cada página vem de `/registros/linhas` (filtro, busca, aba e ordenação no SQL),
+ * os totais e a contagem das abas de `/registros/resumo`, a nota aberta de
+ * `/registros/nota` e o arquivo de `/registros/exportar` (só ao exportar). Nomes de
+ * cliente, vendedor e operador não saem da API (dados pessoais).
  */
 
 // ---------------------------------------------------------------------------
@@ -64,20 +69,10 @@ interface Indice {
   meses: { mes: string; registros: number }[];
 }
 
-type LinhaBruta = [number, number, string, string, number, number, number, number, number, 0 | 1, 0 | 1];
-
-interface ArquivoMes {
-  mes: string;
-  produtos: Record<string, [string, CategoriaAnalise]>;
-  linhas: LinhaBruta[];
-}
-
 interface Registro {
-  i: number;
-  mes: string;
-  /** AAAAMMDD, para ordenar e filtrar por período */
-  data: number;
-  dia: number;
+  id: number;
+  /** AAAA-MM-DD */
+  data: string;
   loja: UnidadeId;
   nota: string;
   cod: string;
@@ -92,7 +87,15 @@ interface Registro {
   enc: boolean;
 }
 
-const BASE_DADOS = `${import.meta.env.BASE_URL}dados/registros`;
+interface Resumo {
+  por_visao: Record<Visao, number>;
+  registros: number;
+  notas: number;
+  quantidade: number;
+  desconto: number;
+  valor_liquido: number;
+}
+
 const CHAVE_PREFS = "verde-perto:conferir-dados";
 
 const NOME_CAT: Record<CategoriaAnalise, string> = {
@@ -102,20 +105,18 @@ const NOME_CAT: Record<CategoriaAnalise, string> = {
 const COR_CAT: Record<CategoriaAnalise, string> = { ...CORES_CATEGORIA, "flores-de-corte": COR_FLORES };
 const IDS_CAT = Object.keys(NOME_CAT) as CategoriaAnalise[];
 const MESES_CURTOS = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
-const COLATOR = new Intl.Collator("pt-BR");
 
-const dataDe = (r: Registro) => `${String(r.dia).padStart(2, "0")}/${r.mes.slice(5, 7)}/${r.mes.slice(0, 4)}`;
 const isoParaBr = (iso: string) => iso.split("-").reverse().join("/");
+const dataDe = (r: Registro) => isoParaBr(r.data);
 
-function converter(a: ArquivoMes, indice: Indice, base: number): Registro[] {
-  const prefixo = Number(a.mes.replace("-", "")) * 100;
-  return a.linhas.map(([dia, lj, nota, cod, qtd, unit, desc, liq, pg, cad, enc], j) => {
-    const [nome, cat] = a.produtos[cod] ?? [cod, "plantas-diversas" as CategoriaAnalise];
-    return {
-      i: base + j, mes: a.mes, data: prefixo + dia, dia, loja: indice.lojas[lj]!, nota, cod, nome, cat,
-      qtd, unit, desc, liq, pag: indice.pagamentos[pg]!, cad: !!cad, enc: !!enc,
-    };
-  });
+/** O valor só depois de `ms` sem mudar (busca e valores digitados não disparam uma consulta por tecla). */
+function useEstavel<T>(valor: T, ms = 350): T {
+  const [estavel, setEstavel] = useState(valor);
+  useEffect(() => {
+    const id = setTimeout(() => setEstavel(valor), ms);
+    return () => clearTimeout(id);
+  }, [valor, ms]);
+  return estavel;
 }
 
 // ---------------------------------------------------------------------------
@@ -129,31 +130,30 @@ interface Coluna {
   titulo: string;
   numerica?: boolean;
   fixa?: boolean;
-  chave: (r: Registro) => string | number;
 }
 
 const COLUNAS: Coluna[] = [
-  { id: "data", titulo: "Data", fixa: true, chave: (r) => r.data },
-  { id: "loja", titulo: "Loja", chave: (r) => r.loja },
-  { id: "nota", titulo: "Nota", chave: (r) => Number(r.nota) || 0 },
-  { id: "produto", titulo: "Produto", fixa: true, chave: (r) => r.nome },
-  { id: "categoria", titulo: "Categoria", chave: (r) => NOME_CAT[r.cat] },
-  { id: "qtd", titulo: "Qtd.", numerica: true, chave: (r) => r.qtd },
-  { id: "unit", titulo: "Valor unit.", numerica: true, chave: (r) => r.unit },
-  { id: "desc", titulo: "Desconto", numerica: true, chave: (r) => r.desc },
-  { id: "liq", titulo: "Valor líquido", numerica: true, chave: (r) => r.liq },
-  { id: "pag", titulo: "Pagamento", chave: (r) => r.pag },
-  { id: "cliente", titulo: "Cliente", chave: (r) => (r.cad ? 1 : 0) },
-  { id: "tipo", titulo: "Tipo", chave: (r) => (r.enc ? 1 : 0) },
+  { id: "data", titulo: "Data", fixa: true },
+  { id: "loja", titulo: "Loja" },
+  { id: "nota", titulo: "Nota" },
+  { id: "produto", titulo: "Produto", fixa: true },
+  { id: "categoria", titulo: "Categoria" },
+  { id: "qtd", titulo: "Qtd.", numerica: true },
+  { id: "unit", titulo: "Valor unit.", numerica: true },
+  { id: "desc", titulo: "Desconto", numerica: true },
+  { id: "liq", titulo: "Valor líquido", numerica: true },
+  { id: "pag", titulo: "Pagamento" },
+  { id: "cliente", titulo: "Cliente" },
+  { id: "tipo", titulo: "Tipo" },
 ];
 
 type Visao = "todos" | "encomendas" | "cadastrados" | "descontos" | "devolucoes";
-const VISOES: { id: Visao; rotulo: string; teste: (r: Registro) => boolean }[] = [
-  { id: "todos", rotulo: "Todos", teste: () => true },
-  { id: "encomendas", rotulo: "Encomendas", teste: (r) => r.enc },
-  { id: "cadastrados", rotulo: "Clientes cadastrados", teste: (r) => r.cad },
-  { id: "descontos", rotulo: "Com desconto", teste: (r) => r.desc > 0 },
-  { id: "devolucoes", rotulo: "Devoluções", teste: (r) => r.liq < 0 || r.qtd < 0 },
+const VISOES: { id: Visao; rotulo: string }[] = [
+  { id: "todos", rotulo: "Todos" },
+  { id: "encomendas", rotulo: "Encomendas" },
+  { id: "cadastrados", rotulo: "Clientes cadastrados" },
+  { id: "descontos", rotulo: "Com desconto" },
+  { id: "devolucoes", rotulo: "Devoluções" },
 ];
 
 interface Filtros {
@@ -199,45 +199,22 @@ function lerPrefs(): Prefs {
 
 const numOuNulo = (s: string) => (s.trim() === "" || Number.isNaN(Number(s.replace(",", "."))) ? null : Number(s.replace(",", ".")));
 
-/** Monta o teste uma vez por mudança de filtro (a base inteira tem ~345 mil linhas). */
-function criarFiltro(f: Filtros, termo: string, codsBusca: Set<string> | null): (r: Registro) => boolean {
-  const lojas = new Set(f.lojas);
-  const cats = new Set(f.categorias);
-  const pags = new Set(f.pagamentos);
-  const de = f.dataDe ? Number(f.dataDe.replaceAll("-", "")) : null;
-  const ate = f.dataAte ? Number(f.dataAte.replaceAll("-", "")) : null;
-  const vmin = numOuNulo(f.valorMin);
-  const vmax = numOuNulo(f.valorMax);
-  return (r) => {
-    if (lojas.size && !lojas.has(r.loja)) return false;
-    if (cats.size && !cats.has(r.cat)) return false;
-    if (pags.size && !pags.has(r.pag)) return false;
-    if (f.cliente === "consumidor" && r.cad) return false;
-    if (f.cliente === "cadastrado" && !r.cad) return false;
-    if (f.tipo === "dia" && r.enc) return false;
-    if (f.tipo === "encomenda" && !r.enc) return false;
-    if (de !== null && r.data < de) return false;
-    if (ate !== null && r.data > ate) return false;
-    if (vmin !== null && r.liq < vmin) return false;
-    if (vmax !== null && r.liq > vmax) return false;
-    if (codsBusca && !codsBusca.has(r.cod) && !r.nota.includes(termo)) return false;
-    return true;
+/** Filtros da tela → query de `/api/v1/registros/*` (meses vazios = todos). */
+function montarConsulta(meses: string[], todos: boolean, f: Filtros, busca: string, visao: Visao): ConsultaRegistros {
+  return {
+    meses: todos ? [] : meses,
+    lojas: f.lojas,
+    categorias: f.categorias,
+    pagamentos: f.pagamentos,
+    cliente: f.cliente,
+    tipo: f.tipo,
+    data_de: f.dataDe || undefined,
+    data_ate: f.dataAte || undefined,
+    valor_min: numOuNulo(f.valorMin),
+    valor_max: numOuNulo(f.valorMax),
+    busca,
+    visao,
   };
-}
-
-/** Ordena por chave numérica; textos viram a posição na lista de valores únicos já ordenada. */
-function ordenar(lista: Registro[], col: Coluna, dir: "asc" | "desc"): Registro[] {
-  const chaves = lista.map(col.chave);
-  let num: number[];
-  if (chaves.some((k) => typeof k === "string")) {
-    const unicos = [...new Set(chaves.map(String))].sort(COLATOR.compare);
-    const pos = new Map(unicos.map((u, k) => [u, k]));
-    num = chaves.map((k) => pos.get(String(k))!);
-  } else num = chaves as number[];
-  const s = dir === "asc" ? 1 : -1;
-  const idx = lista.map((_, k) => k);
-  idx.sort((a, b) => (num[a]! - num[b]!) * s || a - b);
-  return idx.map((k) => lista[k]!);
 }
 
 /** Números de página com reticências: 1 … 4 5 [6] 7 8 … 383 */
@@ -393,21 +370,22 @@ function SeletorMeses({ meses, selecionados, onChange }: { meses: Indice["meses"
 
 export function PreVisualizacao() {
   const [indice, setIndice] = useState<Indice | null>(null);
-  const [porMes, setPorMes] = useState<Record<string, Registro[]>>({});
-  const [produtos, setProdutos] = useState<Record<string, [string, CategoriaAnalise]>>({});
   const [meses, setMeses] = useState<string[]>([]);
   const [erro, setErro] = useState<string | null>(null);
 
   const [visao, setVisao] = useState<Visao>("todos");
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_VAZIOS);
   const [busca, setBusca] = useState("");
-  const termo = useDeferredValue(busca.trim().toLowerCase());
-  const filtrosAdiados = useDeferredValue(filtros);
-  const mesesAdiados = useDeferredValue(meses);
   const [ordem, setOrdem] = useState<Ordem>({ col: "data", dir: "desc" });
   const [pagina, setPagina] = useState(1);
   const [prefs, setPrefs] = useState<Prefs>(lerPrefs);
   const [notaAberta, setNotaAberta] = useState<Registro | null>(null);
+  const [itensNota, setItensNota] = useState<Registro[] | null>(null);
+  const [exportando, setExportando] = useState(false);
+
+  const [linhas, setLinhas] = useState<Registro[] | null>(null);
+  const [resumo, setResumo] = useState<Resumo | null>(null);
+  const [buscandoLinhas, setBuscandoLinhas] = useState(false);
 
   useEffect(() => {
     try {
@@ -418,74 +396,87 @@ export function PreVisualizacao() {
   }, [prefs]);
 
   useEffect(() => {
-    fetch(`${BASE_DADOS}/indice.json`)
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((i: Indice) => {
+    api
+      .indiceRegistros<Indice>()
+      .then((i) => {
         setIndice(i);
         setMeses(i.meses.map((m) => m.mes));
       })
       .catch(() => setErro("Não foi possível carregar a lista de meses da base."));
   }, []);
 
-  // Todos os meses entram por padrão: carrega os arquivos mensais em paralelo, do mais recente ao mais antigo.
+  const todosMeses = !!indice && meses.length === indice.meses.length;
+  const termo = useEstavel(busca.trim().toLowerCase());
+  const filtrosEstaveis = useEstavel(filtros);
+  // a mesma consulta (sem página e ordem) alimenta os totais e as páginas
+  const consulta = useMemo(
+    () => montarConsulta(meses, todosMeses, filtrosEstaveis, termo, visao),
+    [meses, todosMeses, filtrosEstaveis, termo, visao],
+  );
+  const chaveConsulta = JSON.stringify(consulta);
+  const semMeses = !!indice && meses.length === 0;
+
+  useEffect(() => setPagina(1), [chaveConsulta, ordem, prefs.tamanho]);
+
+  // Totais do filtro e contagem das abas: só quando o filtro muda (não a cada página)
   useEffect(() => {
-    if (!indice) return;
+    if (!indice || semMeses) return;
+    const ctrl = new AbortController();
+    setResumo(null);
+    api
+      .resumoRegistros<Resumo>(consulta, ctrl.signal)
+      .then(setResumo)
+      .catch((e: unknown) => !ctrl.signal.aborted && setErro(mensagemDoErro(e)));
+    return () => ctrl.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [indice, chaveConsulta, semMeses]);
+
+  // Só a página visível
+  useEffect(() => {
+    if (!indice || semMeses) return;
+    const ctrl = new AbortController();
+    setBuscandoLinhas(true);
+    api
+      .linhasRegistros<{ linhas: Registro[] }>(
+        { ...consulta, ordem: ordem?.col, direcao: ordem?.dir ?? "asc", pagina, tamanho: prefs.tamanho },
+        ctrl.signal,
+      )
+      .then((r) => {
+        setLinhas(r.linhas);
+        setBuscandoLinhas(false);
+      })
+      .catch((e: unknown) => {
+        if (ctrl.signal.aborted) return;
+        setErro(mensagemDoErro(e));
+        setBuscandoLinhas(false);
+      });
+    return () => ctrl.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [indice, chaveConsulta, semMeses, ordem, pagina, prefs.tamanho]);
+
+  // Itens da nota aberta no painel lateral
+  useEffect(() => {
+    setItensNota(null);
+    if (!notaAberta) return;
     let vivo = true;
-    indice.meses
-      .map((m, k) => ({ mes: m.mes, k }))
-      .reverse()
-      .forEach(({ mes, k }) =>
-        fetch(`${BASE_DADOS}/${mes}.json`)
-          .then((r) => (r.ok ? r.json() : Promise.reject()))
-          .then((a: ArquivoMes) => {
-            if (!vivo) return;
-            setPorMes((p) => ({ ...p, [mes]: converter(a, indice, k * 1_000_000) }));
-            setProdutos((p) => ({ ...p, ...a.produtos }));
-          })
-          .catch(() => vivo && setErro(`Não foi possível carregar os registros de ${formatarMesAno(mes)}.`)),
-      );
+    api
+      .itensDaNota<Registro[]>(notaAberta.loja, notaAberta.data, notaAberta.nota)
+      .then((itens) => vivo && setItensNota(itens))
+      .catch(() => vivo && setItensNota([]));
     return () => {
       vivo = false;
     };
-  }, [indice]);
+  }, [notaAberta]);
 
-  const faltam = meses.filter((m) => !porMes[m]).length;
-  // o valor adiado fica vazio por um quadro logo após o índice chegar
-  const carregando = faltam > 0 || (mesesAdiados.length === 0 && meses.length > 0);
-  const registros = useMemo<Registro[]>(
-    () => (carregando ? [] : mesesAdiados.flatMap((m) => porMes[m] ?? [])),
-    [porMes, mesesAdiados, carregando],
-  );
-  const codsBusca = useMemo(
-    () =>
-      termo
-        ? new Set(Object.entries(produtos).filter(([c, [n]]) => c.toLowerCase().includes(termo) || n.toLowerCase().includes(termo)).map(([c]) => c))
-        : null,
-    [produtos, termo],
-  );
-
-  // Filtros + busca (sem a visão), para as contagens das abas
-  const base = useMemo(() => registros.filter(criarFiltro(filtrosAdiados, termo, codsBusca)), [registros, filtrosAdiados, termo, codsBusca]);
-  const contagemVisao = useMemo(() => Object.fromEntries(VISOES.map((v) => [v.id, base.filter(v.teste).length])) as Record<Visao, number>, [base]);
-  const filtrados = useMemo(() => {
-    const teste = VISOES.find((v) => v.id === visao)!.teste;
-    const lista = base.filter(teste);
-    return ordem ? ordenar(lista, COLUNAS.find((c) => c.id === ordem.col)!, ordem.dir) : lista;
-  }, [base, visao, ordem]);
-
-  useEffect(() => setPagina(1), [meses, visao, filtros, termo, ordem, prefs.tamanho]);
-
-  const totalPaginas = Math.max(1, Math.ceil(filtrados.length / prefs.tamanho));
+  const total = semMeses ? 0 : (resumo?.registros ?? 0);
+  const contagemVisao = resumo?.por_visao;
+  const totalPaginas = Math.max(1, Math.ceil(total / prefs.tamanho));
   const paginaAtual = Math.min(pagina, totalPaginas);
-  const visiveis = filtrados.slice((paginaAtual - 1) * prefs.tamanho, paginaAtual * prefs.tamanho);
-  const totQtd = filtrados.reduce((s, r) => s + r.qtd, 0);
-  const totLiq = filtrados.reduce((s, r) => s + r.liq, 0);
-  const totDesc = filtrados.reduce((s, r) => s + r.desc, 0);
-  const notasNoFiltro = useMemo(() => new Set(filtrados.map((r) => `${r.loja}-${r.data}-${r.nota}`)).size, [filtrados]);
+  const visiveis = semMeses ? [] : (linhas ?? []);
+  const carregando = !semMeses && (!indice || linhas === null);
 
   const colunas = COLUNAS.filter((c) => !prefs.ocultas.includes(c.id));
   const celula = "px-3 py-2.5";
-  const todosMeses = !!indice && meses.length === indice.meses.length;
   const primeiroDia = indice ? `${indice.meses[0]!.mes}-01` : undefined;
   const ultimoDia = indice
     ? (() => {
@@ -509,36 +500,42 @@ export function PreVisualizacao() {
   const alternarOrdem = (col: ColunaId) =>
     setOrdem((o) => (!o || o.col !== col ? { col, dir: "asc" } : o.dir === "asc" ? { col, dir: "desc" } : null));
 
-  const itensNota = useMemo(
-    () => (notaAberta ? registros.filter((r) => r.nota === notaAberta.nota && r.loja === notaAberta.loja && r.data === notaAberta.data) : []),
-    [notaAberta, registros],
-  );
-
   const exportar = (formato: "xlsx" | "csv") => {
-    const tabela: Tabela = {
-      colunas: [
-        { titulo: "Data", tipo: "texto" },
-        { titulo: "Loja", tipo: "texto" },
-        { titulo: "Nota", tipo: "texto" },
-        { titulo: "Código", tipo: "texto" },
-        { titulo: "Produto", tipo: "texto" },
-        { titulo: "Categoria", tipo: "texto" },
-        { titulo: "Quantidade", tipo: "numero" },
-        { titulo: "Valor unitário", tipo: "decimal" },
-        { titulo: "Desconto", tipo: "decimal" },
-        { titulo: "Valor líquido", tipo: "decimal" },
-        { titulo: "Pagamento", tipo: "texto" },
-        { titulo: "Cliente", tipo: "texto" },
-        { titulo: "Tipo", tipo: "texto" },
-      ],
-      linhas: filtrados.map((r) => [
-        dataDe(r), nomeUnidade(r.loja), r.nota, r.cod, r.nome, NOME_CAT[r.cat], r.qtd, r.unit, r.desc, r.liq, r.pag,
-        r.cad ? "Cadastrado" : "Consumidor", r.enc ? "Encomenda" : "Dia a dia",
-      ]),
-    };
-    const nome = todosMeses ? "registros-todos-os-meses" : meses.length === 1 ? `registros-${meses[0]}` : `registros-${meses[0]}-a-${meses[meses.length - 1]}`;
-    if (formato === "csv") baixarCsv(tabela, nome);
-    else baixarXlsx(tabela, nome, "Registros");
+    setExportando(true);
+    const aviso = toast.loading(`Preparando ${formatarNumero(total)} registros...`);
+    api
+      .exportarRegistros<{ colunas: string[]; linhas: (string | number | boolean)[][] }>({ ...consulta, ordem: ordem?.col, direcao: ordem?.dir ?? "asc" })
+      .then(({ linhas: todas }) => {
+        // colunas: data, loja, nota, cod, nome, cat, qtd, unit, desc, liq, pag, cad, enc
+        const tabela: Tabela = {
+          colunas: [
+            { titulo: "Data", tipo: "texto" },
+            { titulo: "Loja", tipo: "texto" },
+            { titulo: "Nota", tipo: "texto" },
+            { titulo: "Código", tipo: "texto" },
+            { titulo: "Produto", tipo: "texto" },
+            { titulo: "Categoria", tipo: "texto" },
+            { titulo: "Quantidade", tipo: "numero" },
+            { titulo: "Valor unitário", tipo: "decimal" },
+            { titulo: "Desconto", tipo: "decimal" },
+            { titulo: "Valor líquido", tipo: "decimal" },
+            { titulo: "Pagamento", tipo: "texto" },
+            { titulo: "Cliente", tipo: "texto" },
+            { titulo: "Tipo", tipo: "texto" },
+          ],
+          linhas: todas.map(([data, loja, nota, cod, nome, cat, qtd, unit, desc, liq, pag, cad, enc]) => [
+            isoParaBr(String(data)), nomeUnidade(loja as UnidadeId), String(nota), String(cod), String(nome),
+            NOME_CAT[cat as CategoriaAnalise] ?? String(cat), Number(qtd), Number(unit), Number(desc), Number(liq), String(pag),
+            cad ? "Cadastrado" : "Consumidor", enc ? "Encomenda" : "Dia a dia",
+          ]),
+        };
+        const nome = todosMeses ? "registros-todos-os-meses" : meses.length === 1 ? `registros-${meses[0]}` : `registros-${meses[0]}-a-${meses[meses.length - 1]}`;
+        if (formato === "csv") baixarCsv(tabela, nome);
+        else baixarXlsx(tabela, nome, "Registros");
+        toast.success("Arquivo gerado.", { id: aviso });
+      })
+      .catch((e: unknown) => toast.error(mensagemDoErro(e), { id: aviso }))
+      .finally(() => setExportando(false));
   };
 
   const renderCelula = (c: Coluna, r: Registro) => {
@@ -648,7 +645,7 @@ export function PreVisualizacao() {
               >
                 {v.rotulo}
                 <span className="ml-1.5 rounded-full px-1.5 py-0.5 text-[10px]" style={{ background: ativo ? "var(--secondary)" : "var(--muted)" }}>
-                  {formatarNumero(contagemVisao[v.id] ?? 0)}
+                  {contagemVisao ? formatarNumero(contagemVisao[v.id] ?? 0) : "…"}
                 </span>
               </button>
             );
@@ -725,7 +722,7 @@ export function PreVisualizacao() {
               </div>
               <div className="px-4 py-2.5 border-t flex justify-between items-center" style={{ borderColor: "var(--border)" }}>
                 <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-                  {formatarNumero(filtrados.length)} registros com estes filtros
+                  {resumo ? formatarNumero(total) : "…"} registros com estes filtros
                 </span>
                 <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => setFiltros(FILTROS_VAZIOS)} disabled={nFiltros === 0}>
                   Limpar filtros
@@ -761,12 +758,12 @@ export function PreVisualizacao() {
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button size="sm" className="h-9 gap-1.5 text-xs" style={{ background: "var(--primary)", color: "#fff" }} disabled={!filtrados.length}>
+                <Button size="sm" className="h-9 gap-1.5 text-xs" style={{ background: "var(--primary)", color: "#fff" }} disabled={!total || exportando}>
                   <Download size={14} /> Exportar
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuLabel className="text-xs">{formatarNumero(filtrados.length)} registros filtrados</DropdownMenuLabel>
+                <DropdownMenuLabel className="text-xs">{formatarNumero(total)} registros filtrados</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="text-xs gap-2" onClick={() => exportar("xlsx")}>
                   <FileSpreadsheet size={13} /> Excel (.xlsx)
@@ -804,13 +801,16 @@ export function PreVisualizacao() {
           <p className="text-xs px-5 py-16 text-center border-t" style={{ color: "var(--destructive)", borderColor: "var(--border)" }}>
             {erro}
           </p>
-        ) : !indice || carregando ? (
+        ) : carregando ? (
           <p className="text-xs px-5 py-16 flex items-center justify-center gap-2 border-t" style={{ color: "var(--muted-foreground)", borderColor: "var(--border)" }}>
-            <Loader2 size={14} className="animate-spin" /> Carregando registros
-            {indice ? ` · ${formatarNumero(meses.length - faltam)} de ${formatarNumero(meses.length)} meses` : "…"}
+            <Loader2 size={14} className="animate-spin" /> Carregando registros...
           </p>
         ) : (
-          <div className="overflow-auto border-t" style={{ borderColor: "var(--border)", maxHeight: "calc(100vh - 360px)", minHeight: 320 }}>
+          <div
+            className="overflow-auto border-t relative transition-opacity"
+            style={{ borderColor: "var(--border)", maxHeight: "calc(100vh - 360px)", minHeight: 320, opacity: buscandoLinhas ? 0.55 : 1 }}
+            aria-busy={buscandoLinhas}
+          >
             <table className="w-full text-xs" style={{ fontVariantNumeric: "tabular-nums" }}>
               <thead className="sticky top-0 z-10" style={{ background: "#eef4ea" }}>
                 <tr>
@@ -841,7 +841,7 @@ export function PreVisualizacao() {
               <tbody>
                 {visiveis.map((r) => (
                   <tr
-                    key={r.i}
+                    key={r.id}
                     tabIndex={0}
                     onClick={() => setNotaAberta(r)}
                     onKeyDown={(e) => e.key === "Enter" && setNotaAberta(r)}
@@ -855,7 +855,7 @@ export function PreVisualizacao() {
                     ))}
                   </tr>
                 ))}
-                {visiveis.length === 0 && (
+                {visiveis.length === 0 && !buscandoLinhas && (
                   <tr>
                     <td colSpan={colunas.length} className="py-16 text-center" style={{ color: "var(--muted-foreground)" }}>
                       <p>{meses.length === 0 ? "Nenhum mês selecionado." : "Nenhum registro com esses filtros nos meses selecionados."}</p>
@@ -872,7 +872,7 @@ export function PreVisualizacao() {
                   </tr>
                 )}
               </tbody>
-              {filtrados.length > 0 && (
+              {resumo && total > 0 && (
                 <tfoot className="sticky bottom-0" style={{ background: "#f7faf5" }}>
                   <tr style={{ borderTop: "2px solid var(--border)" }}>
                     {colunas.map((c, j) => (
@@ -880,13 +880,13 @@ export function PreVisualizacao() {
                         {j === 0
                           ? `Total do filtro`
                           : c.id === "produto"
-                            ? <span style={{ fontWeight: 400, color: "var(--muted-foreground)" }}>{formatarNumero(filtrados.length)} linhas · {formatarNumero(notasNoFiltro)} notas</span>
+                            ? <span style={{ fontWeight: 400, color: "var(--muted-foreground)" }}>{formatarNumero(total)} linhas · {formatarNumero(resumo.notas)} notas</span>
                             : c.id === "qtd"
-                              ? formatarNumero(totQtd)
+                              ? formatarNumero(resumo.quantidade)
                               : c.id === "desc"
-                                ? formatarMoeda(totDesc)
+                                ? formatarMoeda(resumo.desconto)
                                 : c.id === "liq"
-                                  ? formatarMoeda(totLiq)
+                                  ? formatarMoeda(resumo.valor_liquido)
                                   : ""}
                       </td>
                     ))}
@@ -901,9 +901,11 @@ export function PreVisualizacao() {
         <div className="flex items-center justify-between gap-4 flex-wrap px-5 py-3 border-t text-xs" style={{ borderColor: "var(--border)", color: "var(--muted-foreground)" }}>
           <div className="flex items-center gap-3">
             <span>
-              {filtrados.length === 0
-                ? "0 registros"
-                : `${formatarNumero((paginaAtual - 1) * prefs.tamanho + 1)}–${formatarNumero(Math.min(paginaAtual * prefs.tamanho, filtrados.length))} de ${formatarNumero(filtrados.length)}`}
+              {!resumo && !semMeses
+                ? "Contando registros..."
+                : total === 0
+                  ? "0 registros"
+                  : `${formatarNumero((paginaAtual - 1) * prefs.tamanho + 1)}–${formatarNumero(Math.min(paginaAtual * prefs.tamanho, total))} de ${formatarNumero(total)}`}
             </span>
             <span className="inline-flex items-center gap-1.5">
               Por página
@@ -974,9 +976,9 @@ export function PreVisualizacao() {
               <div className="px-4 pb-6 flex flex-col gap-4">
                 <div className="grid grid-cols-3 gap-2">
                   {[
-                    ["Itens", formatarNumero(itensNota.length)],
-                    ["Quantidade", formatarNumero(itensNota.reduce((s, r) => s + r.qtd, 0))],
-                    ["Valor líquido", formatarMoeda(itensNota.reduce((s, r) => s + r.liq, 0))],
+                    ["Itens", itensNota ? formatarNumero(itensNota.length) : "…"],
+                    ["Quantidade", itensNota ? formatarNumero(itensNota.reduce((s, r) => s + r.qtd, 0)) : "…"],
+                    ["Valor líquido", itensNota ? formatarMoeda(itensNota.reduce((s, r) => s + r.liq, 0)) : "…"],
                   ].map(([k, v]) => (
                     <div key={k} className="rounded-lg p-3" style={{ background: "var(--background)", border: "1px solid var(--border)" }}>
                       <p className="text-[11px]" style={{ color: "var(--muted-foreground)" }}>
@@ -998,8 +1000,17 @@ export function PreVisualizacao() {
                     </tr>
                   </thead>
                   <tbody>
-                    {itensNota.map((r) => (
-                      <tr key={r.i} style={{ borderBottom: "1px solid var(--border)", background: r.i === notaAberta.i ? "var(--secondary)" : undefined }}>
+                    {itensNota === null && (
+                      <tr>
+                        <td colSpan={4} className="px-2 py-6 text-center" style={{ color: "var(--muted-foreground)" }}>
+                          <span className="inline-flex items-center gap-2">
+                            <Loader2 size={13} className="animate-spin" /> Carregando os itens da nota...
+                          </span>
+                        </td>
+                      </tr>
+                    )}
+                    {(itensNota ?? []).map((r) => (
+                      <tr key={r.id} style={{ borderBottom: "1px solid var(--border)", background: r.id === notaAberta.id ? "var(--secondary)" : undefined }}>
                         <td className="px-2 py-2">
                           <p style={{ fontWeight: 500 }}>{r.nome}</p>
                           <p className="inline-flex items-center gap-1" style={{ color: "var(--muted-foreground)" }}>
@@ -1016,7 +1027,7 @@ export function PreVisualizacao() {
                   </tbody>
                 </table>
                 <p className="text-[11px]" style={{ color: "var(--muted-foreground)" }}>
-                  A linha destacada é a que você clicou. Descontos da nota: {formatarMoeda(itensNota.reduce((s, r) => s + r.desc, 0))}.
+                  A linha destacada é a que você clicou. Descontos da nota: {itensNota ? formatarMoeda(itensNota.reduce((s, r) => s + r.desc, 0)) : "…"}.
                 </p>
               </div>
             </>

@@ -22,7 +22,7 @@ import threading
 from datetime import date, datetime, timedelta
 
 import pandas as pd
-from sqlalchemy import insert, select
+from sqlalchemy import func, insert, select, update
 from sqlalchemy.orm import Session
 
 from backend.infrastructure.database import (
@@ -31,6 +31,7 @@ from backend.infrastructure.database import (
     ForecastCache,
     ForecastRun,
     ModelArtifact,
+    ProcessingLog,
     RetrainHistory,
     SessionLocal,
     Unit,
@@ -64,6 +65,10 @@ PARAMS_EN = {
 # Um treino por vez neste processo; um `running` com mais de 3 h é de um processo que caiu.
 _TRAVA = threading.Lock()
 _TREINO_TRAVADO_APOS = timedelta(hours=3)
+
+# Planilha com venda nova que ainda não entrou em nenhum treino concluído.
+_PLANILHA_NAO_USADA = (ProcessingLog.status == "done", ProcessingLog.rows_added > 0,
+                       ProcessingLog.retrain_id.is_(None))
 
 
 class TreinoEmAndamento(Exception):
@@ -215,6 +220,11 @@ def _gravar_resultado(retrain_id: int, trigger_run: str, unidades: list[dict], d
         retrain.units_trained = len(unidades)
         retrain.products_modeled = sum(1 for u in unidades for p in u["produtos"] if p["regular"])
         retrain.message = f"{len(unidades)} lojas e {retrain.products_modeled} produtos regulares"
+        # planilhas já carregadas quando o treino começou entram nele (as que chegaram
+        # durante o treino ficam para o próximo)
+        db.execute(update(ProcessingLog)
+                   .where(*_PLANILHA_NAO_USADA, ProcessingLog.finished_at <= retrain.started_at)
+                   .values(retrain_id=retrain_id))
         db.commit()
         return run.id
 
@@ -234,8 +244,9 @@ def treinar(trigger: str = "manual", user_id: int | None = None, workers: int = 
             pular_sem_venda_nova: bool = False, ao_terminar_unidade=None) -> int:
     """Treina as lojas sobre o banco e grava tudo. Devolve o id de `retrain_history`.
 
-    Com `pular_sem_venda_nova` (treino agendado), registra `skipped` se o último treino
-    `done` usou as mesmas vendas (`data_until`) e a mesma configuração.
+    Com `pular_sem_venda_nova` (treino agendado ou após upload), registra `skipped` se o
+    último treino `done` usou as mesmas vendas — mesmo `data_until` e nenhuma planilha com
+    venda nova ainda não usada (`processing_log.retrain_id` nulo) — e a mesma configuração.
     """
     if not _TRAVA.acquire(blocking=False):
         raise TreinoEmAndamento()
@@ -249,9 +260,11 @@ def treinar(trigger: str = "manual", user_id: int | None = None, workers: int = 
                 unidades = base_vendas.carregar_lojas(db)
                 ultimo = db.scalar(select(RetrainHistory).where(RetrainHistory.status == "done")
                                    .order_by(RetrainHistory.id.desc()))
+                pendentes = db.scalar(select(func.count()).select_from(ProcessingLog)
+                                      .where(*_PLANILHA_NAO_USADA))
             data_until = df["emissao"].max().date()
             if pular_sem_venda_nova and ultimo is not None and ultimo.data_until == data_until \
-                    and ultimo.config == config:
+                    and not pendentes and ultimo.config == config:
                 with SessionLocal() as db:
                     r = db.get(RetrainHistory, retrain_id)
                     r.status, r.finished_at, r.data_until = "skipped", datetime.now(), data_until

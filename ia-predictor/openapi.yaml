@@ -27,7 +27,7 @@ info:
     o produto) e Conferir Dados consulta a base **paginada** em `/api/v1/registros/*`. Os
     endpoints de products, forecast, alerts, simulation e reports estão no contrato mas
     **ainda não implementados** (marcados com `x-implementado: false`).
-  version: "3.3.0"
+  version: "3.4.0"
   contact:
     name: Daniel Nunes da Silva & Felipe Gurgel Araújo
     email: felipegurgel5@gmail.com
@@ -173,7 +173,16 @@ components:
           example: 8.3
         retrain_scheduled:
           type: boolean
+          description: A planilha trouxe venda nova e a previsão vai ser atualizada
           example: true
+        retrain_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: |
+            Quando o treino começa (`RETRAIN_AFTER_UPLOAD_MINUTES` após o upload; outra
+            planilha nesse intervalo adia). Nulo se não houver venda nova ou se o agendador
+            não estiver rodando — aí fica para o treino semanal.
         errors:
           type: array
           items:
@@ -1281,8 +1290,8 @@ paths:
         (doc_numero, produto_cod, emissao, qtdade, vl_total); linhas iguais dentro do
         mesmo arquivo são vendas reais e são mantidas (01-pre_processing.md §2). O mesmo
         arquivo (mesmo SHA-256) não é carregado duas vezes. A planilha não é guardada: fica
-        a linha de `processing_log`. As vendas novas entram no próximo treino semanal
-        (`retrain_scheduled`), que só é pulado quando não há venda nova.
+        a linha de `processing_log`. Com venda nova, o treino é agendado para alguns
+        minutos depois (`retrain_at`): enviar várias planilhas seguidas gera um treino só.
         **Requer perfil admin.**
       operationId: uploadFile
       security:

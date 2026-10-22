@@ -27,6 +27,8 @@ export interface ResultadoUpload {
   rows_duplicate: number;
   processing_time_seconds: number;
   retrain_scheduled: boolean;
+  /** início do treino automático após o upload; nulo = fica para o treino semanal */
+  retrain_at: string | null;
   errors: string[];
 }
 

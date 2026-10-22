@@ -10,8 +10,8 @@ dentro da própria planilha (o mesmo produto pode vir em duas linhas da mesma no
 A planilha não é guardada: sobra a linha de `processing_log` (nome, SHA-256, contagens).
 Produto novo entra em `products` com a categoria da Etapa 3; produto já cadastrado mantém
 a categoria do cadastro. A encomenda (venda > 2.000 un. na nota) é marcada como na carga
-inicial. O treino da semana seguinte usa as vendas novas (o agendado só é pulado quando
-não há venda nova).
+inicial. Com venda nova, o router agenda o treino para alguns minutos depois
+(`scheduler.agendar_treino_pos_upload`).
 """
 from __future__ import annotations
 

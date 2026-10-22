@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback } from "react";
 import { Upload, FileSpreadsheet, CheckCircle2, Loader2, Sparkles, AlertTriangle, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "../ui/card";
@@ -36,8 +36,7 @@ function mensagemDeEnvio(erro: unknown): string {
   return mensagemDoErro(erro);
 }
 
-const dataHora = (iso: string) =>
-  new Date(iso).toLocaleString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+const hora = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
 export function ImportarPlanilha() {
   const navigate = useNavigate();
@@ -51,16 +50,7 @@ export function ImportarPlanilha() {
   const [dragging, setDragging] = useState(false);
   const [file, setFile] = useState<{ name: string; size: string } | null>(null);
   const [erro, setErro] = useState<string | null>(null);
-  const [proximoTreino, setProximoTreino] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (currentStep !== 3) return;
-    api
-      .statusModelos()
-      .then((s) => setProximoTreino(s.next_retrain_at))
-      .catch(() => setProximoTreino(null));
-  }, [currentStep]);
 
   const handleFile = useCallback(
     (f: File) => {
@@ -326,16 +316,21 @@ export function ImportarPlanilha() {
             )}
             {resultado.retrain_scheduled && (
               <p className="text-sm text-center" style={{ color: "var(--muted-foreground)" }}>
-                A previsão passa a usar estas vendas na próxima atualização dos modelos
-                {proximoTreino ? ` (${dataHora(proximoTreino)})` : ""}.
-                Se preferir, atualize agora — leva cerca de 40 minutos.
+                {resultado.retrain_at ? (
+                  <>
+                    A previsão vai ser atualizada com estas vendas sozinha, a partir das {hora(resultado.retrain_at)}, e
+                    leva cerca de 40 minutos. Se tiver outras planilhas, envie agora: elas entram na mesma atualização.
+                  </>
+                ) : (
+                  <>A previsão passa a usar estas vendas na próxima atualização dos modelos. Se preferir, atualize agora — leva cerca de 40 minutos.</>
+                )}
               </p>
             )}
             <div className="flex gap-3 flex-wrap justify-center">
               <Button variant="outline" onClick={reset}>
                 Enviar outro arquivo
               </Button>
-              {admin && resultado.retrain_scheduled && (
+              {admin && resultado.retrain_scheduled && !resultado.retrain_at && (
                 <Button variant="outline" onClick={atualizarAgora}>
                   Atualizar a previsão agora
                 </Button>

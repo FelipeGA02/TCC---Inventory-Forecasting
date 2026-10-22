@@ -39,7 +39,7 @@ pipeline de dados e modelagem preditiva
 | Análise exploratória (EDA) | Jupyter Notebooks + matplotlib, seaborn, plotly (não entram no runtime de produção) |
 | Auth | python-jose (JWT HS256) + passlib (bcrypt) |
 | Banco | Postgres no Neon (compartilhado) e SQLite (local), via SQLAlchemy 2.0 + psycopg 3 — ADR-014 |
-| Scheduler | APScheduler 3.10 (ajuste dos modelos segunda 02:00, pulado sem venda nova · conferência do calendário 03:00, gera de novo a previsão só se ele mudou) |
+| Scheduler | APScheduler 3.10 (ajuste dos modelos 10 min após planilha com venda nova — outra planilha no intervalo adia — e segunda 02:00 como rede de segurança, ambos pulados sem venda nova · conferência do calendário 03:00, gera de novo a previsão só se ele mudou — ainda não ativa, depende dos modelos em joblib) |
 | Serialização | joblib (modelos), openpyxl (XLSX), reportlab (PDF) |
 | Frontend | React 18 + Recharts + MUI (em `app-react/`) — decisão pós-prototipagem; o projeto técnico original cogitava Streamlit/Dash |
 | Cliente HTTP | gerado de `openapi.yaml` via openapi-typescript-codegen |
@@ -204,6 +204,7 @@ LOG_CV_THRESHOLD=0.7           # log1p acima deste CV
 # Scheduler
 RETRAIN_DAY_OF_WEEK=mon        # ajuste (fit) dos modelos; pulado sem venda nova desde o último treino
 RETRAIN_HOUR=2
+RETRAIN_AFTER_UPLOAD_MINUTES=10  # treino após planilha com venda nova; outra planilha no intervalo adia
 DAILY_FORECAST_HOUR=3          # confere o calendário; gera de novo a previsão só se ele mudou
 ```
 

@@ -34,6 +34,7 @@ def test_upload_planilha_real_grava_so_uma_vez(client, admin):
     assert corpo["rows_added"] > 9000
     assert corpo["rows_duplicate"] == 0
     assert corpo["retrain_scheduled"] is True
+    assert corpo["retrain_at"] is not None  # treino automático agendado para minutos depois
 
     de_novo = client.post("/api/v1/upload", headers=admin, files={"file": ("fev 26.xlsx", conteudo)})
     assert de_novo.status_code == 409

@@ -1,6 +1,12 @@
-"""Status dos modelos e treino manual (admin)."""
+"""Status dos modelos, treino manual (admin) e treino automático após o upload."""
 import time
+from datetime import datetime
 
+import pytest
+from sqlalchemy import delete
+
+from backend.infrastructure import scheduler
+from backend.infrastructure.database import ProcessingLog, RetrainHistory, SessionLocal
 from backend.services import treino_service
 
 
@@ -35,3 +41,41 @@ def test_treino_manual_em_andamento_responde_409(client, admin, monkeypatch):
     r = client.post("/api/v1/models/retrain", headers=admin)
     assert r.status_code == 409
     assert r.json()["detail"] == "Atualização já em andamento. Tente novamente em alguns minutos."
+
+
+def test_nova_planilha_adia_o_treino_apos_upload(client):
+    primeiro = scheduler.agendar_treino_pos_upload()
+    segundo = scheduler.agendar_treino_pos_upload()
+    try:
+        assert primeiro is not None and segundo >= primeiro
+        assert scheduler.treino_pos_upload_agendado() == segundo  # um treino só, adiado
+    finally:
+        scheduler._scheduler.remove_job(scheduler._JOB_POS_UPLOAD)
+
+
+class _Treinou(Exception):
+    pass
+
+
+def test_treino_e_pulado_so_sem_planilha_nova(client, com_previsao, monkeypatch):
+    def treinou(*_a, **_k):
+        raise _Treinou()
+
+    monkeypatch.setattr(treino_service.gerador, "gerar_unidade", treinou)
+    # mesmas vendas e configuração do último treino, nenhuma planilha pendente: pulado
+    rid = treino_service.treinar("upload", pular_sem_venda_nova=True)
+    with SessionLocal() as db:
+        assert db.get(RetrainHistory, rid).status == "skipped"
+
+    # planilha com venda nova ainda não usada (ex.: completou dias antigos): treina
+    with SessionLocal() as db:
+        db.add(ProcessingLog(filename="jan 26.xlsx", file_sha256="x" * 64, file_size_bytes=1,
+                             status="done", rows_added=5, finished_at=datetime.now()))
+        db.commit()
+    try:
+        with pytest.raises(_Treinou):
+            treino_service.treinar("upload", pular_sem_venda_nova=True)
+    finally:
+        with SessionLocal() as db:
+            db.execute(delete(ProcessingLog).where(ProcessingLog.filename == "jan 26.xlsx"))
+            db.commit()

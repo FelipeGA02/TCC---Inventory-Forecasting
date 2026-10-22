@@ -49,6 +49,7 @@ class Settings(BaseSettings):
     # Scheduler
     RETRAIN_DAY_OF_WEEK: str = "mon"     # reajuste (fit) dos modelos L1; pulado sem venda nova
     RETRAIN_HOUR: int = 2                # 02:00
+    RETRAIN_AFTER_UPLOAD_MINUTES: int = 10  # treino após planilha com venda nova; outro upload no intervalo adia
     DAILY_FORECAST_HOUR: int = 3         # confere o calendario; gera de novo a previsao so se ele mudou
 
     # CORS

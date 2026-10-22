@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     LOG_CV_THRESHOLD: float = 0.7        # limiar (CV = std/mean) para log1p transform
     ALERT_VARIATION_THRESHOLD: float = 0.20  # previsao 7d 20% acima da media 4 semanas dispara alerta
     MAX_UPLOAD_MB: int = 50
+    TRAINING_WORKERS: int = 8            # processos no treino dos produtos (no servidor: o nº de CPUs)
 
     # Politica de reposicao (L3)
     SAFETY_STOCK_DAYS: int = 2           # estoque de seguranca em dias de demanda prevista

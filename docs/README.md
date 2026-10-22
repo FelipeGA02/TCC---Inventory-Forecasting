@@ -37,6 +37,7 @@ uma nova ADR, use o próximo número livre (o maior `ADR-0NN` já usado em qualq
 | [ADR-010](prediction/ADR-010-exogenas-nominais-fora-do-l1.md) | predição | `pagamento`/`vendedor` fora das exógenas; `empresa` vira chave `unidade`; Etapa 3 removida do pipeline |
 | [ADR-011](prediction/ADR-011-escopo-previsao-sem-reposicao.md) | predição | Escopo: **previsão de demanda diária, sem camada de reposição L3**; 2 unidades (Jardim Canadá e Itabirito); L1 por **unidade** (2 séries) — categoria e grupos do cliente via desagregação L2 — revisa ADR-009 |
 | [ADR-014](database/ADR-014-postgres-neon.md) | banco de dados | Postgres gerenciado no **Neon** para o banco compartilhado; SQLite só local — revisa ADR-005 |
+| [ADR-015](backend/ADR-015-publicacao-oracle-vercel.md) | backend | Publicação: API na **Oracle Cloud Always Free** (São Paulo, Docker + Caddy), front na **Vercel** — passo a passo em `deploy/README.md` |
 
 ## Documentos "a criar" com caminho fixo (não mover ao criar)
 

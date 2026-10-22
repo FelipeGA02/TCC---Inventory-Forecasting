@@ -25,6 +25,7 @@ import pandas as pd
 from sqlalchemy import func, insert, select, update
 from sqlalchemy.orm import Session
 
+from backend.config import settings
 from backend.infrastructure.database import (
     BacktestPoint,
     Category,
@@ -240,7 +241,7 @@ def _marcar_erro(retrain_id: int, erro: Exception) -> None:
 # --------------------------------------------------------------------------- #
 # Casos de uso
 # --------------------------------------------------------------------------- #
-def treinar(trigger: str = "manual", user_id: int | None = None, workers: int = 8,
+def treinar(trigger: str = "manual", user_id: int | None = None, workers: int | None = None,
             pular_sem_venda_nova: bool = False, ao_terminar_unidade=None) -> int:
     """Treina as lojas sobre o banco e grava tudo. Devolve o id de `retrain_history`.
 
@@ -248,6 +249,7 @@ def treinar(trigger: str = "manual", user_id: int | None = None, workers: int = 
     último treino `done` usou as mesmas vendas — mesmo `data_until` e nenhuma planilha com
     venda nova ainda não usada (`processing_log.retrain_id` nulo) — e a mesma configuração.
     """
+    workers = workers or settings.TRAINING_WORKERS
     if not _TRAVA.acquire(blocking=False):
         raise TreinoEmAndamento()
     try:

@@ -1,0 +1,30 @@
+# Servidor (Oracle Cloud Always Free, Ubuntu ARM): a API atrás do Caddy, que cuida do HTTPS
+# (certificado Let's Encrypt automático para API_DOMINIO). Ver deploy/README.md.
+#
+#   cd deploy && docker compose up -d --build
+services:
+  api:
+    build: ../ia-predictor
+    env_file: .env                  # deploy/.env (não versionado) — modelo em deploy/.env.example
+    restart: unless-stopped
+    expose:
+      - "8000"
+
+  caddy:
+    image: caddy:2.10.2-alpine
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      API_DOMINIO: ${API_DOMINIO:?defina API_DOMINIO em deploy/.env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:                       # certificados: sobrevivem a rebuild
+  caddy_config:

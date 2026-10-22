@@ -10,7 +10,7 @@ O treino completo (2 lojas, 26 rodadas de validação, um SARIMAX por produto re
 pelo gerador do frontend (mesmo código, sobre os CSV do pré-processamento).
 
 Uso (a partir de `ia-predictor/`):
-    python -m backend.scripts.gravar_previsao [--workers 8] [--salvar-json saida.json]
+    python -m backend.scripts.gravar_previsao [--workers N] [--salvar-json saida.json]
     python -m backend.scripts.gravar_previsao --de-json [caminho/baseReal.json]
 """
 from __future__ import annotations
@@ -38,7 +38,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--de-json", nargs="?", const=BASE_REAL, metavar="CAMINHO",
                         help=f"importa a previsão de um baseReal.json (padrão: {BASE_REAL})")
-    parser.add_argument("--workers", type=int, default=8, help="processos no treino dos produtos")
+    parser.add_argument("--workers", type=int, default=None,
+                        help="processos no treino dos produtos (padrão: TRAINING_WORKERS do .env)")
     parser.add_argument("--salvar-json", metavar="CAMINHO",
                         help="grava também o resultado do treino por loja num JSON (conferência)")
     args = parser.parse_args()

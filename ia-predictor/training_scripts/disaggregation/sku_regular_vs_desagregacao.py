@@ -47,17 +47,21 @@ aproximacao, e a cobertura medida aqui diz se ela se sustenta.
 
 Protocolo
 ---------
-Walk-forward com origem a cada 14 dias a partir de 2025-03-02 (26 rodadas, um ano, como no
-doc 04). Toda participacao, ordem e selecao de SKU usa so dados anteriores a origem.
+Walk-forward igual ao dos treinos da loja (`sarimax_itabirito_core`): a origem anda de 1 em
+1 dia a partir de 2025-03-02 e cada ajuste preve os 14 dias seguintes, entao toda data
+prevista aparece em ate 14 janelas, uma por horizonte h = 1..14. Toda participacao, ordem e
+selecao de SKU usa so dados anteriores a origem.
+
+Saidas, no mesmo formato da loja: `*_previsoes.csv` com os 14 horizontes e
+`*_operacional.csv` so com h = 1 (a previsao feita com o modelo reajustado na vespera). As
+metricas vem em tres blocos: todos os horizontes, `operacional_h1` e `por_horizonte`.
 
 As metricas que decidem sao as dos **dias de loja aberta**. Domingo e feriado (venda 0,
-previsao ~0) deixam o MASE menor e a cobertura maior sem dizer nada sobre a previsao. Pelo
-mesmo motivo nao ha bloco "h = 1": com origem a cada 14 dias a partir de um domingo, toda
-origem cai num domingo.
+previsao ~0) deixam o MASE menor e a cobertura maior sem dizer nada sobre a previsao.
 
 Uso (a partir de `ia-predictor/`):
     python -m training_scripts.disaggregation.sku_regular_vs_desagregacao
-    python -m training_scripts.disaggregation.sku_regular_vs_desagregacao --unidade itabirito --passo 7
+    python -m training_scripts.disaggregation.sku_regular_vs_desagregacao --unidade itabirito --passo 14
 """
 from __future__ import annotations
 
@@ -91,7 +95,7 @@ UNIDADES = {"itabirito": "Itabirito", "jardim-canada": "Jardim Canadá"}
 ADI_CORTE = 1.32              # Syntetos, Boylan & Croston (2005)
 MIN_SPAN_DIAS = 180           # MIN_OBSERVATIONS_DAYS do L1 (CLAUDE.md)
 JANELA_8SEM = 56              # participacao movel do L2 (CLAUDE.md)
-PASSO_PADRAO = 14             # 26 rodadas cobrindo um ano (doc 04)
+PASSO_PADRAO = 1              # origem anda 1 dia, como nos treinos da loja (A-D)
 VARIANTES = {"sem_log": False, "log1p": True}
 METODOS = ["sarimax_sku", "desag_8sem", "desag_hist"]
 
@@ -226,7 +230,13 @@ def _rodada(args) -> list[dict]:
 # --------------------------------------------------------------------------- #
 # Metricas
 # --------------------------------------------------------------------------- #
-def _bloco(d: pd.DataFrame) -> dict:
+def _bloco(d: pd.DataFrame, janela_completa: bool = True) -> dict:
+    """Metricas de um conjunto de previsoes.
+
+    `janela_completa=False` e para um recorte por horizonte (h = 1, h = 2, ...): cada
+    SKU-rodada tem um dia so, entao `vence_naive_pct` vira "% de dias" e o erro do total de
+    14 dias nao existe.
+    """
     ae = (d["real"] - d["previsto"]).abs()
     ae_n = (d["real"] - d["naive"]).abs()
     dentro = (d["real"] >= d["ic_inf"]) & (d["real"] <= d["ic_sup"])
@@ -236,7 +246,7 @@ def _bloco(d: pd.DataFrame) -> dict:
         prev=("previsto", "sum"), real=("real", "sum"), ae=("ae", "sum"), ae_n=("ae_n", "sum"))
     cob = float(dentro.mean() * 100)
     mase = float((ae[com_escala] / d.loc[com_escala, "escala"]).mean())
-    return {
+    b = {
         "n_dias": int(len(d)), "n_sku_rodada": int(len(q)),
         "mae": round(float(ae.mean()), 2),
         "mase": round(mase, 3),
@@ -245,16 +255,38 @@ def _bloco(d: pd.DataFrame) -> dict:
         "cobertura_ic95_pct": round(cob, 1),
         "largura_ic95": round(float((d["ic_sup"] - d["ic_inf"]).mean()), 2),
         "previsto_sobre_real_pct": round(float(d["previsto"].sum() / d["real"].sum() * 100), 1),
-        "erro_total_14d_pct": round(float((q["prev"] - q["real"]).abs().sum() / q["real"].sum() * 100), 1),
         "passa_criterio_diario": bool(mase < 1.0 and 90.0 <= cob <= 98.0),
     }
+    if janela_completa:
+        b["erro_total_14d_pct"] = round(float((q["prev"] - q["real"]).abs().sum()
+                                              / q["real"].sum() * 100), 1)
+    return b
+
+
+def blocos(d: pd.DataFrame) -> dict:
+    """Mesmo formato dos treinos da loja: todos os horizontes, h = 1 e cada horizonte."""
+    return {
+        "geral_todos_horizontes": _bloco(d),
+        "operacional_h1": _bloco(d[d["horizonte"] == 1], janela_completa=False),
+        "por_horizonte": {int(h): _bloco(g, janela_completa=False)
+                          for h, g in d.groupby("horizonte")},
+    }
+
+
+def gravar_previsoes(prev: pd.DataFrame, base: str) -> dict:
+    """`_previsoes.csv` com os 14 horizontes e `_operacional.csv` so com h = 1, como na loja."""
+    arquivos = {"previsoes": f"{base}_previsoes.csv", "operacional": f"{base}_operacional.csv"}
+    prev.to_csv(arquivos["previsoes"], sep=";", index=False, decimal=".")
+    prev[prev["horizonte"] == 1].drop(columns="horizonte").to_csv(
+        arquivos["operacional"], sep=";", index=False, decimal=".")
+    return arquivos
 
 
 def metricas(prev: pd.DataFrame, fechados: set) -> dict:
     out = {}
     for (var, met), d in prev.groupby(["variante", "metodo"]):
-        out[f"{met}|{var}"] = {"dias_abertos": _bloco(d[~d["data"].isin(fechados)]),
-                               "todos_os_dias": _bloco(d)}
+        out[f"{met}|{var}"] = {"dias_abertos": blocos(d[~d["data"].isin(fechados)]),
+                               "todos_os_dias": blocos(d)}
     return out
 
 
@@ -333,7 +365,7 @@ def executar(slug: str, passo: int, workers: int) -> dict:
     }
     base = os.path.join(METRICS_DIR, f"sku_regular_{slug}")
     os.makedirs(METRICS_DIR, exist_ok=True)
-    prev.to_csv(f"{base}_previsoes.csv", sep=";", index=False, decimal=".")
+    gravar_previsoes(prev, base)
     saida = relatorio(slug, prev, nomes, config)
     print(f"[tempo] {time.time() - t0:.0f}s\n", flush=True)
     return saida
@@ -357,21 +389,23 @@ def relatorio(slug: str, prev: pd.DataFrame, nomes: dict, config: dict) -> dict:
         "gerado_em": pd.Timestamp.now().isoformat(timespec="seconds"),
         "config": config,
         "metricas": met,
-        "arquivos": {"previsoes": f"{base}_previsoes.csv", "por_sku": f"{base}_por_sku.csv"},
+        "arquivos": {"previsoes": f"{base}_previsoes.csv",
+                     "operacional": f"{base}_operacional.csv", "por_sku": f"{base}_por_sku.csv"},
     }
     with open(f"{base}.json", "w", encoding="utf-8") as fh:
         json.dump(saida, fh, ensure_ascii=False, indent=2, default=str)
 
-    print(f"\n[resultado] {unidade} · dias de loja aberta, h = 1..14")
-    print(f"  {'metodo|variante':24s} {'MASE':>6s} {'÷naive':>7s} {'vence':>6s} {'IC95':>6s} "
-          f"{'prev/real':>9s} {'erro 14d':>8s}  diario ok?")
+    print(f"\n[resultado] {unidade} · dias de loja aberta")
+    print(f"  {'metodo|variante':24s} {'':5s} {'MASE':>6s} {'÷naive':>7s} {'vence':>6s} {'IC95':>6s} "
+          f"{'prev/real':>9s}  diario ok?")
     for k, v in met.items():
-        b = v["dias_abertos"]
-        print(f"  {k:24s} {b['mase']:6.3f} {b['erro_relativo_naive']:7.3f} {b['vence_naive_pct']:5.1f}% "
-              f"{b['cobertura_ic95_pct']:5.1f}% {b['previsto_sobre_real_pct']:8.1f}% "
-              f"{b['erro_total_14d_pct']:7.1f}%  {'SIM' if b['passa_criterio_diario'] else 'nao'}")
+        for rot, chave in (("h1-14", "geral_todos_horizontes"), ("h=1", "operacional_h1")):
+            b = v["dias_abertos"][chave]
+            print(f"  {k:24s} {rot:5s} {b['mase']:6.3f} {b['erro_relativo_naive']:7.3f} "
+                  f"{b['vence_naive_pct']:5.1f}% {b['cobertura_ic95_pct']:5.1f}% "
+                  f"{b['previsto_sobre_real_pct']:8.1f}%  {'SIM' if b['passa_criterio_diario'] else 'nao'}")
     print(f"\n[por SKU] melhor metodo (menor MASE):\n{tab['melhor'].value_counts().to_string()}")
-    print(f"[arquivos] {base}.json · _previsoes.csv · _por_sku.csv", flush=True)
+    print(f"[arquivos] {base}.json · _previsoes.csv · _operacional.csv · _por_sku.csv", flush=True)
     return saida
 
 
@@ -380,6 +414,7 @@ def recalcular_metricas(slug: str) -> dict:
     base = os.path.join(METRICS_DIR, f"sku_regular_{slug}")
     prev = pd.read_csv(f"{base}_previsoes.csv", sep=";", dtype={"sku": str},
                        parse_dates=["origem", "data"])
+    gravar_previsoes(prev, base)
     with open(f"{base}.json", encoding="utf-8") as fh:
         config = json.load(fh)["config"]
     _, nomes = carregar_fluxo(UNIDADES[slug])

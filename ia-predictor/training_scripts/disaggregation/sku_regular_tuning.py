@@ -23,7 +23,11 @@ vence a configuracao de menor erro absoluto medio nos dias de loja aberta. E a v
 `auto` que responde "qual o resultado do SARIMAX por produto bem ajustado".
 
 Mesmo protocolo externo do experimento anterior: fluxo diario, mesmos SKUs regulares por
-rodada, 26 rodadas a cada 14 dias desde 2025-03-02, metricas nos dias de loja aberta.
+rodada, origem andando de 1 em 1 dia desde 2025-03-02 com h = 14, metricas nos dias de loja
+aberta. Saidas no formato da loja: `_previsoes.csv` (14 horizontes), `_operacional.csv`
+(h = 1) e metricas em blocos todos os horizontes / `operacional_h1` / `por_horizonte`. A
+validacao interna continua com 4 origens a cada 14 dias (8 semanas), que nao muda com o
+passo do walk-forward externo.
 
 Uso (a partir de `ia-predictor/`):
     python -m training_scripts.disaggregation.sku_regular_tuning --unidade itabirito
@@ -50,14 +54,16 @@ from training_scripts.baseline.sarimax_itabirito_core import (  # noqa: E402
     ALPHA, GRID_PQ, GRID_SPQ, HORIZONTE, M, MAXITER, METRICS_DIR, PRIMEIRA_ORIGEM,
 )
 from training_scripts.disaggregation.sku_regular_vs_desagregacao import (  # noqa: E402
-    UNIDADES, _bloco, carregar_fluxo, exogenas, fechados_da_unidade, skus_regulares,
+    PASSO_PADRAO, UNIDADES, blocos, carregar_fluxo, exogenas, fechados_da_unidade,
+    gravar_previsoes, skus_regulares,
 )
 
 warnings.filterwarnings("ignore")
 
-PASSO = 14
+PASSO = PASSO_PADRAO       # walk-forward externo: origem anda 1 dia, como na loja
 CONFIGS = {f"d{d}|{t}": {"d": d, "log": t == "log1p"} for d in (0, 1) for t in ("sem_log", "log1p")}
 VALID_ORIGENS = 4          # validacao interna: 4 origens x 14 dias = 8 semanas antes da 1a rodada
+VALID_PASSO = 14
 
 
 # --------------------------------------------------------------------------- #
@@ -96,7 +102,8 @@ def _prever(y, X, ordem, futuro, log):
 
 
 # --------------------------------------------------------------------------- #
-# Uma tarefa por SKU (roda em processo separado)
+# Tarefas (rodam em processos separados): 1 por SKU para escolher ordens e `auto`,
+# depois 1 por SKU x origem para o walk-forward
 # --------------------------------------------------------------------------- #
 _G: dict = {}
 
@@ -111,17 +118,17 @@ def _serie(sku, ate):
     return s[s.index >= s[s > 0].index.min()]
 
 
-def _tarefa_sku(args) -> tuple[str, dict, list[dict]]:
-    sku, origens_sku = args
+def _preparar_sku(args) -> tuple[str, dict, dict]:
+    """Ordem de cada configuracao e escolha `auto`, so com dados antes da 1a rodada do SKU."""
+    sku, primeira = args
     X, fech, m = _G["X"], _G["fech"], _G["m"]
-    primeira = origens_sku[0]
     hist = _serie(sku, primeira)
 
     # 1) ordem por AIC para cada configuracao, com dados antes da 1a rodada do SKU
     ordens = {k: _selecionar(hist, X, c["d"], c["log"]) for k, c in CONFIGS.items()}
 
     # 2) validacao interna nas 8 semanas anteriores -> escolha da configuracao `auto`
-    v_origens = [primeira - pd.Timedelta(days=PASSO * i) for i in range(VALID_ORIGENS, 0, -1)]
+    v_origens = [primeira - pd.Timedelta(days=VALID_PASSO * i) for i in range(VALID_ORIGENS, 0, -1)]
     erro_valid = {}
     for k, c in CONFIGS.items():
         if ordens[k] is None:
@@ -139,37 +146,42 @@ def _tarefa_sku(args) -> tuple[str, dict, list[dict]]:
             erro_valid[k] = float(np.mean(aes))
     escolhida = min(erro_valid, key=erro_valid.get) if erro_valid else None
 
-    # 3) walk-forward externo, todas as configuracoes
-    linhas = []
-    for o in origens_sku:
-        s = _serie(sku, o)
-        fut = pd.date_range(o, periods=HORIZONTE, freq="D")
-        real = m.loc[fut, sku].values
-        ult7 = s.values[-M:]
-        naive = np.array([ult7[i % M] for i in range(HORIZONTE)])
-        escala = float(np.mean(np.abs(s.values[M:] - s.values[:-M])))
-        for k, c in CONFIGS.items():
-            if ordens[k] is None:
-                continue
-            try:
-                p, lo, hi = _prever(s, X, ordens[k], fut, c["log"])
-            except Exception:  # noqa: BLE001
-                continue
-            for h in range(HORIZONTE):
-                linhas.append({"origem": o, "data": fut[h], "horizonte": h + 1, "sku": sku,
-                               "config": k, "previsto": p[h], "ic_inf": lo[h], "ic_sup": hi[h],
-                               "real": real[h], "naive": naive[h], "escala": escala})
     meta = {"ordens": {k: (None if v is None else {"order": list(v["order"]),
                                                     "seasonal_order": list(v["seasonal_order"])})
                        for k, v in ordens.items()},
             "erro_validacao": erro_valid, "config_auto": escolhida}
-    return sku, meta, linhas
+    return sku, ordens, meta
+
+
+def _rodada_sku(args) -> list[dict]:
+    """3) walk-forward externo: uma origem de um SKU, todas as configuracoes."""
+    sku, o, ordens = args
+    X, m = _G["X"], _G["m"]
+    s = _serie(sku, o)
+    fut = pd.date_range(o, periods=HORIZONTE, freq="D")
+    real = m.loc[fut, sku].values
+    ult7 = s.values[-M:]
+    naive = np.array([ult7[i % M] for i in range(HORIZONTE)])
+    escala = float(np.mean(np.abs(s.values[M:] - s.values[:-M])))
+    linhas = []
+    for k, c in CONFIGS.items():
+        if ordens[k] is None:
+            continue
+        try:
+            p, lo, hi = _prever(s, X, ordens[k], fut, c["log"])
+        except Exception:  # noqa: BLE001
+            continue
+        for h in range(HORIZONTE):
+            linhas.append({"origem": o, "data": fut[h], "horizonte": h + 1, "sku": sku,
+                           "config": k, "previsto": p[h], "ic_inf": lo[h], "ic_sup": hi[h],
+                           "real": real[h], "naive": naive[h], "escala": escala})
+    return linhas
 
 
 # --------------------------------------------------------------------------- #
 # Execucao
 # --------------------------------------------------------------------------- #
-def executar(slug: str, workers: int) -> dict:
+def executar(slug: str, workers: int, passo: int = PASSO) -> dict:
     unidade = UNIDADES[slug]
     t0 = time.time()
     fluxo, nomes = carregar_fluxo(unidade)
@@ -181,20 +193,25 @@ def executar(slug: str, workers: int) -> dict:
     aberta = (X.loc[idx, "loja_fechada"] == 0).astype(int)
     fechados = fechados_da_unidade(unidade)
     origens = list(pd.date_range(PRIMEIRA_ORIGEM, idx[-1] - pd.Timedelta(days=HORIZONTE - 1),
-                                 freq=f"{PASSO}D"))
+                                 freq=f"{passo}D"))
     regulares = {o: skus_regulares(matriz, aberta, o) for o in origens}
     todos = sorted({s for lst in regulares.values() for s in lst})
     por_sku = {s: [o for o in origens if s in regulares[o]] for s in todos}
     matriz = matriz[todos]
-    print(f"=== {unidade} === {len(todos)} SKUs regulares · {len(origens)} rodadas · "
-          f"{len(CONFIGS)} configuracoes {list(CONFIGS)}", flush=True)
+    print(f"=== {unidade} === {len(todos)} SKUs regulares · {len(origens)} rodadas "
+          f"(origem a cada {passo} dia(s)) · {len(CONFIGS)} configuracoes {list(CONFIGS)}", flush=True)
 
-    metas, linhas = {}, []
+    metas, ordens, linhas = {}, {}, []
     with ProcessPoolExecutor(workers, initializer=_init, initargs=(matriz, X, fechados)) as ex:
-        for sku, meta, lin in ex.map(_tarefa_sku, por_sku.items()):
-            metas[sku] = meta
-            linhas.extend(lin)
+        for sku, ords, meta in ex.map(_preparar_sku, [(s, o[0]) for s, o in por_sku.items()]):
+            ordens[sku], metas[sku] = ords, meta
             print(f"  [{sku}] auto = {meta['config_auto']} · {time.time() - t0:.0f}s", flush=True)
+        tarefas = [(s, o, ordens[s]) for s, lst in por_sku.items() for o in lst]
+        for n, lin in enumerate(ex.map(_rodada_sku, tarefas, chunksize=4), start=1):
+            linhas.extend(lin)
+            if n % 250 == 0 or n == len(tarefas):
+                print(f"  [walk-forward] {n}/{len(tarefas)} SKU-rodadas · {time.time() - t0:.0f}s",
+                      flush=True)
     prev = pd.DataFrame(linhas)
 
     # `auto`: para cada SKU, as linhas da configuracao escolhida na validacao interna
@@ -203,7 +220,7 @@ def executar(slug: str, workers: int) -> dict:
     prev = pd.concat([prev, auto], ignore_index=True)
 
     aberto = prev[~prev["data"].isin(fechados)]
-    met = {k: _bloco(d) for k, d in aberto.groupby("config")}
+    met = {k: blocos(d) for k, d in aberto.groupby("config")}
     ordem_cfg = [*CONFIGS, "auto"]
 
     # Por SKU: erro / naive no mesmo periodo (abaixo de 1 = venceu o naive sazonal)
@@ -221,27 +238,33 @@ def executar(slug: str, workers: int) -> dict:
     tab = pd.DataFrame(tab).sort_values("rodadas", ascending=False)
 
     base = os.path.join(METRICS_DIR, f"sku_tuning_{slug}")
-    prev.to_csv(f"{base}_previsoes.csv", sep=";", index=False, decimal=".")
+    arquivos = gravar_previsoes(prev, base)
     tab.to_csv(f"{base}_por_sku.csv", sep=";", index=False, decimal=".")
     saida = {"unidade": unidade, "gerado_em": pd.Timestamp.now().isoformat(timespec="seconds"),
-             "configs": list(CONFIGS), "validacao_interna": {"origens": VALID_ORIGENS, "passo": PASSO},
-             "metricas_dias_abertos": met, "por_sku": metas}
+             "configs": list(CONFIGS),
+             "walk_forward": {"primeira_origem": str(PRIMEIRA_ORIGEM.date()), "passo_origem_dias": passo,
+                              "n_rodadas": len(origens), "horizonte_dias": HORIZONTE},
+             "validacao_interna": {"origens": VALID_ORIGENS, "passo": VALID_PASSO},
+             "metricas_dias_abertos": met, "por_sku": metas,
+             "arquivos": {**arquivos, "por_sku": f"{base}_por_sku.csv"}}
     with open(f"{base}.json", "w", encoding="utf-8") as fh:
         json.dump(saida, fh, ensure_ascii=False, indent=2, default=str)
 
     print(f"\n[resultado] {unidade} · dias de loja aberta")
-    print(f"  {'config':14s} {'MASE':>6s} {'÷naive':>7s} {'vence':>6s} {'IC95':>6s} {'larg':>6s} "
-          f"{'prev/real':>9s} {'erro14d':>8s}  ok?")
+    print(f"  {'config':14s} {'':5s} {'MASE':>6s} {'÷naive':>7s} {'vence':>6s} {'IC95':>6s} {'larg':>6s} "
+          f"{'prev/real':>9s}  ok?")
     for k in ordem_cfg:
-        b = met[k]
-        print(f"  {k:14s} {b['mase']:6.3f} {b['erro_relativo_naive']:7.3f} {b['vence_naive_pct']:5.1f}% "
-              f"{b['cobertura_ic95_pct']:5.1f}% {b['largura_ic95']:6.1f} {b['previsto_sobre_real_pct']:8.1f}% "
-              f"{b['erro_total_14d_pct']:7.1f}%  {'SIM' if b['passa_criterio_diario'] else 'nao'}")
+        for rot, chave in (("h1-14", "geral_todos_horizontes"), ("h=1", "operacional_h1")):
+            b = met[k][chave]
+            print(f"  {k:14s} {rot:5s} {b['mase']:6.3f} {b['erro_relativo_naive']:7.3f} "
+                  f"{b['vence_naive_pct']:5.1f}% {b['cobertura_ic95_pct']:5.1f}% {b['largura_ic95']:6.1f} "
+                  f"{b['previsto_sobre_real_pct']:8.1f}%  {'SIM' if b['passa_criterio_diario'] else 'nao'}")
     print("\n[por SKU] erro ÷ naive sazonal no mesmo periodo (< 1 = venceu o naive)")
     cols = ["nome", "config_auto"] + [f"{k}|razao_naive" for k in ordem_cfg]
     print(tab[cols].to_string(index=False))
     print(f"\n[configuracao escolhida na validacao] {pd.Series([m['config_auto'] for m in metas.values()]).value_counts().to_dict()}")
-    print(f"[arquivos] {base}.json · _previsoes.csv · _por_sku.csv ({time.time() - t0:.0f}s)", flush=True)
+    print(f"[arquivos] {base}.json · _previsoes.csv · _operacional.csv · _por_sku.csv "
+          f"({time.time() - t0:.0f}s)", flush=True)
     return saida
 
 
@@ -249,8 +272,9 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--unidade", choices=list(UNIDADES), default="itabirito")
     ap.add_argument("--workers", type=int, default=8)
+    ap.add_argument("--passo", type=int, default=PASSO, help="dias entre origens")
     a = ap.parse_args()
-    executar(a.unidade, a.workers)
+    executar(a.unidade, a.workers, a.passo)
 
 
 if __name__ == "__main__":

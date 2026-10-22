@@ -407,7 +407,7 @@ def p08_skus_metodos(met: dict):
 
     from matplotlib.patches import Patch
     leg = ([Patch(color=c) for _, c, _ in variantes], [r for *_, r in variantes])
-    base = "Itabirito · previsão diária por produto: 12 produtos regulares, 26 rodadas, dias de loja aberta"
+    base = "Itabirito · previsão diária por produto: 12 produtos regulares, origem diária (h = 1–14), dias de loja aberta"
     teto = max(met[k]["dias_abertos"]["mase"] for k in met) * 1.15
     _paineis_barras([("mase", "MASE", 1.0,
                       lambda v: br(v))],
@@ -452,7 +452,8 @@ def p09_mase_por_sku(tab: pd.DataFrame):
 
 def p10_exemplo(prev: pd.DataFrame, sku: str = "00013475"):
     d = prev[(prev["sku"] == sku) & (prev["variante"] == "log1p")]
-    origens = sorted(d["origem"].unique())[-6:]
+    # Origens a cada 14 dias contando da ultima, para as janelas nao se sobreporem.
+    origens = sorted(d["origem"].unique())[::-1][::14][:6][::-1]
     d = d[d["origem"].isin(origens)]
     fig, axes = plt.subplots(2, 1, figsize=(11, 6), sharex=True, sharey=True)
     for ax, (met, cor, rot) in zip(axes, [("sarimax_sku", LARANJA, "SARIMAX no próprio produto (log1p)"),
@@ -471,7 +472,7 @@ def p10_exemplo(prev: pd.DataFrame, sku: str = "00013475"):
         _limpar(ax)
         ax.legend(loc="upper left", ncol=3)
     axes[1].xaxis.set_major_formatter(mdates.DateFormatter("%d/%m"))
-    fig.suptitle("Exemplo · Grama Esmeralda (ITO), últimas 6 rodadas de 14 dias (linhas verticais = "
+    fig.suptitle("Exemplo · Grama Esmeralda (ITO), 6 janelas de 14 dias sem sobreposição (linhas verticais = "
                  "início de cada rodada)", x=0.01, ha="left", fontweight="bold", fontsize=10)
     fig.tight_layout()
     return _salvar(fig, "08_sku_exemplo_grama_esmeralda.png")
@@ -504,7 +505,7 @@ def p11_ajuste_parametros(met_enc: dict):
         a.set_xticks(x, [""] * len(x))
         a.tick_params(axis="x", length=0)
 
-    base = "Itabirito · SARIMAX por produto, 4 configurações, 12 produtos regulares, 26 rodadas, dias de loja aberta"
+    base = "Itabirito · SARIMAX por produto, 4 configurações, 12 produtos regulares, origem diária (h = 1–14), dias de loja aberta"
     teto = max(met_enc[f"{k}|antes"]["mase"] for k, *_ in CONFIGS_SKU) * 1.15
     _paineis_barras([("mase", "MASE", 1.0, lambda v: br(v))],
                     desenhar, base, "11a_skus_configuracoes_mase.png", (0, teto), _leg_configs())
@@ -567,6 +568,8 @@ def main():
     tab = pd.read_csv(f"{base}_por_sku.csv", sep=";", dtype={"sku": str})
     with open(f"{base}.json", encoding="utf-8") as fh:
         met_sku = json.load(fh)["metricas"]
+    # Os graficos usam o bloco de todos os horizontes (h = 1..14).
+    met_sku = {k: {"dias_abertos": v["dias_abertos"]["geral_todos_horizontes"]} for k, v in met_sku.items()}
     prev = pd.read_csv(f"{base}_previsoes.csv", sep=";", dtype={"sku": str}, parse_dates=["origem", "data"])
     p05_skus(tab)
 
@@ -583,8 +586,9 @@ def main():
     with open(os.path.join(METRICS_DIR, "sku_encomenda_produto_itabirito.json"), encoding="utf-8") as fh:
         enc_prod = json.load(fh)
     _, nomes = carregar_fluxo(UNIDADE)
-    p11_ajuste_parametros(enc_prod["metricas_dias_abertos"])
-    p12_regra_por_produto(enc_prod["metricas_dias_abertos"], enc_prod["volume_tirado_por_sku_pct"], nomes)
+    met_enc = {k: v["geral_todos_horizontes"] for k, v in enc_prod["metricas_dias_abertos"].items()}
+    p11_ajuste_parametros(met_enc)
+    p12_regra_por_produto(met_enc, enc_prod["volume_tirado_por_sku_pct"], nomes)
 
 
 if __name__ == "__main__":

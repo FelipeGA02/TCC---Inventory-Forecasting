@@ -1,6 +1,6 @@
 {
   "unidade": "Itabirito",
-  "gerado_em": "2026-10-13T23:09:46",
+  "gerado_em": "2026-10-22T12:49:27",
   "regra": {
     "metodo": "Iglewicz & Hoaglin (1993), z-score modificado em log1p(venda do produto)",
     "limiar_M": 3.5,
@@ -8,141 +8,1632 @@
     "recalculo": "por rodada, so passado",
     "aplicada_apos": "regra da loja (venda > 2.000 un. no documento)"
   },
-  "volume_tirado_pct_teste": 13.0,
+  "walk_forward": {
+    "primeira_origem": "2025-03-02",
+    "passo_origem_dias": 120,
+    "n_rodadas": 3,
+    "horizonte_dias": 14
+  },
+  "volume_tirado_pct_teste": 5.0,
   "volume_tirado_por_sku_pct": {
     "00013475": 0.0,
-    "00030197": 43.3,
-    "00180002": 72.3,
-    "00200579": 0.0,
-    "00240057": 39.7,
-    "1372": 38.7,
-    "2753": 28.4,
-    "2909": 35.1,
-    "434": 23.4,
-    "637": 68.6,
-    "72": 10.2,
-    "73": 31.9
+    "00030197": 0.0,
+    "00240057": 0.0,
+    "2753": 0.0,
+    "2909": 0.0,
+    "434": 50.0,
+    "637": 95.2,
+    "72": 0.0,
+    "73": 0.0
   },
   "metricas_dias_abertos": {
     "d0|sem_log|antes": {
-      "n_dias": 2764,
-      "n_sku_rodada": 240,
-      "mae": 33.41,
-      "mase": 0.983,
-      "erro_relativo_naive": 0.831,
-      "vence_naive_pct": 63.3,
-      "cobertura_ic95_pct": 95.9,
-      "largura_ic95": 133.41,
-      "previsto_sobre_real_pct": 99.0,
-      "erro_total_14d_pct": 47.2,
-      "passa_criterio_diario": true,
-      "limite_sup_sobre_previsto_mediana": 4.09,
-      "largura_sobre_venda_media": 3.58
+      "geral_todos_horizontes": {
+        "n_dias": 325,
+        "n_sku_rodada": 28,
+        "mae": 36.84,
+        "mase": 1.169,
+        "erro_relativo_naive": 0.711,
+        "vence_naive_pct": 57.1,
+        "cobertura_ic95_pct": 93.5,
+        "largura_ic95": 129.63,
+        "previsto_sobre_real_pct": 91.8,
+        "passa_criterio_diario": false,
+        "erro_total_14d_pct": 61.7,
+        "limite_sup_sobre_previsto_mediana": 4.01,
+        "largura_sobre_venda_media": 3.28
+      },
+      "operacional_h1": {
+        "n_dias": 18,
+        "n_sku_rodada": 18,
+        "mae": 74.23,
+        "mase": 0.867,
+        "erro_relativo_naive": 0.853,
+        "vence_naive_pct": 66.7,
+        "cobertura_ic95_pct": 94.4,
+        "largura_ic95": 146.36,
+        "previsto_sobre_real_pct": 51.8,
+        "passa_criterio_diario": true,
+        "limite_sup_sobre_previsto_mediana": 4.39,
+        "largura_sobre_venda_media": 1.58
+      },
+      "por_horizonte": {
+        "1": {
+          "n_dias": 18,
+          "n_sku_rodada": 18,
+          "mae": 74.23,
+          "mase": 0.867,
+          "erro_relativo_naive": 0.853,
+          "vence_naive_pct": 66.7,
+          "cobertura_ic95_pct": 94.4,
+          "largura_ic95": 146.36,
+          "previsto_sobre_real_pct": 51.8,
+          "passa_criterio_diario": true
+        },
+        "2": {
+          "n_dias": 18,
+          "n_sku_rodada": 18,
+          "mae": 40.07,
+          "mase": 1.42,
+          "erro_relativo_naive": 0.463,
+          "vence_naive_pct": 33.3,
+          "cobertura_ic95_pct": 83.3,
+          "largura_ic95": 141.44,
+          "previsto_sobre_real_pct": 139.1,
+          "passa_criterio_diario": false
+        },
+        "3": {
+          "n_dias": 18,
+          "n_sku_rodada": 18,
+          "mae": 38.37,
+          "mase": 1.498,
+          "erro_relativo_naive": 1.068,
+          "vence_naive_pct": 44.4,
+          "cobertura_ic95_pct": 94.4,
+          "largura_ic95": 137.03,
+          "previsto_sobre_real_pct": 100.9,
+          "passa_criterio_diario": false
+        },
+        "4": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 46.71,
+          "mase": 0.979,
+          "erro_relativo_naive": 0.66,
+          "vence_naive_pct": 64.3,
+          "cobertura_ic95_pct": 92.9,
+          "largura_ic95": 129.01,
+          "previsto_sobre_real_pct": 61.8,
+          "passa_criterio_diario": true
+        },
+        "5": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 27.76,
+          "mase": 0.859,
+          "erro_relativo_naive": 1.247,
+          "vence_naive_pct": 46.4,
+          "cobertura_ic95_pct": 96.4,
+          "largura_ic95": 124.98,
+          "previsto_sobre_real_pct": 191.1,
+          "passa_criterio_diario": true
+        },
+        "6": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 27.86,
+          "mase": 1.162,
+          "erro_relativo_naive": 0.774,
+          "vence_naive_pct": 39.3,
+          "cobertura_ic95_pct": 92.9,
+          "largura_ic95": 117.77,
+          "previsto_sobre_real_pct": 95.5,
+          "passa_criterio_diario": false
+        },
+        "7": {
+          "n_dias": 19,
+          "n_sku_rodada": 19,
+          "mae": 32.02,
+          "mase": 1.102,
+          "erro_relativo_naive": 0.384,
+          "vence_naive_pct": 47.4,
+          "cobertura_ic95_pct": 94.7,
+          "largura_ic95": 126.28,
+          "previsto_sobre_real_pct": 151.2,
+          "passa_criterio_diario": false
+        },
+        "8": {
+          "n_dias": 18,
+          "n_sku_rodada": 18,
+          "mae": 48.43,
+          "mase": 1.382,
+          "erro_relativo_naive": 0.888,
+          "vence_naive_pct": 66.7,
+          "cobertura_ic95_pct": 94.4,
+          "largura_ic95": 143.8,
+          "previsto_sobre_real_pct": 72.3,
+          "passa_criterio_diario": false
+        },
+        "9": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 31.72,
+          "mase": 1.007,
+          "erro_relativo_naive": 0.55,
+          "vence_naive_pct": 57.1,
+          "cobertura_ic95_pct": 92.9,
+          "largura_ic95": 134.84,
+          "previsto_sobre_real_pct": 121.0,
+          "passa_criterio_diario": false
+        },
+        "10": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 43.47,
+          "mase": 1.194,
+          "erro_relativo_naive": 0.843,
+          "vence_naive_pct": 46.4,
+          "cobertura_ic95_pct": 89.3,
+          "largura_ic95": 130.45,
+          "previsto_sobre_real_pct": 69.9,
+          "passa_criterio_diario": false
+        },
+        "11": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 48.66,
+          "mase": 2.565,
+          "erro_relativo_naive": 0.904,
+          "vence_naive_pct": 50.0,
+          "cobertura_ic95_pct": 92.9,
+          "largura_ic95": 128.59,
+          "previsto_sobre_real_pct": 73.4,
+          "passa_criterio_diario": false
+        },
+        "12": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 19.91,
+          "mase": 0.638,
+          "erro_relativo_naive": 0.625,
+          "vence_naive_pct": 64.3,
+          "cobertura_ic95_pct": 100.0,
+          "largura_ic95": 124.8,
+          "previsto_sobre_real_pct": 211.3,
+          "passa_criterio_diario": false
+        },
+        "13": {
+          "n_dias": 19,
+          "n_sku_rodada": 19,
+          "mae": 16.12,
+          "mase": 0.727,
+          "erro_relativo_naive": 0.686,
+          "vence_naive_pct": 36.8,
+          "cobertura_ic95_pct": 100.0,
+          "largura_ic95": 115.77,
+          "previsto_sobre_real_pct": 171.0,
+          "passa_criterio_diario": false
+        },
+        "14": {
+          "n_dias": 19,
+          "n_sku_rodada": 19,
+          "mae": 28.8,
+          "mase": 0.887,
+          "erro_relativo_naive": 0.553,
+          "vence_naive_pct": 42.1,
+          "cobertura_ic95_pct": 89.5,
+          "largura_ic95": 124.43,
+          "previsto_sobre_real_pct": 71.8,
+          "passa_criterio_diario": false
+        }
+      }
     },
     "d0|sem_log|depois": {
-      "n_dias": 2764,
-      "n_sku_rodada": 240,
-      "mae": 27.78,
-      "mase": 0.871,
-      "erro_relativo_naive": 0.871,
-      "vence_naive_pct": 72.5,
-      "cobertura_ic95_pct": 94.2,
-      "largura_ic95": 105.01,
-      "previsto_sobre_real_pct": 102.6,
-      "erro_total_14d_pct": 43.2,
-      "passa_criterio_diario": true,
-      "limite_sup_sobre_previsto_mediana": 2.95,
-      "largura_sobre_venda_media": 3.24
+      "geral_todos_horizontes": {
+        "n_dias": 325,
+        "n_sku_rodada": 28,
+        "mae": 30.31,
+        "mase": 1.023,
+        "erro_relativo_naive": 0.716,
+        "vence_naive_pct": 67.9,
+        "cobertura_ic95_pct": 90.5,
+        "largura_ic95": 103.46,
+        "previsto_sobre_real_pct": 97.9,
+        "passa_criterio_diario": false,
+        "erro_total_14d_pct": 59.7,
+        "limite_sup_sobre_previsto_mediana": 2.96,
+        "largura_sobre_venda_media": 3.07
+      },
+      "operacional_h1": {
+        "n_dias": 18,
+        "n_sku_rodada": 18,
+        "mae": 69.72,
+        "mase": 0.754,
+        "erro_relativo_naive": 0.86,
+        "vence_naive_pct": 72.2,
+        "cobertura_ic95_pct": 94.4,
+        "largura_ic95": 117.61,
+        "previsto_sobre_real_pct": 51.0,
+        "passa_criterio_diario": true,
+        "limite_sup_sobre_previsto_mediana": 2.84,
+        "largura_sobre_venda_media": 1.34
+      },
+      "por_horizonte": {
+        "1": {
+          "n_dias": 18,
+          "n_sku_rodada": 18,
+          "mae": 69.72,
+          "mase": 0.754,
+          "erro_relativo_naive": 0.86,
+          "vence_naive_pct": 72.2,
+          "cobertura_ic95_pct": 94.4,
+          "largura_ic95": 117.61,
+          "previsto_sobre_real_pct": 51.0,
+          "passa_criterio_diario": true
+        },
+        "2": {
+          "n_dias": 18,
+          "n_sku_rodada": 18,
+          "mae": 26.75,
+          "mase": 0.864,
+          "erro_relativo_naive": 0.346,
+          "vence_naive_pct": 61.1,
+          "cobertura_ic95_pct": 88.9,
+          "largura_ic95": 112.12,
+          "previsto_sobre_real_pct": 208.2,
+          "passa_criterio_diario": false
+        },
+        "3": {
+          "n_dias": 18,
+          "n_sku_rodada": 18,
+          "mae": 25.71,
+          "mase": 1.227,
+          "erro_relativo_naive": 1.042,
+          "vence_naive_pct": 44.4,
+          "cobertura_ic95_pct": 88.9,
+          "largura_ic95": 106.43,
+          "previsto_sobre_real_pct": 128.6,
+          "passa_criterio_diario": false
+        },
+        "4": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 44.59,
+          "mase": 1.224,
+          "erro_relativo_naive": 0.845,
+          "vence_naive_pct": 60.7,
+          "cobertura_ic95_pct": 89.3,
+          "largura_ic95": 103.36,
+          "previsto_sobre_real_pct": 58.5,
+          "passa_criterio_diario": false
+        },
+        "5": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 24.47,
+          "mase": 0.917,
+          "erro_relativo_naive": 1.65,
+          "vence_naive_pct": 57.1,
+          "cobertura_ic95_pct": 92.9,
+          "largura_ic95": 99.76,
+          "previsto_sobre_real_pct": 189.4,
+          "passa_criterio_diario": true
+        },
+        "6": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 24.04,
+          "mase": 1.407,
+          "erro_relativo_naive": 0.719,
+          "vence_naive_pct": 50.0,
+          "cobertura_ic95_pct": 82.1,
+          "largura_ic95": 90.95,
+          "previsto_sobre_real_pct": 91.4,
+          "passa_criterio_diario": false
+        },
+        "7": {
+          "n_dias": 19,
+          "n_sku_rodada": 19,
+          "mae": 27.25,
+          "mase": 1.27,
+          "erro_relativo_naive": 0.347,
+          "vence_naive_pct": 52.6,
+          "cobertura_ic95_pct": 84.2,
+          "largura_ic95": 100.77,
+          "previsto_sobre_real_pct": 178.1,
+          "passa_criterio_diario": false
+        },
+        "8": {
+          "n_dias": 18,
+          "n_sku_rodada": 18,
+          "mae": 39.03,
+          "mase": 1.076,
+          "erro_relativo_naive": 0.885,
+          "vence_naive_pct": 55.6,
+          "cobertura_ic95_pct": 83.3,
+          "largura_ic95": 114.94,
+          "previsto_sobre_real_pct": 79.0,
+          "passa_criterio_diario": false
+        },
+        "9": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 26.4,
+          "mase": 1.151,
+          "erro_relativo_naive": 0.513,
+          "vence_naive_pct": 57.1,
+          "cobertura_ic95_pct": 82.1,
+          "largura_ic95": 109.29,
+          "previsto_sobre_real_pct": 135.4,
+          "passa_criterio_diario": false
+        },
+        "10": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 35.37,
+          "mase": 0.91,
+          "erro_relativo_naive": 0.802,
+          "vence_naive_pct": 53.6,
+          "cobertura_ic95_pct": 96.4,
+          "largura_ic95": 104.63,
+          "previsto_sobre_real_pct": 73.6,
+          "passa_criterio_diario": true
+        },
+        "11": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 31.61,
+          "mase": 0.963,
+          "erro_relativo_naive": 1.276,
+          "vence_naive_pct": 60.7,
+          "cobertura_ic95_pct": 92.9,
+          "largura_ic95": 103.2,
+          "previsto_sobre_real_pct": 102.8,
+          "passa_criterio_diario": true
+        },
+        "12": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 17.25,
+          "mase": 0.724,
+          "erro_relativo_naive": 0.809,
+          "vence_naive_pct": 60.7,
+          "cobertura_ic95_pct": 100.0,
+          "largura_ic95": 99.51,
+          "previsto_sobre_real_pct": 191.8,
+          "passa_criterio_diario": false
+        },
+        "13": {
+          "n_dias": 19,
+          "n_sku_rodada": 19,
+          "mae": 12.31,
+          "mase": 0.6,
+          "erro_relativo_naive": 0.559,
+          "vence_naive_pct": 52.6,
+          "cobertura_ic95_pct": 100.0,
+          "largura_ic95": 95.41,
+          "previsto_sobre_real_pct": 173.3,
+          "passa_criterio_diario": false
+        },
+        "14": {
+          "n_dias": 19,
+          "n_sku_rodada": 19,
+          "mae": 25.93,
+          "mase": 1.16,
+          "erro_relativo_naive": 0.51,
+          "vence_naive_pct": 63.2,
+          "cobertura_ic95_pct": 89.5,
+          "largura_ic95": 98.84,
+          "previsto_sobre_real_pct": 68.0,
+          "passa_criterio_diario": false
+        }
+      }
     },
     "d0|log1p|antes": {
-      "n_dias": 2764,
-      "n_sku_rodada": 240,
-      "mae": 28.76,
-      "mase": 0.868,
-      "erro_relativo_naive": 0.715,
-      "vence_naive_pct": 85.8,
-      "cobertura_ic95_pct": 92.3,
-      "largura_ic95": 212.04,
-      "previsto_sobre_real_pct": 49.5,
-      "erro_total_14d_pct": 52.7,
-      "passa_criterio_diario": true,
-      "limite_sup_sobre_previsto_mediana": 9.67,
-      "largura_sobre_venda_media": 5.69
+      "geral_todos_horizontes": {
+        "n_dias": 325,
+        "n_sku_rodada": 28,
+        "mae": 32.48,
+        "mase": 1.087,
+        "erro_relativo_naive": 0.627,
+        "vence_naive_pct": 78.6,
+        "cobertura_ic95_pct": 90.8,
+        "largura_ic95": 198.08,
+        "previsto_sobre_real_pct": 43.9,
+        "passa_criterio_diario": false,
+        "erro_total_14d_pct": 57.7,
+        "limite_sup_sobre_previsto_mediana": 9.29,
+        "largura_sobre_venda_media": 5.01
+      },
+      "operacional_h1": {
+        "n_dias": 18,
+        "n_sku_rodada": 18,
+        "mae": 78.67,
+        "mase": 0.926,
+        "erro_relativo_naive": 0.904,
+        "vence_naive_pct": 72.2,
+        "cobertura_ic95_pct": 88.9,
+        "largura_ic95": 206.44,
+        "previsto_sobre_real_pct": 19.1,
+        "passa_criterio_diario": false,
+        "limite_sup_sobre_previsto_mediana": 10.1,
+        "largura_sobre_venda_media": 2.23
+      },
+      "por_horizonte": {
+        "1": {
+          "n_dias": 18,
+          "n_sku_rodada": 18,
+          "mae": 78.67,
+          "mase": 0.926,
+          "erro_relativo_naive": 0.904,
+          "vence_naive_pct": 72.2,
+          "cobertura_ic95_pct": 88.9,
+          "largura_ic95": 206.44,
+          "previsto_sobre_real_pct": 19.1,
+          "passa_criterio_diario": false
+        },
+        "2": {
+          "n_dias": 18,
+          "n_sku_rodada": 18,
+          "mae": 32.33,
+          "mase": 1.278,
+          "erro_relativo_naive": 0.373,
+          "vence_naive_pct": 50.0,
+          "cobertura_ic95_pct": 88.9,
+          "largura_ic95": 246.25,
+          "previsto_sobre_real_pct": 66.2,
+          "passa_criterio_diario": false
+        },
+        "3": {
+          "n_dias": 18,
+          "n_sku_rodada": 18,
+          "mae": 32.29,
+          "mase": 1.393,
+          "erro_relativo_naive": 0.898,
+          "vence_naive_pct": 50.0,
+          "cobertura_ic95_pct": 83.3,
+          "largura_ic95": 192.29,
+          "previsto_sobre_real_pct": 43.1,
+          "passa_criterio_diario": false
+        },
+        "4": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 50.75,
+          "mase": 1.049,
+          "erro_relativo_naive": 0.717,
+          "vence_naive_pct": 71.4,
+          "cobertura_ic95_pct": 96.4,
+          "largura_ic95": 206.39,
+          "previsto_sobre_real_pct": 31.2,
+          "passa_criterio_diario": false
+        },
+        "5": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 14.07,
+          "mase": 0.642,
+          "erro_relativo_naive": 0.632,
+          "vence_naive_pct": 57.1,
+          "cobertura_ic95_pct": 92.9,
+          "largura_ic95": 162.35,
+          "previsto_sobre_real_pct": 90.0,
+          "passa_criterio_diario": true
+        },
+        "6": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 21.41,
+          "mase": 1.019,
+          "erro_relativo_naive": 0.595,
+          "vence_naive_pct": 71.4,
+          "cobertura_ic95_pct": 96.4,
+          "largura_ic95": 139.19,
+          "previsto_sobre_real_pct": 50.0,
+          "passa_criterio_diario": false
+        },
+        "7": {
+          "n_dias": 19,
+          "n_sku_rodada": 19,
+          "mae": 20.84,
+          "mase": 1.12,
+          "erro_relativo_naive": 0.25,
+          "vence_naive_pct": 42.1,
+          "cobertura_ic95_pct": 89.5,
+          "largura_ic95": 201.95,
+          "previsto_sobre_real_pct": 77.3,
+          "passa_criterio_diario": false
+        },
+        "8": {
+          "n_dias": 18,
+          "n_sku_rodada": 18,
+          "mae": 45.84,
+          "mase": 1.417,
+          "erro_relativo_naive": 0.84,
+          "vence_naive_pct": 72.2,
+          "cobertura_ic95_pct": 83.3,
+          "largura_ic95": 233.83,
+          "previsto_sobre_real_pct": 30.8,
+          "passa_criterio_diario": false
+        },
+        "9": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 27.24,
+          "mase": 1.052,
+          "erro_relativo_naive": 0.472,
+          "vence_naive_pct": 64.3,
+          "cobertura_ic95_pct": 85.7,
+          "largura_ic95": 242.93,
+          "previsto_sobre_real_pct": 57.2,
+          "passa_criterio_diario": false
+        },
+        "10": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 45.63,
+          "mase": 1.16,
+          "erro_relativo_naive": 0.885,
+          "vence_naive_pct": 57.1,
+          "cobertura_ic95_pct": 78.6,
+          "largura_ic95": 216.73,
+          "previsto_sobre_real_pct": 33.2,
+          "passa_criterio_diario": false
+        },
+        "11": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 41.19,
+          "mase": 2.454,
+          "erro_relativo_naive": 0.766,
+          "vence_naive_pct": 64.3,
+          "cobertura_ic95_pct": 92.9,
+          "largura_ic95": 211.18,
+          "previsto_sobre_real_pct": 37.3,
+          "passa_criterio_diario": false
+        },
+        "12": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 12.93,
+          "mase": 0.405,
+          "erro_relativo_naive": 0.406,
+          "vence_naive_pct": 85.7,
+          "cobertura_ic95_pct": 96.4,
+          "largura_ic95": 173.55,
+          "previsto_sobre_real_pct": 103.5,
+          "passa_criterio_diario": true
+        },
+        "13": {
+          "n_dias": 19,
+          "n_sku_rodada": 19,
+          "mae": 7.96,
+          "mase": 0.425,
+          "erro_relativo_naive": 0.339,
+          "vence_naive_pct": 52.6,
+          "cobertura_ic95_pct": 100.0,
+          "largura_ic95": 166.7,
+          "previsto_sobre_real_pct": 93.7,
+          "passa_criterio_diario": false
+        },
+        "14": {
+          "n_dias": 19,
+          "n_sku_rodada": 19,
+          "mae": 33.38,
+          "mase": 0.826,
+          "erro_relativo_naive": 0.641,
+          "vence_naive_pct": 57.9,
+          "cobertura_ic95_pct": 94.7,
+          "largura_ic95": 194.17,
+          "previsto_sobre_real_pct": 37.4,
+          "passa_criterio_diario": true
+        }
+      }
     },
     "d0|log1p|depois": {
-      "n_dias": 2764,
-      "n_sku_rodada": 240,
-      "mae": 24.29,
-      "mase": 0.824,
-      "erro_relativo_naive": 0.762,
-      "vence_naive_pct": 82.5,
-      "cobertura_ic95_pct": 92.9,
-      "largura_ic95": 197.31,
-      "previsto_sobre_real_pct": 53.4,
-      "erro_total_14d_pct": 49.4,
-      "passa_criterio_diario": true,
-      "limite_sup_sobre_previsto_mediana": 7.23,
-      "largura_sobre_venda_media": 6.09
+      "geral_todos_horizontes": {
+        "n_dias": 325,
+        "n_sku_rodada": 28,
+        "mae": 26.91,
+        "mase": 1.021,
+        "erro_relativo_naive": 0.636,
+        "vence_naive_pct": 71.4,
+        "cobertura_ic95_pct": 91.7,
+        "largura_ic95": 185.54,
+        "previsto_sobre_real_pct": 48.9,
+        "passa_criterio_diario": false,
+        "erro_total_14d_pct": 53.8,
+        "limite_sup_sobre_previsto_mediana": 6.99,
+        "largura_sobre_venda_media": 5.5
+      },
+      "operacional_h1": {
+        "n_dias": 18,
+        "n_sku_rodada": 18,
+        "mae": 74.08,
+        "mase": 0.861,
+        "erro_relativo_naive": 0.914,
+        "vence_naive_pct": 72.2,
+        "cobertura_ic95_pct": 94.4,
+        "largura_ic95": 189.2,
+        "previsto_sobre_real_pct": 18.5,
+        "passa_criterio_diario": true,
+        "limite_sup_sobre_previsto_mediana": 7.68,
+        "largura_sobre_venda_media": 2.15
+      },
+      "por_horizonte": {
+        "1": {
+          "n_dias": 18,
+          "n_sku_rodada": 18,
+          "mae": 74.08,
+          "mase": 0.861,
+          "erro_relativo_naive": 0.914,
+          "vence_naive_pct": 72.2,
+          "cobertura_ic95_pct": 94.4,
+          "largura_ic95": 189.2,
+          "previsto_sobre_real_pct": 18.5,
+          "passa_criterio_diario": true
+        },
+        "2": {
+          "n_dias": 18,
+          "n_sku_rodada": 18,
+          "mae": 20.33,
+          "mase": 0.813,
+          "erro_relativo_naive": 0.263,
+          "vence_naive_pct": 55.6,
+          "cobertura_ic95_pct": 88.9,
+          "largura_ic95": 235.73,
+          "previsto_sobre_real_pct": 104.4,
+          "passa_criterio_diario": false
+        },
+        "3": {
+          "n_dias": 18,
+          "n_sku_rodada": 18,
+          "mae": 21.23,
+          "mase": 1.222,
+          "erro_relativo_naive": 0.861,
+          "vence_naive_pct": 44.4,
+          "cobertura_ic95_pct": 77.8,
+          "largura_ic95": 179.59,
+          "previsto_sobre_real_pct": 59.4,
+          "passa_criterio_diario": false
+        },
+        "4": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 49.23,
+          "mase": 1.358,
+          "erro_relativo_naive": 0.932,
+          "vence_naive_pct": 64.3,
+          "cobertura_ic95_pct": 96.4,
+          "largura_ic95": 189.2,
+          "previsto_sobre_real_pct": 30.0,
+          "passa_criterio_diario": false
+        },
+        "5": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 12.86,
+          "mase": 0.896,
+          "erro_relativo_naive": 0.867,
+          "vence_naive_pct": 57.1,
+          "cobertura_ic95_pct": 92.9,
+          "largura_ic95": 151.03,
+          "previsto_sobre_real_pct": 93.4,
+          "passa_criterio_diario": true
+        },
+        "6": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 18.39,
+          "mase": 1.272,
+          "erro_relativo_naive": 0.55,
+          "vence_naive_pct": 71.4,
+          "cobertura_ic95_pct": 96.4,
+          "largura_ic95": 125.03,
+          "previsto_sobre_real_pct": 52.6,
+          "passa_criterio_diario": false
+        },
+        "7": {
+          "n_dias": 19,
+          "n_sku_rodada": 19,
+          "mae": 16.28,
+          "mase": 1.359,
+          "erro_relativo_naive": 0.207,
+          "vence_naive_pct": 47.4,
+          "cobertura_ic95_pct": 89.5,
+          "largura_ic95": 193.89,
+          "previsto_sobre_real_pct": 96.2,
+          "passa_criterio_diario": false
+        },
+        "8": {
+          "n_dias": 18,
+          "n_sku_rodada": 18,
+          "mae": 36.76,
+          "mase": 1.198,
+          "erro_relativo_naive": 0.834,
+          "vence_naive_pct": 72.2,
+          "cobertura_ic95_pct": 83.3,
+          "largura_ic95": 217.4,
+          "previsto_sobre_real_pct": 33.8,
+          "passa_criterio_diario": false
+        },
+        "9": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 21.47,
+          "mase": 1.143,
+          "erro_relativo_naive": 0.417,
+          "vence_naive_pct": 60.7,
+          "cobertura_ic95_pct": 89.3,
+          "largura_ic95": 232.05,
+          "previsto_sobre_real_pct": 66.8,
+          "passa_criterio_diario": false
+        },
+        "10": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 37.9,
+          "mase": 0.896,
+          "erro_relativo_naive": 0.859,
+          "vence_naive_pct": 57.1,
+          "cobertura_ic95_pct": 85.7,
+          "largura_ic95": 206.04,
+          "previsto_sobre_real_pct": 37.1,
+          "passa_criterio_diario": false
+        },
+        "11": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 24.62,
+          "mase": 0.952,
+          "erro_relativo_naive": 0.994,
+          "vence_naive_pct": 75.0,
+          "cobertura_ic95_pct": 100.0,
+          "largura_ic95": 196.27,
+          "previsto_sobre_real_pct": 53.7,
+          "passa_criterio_diario": false
+        },
+        "12": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 12.89,
+          "mase": 0.621,
+          "erro_relativo_naive": 0.604,
+          "vence_naive_pct": 71.4,
+          "cobertura_ic95_pct": 96.4,
+          "largura_ic95": 163.63,
+          "previsto_sobre_real_pct": 100.2,
+          "passa_criterio_diario": true
+        },
+        "13": {
+          "n_dias": 19,
+          "n_sku_rodada": 19,
+          "mae": 6.17,
+          "mase": 0.46,
+          "erro_relativo_naive": 0.28,
+          "vence_naive_pct": 68.4,
+          "cobertura_ic95_pct": 94.7,
+          "largura_ic95": 155.41,
+          "previsto_sobre_real_pct": 99.2,
+          "passa_criterio_diario": true
+        },
+        "14": {
+          "n_dias": 19,
+          "n_sku_rodada": 19,
+          "mae": 32.07,
+          "mase": 1.253,
+          "erro_relativo_naive": 0.631,
+          "vence_naive_pct": 52.6,
+          "cobertura_ic95_pct": 89.5,
+          "largura_ic95": 184.17,
+          "previsto_sobre_real_pct": 37.2,
+          "passa_criterio_diario": false
+        }
+      }
     },
     "d1|sem_log|antes": {
-      "n_dias": 2764,
-      "n_sku_rodada": 240,
-      "mae": 32.77,
-      "mase": 1.009,
-      "erro_relativo_naive": 0.815,
-      "vence_naive_pct": 65.4,
-      "cobertura_ic95_pct": 96.3,
-      "largura_ic95": 133.15,
-      "previsto_sobre_real_pct": 99.8,
-      "erro_total_14d_pct": 42.8,
-      "passa_criterio_diario": false,
-      "limite_sup_sobre_previsto_mediana": 3.94,
-      "largura_sobre_venda_media": 3.57
+      "geral_todos_horizontes": {
+        "n_dias": 325,
+        "n_sku_rodada": 28,
+        "mae": 33.85,
+        "mase": 1.162,
+        "erro_relativo_naive": 0.653,
+        "vence_naive_pct": 67.9,
+        "cobertura_ic95_pct": 93.8,
+        "largura_ic95": 130.72,
+        "previsto_sobre_real_pct": 95.2,
+        "passa_criterio_diario": false,
+        "erro_total_14d_pct": 43.3,
+        "limite_sup_sobre_previsto_mediana": 3.97,
+        "largura_sobre_venda_media": 3.3
+      },
+      "operacional_h1": {
+        "n_dias": 18,
+        "n_sku_rodada": 18,
+        "mae": 64.31,
+        "mase": 0.788,
+        "erro_relativo_naive": 0.739,
+        "vence_naive_pct": 77.8,
+        "cobertura_ic95_pct": 94.4,
+        "largura_ic95": 149.71,
+        "previsto_sobre_real_pct": 56.2,
+        "passa_criterio_diario": true,
+        "limite_sup_sobre_previsto_mediana": 3.96,
+        "largura_sobre_venda_media": 1.62
+      },
+      "por_horizonte": {
+        "1": {
+          "n_dias": 18,
+          "n_sku_rodada": 18,
+          "mae": 64.31,
+          "mase": 0.788,
+          "erro_relativo_naive": 0.739,
+          "vence_naive_pct": 77.8,
+          "cobertura_ic95_pct": 94.4,
+          "largura_ic95": 149.71,
+          "previsto_sobre_real_pct": 56.2,
+          "passa_criterio_diario": true
+        },
+        "2": {
+          "n_dias": 18,
+          "n_sku_rodada": 18,
+          "mae": 38.17,
+          "mase": 1.41,
+          "erro_relativo_naive": 0.441,
+          "vence_naive_pct": 44.4,
+          "cobertura_ic95_pct": 83.3,
+          "largura_ic95": 138.18,
+          "previsto_sobre_real_pct": 130.6,
+          "passa_criterio_diario": false
+        },
+        "3": {
+          "n_dias": 18,
+          "n_sku_rodada": 18,
+          "mae": 33.67,
+          "mase": 1.517,
+          "erro_relativo_naive": 0.937,
+          "vence_naive_pct": 50.0,
+          "cobertura_ic95_pct": 94.4,
+          "largura_ic95": 140.97,
+          "previsto_sobre_real_pct": 112.9,
+          "passa_criterio_diario": false
+        },
+        "4": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 43.33,
+          "mase": 1.036,
+          "erro_relativo_naive": 0.612,
+          "vence_naive_pct": 67.9,
+          "cobertura_ic95_pct": 92.9,
+          "largura_ic95": 130.24,
+          "previsto_sobre_real_pct": 64.7,
+          "passa_criterio_diario": false
+        },
+        "5": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 27.98,
+          "mase": 0.827,
+          "erro_relativo_naive": 1.257,
+          "vence_naive_pct": 42.9,
+          "cobertura_ic95_pct": 96.4,
+          "largura_ic95": 125.59,
+          "previsto_sobre_real_pct": 196.3,
+          "passa_criterio_diario": true
+        },
+        "6": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 29.43,
+          "mase": 1.253,
+          "erro_relativo_naive": 0.818,
+          "vence_naive_pct": 35.7,
+          "cobertura_ic95_pct": 92.9,
+          "largura_ic95": 121.79,
+          "previsto_sobre_real_pct": 107.9,
+          "passa_criterio_diario": false
+        },
+        "7": {
+          "n_dias": 19,
+          "n_sku_rodada": 19,
+          "mae": 31.72,
+          "mase": 1.123,
+          "erro_relativo_naive": 0.38,
+          "vence_naive_pct": 47.4,
+          "cobertura_ic95_pct": 94.7,
+          "largura_ic95": 126.44,
+          "previsto_sobre_real_pct": 153.4,
+          "passa_criterio_diario": false
+        },
+        "8": {
+          "n_dias": 18,
+          "n_sku_rodada": 18,
+          "mae": 41.1,
+          "mase": 1.386,
+          "erro_relativo_naive": 0.754,
+          "vence_naive_pct": 55.6,
+          "cobertura_ic95_pct": 94.4,
+          "largura_ic95": 144.87,
+          "previsto_sobre_real_pct": 74.9,
+          "passa_criterio_diario": false
+        },
+        "9": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 29.63,
+          "mase": 1.025,
+          "erro_relativo_naive": 0.514,
+          "vence_naive_pct": 50.0,
+          "cobertura_ic95_pct": 92.9,
+          "largura_ic95": 135.76,
+          "previsto_sobre_real_pct": 124.7,
+          "passa_criterio_diario": false
+        },
+        "10": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 39.42,
+          "mase": 1.164,
+          "erro_relativo_naive": 0.765,
+          "vence_naive_pct": 50.0,
+          "cobertura_ic95_pct": 89.3,
+          "largura_ic95": 130.69,
+          "previsto_sobre_real_pct": 70.9,
+          "passa_criterio_diario": false
+        },
+        "11": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 41.3,
+          "mase": 2.479,
+          "erro_relativo_naive": 0.768,
+          "vence_naive_pct": 46.4,
+          "cobertura_ic95_pct": 92.9,
+          "largura_ic95": 130.06,
+          "previsto_sobre_real_pct": 77.0,
+          "passa_criterio_diario": false
+        },
+        "12": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 23.64,
+          "mase": 0.696,
+          "erro_relativo_naive": 0.743,
+          "vence_naive_pct": 57.1,
+          "cobertura_ic95_pct": 100.0,
+          "largura_ic95": 125.09,
+          "previsto_sobre_real_pct": 213.7,
+          "passa_criterio_diario": false
+        },
+        "13": {
+          "n_dias": 19,
+          "n_sku_rodada": 19,
+          "mae": 13.87,
+          "mase": 0.619,
+          "erro_relativo_naive": 0.591,
+          "vence_naive_pct": 31.6,
+          "cobertura_ic95_pct": 100.0,
+          "largura_ic95": 110.7,
+          "previsto_sobre_real_pct": 140.2,
+          "passa_criterio_diario": false
+        },
+        "14": {
+          "n_dias": 19,
+          "n_sku_rodada": 19,
+          "mae": 19.54,
+          "mase": 0.807,
+          "erro_relativo_naive": 0.375,
+          "vence_naive_pct": 42.1,
+          "cobertura_ic95_pct": 94.7,
+          "largura_ic95": 130.19,
+          "previsto_sobre_real_pct": 84.9,
+          "passa_criterio_diario": true
+        }
+      }
     },
     "d1|sem_log|depois": {
-      "n_dias": 2764,
-      "n_sku_rodada": 240,
-      "mae": 26.54,
-      "mase": 0.865,
-      "erro_relativo_naive": 0.832,
-      "vence_naive_pct": 75.8,
-      "cobertura_ic95_pct": 94.4,
-      "largura_ic95": 103.65,
-      "previsto_sobre_real_pct": 100.6,
-      "erro_total_14d_pct": 36.2,
-      "passa_criterio_diario": true,
-      "limite_sup_sobre_previsto_mediana": 2.89,
-      "largura_sobre_venda_media": 3.2
+      "geral_todos_horizontes": {
+        "n_dias": 325,
+        "n_sku_rodada": 28,
+        "mae": 27.13,
+        "mase": 1.01,
+        "erro_relativo_naive": 0.641,
+        "vence_naive_pct": 71.4,
+        "cobertura_ic95_pct": 91.1,
+        "largura_ic95": 103.81,
+        "previsto_sobre_real_pct": 100.1,
+        "passa_criterio_diario": false,
+        "erro_total_14d_pct": 37.1,
+        "limite_sup_sobre_previsto_mediana": 2.91,
+        "largura_sobre_venda_media": 3.08
+      },
+      "operacional_h1": {
+        "n_dias": 18,
+        "n_sku_rodada": 18,
+        "mae": 60.53,
+        "mase": 0.742,
+        "erro_relativo_naive": 0.746,
+        "vence_naive_pct": 66.7,
+        "cobertura_ic95_pct": 94.4,
+        "largura_ic95": 120.03,
+        "previsto_sobre_real_pct": 54.7,
+        "passa_criterio_diario": true,
+        "limite_sup_sobre_previsto_mediana": 2.88,
+        "largura_sobre_venda_media": 1.36
+      },
+      "por_horizonte": {
+        "1": {
+          "n_dias": 18,
+          "n_sku_rodada": 18,
+          "mae": 60.53,
+          "mase": 0.742,
+          "erro_relativo_naive": 0.746,
+          "vence_naive_pct": 66.7,
+          "cobertura_ic95_pct": 94.4,
+          "largura_ic95": 120.03,
+          "previsto_sobre_real_pct": 54.7,
+          "passa_criterio_diario": true
+        },
+        "2": {
+          "n_dias": 18,
+          "n_sku_rodada": 18,
+          "mae": 24.41,
+          "mase": 0.853,
+          "erro_relativo_naive": 0.316,
+          "vence_naive_pct": 55.6,
+          "cobertura_ic95_pct": 88.9,
+          "largura_ic95": 108.23,
+          "previsto_sobre_real_pct": 191.9,
+          "passa_criterio_diario": false
+        },
+        "3": {
+          "n_dias": 18,
+          "n_sku_rodada": 18,
+          "mae": 20.51,
+          "mase": 1.215,
+          "erro_relativo_naive": 0.831,
+          "vence_naive_pct": 44.4,
+          "cobertura_ic95_pct": 88.9,
+          "largura_ic95": 109.77,
+          "previsto_sobre_real_pct": 144.6,
+          "passa_criterio_diario": false
+        },
+        "4": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 40.64,
+          "mase": 1.214,
+          "erro_relativo_naive": 0.77,
+          "vence_naive_pct": 64.3,
+          "cobertura_ic95_pct": 89.3,
+          "largura_ic95": 103.24,
+          "previsto_sobre_real_pct": 59.2,
+          "passa_criterio_diario": false
+        },
+        "5": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 24.92,
+          "mase": 0.892,
+          "erro_relativo_naive": 1.68,
+          "vence_naive_pct": 60.7,
+          "cobertura_ic95_pct": 92.9,
+          "largura_ic95": 99.71,
+          "previsto_sobre_real_pct": 190.8,
+          "passa_criterio_diario": true
+        },
+        "6": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 25.13,
+          "mase": 1.461,
+          "erro_relativo_naive": 0.752,
+          "vence_naive_pct": 53.6,
+          "cobertura_ic95_pct": 85.7,
+          "largura_ic95": 94.69,
+          "previsto_sobre_real_pct": 104.6,
+          "passa_criterio_diario": false
+        },
+        "7": {
+          "n_dias": 19,
+          "n_sku_rodada": 19,
+          "mae": 26.37,
+          "mase": 1.298,
+          "erro_relativo_naive": 0.336,
+          "vence_naive_pct": 52.6,
+          "cobertura_ic95_pct": 84.2,
+          "largura_ic95": 99.79,
+          "previsto_sobre_real_pct": 175.4,
+          "passa_criterio_diario": false
+        },
+        "8": {
+          "n_dias": 18,
+          "n_sku_rodada": 18,
+          "mae": 30.71,
+          "mase": 1.033,
+          "erro_relativo_naive": 0.696,
+          "vence_naive_pct": 66.7,
+          "cobertura_ic95_pct": 83.3,
+          "largura_ic95": 115.03,
+          "previsto_sobre_real_pct": 80.4,
+          "passa_criterio_diario": false
+        },
+        "9": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 23.73,
+          "mase": 1.127,
+          "erro_relativo_naive": 0.461,
+          "vence_naive_pct": 57.1,
+          "cobertura_ic95_pct": 85.7,
+          "largura_ic95": 110.08,
+          "previsto_sobre_real_pct": 139.8,
+          "passa_criterio_diario": false
+        },
+        "10": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 31.25,
+          "mase": 0.912,
+          "erro_relativo_naive": 0.709,
+          "vence_naive_pct": 53.6,
+          "cobertura_ic95_pct": 96.4,
+          "largura_ic95": 104.43,
+          "previsto_sobre_real_pct": 74.2,
+          "passa_criterio_diario": true
+        },
+        "11": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 24.44,
+          "mase": 0.911,
+          "erro_relativo_naive": 0.987,
+          "vence_naive_pct": 64.3,
+          "cobertura_ic95_pct": 92.9,
+          "largura_ic95": 103.26,
+          "previsto_sobre_real_pct": 104.2,
+          "passa_criterio_diario": true
+        },
+        "12": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 20.83,
+          "mase": 0.748,
+          "erro_relativo_naive": 0.977,
+          "vence_naive_pct": 57.1,
+          "cobertura_ic95_pct": 96.4,
+          "largura_ic95": 99.13,
+          "previsto_sobre_real_pct": 190.0,
+          "passa_criterio_diario": true
+        },
+        "13": {
+          "n_dias": 19,
+          "n_sku_rodada": 19,
+          "mae": 10.62,
+          "mase": 0.528,
+          "erro_relativo_naive": 0.482,
+          "vence_naive_pct": 52.6,
+          "cobertura_ic95_pct": 100.0,
+          "largura_ic95": 90.22,
+          "previsto_sobre_real_pct": 140.3,
+          "passa_criterio_diario": false
+        },
+        "14": {
+          "n_dias": 19,
+          "n_sku_rodada": 19,
+          "mae": 16.67,
+          "mase": 1.101,
+          "erro_relativo_naive": 0.328,
+          "vence_naive_pct": 63.2,
+          "cobertura_ic95_pct": 94.7,
+          "largura_ic95": 103.47,
+          "previsto_sobre_real_pct": 79.4,
+          "passa_criterio_diario": false
+        }
+      }
     },
     "d1|log1p|antes": {
-      "n_dias": 2764,
-      "n_sku_rodada": 240,
-      "mae": 28.65,
-      "mase": 0.867,
-      "erro_relativo_naive": 0.712,
-      "vence_naive_pct": 88.3,
-      "cobertura_ic95_pct": 92.4,
-      "largura_ic95": 209.97,
-      "previsto_sobre_real_pct": 49.0,
-      "erro_total_14d_pct": 53.0,
-      "passa_criterio_diario": true,
-      "limite_sup_sobre_previsto_mediana": 9.85,
-      "largura_sobre_venda_media": 5.64
+      "geral_todos_horizontes": {
+        "n_dias": 325,
+        "n_sku_rodada": 28,
+        "mae": 31.84,
+        "mase": 1.083,
+        "erro_relativo_naive": 0.614,
+        "vence_naive_pct": 75.0,
+        "cobertura_ic95_pct": 91.1,
+        "largura_ic95": 193.11,
+        "previsto_sobre_real_pct": 42.7,
+        "passa_criterio_diario": false,
+        "erro_total_14d_pct": 57.5,
+        "limite_sup_sobre_previsto_mediana": 9.83,
+        "largura_sobre_venda_media": 4.88
+      },
+      "operacional_h1": {
+        "n_dias": 18,
+        "n_sku_rodada": 18,
+        "mae": 76.81,
+        "mase": 0.869,
+        "erro_relativo_naive": 0.883,
+        "vence_naive_pct": 77.8,
+        "cobertura_ic95_pct": 88.9,
+        "largura_ic95": 219.6,
+        "previsto_sobre_real_pct": 20.1,
+        "passa_criterio_diario": false,
+        "limite_sup_sobre_previsto_mediana": 10.2,
+        "largura_sobre_venda_media": 2.37
+      },
+      "por_horizonte": {
+        "1": {
+          "n_dias": 18,
+          "n_sku_rodada": 18,
+          "mae": 76.81,
+          "mase": 0.869,
+          "erro_relativo_naive": 0.883,
+          "vence_naive_pct": 77.8,
+          "cobertura_ic95_pct": 88.9,
+          "largura_ic95": 219.6,
+          "previsto_sobre_real_pct": 20.1,
+          "passa_criterio_diario": false
+        },
+        "2": {
+          "n_dias": 18,
+          "n_sku_rodada": 18,
+          "mae": 32.54,
+          "mase": 1.264,
+          "erro_relativo_naive": 0.376,
+          "vence_naive_pct": 50.0,
+          "cobertura_ic95_pct": 83.3,
+          "largura_ic95": 249.9,
+          "previsto_sobre_real_pct": 66.5,
+          "passa_criterio_diario": false
+        },
+        "3": {
+          "n_dias": 18,
+          "n_sku_rodada": 18,
+          "mae": 32.06,
+          "mase": 1.421,
+          "erro_relativo_naive": 0.892,
+          "vence_naive_pct": 44.4,
+          "cobertura_ic95_pct": 83.3,
+          "largura_ic95": 195.97,
+          "previsto_sobre_real_pct": 43.9,
+          "passa_criterio_diario": false
+        },
+        "4": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 50.22,
+          "mase": 1.071,
+          "erro_relativo_naive": 0.71,
+          "vence_naive_pct": 71.4,
+          "cobertura_ic95_pct": 96.4,
+          "largura_ic95": 204.87,
+          "previsto_sobre_real_pct": 30.7,
+          "passa_criterio_diario": false
+        },
+        "5": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 13.05,
+          "mase": 0.621,
+          "erro_relativo_naive": 0.586,
+          "vence_naive_pct": 67.9,
+          "cobertura_ic95_pct": 96.4,
+          "largura_ic95": 158.02,
+          "previsto_sobre_real_pct": 87.4,
+          "passa_criterio_diario": true
+        },
+        "6": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 21.3,
+          "mase": 1.031,
+          "erro_relativo_naive": 0.592,
+          "vence_naive_pct": 71.4,
+          "cobertura_ic95_pct": 92.9,
+          "largura_ic95": 127.52,
+          "previsto_sobre_real_pct": 46.2,
+          "passa_criterio_diario": false
+        },
+        "7": {
+          "n_dias": 19,
+          "n_sku_rodada": 19,
+          "mae": 21.35,
+          "mase": 1.133,
+          "erro_relativo_naive": 0.256,
+          "vence_naive_pct": 42.1,
+          "cobertura_ic95_pct": 89.5,
+          "largura_ic95": 212.75,
+          "previsto_sobre_real_pct": 80.9,
+          "passa_criterio_diario": false
+        },
+        "8": {
+          "n_dias": 18,
+          "n_sku_rodada": 18,
+          "mae": 45.54,
+          "mase": 1.402,
+          "erro_relativo_naive": 0.835,
+          "vence_naive_pct": 66.7,
+          "cobertura_ic95_pct": 88.9,
+          "largura_ic95": 230.64,
+          "previsto_sobre_real_pct": 30.4,
+          "passa_criterio_diario": false
+        },
+        "9": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 26.85,
+          "mase": 1.069,
+          "erro_relativo_naive": 0.465,
+          "vence_naive_pct": 64.3,
+          "cobertura_ic95_pct": 85.7,
+          "largura_ic95": 227.65,
+          "previsto_sobre_real_pct": 53.7,
+          "passa_criterio_diario": false
+        },
+        "10": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 44.96,
+          "mase": 1.155,
+          "erro_relativo_naive": 0.872,
+          "vence_naive_pct": 64.3,
+          "cobertura_ic95_pct": 82.1,
+          "largura_ic95": 201.02,
+          "previsto_sobre_real_pct": 31.1,
+          "passa_criterio_diario": false
+        },
+        "11": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 39.15,
+          "mase": 2.447,
+          "erro_relativo_naive": 0.728,
+          "vence_naive_pct": 60.7,
+          "cobertura_ic95_pct": 92.9,
+          "largura_ic95": 201.09,
+          "previsto_sobre_real_pct": 35.5,
+          "passa_criterio_diario": false
+        },
+        "12": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 13.11,
+          "mase": 0.422,
+          "erro_relativo_naive": 0.412,
+          "vence_naive_pct": 82.1,
+          "cobertura_ic95_pct": 96.4,
+          "largura_ic95": 159.45,
+          "previsto_sobre_real_pct": 95.8,
+          "passa_criterio_diario": true
+        },
+        "13": {
+          "n_dias": 19,
+          "n_sku_rodada": 19,
+          "mae": 7.07,
+          "mase": 0.394,
+          "erro_relativo_naive": 0.301,
+          "vence_naive_pct": 57.9,
+          "cobertura_ic95_pct": 100.0,
+          "largura_ic95": 147.97,
+          "previsto_sobre_real_pct": 83.7,
+          "passa_criterio_diario": false
+        },
+        "14": {
+          "n_dias": 19,
+          "n_sku_rodada": 19,
+          "mae": 31.64,
+          "mase": 0.783,
+          "erro_relativo_naive": 0.607,
+          "vence_naive_pct": 57.9,
+          "cobertura_ic95_pct": 94.7,
+          "largura_ic95": 207.78,
+          "previsto_sobre_real_pct": 39.3,
+          "passa_criterio_diario": true
+        }
+      }
     },
     "d1|log1p|depois": {
-      "n_dias": 2764,
-      "n_sku_rodada": 240,
-      "mae": 24.14,
-      "mase": 0.816,
-      "erro_relativo_naive": 0.757,
-      "vence_naive_pct": 83.3,
-      "cobertura_ic95_pct": 93.2,
-      "largura_ic95": 193.77,
-      "previsto_sobre_real_pct": 52.4,
-      "erro_total_14d_pct": 49.6,
-      "passa_criterio_diario": true,
-      "limite_sup_sobre_previsto_mediana": 7.19,
-      "largura_sobre_venda_media": 5.98
+      "geral_todos_horizontes": {
+        "n_dias": 325,
+        "n_sku_rodada": 28,
+        "mae": 26.32,
+        "mase": 1.014,
+        "erro_relativo_naive": 0.622,
+        "vence_naive_pct": 75.0,
+        "cobertura_ic95_pct": 92.3,
+        "largura_ic95": 179.22,
+        "previsto_sobre_real_pct": 47.0,
+        "passa_criterio_diario": false,
+        "erro_total_14d_pct": 53.6,
+        "limite_sup_sobre_previsto_mediana": 7.08,
+        "largura_sobre_venda_media": 5.31
+      },
+      "operacional_h1": {
+        "n_dias": 18,
+        "n_sku_rodada": 18,
+        "mae": 72.84,
+        "mase": 0.818,
+        "erro_relativo_naive": 0.898,
+        "vence_naive_pct": 77.8,
+        "cobertura_ic95_pct": 94.4,
+        "largura_ic95": 205.88,
+        "previsto_sobre_real_pct": 19.9,
+        "passa_criterio_diario": true,
+        "limite_sup_sobre_previsto_mediana": 7.53,
+        "largura_sobre_venda_media": 2.34
+      },
+      "por_horizonte": {
+        "1": {
+          "n_dias": 18,
+          "n_sku_rodada": 18,
+          "mae": 72.84,
+          "mase": 0.818,
+          "erro_relativo_naive": 0.898,
+          "vence_naive_pct": 77.8,
+          "cobertura_ic95_pct": 94.4,
+          "largura_ic95": 205.88,
+          "previsto_sobre_real_pct": 19.9,
+          "passa_criterio_diario": true
+        },
+        "2": {
+          "n_dias": 18,
+          "n_sku_rodada": 18,
+          "mae": 20.6,
+          "mase": 0.783,
+          "erro_relativo_naive": 0.267,
+          "vence_naive_pct": 61.1,
+          "cobertura_ic95_pct": 88.9,
+          "largura_ic95": 238.44,
+          "previsto_sobre_real_pct": 104.2,
+          "passa_criterio_diario": false
+        },
+        "3": {
+          "n_dias": 18,
+          "n_sku_rodada": 18,
+          "mae": 20.54,
+          "mase": 1.204,
+          "erro_relativo_naive": 0.833,
+          "vence_naive_pct": 44.4,
+          "cobertura_ic95_pct": 83.3,
+          "largura_ic95": 181.69,
+          "previsto_sobre_real_pct": 59.7,
+          "passa_criterio_diario": false
+        },
+        "4": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 48.31,
+          "mase": 1.352,
+          "erro_relativo_naive": 0.915,
+          "vence_naive_pct": 64.3,
+          "cobertura_ic95_pct": 96.4,
+          "largura_ic95": 188.24,
+          "previsto_sobre_real_pct": 29.8,
+          "passa_criterio_diario": false
+        },
+        "5": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 12.04,
+          "mase": 0.88,
+          "erro_relativo_naive": 0.812,
+          "vence_naive_pct": 64.3,
+          "cobertura_ic95_pct": 96.4,
+          "largura_ic95": 141.09,
+          "previsto_sobre_real_pct": 86.9,
+          "passa_criterio_diario": true
+        },
+        "6": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 18.88,
+          "mase": 1.339,
+          "erro_relativo_naive": 0.565,
+          "vence_naive_pct": 64.3,
+          "cobertura_ic95_pct": 89.3,
+          "largura_ic95": 112.7,
+          "previsto_sobre_real_pct": 47.8,
+          "passa_criterio_diario": false
+        },
+        "7": {
+          "n_dias": 19,
+          "n_sku_rodada": 19,
+          "mae": 16.59,
+          "mase": 1.356,
+          "erro_relativo_naive": 0.211,
+          "vence_naive_pct": 47.4,
+          "cobertura_ic95_pct": 84.2,
+          "largura_ic95": 201.53,
+          "previsto_sobre_real_pct": 98.3,
+          "passa_criterio_diario": false
+        },
+        "8": {
+          "n_dias": 18,
+          "n_sku_rodada": 18,
+          "mae": 36.63,
+          "mase": 1.158,
+          "erro_relativo_naive": 0.831,
+          "vence_naive_pct": 66.7,
+          "cobertura_ic95_pct": 88.9,
+          "largura_ic95": 217.48,
+          "previsto_sobre_real_pct": 33.9,
+          "passa_criterio_diario": false
+        },
+        "9": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 20.98,
+          "mase": 1.171,
+          "erro_relativo_naive": 0.408,
+          "vence_naive_pct": 53.6,
+          "cobertura_ic95_pct": 89.3,
+          "largura_ic95": 215.77,
+          "previsto_sobre_real_pct": 62.2,
+          "passa_criterio_diario": false
+        },
+        "10": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 37.35,
+          "mase": 0.88,
+          "erro_relativo_naive": 0.847,
+          "vence_naive_pct": 57.1,
+          "cobertura_ic95_pct": 89.3,
+          "largura_ic95": 188.73,
+          "previsto_sobre_real_pct": 34.4,
+          "passa_criterio_diario": false
+        },
+        "11": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 22.36,
+          "mase": 0.932,
+          "erro_relativo_naive": 0.903,
+          "vence_naive_pct": 75.0,
+          "cobertura_ic95_pct": 100.0,
+          "largura_ic95": 186.55,
+          "previsto_sobre_real_pct": 51.2,
+          "passa_criterio_diario": false
+        },
+        "12": {
+          "n_dias": 28,
+          "n_sku_rodada": 28,
+          "mae": 12.87,
+          "mase": 0.617,
+          "erro_relativo_naive": 0.604,
+          "vence_naive_pct": 67.9,
+          "cobertura_ic95_pct": 96.4,
+          "largura_ic95": 144.92,
+          "previsto_sobre_real_pct": 89.5,
+          "passa_criterio_diario": true
+        },
+        "13": {
+          "n_dias": 19,
+          "n_sku_rodada": 19,
+          "mae": 5.38,
+          "mase": 0.417,
+          "erro_relativo_naive": 0.244,
+          "vence_naive_pct": 57.9,
+          "cobertura_ic95_pct": 94.7,
+          "largura_ic95": 133.6,
+          "previsto_sobre_real_pct": 86.3,
+          "passa_criterio_diario": true
+        },
+        "14": {
+          "n_dias": 19,
+          "n_sku_rodada": 19,
+          "mae": 30.84,
+          "mase": 1.254,
+          "erro_relativo_naive": 0.607,
+          "vence_naive_pct": 47.4,
+          "cobertura_ic95_pct": 94.7,
+          "largura_ic95": 195.33,
+          "previsto_sobre_real_pct": 38.4,
+          "passa_criterio_diario": false
+        }
+      }
     }
   },
   "por_sku": {
@@ -208,127 +1699,12 @@
           "pct_volume_passado_marcado": 0.0
         },
         {
-          "origem": "2025-03-16",
+          "origem": "2025-06-30",
           "limite": 2377.4546761671995,
           "pct_volume_passado_marcado": 0.0
         },
         {
-          "origem": "2025-03-30",
-          "limite": 2377.4546761671995,
-          "pct_volume_passado_marcado": 0.0
-        },
-        {
-          "origem": "2025-04-13",
-          "limite": 2377.4546761671995,
-          "pct_volume_passado_marcado": 0.0
-        },
-        {
-          "origem": "2025-04-27",
-          "limite": 2377.4546761671995,
-          "pct_volume_passado_marcado": 0.0
-        },
-        {
-          "origem": "2025-05-11",
-          "limite": 2377.4546761671995,
-          "pct_volume_passado_marcado": 0.0
-        },
-        {
-          "origem": "2025-05-25",
-          "limite": 2377.4546761671995,
-          "pct_volume_passado_marcado": 0.0
-        },
-        {
-          "origem": "2025-06-08",
-          "limite": 2377.4546761671995,
-          "pct_volume_passado_marcado": 0.0
-        },
-        {
-          "origem": "2025-06-22",
-          "limite": 2377.4546761671995,
-          "pct_volume_passado_marcado": 0.0
-        },
-        {
-          "origem": "2025-07-06",
-          "limite": 2377.4546761671995,
-          "pct_volume_passado_marcado": 0.0
-        },
-        {
-          "origem": "2025-07-20",
-          "limite": 2377.4546761671995,
-          "pct_volume_passado_marcado": 0.0
-        },
-        {
-          "origem": "2025-08-03",
-          "limite": 2377.4546761671995,
-          "pct_volume_passado_marcado": 0.0
-        },
-        {
-          "origem": "2025-08-17",
-          "limite": 2377.4546761671995,
-          "pct_volume_passado_marcado": 0.0
-        },
-        {
-          "origem": "2025-08-31",
-          "limite": 2377.4546761671995,
-          "pct_volume_passado_marcado": 0.0
-        },
-        {
-          "origem": "2025-09-14",
-          "limite": 2377.4546761671995,
-          "pct_volume_passado_marcado": 0.0
-        },
-        {
-          "origem": "2025-09-28",
-          "limite": 2377.4546761671995,
-          "pct_volume_passado_marcado": 0.0
-        },
-        {
-          "origem": "2025-10-12",
-          "limite": 2377.4546761671995,
-          "pct_volume_passado_marcado": 0.0
-        },
-        {
-          "origem": "2025-10-26",
-          "limite": 2377.4546761671995,
-          "pct_volume_passado_marcado": 0.0
-        },
-        {
-          "origem": "2025-11-09",
-          "limite": 2377.4546761671995,
-          "pct_volume_passado_marcado": 0.0
-        },
-        {
-          "origem": "2025-11-23",
-          "limite": 2377.4546761671995,
-          "pct_volume_passado_marcado": 0.0
-        },
-        {
-          "origem": "2025-12-07",
-          "limite": 2377.4546761671995,
-          "pct_volume_passado_marcado": 0.0
-        },
-        {
-          "origem": "2025-12-21",
-          "limite": 2377.4546761671995,
-          "pct_volume_passado_marcado": 0.0
-        },
-        {
-          "origem": "2026-01-04",
-          "limite": 2377.4546761671995,
-          "pct_volume_passado_marcado": 0.0
-        },
-        {
-          "origem": "2026-01-18",
-          "limite": 2377.4546761671995,
-          "pct_volume_passado_marcado": 0.0
-        },
-        {
-          "origem": "2026-02-01",
-          "limite": 2377.4546761671995,
-          "pct_volume_passado_marcado": 0.0
-        },
-        {
-          "origem": "2026-02-15",
+          "origem": "2025-10-28",
           "limite": 2377.4546761671995,
           "pct_volume_passado_marcado": 0.0
         }
@@ -396,129 +1772,14 @@
           "pct_volume_passado_marcado": 29.703440094899168
         },
         {
-          "origem": "2025-03-16",
+          "origem": "2025-06-30",
           "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 29.712460063897762
+          "pct_volume_passado_marcado": 29.48487031700288
         },
         {
-          "origem": "2025-03-30",
+          "origem": "2025-10-28",
           "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 31.286360698125403
-        },
-        {
-          "origem": "2025-04-13",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 30.313152400835076
-        },
-        {
-          "origem": "2025-04-27",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 30.238726790450926
-        },
-        {
-          "origem": "2025-05-11",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 30.408892417626042
-        },
-        {
-          "origem": "2025-05-25",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 31.127590796729415
-        },
-        {
-          "origem": "2025-06-08",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 30.410551736949653
-        },
-        {
-          "origem": "2025-06-22",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 29.861364465523533
-        },
-        {
-          "origem": "2025-07-06",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 29.102222222222224
-        },
-        {
-          "origem": "2025-07-20",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 32.1773270080157
-        },
-        {
-          "origem": "2025-08-03",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 35.21599755762479
-        },
-        {
-          "origem": "2025-08-17",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 34.47399880454274
-        },
-        {
-          "origem": "2025-08-31",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 36.12610053961943
-        },
-        {
-          "origem": "2025-09-14",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 35.459429673508744
-        },
-        {
-          "origem": "2025-09-28",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 35.76300655343052
-        },
-        {
-          "origem": "2025-10-12",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 37.68850589278925
-        },
-        {
-          "origem": "2025-10-26",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 36.889109402133464
-        },
-        {
-          "origem": "2025-11-09",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 37.49697994684706
-        },
-        {
-          "origem": "2025-11-23",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 37.00965780374389
-        },
-        {
-          "origem": "2025-12-07",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 36.71634729122309
-        },
-        {
-          "origem": "2025-12-21",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 36.87608069164265
-        },
-        {
-          "origem": "2026-01-04",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 36.801914748119444
-        },
-        {
-          "origem": "2026-01-18",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 36.875843454790825
-        },
-        {
-          "origem": "2026-02-01",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 36.50228208838918
-        },
-        {
-          "origem": "2026-02-15",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 36.51108904336313
+          "pct_volume_passado_marcado": 36.8297213622291
         }
       ]
     },
@@ -582,26 +1843,6 @@
           "origem": "2025-03-02",
           "limite": 4.625324739321597,
           "pct_volume_passado_marcado": 45.173041894353375
-        },
-        {
-          "origem": "2025-03-16",
-          "limite": 4.591092106338724,
-          "pct_volume_passado_marcado": 44.285714285714285
-        },
-        {
-          "origem": "2025-03-30",
-          "limite": 4.645097884897876,
-          "pct_volume_passado_marcado": 44.32686654908877
-        },
-        {
-          "origem": "2025-04-13",
-          "limite": 4.681197475315714,
-          "pct_volume_passado_marcado": 44.476576055523424
-        },
-        {
-          "origem": "2025-04-27",
-          "limite": 4.683125582750337,
-          "pct_volume_passado_marcado": 44.311034877072615
         }
       ]
     },
@@ -665,16 +1906,6 @@
           "origem": "2025-03-02",
           "limite": 2.24459687517959,
           "pct_volume_passado_marcado": 26.823793490460158
-        },
-        {
-          "origem": "2025-03-16",
-          "limite": 2.212666318610485,
-          "pct_volume_passado_marcado": 26.438053097345133
-        },
-        {
-          "origem": "2025-03-30",
-          "limite": 2.20552564546508,
-          "pct_volume_passado_marcado": 26.350606394707825
         }
       ]
     },
@@ -726,7 +1957,7 @@
             2
           ],
           "seasonal_order": [
-            1,
+            0,
             0,
             1,
             7
@@ -735,182 +1966,14 @@
       },
       "limites": [
         {
-          "origem": "2025-06-08",
+          "origem": "2025-06-30",
           "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 35.45891699770019
+          "pct_volume_passado_marcado": 36.55172413793103
         },
         {
-          "origem": "2025-06-22",
+          "origem": "2025-10-28",
           "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 36.86329776525065
-        },
-        {
-          "origem": "2025-07-06",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 37.49050873196659
-        },
-        {
-          "origem": "2025-07-20",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 37.747979426891995
-        },
-        {
-          "origem": "2025-08-03",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 37.56855575868373
-        },
-        {
-          "origem": "2025-08-17",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 37.14079161395264
-        },
-        {
-          "origem": "2025-09-14",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 37.684898520811835
-        },
-        {
-          "origem": "2025-09-28",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 37.42100768573869
-        },
-        {
-          "origem": "2025-10-12",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 38.789164490861616
-        },
-        {
-          "origem": "2025-10-26",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 38.90046481807982
-        },
-        {
-          "origem": "2025-11-09",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 38.699110903135235
-        },
-        {
-          "origem": "2025-11-23",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 38.801646592468366
-        },
-        {
-          "origem": "2025-12-07",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 39.20369818073367
-        },
-        {
-          "origem": "2025-12-21",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 38.52014652014652
-        },
-        {
-          "origem": "2026-01-04",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 38.44713339095362
-        },
-        {
-          "origem": "2026-01-18",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 37.885024840312276
-        },
-        {
-          "origem": "2026-02-01",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 37.58625545697789
-        },
-        {
-          "origem": "2026-02-15",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 37.6377074327151
-        }
-      ]
-    },
-    "1372": {
-      "ordens": {
-        "d0|sem_log": {
-          "order": [
-            1,
-            0,
-            2
-          ],
-          "seasonal_order": [
-            1,
-            0,
-            1,
-            7
-          ]
-        },
-        "d0|log1p": {
-          "order": [
-            1,
-            0,
-            1
-          ],
-          "seasonal_order": [
-            1,
-            0,
-            1,
-            7
-          ]
-        },
-        "d1|sem_log": {
-          "order": [
-            0,
-            1,
-            2
-          ],
-          "seasonal_order": [
-            0,
-            0,
-            1,
-            7
-          ]
-        },
-        "d1|log1p": {
-          "order": [
-            0,
-            1,
-            2
-          ],
-          "seasonal_order": [
-            1,
-            0,
-            1,
-            7
-          ]
-        }
-      },
-      "limites": [
-        {
-          "origem": "2025-12-07",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 33.44035564336873
-        },
-        {
-          "origem": "2025-12-21",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 34.48768297036773
-        },
-        {
-          "origem": "2026-01-04",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 34.431381678500756
-        },
-        {
-          "origem": "2026-01-18",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 34.52299245024022
-        },
-        {
-          "origem": "2026-02-01",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 34.38418079096045
-        },
-        {
-          "origem": "2026-02-15",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 34.08759941749748
+          "pct_volume_passado_marcado": 38.89423076923077
         }
       ]
     },
@@ -976,129 +2039,14 @@
           "pct_volume_passado_marcado": 34.71477328132618
         },
         {
-          "origem": "2025-03-16",
-          "limite": 1.811343096429813,
-          "pct_volume_passado_marcado": 34.13940256045519
+          "origem": "2025-06-30",
+          "limite": 1.7994231362769364,
+          "pct_volume_passado_marcado": 33.557578155916104
         },
         {
-          "origem": "2025-03-30",
-          "limite": 1.8088609115580359,
-          "pct_volume_passado_marcado": 34.07477520113583
-        },
-        {
-          "origem": "2025-04-13",
-          "limite": 1.8669852767018567,
-          "pct_volume_passado_marcado": 35.787594823739404
-        },
-        {
-          "origem": "2025-04-27",
-          "limite": 1.8640709520727774,
-          "pct_volume_passado_marcado": 35.49369290996085
-        },
-        {
-          "origem": "2025-05-11",
-          "limite": 1.848026389964911,
-          "pct_volume_passado_marcado": 35.01912452188695
-        },
-        {
-          "origem": "2025-05-25",
-          "limite": 1.8489601922175054,
-          "pct_volume_passado_marcado": 34.898213543830494
-        },
-        {
-          "origem": "2025-06-08",
-          "limite": 1.8188473749844585,
-          "pct_volume_passado_marcado": 34.13246647704185
-        },
-        {
-          "origem": "2025-06-22",
-          "limite": 1.809673938546772,
-          "pct_volume_passado_marcado": 33.82528919026725
-        },
-        {
-          "origem": "2025-07-06",
-          "limite": 1.789744642550966,
-          "pct_volume_passado_marcado": 33.26825458805154
-        },
-        {
-          "origem": "2025-07-20",
-          "limite": 1.8069568193020467,
-          "pct_volume_passado_marcado": 34.14088706671636
-        },
-        {
-          "origem": "2025-08-03",
-          "limite": 1.790390853920651,
-          "pct_volume_passado_marcado": 33.63669457590098
-        },
-        {
-          "origem": "2025-08-17",
-          "limite": 1.7831678145786078,
-          "pct_volume_passado_marcado": 33.34520840755255
-        },
-        {
-          "origem": "2025-08-31",
-          "limite": 1.7556967182926635,
-          "pct_volume_passado_marcado": 32.60188087774294
-        },
-        {
-          "origem": "2025-09-14",
-          "limite": 1.7607462845036244,
-          "pct_volume_passado_marcado": 32.6108702900967
-        },
-        {
-          "origem": "2025-09-28",
-          "limite": 1.740506209566425,
-          "pct_volume_passado_marcado": 32.055063913470995
-        },
-        {
-          "origem": "2025-10-12",
-          "limite": 1.7564474084933979,
-          "pct_volume_passado_marcado": 32.55813953488372
-        },
-        {
-          "origem": "2025-10-26",
-          "limite": 1.7514498432367227,
-          "pct_volume_passado_marcado": 32.3062558356676
-        },
-        {
-          "origem": "2025-11-09",
-          "limite": 1.7606225438266696,
-          "pct_volume_passado_marcado": 32.7261869214691
-        },
-        {
-          "origem": "2025-11-23",
-          "limite": 1.7367448204087812,
-          "pct_volume_passado_marcado": 32.04194581998252
-        },
-        {
-          "origem": "2025-12-07",
-          "limite": 1.725248920720297,
-          "pct_volume_passado_marcado": 31.666190340097174
-        },
-        {
-          "origem": "2025-12-21",
-          "limite": 1.7162675766435904,
-          "pct_volume_passado_marcado": 31.385831216483208
-        },
-        {
-          "origem": "2026-01-04",
-          "limite": 1.7105909701424387,
-          "pct_volume_passado_marcado": 31.171722794322292
-        },
-        {
-          "origem": "2026-01-18",
-          "limite": 1.7081193845776497,
-          "pct_volume_passado_marcado": 31.024930747922436
-        },
-        {
-          "origem": "2026-02-01",
-          "limite": 1.7322885561010257,
-          "pct_volume_passado_marcado": 31.97424892703863
-        },
-        {
-          "origem": "2026-02-15",
-          "limite": 1.7136934598082751,
-          "pct_volume_passado_marcado": 31.42406726221755
+          "origem": "2025-10-28",
+          "limite": 1.7492547401104428,
+          "pct_volume_passado_marcado": 32.24603914259087
         }
       ]
     },
@@ -1164,129 +2112,14 @@
           "pct_volume_passado_marcado": 28.700251452354113
         },
         {
-          "origem": "2025-03-16",
-          "limite": 5.103793829204113,
-          "pct_volume_passado_marcado": 28.52079993249515
+          "origem": "2025-06-30",
+          "limite": 5.245648836484596,
+          "pct_volume_passado_marcado": 29.13391304347826
         },
         {
-          "origem": "2025-03-30",
-          "limite": 5.073941381711944,
-          "pct_volume_passado_marcado": 28.071328786260167
-        },
-        {
-          "origem": "2025-04-13",
-          "limite": 5.138567109281622,
-          "pct_volume_passado_marcado": 28.36392657621708
-        },
-        {
-          "origem": "2025-04-27",
-          "limite": 5.146462825673333,
-          "pct_volume_passado_marcado": 28.16614420062696
-        },
-        {
-          "origem": "2025-05-11",
-          "limite": 5.167528136530016,
-          "pct_volume_passado_marcado": 28.02977972215826
-        },
-        {
-          "origem": "2025-05-25",
-          "limite": 5.179732522100173,
-          "pct_volume_passado_marcado": 28.76580640390446
-        },
-        {
-          "origem": "2025-06-08",
-          "limite": 5.2214477639937025,
-          "pct_volume_passado_marcado": 29.326269062790868
-        },
-        {
-          "origem": "2025-06-22",
-          "limite": 5.22398819073784,
-          "pct_volume_passado_marcado": 29.018452255665473
-        },
-        {
-          "origem": "2025-07-06",
-          "limite": 5.316936401169642,
-          "pct_volume_passado_marcado": 29.401287847650366
-        },
-        {
-          "origem": "2025-07-20",
-          "limite": 5.3665135658985275,
-          "pct_volume_passado_marcado": 29.320075248589088
-        },
-        {
-          "origem": "2025-08-03",
-          "limite": 5.427754612424098,
-          "pct_volume_passado_marcado": 29.682809032763345
-        },
-        {
-          "origem": "2025-08-17",
-          "limite": 5.4930692158323575,
-          "pct_volume_passado_marcado": 29.9099784455433
-        },
-        {
-          "origem": "2025-08-31",
-          "limite": 5.486690975843434,
-          "pct_volume_passado_marcado": 29.56045324368074
-        },
-        {
-          "origem": "2025-09-14",
-          "limite": 5.588848672841324,
-          "pct_volume_passado_marcado": 30.16252390057361
-        },
-        {
-          "origem": "2025-09-28",
-          "limite": 5.611160393767851,
-          "pct_volume_passado_marcado": 30.655415558894926
-        },
-        {
-          "origem": "2025-10-12",
-          "limite": 5.58750609182851,
-          "pct_volume_passado_marcado": 32.46090534979424
-        },
-        {
-          "origem": "2025-10-26",
-          "limite": 5.675790911644061,
-          "pct_volume_passado_marcado": 32.2835486281627
-        },
-        {
-          "origem": "2025-11-09",
-          "limite": 5.693659978176178,
-          "pct_volume_passado_marcado": 32.03227327500393
-        },
-        {
-          "origem": "2025-11-23",
-          "limite": 5.717953278336255,
-          "pct_volume_passado_marcado": 31.986462926879295
-        },
-        {
-          "origem": "2025-12-07",
-          "limite": 5.73797624375639,
-          "pct_volume_passado_marcado": 32.04359128174365
-        },
-        {
-          "origem": "2025-12-21",
-          "limite": 5.749298812954316,
-          "pct_volume_passado_marcado": 32.236039990246276
-        },
-        {
-          "origem": "2026-01-04",
-          "limite": 5.728503208896143,
-          "pct_volume_passado_marcado": 32.15916190110049
-        },
-        {
-          "origem": "2026-01-18",
-          "limite": 5.705163282302757,
-          "pct_volume_passado_marcado": 32.003780718336486
-        },
-        {
-          "origem": "2026-02-01",
-          "limite": 5.729802041151665,
-          "pct_volume_passado_marcado": 31.954817027632558
-        },
-        {
-          "origem": "2026-02-15",
-          "limite": 5.740654944776904,
-          "pct_volume_passado_marcado": 31.853761856524542
+          "origem": "2025-10-28",
+          "limite": 5.670396727353208,
+          "pct_volume_passado_marcado": 32.23880597014925
         }
       ]
     },
@@ -1352,129 +2185,14 @@
           "pct_volume_passado_marcado": 20.44800968669593
         },
         {
-          "origem": "2025-03-16",
+          "origem": "2025-06-30",
           "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 21.144492131616595
+          "pct_volume_passado_marcado": 21.591841519165396
         },
         {
-          "origem": "2025-03-30",
+          "origem": "2025-10-28",
           "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 21.00653413040456
-        },
-        {
-          "origem": "2025-04-13",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 20.588636053958307
-        },
-        {
-          "origem": "2025-04-27",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 20.382165605095544
-        },
-        {
-          "origem": "2025-05-11",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 20.528195968359274
-        },
-        {
-          "origem": "2025-05-25",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 20.524178663713545
-        },
-        {
-          "origem": "2025-06-08",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 21.470482576936895
-        },
-        {
-          "origem": "2025-06-22",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 21.670588235294115
-        },
-        {
-          "origem": "2025-07-06",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 21.44853283651607
-        },
-        {
-          "origem": "2025-07-20",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 21.02979792213723
-        },
-        {
-          "origem": "2025-08-03",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 20.806506269061334
-        },
-        {
-          "origem": "2025-08-17",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 20.42128603104213
-        },
-        {
-          "origem": "2025-08-31",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 20.980223559759242
-        },
-        {
-          "origem": "2025-09-14",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 21.402368724452366
-        },
-        {
-          "origem": "2025-09-28",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 21.276376737004632
-        },
-        {
-          "origem": "2025-10-12",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 21.275309761257176
-        },
-        {
-          "origem": "2025-10-26",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 21.237358715050565
-        },
-        {
-          "origem": "2025-11-09",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 22.524463596373103
-        },
-        {
-          "origem": "2025-11-23",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 22.823695097262565
-        },
-        {
-          "origem": "2025-12-07",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 22.341892124763056
-        },
-        {
-          "origem": "2025-12-21",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 22.758214976048407
-        },
-        {
-          "origem": "2026-01-04",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 22.380165289256198
-        },
-        {
-          "origem": "2026-01-18",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 22.14589466797514
-        },
-        {
-          "origem": "2026-02-01",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 22.191714447226037
-        },
-        {
-          "origem": "2026-02-15",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 21.96818290830602
+          "pct_volume_passado_marcado": 21.218424962852897
         }
       ]
     },
@@ -1540,129 +2258,14 @@
           "pct_volume_passado_marcado": 46.85495292843456
         },
         {
-          "origem": "2025-03-16",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 45.62712964465358
-        },
-        {
-          "origem": "2025-03-30",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 45.093008338678644
-        },
-        {
-          "origem": "2025-04-13",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 46.36869808622631
-        },
-        {
-          "origem": "2025-04-27",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 46.146512944260735
-        },
-        {
-          "origem": "2025-05-11",
-          "limite": 23.595966270782075,
-          "pct_volume_passado_marcado": 46.41239986067573
-        },
-        {
-          "origem": "2025-05-25",
+          "origem": "2025-06-30",
           "limite": 27.649991657616766,
-          "pct_volume_passado_marcado": 43.39484227752384
+          "pct_volume_passado_marcado": 41.96759972664782
         },
         {
-          "origem": "2025-06-08",
+          "origem": "2025-10-28",
           "limite": 27.649991657616766,
-          "pct_volume_passado_marcado": 42.601517921444795
-        },
-        {
-          "origem": "2025-06-22",
-          "limite": 27.649991657616766,
-          "pct_volume_passado_marcado": 41.70338534958446
-        },
-        {
-          "origem": "2025-07-06",
-          "limite": 27.649991657616766,
-          "pct_volume_passado_marcado": 41.544522410431235
-        },
-        {
-          "origem": "2025-07-20",
-          "limite": 27.649991657616766,
-          "pct_volume_passado_marcado": 46.34114721446334
-        },
-        {
-          "origem": "2025-08-03",
-          "limite": 27.649991657616766,
-          "pct_volume_passado_marcado": 47.253099126297975
-        },
-        {
-          "origem": "2025-08-17",
-          "limite": 27.649991657616766,
-          "pct_volume_passado_marcado": 49.80235483120891
-        },
-        {
-          "origem": "2025-08-31",
-          "limite": 27.649991657616766,
-          "pct_volume_passado_marcado": 51.2753981876971
-        },
-        {
-          "origem": "2025-09-14",
-          "limite": 27.649991657616766,
-          "pct_volume_passado_marcado": 51.77936979439688
-        },
-        {
-          "origem": "2025-09-28",
-          "limite": 27.649991657616766,
-          "pct_volume_passado_marcado": 57.72008140221887
-        },
-        {
-          "origem": "2025-10-12",
-          "limite": 27.649991657616766,
-          "pct_volume_passado_marcado": 57.138679490512075
-        },
-        {
-          "origem": "2025-10-26",
-          "limite": 27.649991657616766,
-          "pct_volume_passado_marcado": 56.71071510673885
-        },
-        {
-          "origem": "2025-11-09",
-          "limite": 27.649991657616766,
-          "pct_volume_passado_marcado": 56.83300908671838
-        },
-        {
-          "origem": "2025-11-23",
-          "limite": 27.649991657616766,
-          "pct_volume_passado_marcado": 57.93321360171102
-        },
-        {
-          "origem": "2025-12-07",
-          "limite": 27.649991657616766,
-          "pct_volume_passado_marcado": 57.85516480465297
-        },
-        {
-          "origem": "2025-12-21",
-          "limite": 27.649991657616766,
-          "pct_volume_passado_marcado": 57.26104469948437
-        },
-        {
-          "origem": "2026-01-04",
-          "limite": 27.649991657616766,
-          "pct_volume_passado_marcado": 56.63440837142101
-        },
-        {
-          "origem": "2026-01-18",
-          "limite": 27.649991657616766,
-          "pct_volume_passado_marcado": 56.619227295955874
-        },
-        {
-          "origem": "2026-02-01",
-          "limite": 27.649991657616766,
-          "pct_volume_passado_marcado": 56.28823361565603
-        },
-        {
-          "origem": "2026-02-15",
-          "limite": 27.649991657616766,
-          "pct_volume_passado_marcado": 59.43840430061066
+          "pct_volume_passado_marcado": 56.6972317105065
         }
       ]
     },
@@ -1728,129 +2331,14 @@
           "pct_volume_passado_marcado": 6.740990407052114
         },
         {
-          "origem": "2025-03-16",
+          "origem": "2025-06-30",
           "limite": 43.554214220234726,
-          "pct_volume_passado_marcado": 19.45181255526083
+          "pct_volume_passado_marcado": 17.142548128920616
         },
         {
-          "origem": "2025-03-30",
-          "limite": 43.554214220234726,
-          "pct_volume_passado_marcado": 19.493297257409914
-        },
-        {
-          "origem": "2025-04-13",
-          "limite": 56.05355476227842,
-          "pct_volume_passado_marcado": 13.718765311122
-        },
-        {
-          "origem": "2025-04-27",
-          "limite": 56.05355476227842,
-          "pct_volume_passado_marcado": 13.374731311201337
-        },
-        {
-          "origem": "2025-05-11",
-          "limite": 43.554214220234726,
-          "pct_volume_passado_marcado": 18.372551292453924
-        },
-        {
-          "origem": "2025-05-25",
-          "limite": 43.554214220234726,
-          "pct_volume_passado_marcado": 17.944073361258916
-        },
-        {
-          "origem": "2025-06-08",
-          "limite": 43.554214220234726,
-          "pct_volume_passado_marcado": 17.54871567759079
-        },
-        {
-          "origem": "2025-06-22",
-          "limite": 43.554214220234726,
-          "pct_volume_passado_marcado": 17.29028035344169
-        },
-        {
-          "origem": "2025-07-06",
-          "limite": 43.554214220234726,
-          "pct_volume_passado_marcado": 17.074221695572554
-        },
-        {
-          "origem": "2025-07-20",
+          "origem": "2025-10-28",
           "limite": 39.119973894072,
-          "pct_volume_passado_marcado": 17.692634260241988
-        },
-        {
-          "origem": "2025-08-03",
-          "limite": 39.119973894072,
-          "pct_volume_passado_marcado": 17.45915374947633
-        },
-        {
-          "origem": "2025-08-17",
-          "limite": 39.119973894072,
-          "pct_volume_passado_marcado": 17.13786367842089
-        },
-        {
-          "origem": "2025-08-31",
-          "limite": 39.119973894072,
-          "pct_volume_passado_marcado": 17.26136931534233
-        },
-        {
-          "origem": "2025-09-14",
-          "limite": 39.119973894072,
-          "pct_volume_passado_marcado": 16.829078152406936
-        },
-        {
-          "origem": "2025-09-28",
-          "limite": 39.119973894072,
-          "pct_volume_passado_marcado": 16.6089632621658
-        },
-        {
-          "origem": "2025-10-12",
-          "limite": 39.119973894072,
-          "pct_volume_passado_marcado": 16.36191378493605
-        },
-        {
-          "origem": "2025-10-26",
-          "limite": 39.119973894072,
-          "pct_volume_passado_marcado": 16.20683183183183
-        },
-        {
-          "origem": "2025-11-09",
-          "limite": 39.119973894072,
-          "pct_volume_passado_marcado": 17.025511127193777
-        },
-        {
-          "origem": "2025-11-23",
-          "limite": 39.119973894072,
-          "pct_volume_passado_marcado": 18.26755151938526
-        },
-        {
-          "origem": "2025-12-07",
-          "limite": 39.119973894072,
-          "pct_volume_passado_marcado": 18.011192423590185
-        },
-        {
-          "origem": "2025-12-21",
-          "limite": 39.119973894072,
-          "pct_volume_passado_marcado": 17.591658257652202
-        },
-        {
-          "origem": "2026-01-04",
-          "limite": 39.119973894072,
-          "pct_volume_passado_marcado": 17.463895149845563
-        },
-        {
-          "origem": "2026-01-18",
-          "limite": 39.119973894072,
-          "pct_volume_passado_marcado": 17.306419589675713
-        },
-        {
-          "origem": "2026-02-01",
-          "limite": 39.119973894072,
-          "pct_volume_passado_marcado": 17.160200147649906
-        },
-        {
-          "origem": "2026-02-15",
-          "limite": 39.119973894072,
-          "pct_volume_passado_marcado": 17.005364981303853
+          "pct_volume_passado_marcado": 16.17798594847775
         }
       ]
     },
@@ -1916,131 +2404,20 @@
           "pct_volume_passado_marcado": 29.04632972322503
         },
         {
-          "origem": "2025-03-16",
+          "origem": "2025-06-30",
           "limite": 69.81896572366865,
-          "pct_volume_passado_marcado": 28.510261331758453
+          "pct_volume_passado_marcado": 26.252354048964214
         },
         {
-          "origem": "2025-03-30",
+          "origem": "2025-10-28",
           "limite": 69.81896572366865,
-          "pct_volume_passado_marcado": 28.066860465116278
-        },
-        {
-          "origem": "2025-04-13",
-          "limite": 69.81896572366865,
-          "pct_volume_passado_marcado": 27.74026720298808
-        },
-        {
-          "origem": "2025-04-27",
-          "limite": 69.81896572366865,
-          "pct_volume_passado_marcado": 27.362902083038122
-        },
-        {
-          "origem": "2025-05-11",
-          "limite": 69.81896572366865,
-          "pct_volume_passado_marcado": 27.059977578475337
-        },
-        {
-          "origem": "2025-05-25",
-          "limite": 69.81896572366865,
-          "pct_volume_passado_marcado": 27.358490566037734
-        },
-        {
-          "origem": "2025-06-08",
-          "limite": 69.81896572366865,
-          "pct_volume_passado_marcado": 27.379861202042687
-        },
-        {
-          "origem": "2025-06-22",
-          "limite": 69.81896572366865,
-          "pct_volume_passado_marcado": 26.643730886850154
-        },
-        {
-          "origem": "2025-07-06",
-          "limite": 69.81896572366865,
-          "pct_volume_passado_marcado": 25.881916078722618
-        },
-        {
-          "origem": "2025-07-20",
-          "limite": 69.81896572366865,
-          "pct_volume_passado_marcado": 28.6495103621043
-        },
-        {
-          "origem": "2025-08-03",
-          "limite": 69.81896572366865,
-          "pct_volume_passado_marcado": 37.21804511278196
-        },
-        {
-          "origem": "2025-08-17",
-          "limite": 69.81896572366865,
-          "pct_volume_passado_marcado": 36.486486486486484
-        },
-        {
-          "origem": "2025-08-31",
-          "limite": 69.81896572366865,
-          "pct_volume_passado_marcado": 35.63780690419051
-        },
-        {
-          "origem": "2025-09-14",
-          "limite": 69.81896572366865,
-          "pct_volume_passado_marcado": 35.0585671479161
-        },
-        {
-          "origem": "2025-09-28",
-          "limite": 69.81896572366865,
-          "pct_volume_passado_marcado": 35.16299559471366
-        },
-        {
-          "origem": "2025-10-12",
-          "limite": 69.81896572366865,
-          "pct_volume_passado_marcado": 34.81332868108862
-        },
-        {
-          "origem": "2025-10-26",
-          "limite": 69.81896572366865,
-          "pct_volume_passado_marcado": 34.68222865905606
-        },
-        {
-          "origem": "2025-11-09",
-          "limite": 69.81896572366865,
-          "pct_volume_passado_marcado": 33.96745932415519
-        },
-        {
-          "origem": "2025-11-23",
-          "limite": 69.81896572366865,
-          "pct_volume_passado_marcado": 33.35518230233511
-        },
-        {
-          "origem": "2025-12-07",
-          "limite": 69.81896572366865,
-          "pct_volume_passado_marcado": 32.464114832535884
-        },
-        {
-          "origem": "2025-12-21",
-          "limite": 69.81896572366865,
-          "pct_volume_passado_marcado": 32.3223704623022
-        },
-        {
-          "origem": "2026-01-04",
-          "limite": 69.81896572366865,
-          "pct_volume_passado_marcado": 32.016903572800615
-        },
-        {
-          "origem": "2026-01-18",
-          "limite": 69.81896572366865,
-          "pct_volume_passado_marcado": 31.748571428571427
-        },
-        {
-          "origem": "2026-02-01",
-          "limite": 69.81896572366865,
-          "pct_volume_passado_marcado": 31.444310292785993
-        },
-        {
-          "origem": "2026-02-15",
-          "limite": 69.81896572366865,
-          "pct_volume_passado_marcado": 31.002157577561196
+          "pct_volume_passado_marcado": 34.64091218515997
         }
       ]
     }
+  },
+  "arquivos": {
+    "previsoes": "C:\\Users\\felip\\OneDrive\\Documentos\\Estudos\\TCC\\TCC---Inventory-Forecasting\\ia-predictor\\training_scripts\\results\\metrics\\sku_encomenda_produto_itabirito_previsoes.csv",
+    "operacional": "C:\\Users\\felip\\OneDrive\\Documentos\\Estudos\\TCC\\TCC---Inventory-Forecasting\\ia-predictor\\training_scripts\\results\\metrics\\sku_encomenda_produto_itabirito_operacional.csv"
   }
 }

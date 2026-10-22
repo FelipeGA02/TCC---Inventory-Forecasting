@@ -1,11 +1,9 @@
 /**
  * Análises descritivas da base de vendas (painel inicial). Sem previsão.
  *
- * `analises.json` é gerado por
- *   python -m training_scripts.frontend_mock.gerar_analises_frontend   (em ia-predictor/)
- * em poucos segundos, separado de `baseReal.json` (previsões).
+ * Vêm da API (`GET /api/v1/analises`), calculadas no backend a partir das vendas do banco.
+ * `CarregarDados` chama `definirAnalises()` depois do login, antes de montar as telas.
  */
-import bruto from "./analises.json";
 import type { CategoriaId, FiltroUnidade, UnidadeId } from "@/domain/types";
 
 export type CategoriaAnalise = CategoriaId;
@@ -50,13 +48,17 @@ export interface AnaliseUnidade {
   top_faturamento: ProdutoTop[];
 }
 
-interface AnalisesJson {
+export interface AnalisesJson {
   gerado_em: string;
   limiar_encomenda_un: number;
   unidades: Record<UnidadeId, AnaliseUnidade>;
 }
 
-export const analises = bruto as unknown as AnalisesJson;
+export let analises: AnalisesJson;
+
+export function definirAnalises(a: AnalisesJson): void {
+  analises = a;
+}
 
 export const CATEGORIAS_ANALISE: CategoriaAnalise[] = ["grama", "plantas-diversas", "produtos-de-jardim", "flores-de-corte"];
 export const COR_FLORES = "#c97b98"; // = CORES_CATEGORIA["flores-de-corte"]

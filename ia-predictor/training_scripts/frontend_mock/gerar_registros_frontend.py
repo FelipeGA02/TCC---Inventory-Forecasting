@@ -2,7 +2,7 @@
 
 A base tem ~350 mil linhas: um arquivo unico pesaria dezenas de MB e travaria a tela. Por
 isso sai um arquivo POR MES, em formato colunar compacto, em
-`app-react/public/dados/registros/AAAA-MM.json`, mais um `indice.json` com os meses e as
+`training_scripts/output/registros/AAAA-MM.json` (fora do front: a tela consulta a API paginada), mais um `indice.json` com os meses e as
 contagens. A tela carrega so o mes escolhido.
 
 Campos por linha: dia, loja, nota, produto (codigo), quantidade, valor unitario, desconto,
@@ -25,7 +25,7 @@ from training_scripts.preprocessing.remove_encomendas_06 import LIMIAR_QTD_VENDA
 
 _AQUI = os.path.dirname(os.path.abspath(__file__))
 _REPO = os.path.dirname(os.path.dirname(os.path.dirname(_AQUI)))
-SAIDA = os.path.join(_REPO, "app-react", "public", "dados", "registros")
+SAIDA = os.path.join(_REPO, "ia-predictor", "training_scripts", "output", "registros")  # a tela usa a API paginada
 
 COLUNAS = ["dia", "loja", "nota", "produto", "quantidade", "valor_unitario", "desconto",
            "valor_liquido", "pagamento", "cadastrado", "encomenda"]

@@ -41,7 +41,6 @@ from concurrent.futures import ProcessPoolExecutor  # noqa: E402
 
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
-from statsmodels.tsa.statespace.sarimax import SARIMAX  # noqa: E402
 
 from training_scripts.preprocessing.remove_encomendas_06 import (  # noqa: E402
     LIMIAR_QTD_VENDA, marcar_encomendas,
@@ -57,7 +56,7 @@ BASE = os.path.join(OUTPUT_DIR, "BaseClassificada03.csv")
 CALENDARIO = os.path.join(OUTPUT_DIR, "calendario_diario.csv")
 LOG_IMPORTACAO = os.path.join(OUTPUT_DIR, "processamento_log.json")
 RELATORIO_PRE = os.path.join(OUTPUT_DIR, "preprocessamento_relatorio.json")
-SAIDA = os.path.join(_REPO, "app-react", "src", "app", "data", "baseReal.json")
+SAIDA = os.path.join(_REPO, "ia-predictor", "training_scripts", "output", "baseReal.json")  # entrada de gravar_previsao --de-json
 
 M = 7
 GRID_PQ, GRID_SPQ = range(0, 3), range(0, 2)
@@ -139,6 +138,9 @@ def exogenas(cal: pd.DataFrame, unidade: str, idx: pd.DatetimeIndex) -> pd.DataF
 # SARIMAX
 # --------------------------------------------------------------------------- #
 def ajustar(z, X, order, sorder):
+    # importado só aqui: a API usa as constantes deste módulo e sobe sem o statsmodels
+    from statsmodels.tsa.statespace.sarimax import SARIMAX
+
     return SARIMAX(z, exog=X, order=order, seasonal_order=sorder,
                    trend="c" if order[1] == 0 else "n",
                    enforce_stationarity=False, enforce_invertibility=False

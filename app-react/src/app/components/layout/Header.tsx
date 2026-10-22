@@ -1,6 +1,18 @@
 import { useLocation } from "react-router";
-import { User, RefreshCw } from "lucide-react";
+import { User, RefreshCw, LogOut } from "lucide-react";
+import { toast } from "sonner";
+import { mensagemDoErro } from "@/lib/http/errors";
+import { useAuth } from "../../auth/AuthContext";
+import { useDados } from "../../data/CarregarDados";
 import { Button } from "../ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 import { Notificacoes } from "./Notificacoes";
 
 const routeTitles: Record<string, { title: string; subtitle: string }> = {
@@ -11,9 +23,18 @@ const routeTitles: Record<string, { title: string; subtitle: string }> = {
   "/exportar": { title: "Relatórios", subtitle: "Escolha, confira a prévia e baixe em Excel, CSV ou PDF" },
 };
 
+const NOME_PERFIL = { admin: "Gestora (administração)", viewer: "Gerente (consulta)" } as const;
+
 export function Header() {
   const location = useLocation();
   const info = routeTitles[location.pathname] ?? { title: "FloraManager", subtitle: "" };
+  const { usuario, sair } = useAuth();
+  const { recarregar, atualizando } = useDados();
+
+  const atualizar = () =>
+    recarregar()
+      .then(() => toast.success("Dados atualizados."))
+      .catch((e: unknown) => toast.error(mensagemDoErro(e)));
 
   return (
     <header className="h-16 flex items-center justify-between px-6 border-b bg-white" style={{ borderColor: "var(--border)" }}>
@@ -27,17 +48,47 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="sm" className="gap-2 text-xs" style={{ color: "var(--muted-foreground)" }}>
-          <RefreshCw size={14} />
-          Atualizar
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gap-2 text-xs"
+          style={{ color: "var(--muted-foreground)" }}
+          onClick={atualizar}
+          disabled={atualizando}
+        >
+          <RefreshCw size={14} className={atualizando ? "animate-spin" : undefined} />
+          {atualizando ? "Atualizando..." : "Atualizar"}
         </Button>
         <Notificacoes />
-        <div
-          className="w-9 h-9 rounded-lg flex items-center justify-center"
-          style={{ background: "var(--primary)" }}
-        >
-          <User size={16} color="#fff" />
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="w-9 h-9 rounded-lg flex items-center justify-center"
+              style={{ background: "var(--primary)" }}
+              aria-label="Conta e sair"
+              title={usuario?.nome}
+            >
+              <User size={16} color="#fff" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-56">
+            {usuario && (
+              <DropdownMenuLabel className="flex flex-col gap-0.5">
+                <span style={{ fontWeight: 600 }}>{usuario.nome}</span>
+                <span className="text-xs" style={{ color: "var(--muted-foreground)", fontWeight: 400 }}>
+                  {usuario.email}
+                </span>
+                <span className="text-xs" style={{ color: "var(--muted-foreground)", fontWeight: 400 }}>
+                  {NOME_PERFIL[usuario.perfil]}
+                </span>
+              </DropdownMenuLabel>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={sair} className="gap-2">
+              <LogOut size={14} /> Sair
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );

@@ -2,7 +2,7 @@ import { createContext, useContext, useState, type ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import type { CategoriaId, FiltroCategoria, FiltroUnidade, StatusModelo } from "@/domain/types";
 import { badgeStatus, estiloStatus } from "@/styles/tokens";
-import { CORES_CATEGORIA, categorias, unidades } from "../../data/mockData";
+import { CORES_CATEGORIA, categorias, lojas } from "../../data/mockData";
 import { Card, CardContent } from "../ui/card";
 
 // ---------------------------------------------------------------------------
@@ -92,24 +92,25 @@ export function Segmentado<T extends string>({
   );
 }
 
-export const opcoesLoja: Opcao<FiltroUnidade>[] = [
+/** Opções do filtro de loja (lidas do contexto na hora: o módulo é importado antes dele). */
+export const opcoesLoja = (): Opcao<FiltroUnidade>[] => [
   { valor: "todas", label: "Todas as lojas" },
-  ...unidades.map((u) => ({ valor: u.id as FiltroUnidade, label: u.nome })),
+  ...lojas.map((u) => ({ valor: u.id as FiltroUnidade, label: u.nome })),
 ];
 
 export function FiltroLoja() {
   const { unidade, setUnidade } = useFiltroLoja();
-  return <Segmentado rotulo="Loja" opcoes={opcoesLoja} valor={unidade} onChange={setUnidade} />;
+  return <Segmentado rotulo="Loja" opcoes={opcoesLoja()} valor={unidade} onChange={setUnidade} />;
 }
 
-export const opcoesCategoria: Opcao<FiltroCategoria>[] = [
+export const opcoesCategoria = (): Opcao<FiltroCategoria>[] => [
   { valor: "todas", label: "Todas" },
   ...categorias.map((c) => ({ valor: c.id as FiltroCategoria, label: c.nome })),
 ];
 
 export function FiltroCategoriaGlobal() {
   const { categoria, setCategoria } = useFiltroLoja();
-  return <Segmentado rotulo="Categoria" opcoes={opcoesCategoria} valor={categoria} onChange={setCategoria} />;
+  return <Segmentado rotulo="Categoria" opcoes={opcoesCategoria()} valor={categoria} onChange={setCategoria} />;
 }
 
 /** Barra de filtros padrão das telas: loja + categoria. */

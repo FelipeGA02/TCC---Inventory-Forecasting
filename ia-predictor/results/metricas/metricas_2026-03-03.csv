@@ -1,0 +1,45 @@
+unidade;nivel;chave;nome;status;motivo;ordem;ordem_sazonal;aic_selecao;versao_modelo;ordem_reselecionada;ajuste_com_parametros_anteriores;n_obs_treino;ljung_box_p;shapiro_p;n_dias;n_origens;venda_media_dia;mae;mase;erro_relativo_naive;vence_naive_pct;cobertura_ic95_pct;largura_ic95;previsto_sobre_real_pct
+Itabirito;categoria;Flores de corte;Flores de corte;trained;;(2, 1, 2);(0, 0, 1, 7);4265.039692616493;1;False;False;425;0.9911;0.0;600;52;59.1;36.49;0.871;0.737;75.0;93.7;168.57;96.2
+Itabirito;categoria;Grama;Grama;trained;;(0, 1, 2);(0, 0, 1, 7);5796.589445217584;1;False;False;425;0.9843;0.0;600;52;297.48;243.37;0.831;0.794;71.2;94.2;1009.47;101.5
+Itabirito;categoria;Plantas diversas;Plantas diversas;trained;;(1, 1, 2);(0, 0, 1, 7);5665.992330457737;1;False;False;425;0.7844;0.0;600;52;578.86;224.75;0.847;0.734;84.6;95.2;1137.98;100.0
+Itabirito;categoria;Produtos de jardim;Produtos de jardim;trained;;(0, 1, 2);(0, 0, 1, 7);4592.692498388438;1;False;False;425;0.9247;0.0;600;52;175.82;78.08;0.963;0.728;80.8;93.0;361.6;96.2
+Itabirito;loja;total;Loja Itabirito;trained;;(0, 1, 2);(0, 0, 1, 7);6117.46205849398;1;False;False;425;0.7947;0.0;600;52;1111.26;404.05;0.775;0.725;90.4;94.2;2108.33;100.1
+Itabirito;produto;00013475;GRAMA ESMERALDA ( ITO);trained;;(0, 0, 2);(0, 0, 1, 7);5545.235139172563;1;False;False;425;0.0056;0.0;600;52;218.72;198.25;0.923;0.861;53.8;94.3;749.97;102.8
+Itabirito;produto;00030197;TERRA VEGETAL ADUBADA 25KG GRAM TERRA;low_confidence;;(0, 0, 2);(0, 0, 1, 7);3643.0777182073602;1;False;False;425;0.0768;0.0;600;52;16.75;14.58;1.017;0.746;67.3;95.2;62.79;90.5
+Itabirito;produto;00240057;ROSA EM CABO (UNIDADE) COR VERMELHA;low_confidence;;(0, 0, 2);(0, 0, 1, 7);3014.7455474008675;1;False;False;425;0.6836;0.0;380;33;10.95;12.35;0.861;0.799;69.7;98.4;72.25;114.3
+Itabirito;produto;1372;ROSA EM CABO (UNIDADE) COLORIDA;trained;;(1, 0, 2);(0, 0, 1, 7);3804.7510137424256;1;False;False;425;0.934;0.0;123;11;12.37;14.85;0.842;0.843;54.5;95.9;64.27;145.0
+Itabirito;produto;2753;BIOPLANT 5 KG;trained;;(0, 0, 2);(1, 0, 1, 7);2336.843076846293;1;False;False;425;0.9907;0.0;600;52;3.04;2.21;0.878;0.736;73.1;97.5;10.49;96.8
+Itabirito;produto;2909;BIOPLANT GARDEN PREMIUM 20KG-PROMOCAO;trained;;(0, 0, 2);(0, 0, 1, 7);3470.7949909445015;1;False;False;425;0.6517;0.0;600;52;17.47;9.78;0.879;0.706;78.8;98.0;58.46;97.9
+Itabirito;produto;434;KALANCHOE PT 11;trained;;(1, 0, 2);(1, 0, 1, 7);3535.787692652593;1;False;False;425;0.8748;0.0;600;52;20.03;16.01;0.873;0.753;67.3;94.7;63.89;101.5
+Itabirito;produto;637;MANTA BIDIM METRO;low_confidence;;(0, 0, 2);(0, 0, 1, 7);3123.0840579678056;1;False;False;425;1.0;0.0;600;52;16.54;18.09;1.408;0.658;57.7;94.8;68.91;63.4
+Itabirito;produto;72;BEIJO IMPATIENS SAQ.;trained;;(0, 0, 2);(1, 0, 1, 7);3598.958421637295;1;False;False;425;0.1294;0.0;600;52;15.65;14.09;0.85;0.848;51.9;95.2;52.82;109.2
+Itabirito;produto;73;BEIJO IMPATIENS PT13;low_confidence;;(0, 0, 2);(0, 0, 1, 7);3883.4138170960173;1;False;False;425;0.0954;0.0;600;52;24.18;23.96;1.028;0.741;55.8;97.3;126.16;92.3
+Jardim Canadá;categoria;Flores de corte;Flores de corte;trained;;(1, 1, 2);(0, 0, 1, 7);4085.1144635227374;1;False;False;425;0.9096;0.0;596;52;56.13;36.31;0.924;0.738;73.1;95.8;158.85;93.8
+Jardim Canadá;categoria;Grama;Grama;trained;;(0, 1, 2);(0, 0, 1, 7);6490.049379724236;1;False;False;425;0.5544;0.0;596;52;1399.93;691.37;0.793;0.745;88.5;93.8;3143.91;101.1
+Jardim Canadá;categoria;Plantas diversas;Plantas diversas;trained;;(1, 1, 2);(0, 0, 1, 7);6117.357411050017;1;False;False;425;0.82;0.0;596;52;1388.92;509.17;0.935;0.736;86.5;90.6;2207.41;99.7
+Jardim Canadá;categoria;Produtos de jardim;Produtos de jardim;trained;;(0, 1, 2);(0, 0, 1, 7);5171.207297088755;1;False;False;425;0.9163;0.0;596;52;446.23;155.38;0.859;0.684;92.3;92.8;692.22;98.2
+Jardim Canadá;loja;total;Loja Jardim Canadá;trained;;(0, 1, 2);(0, 0, 1, 7);6734.549652685408;1;False;False;425;0.6292;0.0;596;52;3291.22;1068.14;0.844;0.728;90.4;92.6;4831.88;100.1
+Jardim Canadá;produto;00020131;ERVAS AROMATICAS / TEMPEROS PT 15;trained;;(1, 0, 2);(1, 0, 1, 7);3222.5223473715423;1;False;False;425;0.9243;0.0;596;52;15.55;11.65;0.912;0.736;76.9;94.3;45.48;98.3
+Jardim Canadá;produto;00030197;TERRA VEGETAL ADUBADA 25KG GRAM TERRA;trained;;(0, 0, 2);(0, 0, 1, 7);4568.6158664161785;1;False;False;425;0.7721;0.0;596;52;94.79;53.97;0.791;0.728;75.0;96.0;252.5;104.4
+Jardim Canadá;produto;00030200;TERRA PURA 25KG GRAM TERRA;low_confidence;;(2, 0, 2);(0, 0, 1, 7);4147.988483203707;1;False;False;425;1.0;0.0;596;52;45.98;40.68;1.03;0.73;78.8;94.6;165.76;88.7
+Jardim Canadá;produto;00030325;BIOPLANT VASOS E FLOREIRAS 20KG;trained;;(0, 0, 2);(0, 0, 1, 7);3358.3331536871797;1;False;False;425;0.9801;0.0;596;52;26.69;16.66;0.895;0.731;75.0;93.0;63.87;98.2
+Jardim Canadá;produto;00030332;ARGILA EXP 3222 SC 50L;low_confidence;;(1, 0, 2);(0, 0, 1, 7);2905.999220265716;1;False;False;425;0.9998;0.0;596;52;10.52;9.37;1.069;0.711;69.2;96.6;39.05;88.1
+Jardim Canadá;produto;00030358;COMPOSTO ORGANICO 20 KG GRAM TERRA;low_confidence;;(0, 0, 2);(0, 0, 1, 7);3373.2601914457246;1;False;False;425;0.9999;0.0;596;52;24.26;22.46;1.176;0.708;73.1;92.6;69.54;74.1
+Jardim Canadá;produto;00030399;CALCARIO DOLOMITICO 25KG;trained;;(0, 0, 2);(1, 0, 1, 7);1731.3343256460978;1;False;False;425;0.9259;0.0;596;52;6.96;6.22;0.972;0.809;59.6;94.3;25.21;102.0
+Jardim Canadá;produto;00200512;INSUMO;low_confidence;;(0, 0, 2);(1, 0, 1, 7);3729.0075155152153;1;False;False;425;0.9972;0.0;596;52;9.54;11.09;1.179;0.767;26.9;97.7;63.9;80.5
+Jardim Canadá;produto;00200579;ARRANJO GRANDE;trained;;(1, 0, 2);(0, 0, 1, 7);1547.9192949866456;1;False;False;425;0.5343;0.0;596;52;3.65;2.64;0.935;0.704;82.7;95.1;10.87;92.4
+Jardim Canadá;produto;1029;ESTERCO BOVINO ENSACADO;trained;;(1, 0, 2);(0, 0, 1, 7);2995.9429424891514;1;False;False;425;0.0457;0.0;596;52;7.43;6.51;0.914;0.755;76.9;95.6;26.86;106.0
+Jardim Canadá;produto;1340;LAVANDA PT 14;trained;;(0, 0, 2);(0, 0, 1, 7);4138.400482370061;1;False;False;425;1.0;0.0;596;52;32.46;27.01;0.92;0.727;71.2;94.8;109.14;88.7
+Jardim Canadá;produto;147;GRAMA AMENDOIM UNID. BDJA;trained;;(2, 0, 2);(0, 0, 1, 7);6306.65985844573;1;False;False;425;0.2504;0.0;596;52;682.55;575.73;0.942;0.804;73.1;93.3;2078.76;102.7
+Jardim Canadá;produto;2342;BIOPLANT CANTEIROS GRAMADOS 20KG;low_confidence;;(2, 0, 2);(0, 0, 1, 7);3738.3004858180716;1;False;False;425;0.1343;0.0;596;52;54.16;34.06;1.04;0.753;71.2;97.7;164.38;90.9
+Jardim Canadá;produto;2391;BEIJO SUNPATIENS SAQ.;trained;;(0, 0, 2);(0, 0, 1, 7);5032.4143968040535;1;False;False;425;0.9648;0.0;596;52;48.35;51.32;0.742;0.809;63.5;97.7;287.81;120.2
+Jardim Canadá;produto;2753;BIOPLANT 5 KG;trained;;(2, 0, 2);(1, 0, 1, 7);1504.1677988599838;1;False;False;425;0.9568;0.0;596;52;2.15;1.48;0.908;0.788;76.9;93.1;5.18;94.9
+Jardim Canadá;produto;3;GRAMA ESMERALDA;trained;;(0, 0, 2);(0, 0, 1, 7);6038.704094602284;1;False;False;425;0.0092;0.0;596;52;611.97;358.56;0.868;0.846;69.2;95.8;1586.45;113.4
+Jardim Canadá;produto;3393;ALSTROEMERIA (ASTROMELIA) FLOR DE CORTE;trained;;(1, 0, 2);(0, 0, 1, 7);2619.0596712007973;1;False;False;425;0.6055;0.0;596;52;9.55;6.13;0.922;0.724;82.7;92.6;23.1;89.6
+Jardim Canadá;produto;433NL;ERVAS AROMATICAS / TEMPEROS SAQ;trained;;(1, 0, 2);(0, 0, 1, 7);3807.9548198564394;1;False;False;425;0.0426;0.0;596;52;28.36;22.3;0.833;0.85;61.5;94.5;90.97;122.4
+Jardim Canadá;produto;434;KALANCHOE PT 11;trained;;(2, 0, 2);(0, 0, 1, 7);3285.199653854288;1;False;False;425;0.8668;0.0;596;52;14.77;11.71;0.902;0.752;82.7;95.3;44.29;105.7
+Jardim Canadá;produto;530;CASCA DE PINUS 40L;low_confidence;;(0, 0, 2);(0, 0, 1, 7);3205.851073820283;1;False;False;425;0.7311;0.0;596;52;11.88;9.7;1.019;0.748;84.6;90.4;33.62;83.5
+Jardim Canadá;produto;637;MANTA BIDIM METRO;trained;;(0, 0, 2);(0, 0, 1, 7);3116.8340787056973;1;False;False;425;0.7951;0.0;596;52;12.82;10.28;0.854;0.673;88.5;97.5;48.36;93.4
+Jardim Canadá;produto;650;BEIJO SUNPATIENS PT13;trained;;(0, 0, 2);(0, 0, 1, 7);4466.770103468412;1;False;False;425;0.0;0.0;596;52;74.36;52.51;0.916;0.782;78.8;93.3;196.66;96.3
+Jardim Canadá;produto;669;ARGILA EXPANDIDA FRACIONADA;trained;;(1, 0, 2);(0, 0, 1, 7);2053.0247360780986;1;False;False;425;0.7061;0.0;596;52;3.11;2.5;0.88;0.822;73.1;96.5;9.63;119.8
+Jardim Canadá;produto;710;GRAMA SAO CARLOS;low_confidence;;(1, 0, 2);(0, 0, 1, 7);4774.021776374573;1;False;False;425;0.9718;0.0;596;52;85.56;77.93;1.03;0.767;78.8;93.3;279.59;92.9

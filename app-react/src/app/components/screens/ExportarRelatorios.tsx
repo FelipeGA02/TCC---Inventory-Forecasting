@@ -171,7 +171,7 @@ export function ExportarRelatorios() {
             </p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
-            <Segmentado rotulo="Loja" opcoes={opcoesLoja} valor={lojaGerencial} onChange={setLojaGerencial} />
+            <Segmentado rotulo="Loja" opcoes={opcoesLoja()} valor={lojaGerencial} onChange={setLojaGerencial} />
             <Button className="gap-1.5 text-xs" style={{ background: "var(--primary)", color: "#fff" }} onClick={gerarGerencial}>
               <Printer size={14} /> Gerar PDF
             </Button>
@@ -258,7 +258,7 @@ export function ExportarRelatorios() {
               {relatorio.filtros.length > 0 && (
                 <div className="flex items-center gap-5 flex-wrap pt-3 border-t" style={{ borderColor: "var(--border)" }}>
                   {relatorio.filtros.includes("unidade") && (
-                    <Segmentado rotulo="Loja" opcoes={opcoesLoja} valor={filtros.unidade} onChange={(unidade) => setFiltros((f) => ({ ...f, unidade }))} />
+                    <Segmentado rotulo="Loja" opcoes={opcoesLoja()} valor={filtros.unidade} onChange={(unidade) => setFiltros((f) => ({ ...f, unidade }))} />
                   )}
                   {relatorio.filtros.includes("categoria") && (
                     <Segmentado

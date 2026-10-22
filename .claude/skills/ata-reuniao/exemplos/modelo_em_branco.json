@@ -1,0 +1,22 @@
+{
+  "projeto": "Sistema de Previsão de Estoque",
+  "entidade": "Floricultura Verde Perto",
+  "numero": "",
+  "data": "",
+  "inicio": "",
+  "termino": "",
+  "local": "online",
+  "plataforma": "",
+  "participantes": [],
+  "objetivo": "",
+  "pauta": {"marcados": [], "outros": ""},
+  "decisoes": [],
+  "requisitos": [],
+  "pendencias": [],
+  "impactos": {"marcados": [], "descricao": [], "pontos_de_atencao": []},
+  "proxima_reuniao": {"data": "", "objetivo": ""},
+  "validacao": {
+    "representante_cliente": "Carolina Araujo Nonato",
+    "responsaveis": ["Felipe Gurgel Araújo", "Daniel Nunes da Silva"]
+  }
+}

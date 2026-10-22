@@ -1,7 +1,7 @@
 """Analises descritivas da base de vendas para o painel inicial do frontend.
 
 So estatistica descritiva, sem modelo: roda em segundos e grava
-`app-react/src/app/data/analises.json`, separado de `baseReal.json` (que tem as previsoes e
+`training_scripts/output/analises.json` (a tela lê de `GET /api/v1/analises`), separado de `baseReal.json` (que tem as previsoes e
 leva ~40 min para gerar).
 
 Por unidade:
@@ -32,7 +32,7 @@ from training_scripts.preprocessing.remove_encomendas_06 import LIMIAR_QTD_VENDA
 
 _AQUI = os.path.dirname(os.path.abspath(__file__))
 _REPO = os.path.dirname(os.path.dirname(os.path.dirname(_AQUI)))
-SAIDA = os.path.join(_REPO, "app-react", "src", "app", "data", "analises.json")
+SAIDA = os.path.join(_REPO, "ia-predictor", "training_scripts", "output", "analises.json")  # a tela lê da API
 
 CATS_ANALISE = IDS_CAT          # as 4 categorias, flores de corte incluida
 TOP_PRODUTOS = 10

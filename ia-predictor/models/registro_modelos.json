@@ -1,0 +1,2713 @@
+{
+  "versao_formato": 1,
+  "series": {
+    "Itabirito|produto|00013475": {
+      "unidade": "Itabirito",
+      "nivel": "produto",
+      "chave": "00013475",
+      "nome": "GRAMA ESMERALDA ( ITO)",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          0,
+          0,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 5545.235139172563
+      },
+      "params": {
+        "intercept": 6.887084997697894,
+        "dia_seg": 291.2301674758518,
+        "dia_ter": 291.9637595439992,
+        "dia_qua": 253.72775115006104,
+        "dia_qui": 153.88695468203025,
+        "dia_sex": 190.1686231823804,
+        "dia_sab": 71.37929815149678,
+        "loja_fechada": -45.64346918742311,
+        "abertura_excepcional": 45.000007281187294,
+        "ma.L1": 0.18182968500053875,
+        "ma.L2": 0.03507319146399038,
+        "ma.S.L7": 0.03011353015820472,
+        "sigma2": 64261.36100003875
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "trained",
+      "diagnostico": {
+        "ljung_box_p": 0.0056,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 600,
+        "n_origens": 52,
+        "venda_media_dia": 218.72,
+        "mae": 198.25,
+        "mase": 0.923,
+        "erro_relativo_naive": 0.861,
+        "vence_naive_pct": 53.8,
+        "cobertura_ic95_pct": 94.3,
+        "largura_ic95": 749.97,
+        "previsto_sobre_real_pct": 102.8
+      }
+    },
+    "Itabirito|categoria|Grama": {
+      "unidade": "Itabirito",
+      "nivel": "categoria",
+      "chave": "Grama",
+      "nome": "Grama",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          0,
+          1,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 5796.589445217584
+      },
+      "params": {
+        "dia_seg": 132.20841624918606,
+        "dia_ter": 71.96734664013304,
+        "dia_qua": 57.7601925038308,
+        "dia_qui": -60.491127980451886,
+        "dia_sex": 23.846966129620423,
+        "dia_sab": -155.4714324621979,
+        "loja_fechada": -289.54652814351033,
+        "abertura_excepcional": -95.39939295461804,
+        "ma.L1": -0.9065590623688272,
+        "ma.L2": -0.05301639945973664,
+        "ma.S.L7": -0.03512211601623146,
+        "sigma2": 96363.19981537413
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "trained",
+      "diagnostico": {
+        "ljung_box_p": 0.9843,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 600,
+        "n_origens": 52,
+        "venda_media_dia": 297.48,
+        "mae": 243.37,
+        "mase": 0.831,
+        "erro_relativo_naive": 0.794,
+        "vence_naive_pct": 71.2,
+        "cobertura_ic95_pct": 94.2,
+        "largura_ic95": 1009.47,
+        "previsto_sobre_real_pct": 101.5
+      }
+    },
+    "Itabirito|categoria|Produtos de jardim": {
+      "unidade": "Itabirito",
+      "nivel": "categoria",
+      "chave": "Produtos de jardim",
+      "nome": "Produtos de jardim",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          0,
+          1,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 4592.692498388438
+      },
+      "params": {
+        "dia_seg": 15.60136708497646,
+        "dia_ter": 15.92870487879733,
+        "dia_qua": 2.0971105822192353,
+        "dia_qui": 6.54106402700066,
+        "dia_sex": 45.19073801308784,
+        "dia_sab": -16.76457733957942,
+        "loja_fechada": -158.11067179740914,
+        "abertura_excepcional": -177.94515761241598,
+        "ma.L1": -1.038347435530932,
+        "ma.L2": 0.0004628443614930807,
+        "ma.S.L7": 0.07210244090956644,
+        "sigma2": 12238.562937432005
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "trained",
+      "diagnostico": {
+        "ljung_box_p": 0.9247,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 600,
+        "n_origens": 52,
+        "venda_media_dia": 175.82,
+        "mae": 78.08,
+        "mase": 0.963,
+        "erro_relativo_naive": 0.728,
+        "vence_naive_pct": 80.8,
+        "cobertura_ic95_pct": 93.0,
+        "largura_ic95": 361.6,
+        "previsto_sobre_real_pct": 96.2
+      }
+    },
+    "Jardim Canadá|categoria|Grama": {
+      "unidade": "Jardim Canadá",
+      "nivel": "categoria",
+      "chave": "Grama",
+      "nome": "Grama",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          0,
+          1,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 6490.049379724236
+      },
+      "params": {
+        "dia_seg": 234.38960932799145,
+        "dia_ter": 495.5055958104168,
+        "dia_qua": 292.36404900553816,
+        "dia_qui": 205.61748351636166,
+        "dia_sex": -38.23248759544752,
+        "dia_sab": -788.0633489930051,
+        "loja_fechada": -1326.958084120682,
+        "abertura_excepcional": 0.0,
+        "ma.L1": -0.93788010401071,
+        "ma.L2": 0.007447804796001045,
+        "ma.S.L7": 0.014197819836942818,
+        "sigma2": 781852.1640032997
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "trained",
+      "diagnostico": {
+        "ljung_box_p": 0.5544,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 596,
+        "n_origens": 52,
+        "venda_media_dia": 1399.93,
+        "mae": 691.37,
+        "mase": 0.793,
+        "erro_relativo_naive": 0.745,
+        "vence_naive_pct": 88.5,
+        "cobertura_ic95_pct": 93.8,
+        "largura_ic95": 3143.91,
+        "previsto_sobre_real_pct": 101.1
+      }
+    },
+    "Itabirito|categoria|Plantas diversas": {
+      "unidade": "Itabirito",
+      "nivel": "categoria",
+      "chave": "Plantas diversas",
+      "nome": "Plantas diversas",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          1,
+          1,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 5665.992330457737
+      },
+      "params": {
+        "dia_seg": -64.13353399497487,
+        "dia_ter": -202.99892537235428,
+        "dia_qua": -171.54515162508167,
+        "dia_qui": -77.73857179512977,
+        "dia_sex": 93.127676979417,
+        "dia_sab": -195.2461684963845,
+        "loja_fechada": -648.8880075301347,
+        "abertura_excepcional": -315.93676614050827,
+        "ar.L1": -0.19270333958955588,
+        "ma.L1": -0.7049123409511576,
+        "ma.L2": -0.2503805796199146,
+        "ma.S.L7": 0.009112363411848803,
+        "sigma2": 79451.24758150258
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "trained",
+      "diagnostico": {
+        "ljung_box_p": 0.7844,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 600,
+        "n_origens": 52,
+        "venda_media_dia": 578.86,
+        "mae": 224.75,
+        "mase": 0.847,
+        "erro_relativo_naive": 0.734,
+        "vence_naive_pct": 84.6,
+        "cobertura_ic95_pct": 95.2,
+        "largura_ic95": 1137.98,
+        "previsto_sobre_real_pct": 100.0
+      }
+    },
+    "Jardim Canadá|categoria|Plantas diversas": {
+      "unidade": "Jardim Canadá",
+      "nivel": "categoria",
+      "chave": "Plantas diversas",
+      "nome": "Plantas diversas",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          1,
+          1,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 6117.357411050017
+      },
+      "params": {
+        "dia_seg": 98.22075345939443,
+        "dia_ter": 308.6963721171523,
+        "dia_qua": 277.27980874064326,
+        "dia_qui": 150.0952912652483,
+        "dia_sex": 402.9102273892042,
+        "dia_sab": -288.88122694692663,
+        "loja_fechada": -1189.9815601134242,
+        "abertura_excepcional": 0.0,
+        "ar.L1": -0.2799741272664635,
+        "ma.L1": -0.5968508137510706,
+        "ma.L2": -0.32731636756668053,
+        "ma.S.L7": 0.12141617685890095,
+        "sigma2": 334537.33581759495
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "trained",
+      "diagnostico": {
+        "ljung_box_p": 0.82,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 596,
+        "n_origens": 52,
+        "venda_media_dia": 1388.92,
+        "mae": 509.17,
+        "mase": 0.935,
+        "erro_relativo_naive": 0.736,
+        "vence_naive_pct": 86.5,
+        "cobertura_ic95_pct": 90.6,
+        "largura_ic95": 2207.41,
+        "previsto_sobre_real_pct": 99.7
+      }
+    },
+    "Itabirito|categoria|Flores de corte": {
+      "unidade": "Itabirito",
+      "nivel": "categoria",
+      "chave": "Flores de corte",
+      "nome": "Flores de corte",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          2,
+          1,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 4265.039692616493
+      },
+      "params": {
+        "dia_seg": -7.985074949884896,
+        "dia_ter": -22.802077409110083,
+        "dia_qua": -28.6220244825167,
+        "dia_qui": -17.00285991479975,
+        "dia_sex": 25.407623442546694,
+        "dia_sab": 4.042641806813622,
+        "loja_fechada": -63.499747083062424,
+        "abertura_excepcional": 113.16695980864199,
+        "ar.L1": -0.6875185060277217,
+        "ar.L2": 0.08275214718356798,
+        "ma.L1": -0.29564373596683624,
+        "ma.L2": -0.6841954448690643,
+        "ma.S.L7": 0.06120577517035263,
+        "sigma2": 2535.8934293850702
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "trained",
+      "diagnostico": {
+        "ljung_box_p": 0.9911,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 600,
+        "n_origens": 52,
+        "venda_media_dia": 59.1,
+        "mae": 36.49,
+        "mase": 0.871,
+        "erro_relativo_naive": 0.737,
+        "vence_naive_pct": 75.0,
+        "cobertura_ic95_pct": 93.7,
+        "largura_ic95": 168.57,
+        "previsto_sobre_real_pct": 96.2
+      }
+    },
+    "Itabirito|produto|1372": {
+      "unidade": "Itabirito",
+      "nivel": "produto",
+      "chave": "1372",
+      "nome": "ROSA EM CABO (UNIDADE) COLORIDA",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          1,
+          0,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 3804.7510137424256
+      },
+      "params": {
+        "intercept": 31.261256114786278,
+        "dia_seg": 2.89822379539575,
+        "dia_ter": -4.287586608120199,
+        "dia_qua": -8.43895297576975,
+        "dia_qui": -6.852446760299166,
+        "dia_sex": 5.427228915332992,
+        "dia_sab": 5.432740976679437,
+        "loja_fechada": -17.115176014785796,
+        "abertura_excepcional": 66.18627851877157,
+        "ar.L1": -0.7775311254851855,
+        "ma.L1": 0.7689980246272972,
+        "ma.L2": 0.0207681585090507,
+        "ma.S.L7": 0.11207233329226646,
+        "sigma2": 498.6368633288557
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "trained",
+      "diagnostico": {
+        "ljung_box_p": 0.934,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 123,
+        "n_origens": 11,
+        "venda_media_dia": 12.37,
+        "mae": 14.85,
+        "mase": 0.842,
+        "erro_relativo_naive": 0.843,
+        "vence_naive_pct": 54.5,
+        "cobertura_ic95_pct": 95.9,
+        "largura_ic95": 64.27,
+        "previsto_sobre_real_pct": 145.0
+      }
+    },
+    "Jardim Canadá|categoria|Produtos de jardim": {
+      "unidade": "Jardim Canadá",
+      "nivel": "categoria",
+      "chave": "Produtos de jardim",
+      "nome": "Produtos de jardim",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          0,
+          1,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 5171.207297088755
+      },
+      "params": {
+        "dia_seg": 72.43150262591095,
+        "dia_ter": 111.32461024164166,
+        "dia_qua": 131.21041578250666,
+        "dia_qui": 69.24056729005959,
+        "dia_sex": 112.57203402678759,
+        "dia_sab": -114.5399479382506,
+        "loja_fechada": -369.74095271142545,
+        "abertura_excepcional": 0.0,
+        "ma.L1": -0.8893445227274648,
+        "ma.L2": -0.06254910901998369,
+        "ma.S.L7": 0.0517987140412337,
+        "sigma2": 37973.758540791605
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "trained",
+      "diagnostico": {
+        "ljung_box_p": 0.9163,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 596,
+        "n_origens": 52,
+        "venda_media_dia": 446.23,
+        "mae": 155.38,
+        "mase": 0.859,
+        "erro_relativo_naive": 0.684,
+        "vence_naive_pct": 92.3,
+        "cobertura_ic95_pct": 92.8,
+        "largura_ic95": 692.22,
+        "previsto_sobre_real_pct": 98.2
+      }
+    },
+    "Itabirito|produto|00240057": {
+      "unidade": "Itabirito",
+      "nivel": "produto",
+      "chave": "00240057",
+      "nome": "ROSA EM CABO (UNIDADE) COR VERMELHA",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          0,
+          0,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 3014.7455474008675
+      },
+      "params": {
+        "intercept": 9.740511053048456,
+        "dia_seg": 0.014743045107881565,
+        "dia_ter": -2.688260621356065,
+        "dia_qua": -2.136974872080249,
+        "dia_qui": -1.530670321066298,
+        "dia_sex": 6.720323191475935,
+        "dia_sab": -0.11635747894581425,
+        "loja_fechada": -9.752710417827792,
+        "abertura_excepcional": 1.3200581103782363,
+        "ma.L1": -0.015208269276597946,
+        "ma.L2": -0.00997134712035234,
+        "ma.S.L7": 0.010932569432776667,
+        "sigma2": 243.13672932211884
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "low_confidence",
+      "diagnostico": {
+        "ljung_box_p": 0.6836,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 380,
+        "n_origens": 33,
+        "venda_media_dia": 10.95,
+        "mae": 12.35,
+        "mase": 0.861,
+        "erro_relativo_naive": 0.799,
+        "vence_naive_pct": 69.7,
+        "cobertura_ic95_pct": 98.4,
+        "largura_ic95": 72.25,
+        "previsto_sobre_real_pct": 114.3
+      }
+    },
+    "Jardim Canadá|categoria|Flores de corte": {
+      "unidade": "Jardim Canadá",
+      "nivel": "categoria",
+      "chave": "Flores de corte",
+      "nome": "Flores de corte",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          1,
+          1,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 4085.1144635227374
+      },
+      "params": {
+        "dia_seg": -22.05213288925967,
+        "dia_ter": -23.52549903973594,
+        "dia_qua": -42.28504209166156,
+        "dia_qui": -6.475255828749663,
+        "dia_sex": 27.295932103302462,
+        "dia_sab": -18.970117422622852,
+        "loja_fechada": -68.63235690091132,
+        "abertura_excepcional": 0.0,
+        "ar.L1": 0.0003203266585532691,
+        "ma.L1": -0.852195095451097,
+        "ma.L2": -0.14782683827671922,
+        "ma.S.L7": 0.0974739951736931,
+        "sigma2": 3369.7187896599157
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "trained",
+      "diagnostico": {
+        "ljung_box_p": 0.9096,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 596,
+        "n_origens": 52,
+        "venda_media_dia": 56.13,
+        "mae": 36.31,
+        "mase": 0.924,
+        "erro_relativo_naive": 0.738,
+        "vence_naive_pct": 73.1,
+        "cobertura_ic95_pct": 95.8,
+        "largura_ic95": 158.85,
+        "previsto_sobre_real_pct": 93.8
+      }
+    },
+    "Itabirito|produto|2753": {
+      "unidade": "Itabirito",
+      "nivel": "produto",
+      "chave": "2753",
+      "nome": "BIOPLANT 5 KG",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          0,
+          0,
+          2
+        ],
+        "seasonal_order": [
+          1,
+          0,
+          1,
+          7
+        ],
+        "aic": 2336.843076846293
+      },
+      "params": {
+        "intercept": 1.3237095903261549,
+        "dia_seg": -0.41719915079284375,
+        "dia_ter": -0.09862947139397076,
+        "dia_qua": 0.025627540618623143,
+        "dia_qui": -0.9614056690087308,
+        "dia_sex": 1.1627262935907283,
+        "dia_sab": -0.26003386936681716,
+        "loja_fechada": -3.178543886338479,
+        "abertura_excepcional": -2.9984294207039244,
+        "ma.L1": -0.03954473471344,
+        "ma.L2": -0.034296396148127045,
+        "ar.S.L7": 0.5826470798276696,
+        "ma.S.L7": -0.6976548499548739,
+        "sigma2": 16.03144884698594
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "trained",
+      "diagnostico": {
+        "ljung_box_p": 0.9907,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 600,
+        "n_origens": 52,
+        "venda_media_dia": 3.04,
+        "mae": 2.21,
+        "mase": 0.878,
+        "erro_relativo_naive": 0.736,
+        "vence_naive_pct": 73.1,
+        "cobertura_ic95_pct": 97.5,
+        "largura_ic95": 10.49,
+        "previsto_sobre_real_pct": 96.8
+      }
+    },
+    "Itabirito|produto|637": {
+      "unidade": "Itabirito",
+      "nivel": "produto",
+      "chave": "637",
+      "nome": "MANTA BIDIM METRO",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          0,
+          0,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 3123.0840579678056
+      },
+      "params": {
+        "intercept": 16.973336202275213,
+        "dia_seg": -4.622072664426145,
+        "dia_ter": 8.063034188823677,
+        "dia_qua": -7.140229640280026,
+        "dia_qui": 10.478078671221692,
+        "dia_sex": -6.572043403887885,
+        "dia_sab": -10.894851607064238,
+        "loja_fechada": -17.309151787515596,
+        "abertura_excepcional": -0.9982451611892771,
+        "ma.L1": 0.022122613374146546,
+        "ma.L2": 0.001742101779246447,
+        "ma.S.L7": -0.03734191212368991,
+        "sigma2": 3114.041517535889
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "low_confidence",
+      "diagnostico": {
+        "ljung_box_p": 1.0,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 600,
+        "n_origens": 52,
+        "venda_media_dia": 16.54,
+        "mae": 18.09,
+        "mase": 1.408,
+        "erro_relativo_naive": 0.658,
+        "vence_naive_pct": 57.7,
+        "cobertura_ic95_pct": 94.8,
+        "largura_ic95": 68.91,
+        "previsto_sobre_real_pct": 63.4
+      }
+    },
+    "Itabirito|produto|73": {
+      "unidade": "Itabirito",
+      "nivel": "produto",
+      "chave": "73",
+      "nome": "BEIJO IMPATIENS PT13",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          0,
+          0,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 3883.4138170960173
+      },
+      "params": {
+        "intercept": 22.718569331634942,
+        "dia_seg": 11.925233067205339,
+        "dia_ter": -4.6678882294388995,
+        "dia_qua": 0.2346360307118427,
+        "dia_qui": 2.248014595435676,
+        "dia_sex": 0.15919161133119594,
+        "dia_sab": -5.107382099904913,
+        "loja_fechada": -23.348539946662864,
+        "abertura_excepcional": 4.589441805258449,
+        "ma.L1": 0.1549072863160487,
+        "ma.L2": -0.006148731749685441,
+        "ma.S.L7": -0.009535897784318985,
+        "sigma2": 3689.490641307662
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "low_confidence",
+      "diagnostico": {
+        "ljung_box_p": 0.0954,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 600,
+        "n_origens": 52,
+        "venda_media_dia": 24.18,
+        "mae": 23.96,
+        "mase": 1.028,
+        "erro_relativo_naive": 0.741,
+        "vence_naive_pct": 55.8,
+        "cobertura_ic95_pct": 97.3,
+        "largura_ic95": 126.16,
+        "previsto_sobre_real_pct": 92.3
+      }
+    },
+    "Itabirito|produto|2909": {
+      "unidade": "Itabirito",
+      "nivel": "produto",
+      "chave": "2909",
+      "nome": "BIOPLANT GARDEN PREMIUM 20KG-PROMOCAO",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          0,
+          0,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 3470.7949909445015
+      },
+      "params": {
+        "intercept": 18.4370861589662,
+        "dia_seg": -1.5589589663117738,
+        "dia_ter": -4.242065098942902,
+        "dia_qua": -1.9055083391466416,
+        "dia_qui": 2.4807868878226245,
+        "dia_sex": 5.164854241565788,
+        "dia_sab": -1.3375783791049163,
+        "loja_fechada": -18.442913595150127,
+        "abertura_excepcional": -16.327313143100834,
+        "ma.L1": -0.0033439762565338053,
+        "ma.L2": 0.025949020235390845,
+        "ma.S.L7": 0.07114561904666691,
+        "sigma2": 595.6404622693761
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "trained",
+      "diagnostico": {
+        "ljung_box_p": 0.6517,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 600,
+        "n_origens": 52,
+        "venda_media_dia": 17.47,
+        "mae": 9.78,
+        "mase": 0.879,
+        "erro_relativo_naive": 0.706,
+        "vence_naive_pct": 78.8,
+        "cobertura_ic95_pct": 98.0,
+        "largura_ic95": 58.46,
+        "previsto_sobre_real_pct": 97.9
+      }
+    },
+    "Itabirito|produto|00030197": {
+      "unidade": "Itabirito",
+      "nivel": "produto",
+      "chave": "00030197",
+      "nome": "TERRA VEGETAL ADUBADA 25KG GRAM TERRA",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          0,
+          0,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 3643.0777182073602
+      },
+      "params": {
+        "intercept": 14.235459517356027,
+        "dia_seg": 1.7843097549266609,
+        "dia_ter": -1.6166574810329732,
+        "dia_qua": 7.440980969425149,
+        "dia_qui": -0.6698335626519052,
+        "dia_sex": 5.26033031203251,
+        "dia_sab": -0.690811289183777,
+        "loja_fechada": -14.260543194255858,
+        "abertura_excepcional": -11.86619214386193,
+        "ma.L1": 0.004276629462529328,
+        "ma.L2": 0.07452403874540049,
+        "ma.S.L7": -0.05608534390497163,
+        "sigma2": 575.1922403123281
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "low_confidence",
+      "diagnostico": {
+        "ljung_box_p": 0.0768,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 600,
+        "n_origens": 52,
+        "venda_media_dia": 16.75,
+        "mae": 14.58,
+        "mase": 1.017,
+        "erro_relativo_naive": 0.746,
+        "vence_naive_pct": 67.3,
+        "cobertura_ic95_pct": 95.2,
+        "largura_ic95": 62.79,
+        "previsto_sobre_real_pct": 90.5
+      }
+    },
+    "Jardim Canadá|produto|00200579": {
+      "unidade": "Jardim Canadá",
+      "nivel": "produto",
+      "chave": "00200579",
+      "nome": "ARRANJO GRANDE",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          1,
+          0,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 1547.9192949866456
+      },
+      "params": {
+        "intercept": 1.0433849149508916,
+        "dia_seg": 0.7813145827092244,
+        "dia_ter": -0.7060369654665751,
+        "dia_qua": -1.4616166759568578,
+        "dia_qui": -0.6835348168488709,
+        "dia_sex": 1.244684471375996,
+        "dia_sab": -0.4639849631373941,
+        "loja_fechada": -3.7418520858610025,
+        "abertura_excepcional": 0.0,
+        "ar.L1": 0.722305926292119,
+        "ma.L1": -0.7118815700481756,
+        "ma.L2": 0.13166758149653363,
+        "ma.S.L7": -0.03071972876484011,
+        "sigma2": 16.232612767232926
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "trained",
+      "diagnostico": {
+        "ljung_box_p": 0.5343,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 596,
+        "n_origens": 52,
+        "venda_media_dia": 3.65,
+        "mae": 2.64,
+        "mase": 0.935,
+        "erro_relativo_naive": 0.704,
+        "vence_naive_pct": 82.7,
+        "cobertura_ic95_pct": 95.1,
+        "largura_ic95": 10.87,
+        "previsto_sobre_real_pct": 92.4
+      }
+    },
+    "Jardim Canadá|produto|00030399": {
+      "unidade": "Jardim Canadá",
+      "nivel": "produto",
+      "chave": "00030399",
+      "nome": "CALCARIO DOLOMITICO 25KG",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          0,
+          0,
+          2
+        ],
+        "seasonal_order": [
+          1,
+          0,
+          1,
+          7
+        ],
+        "aic": 1731.3343256460978
+      },
+      "params": {
+        "intercept": 2.33793686665331,
+        "dia_seg": 0.2514133510784416,
+        "dia_ter": 1.5400171819720998,
+        "dia_qua": 2.2003592256683633,
+        "dia_qui": 0.41038775777688963,
+        "dia_sex": 0.6503859610307225,
+        "dia_sab": -4.133674996236496,
+        "loja_fechada": -6.561836718469203,
+        "abertura_excepcional": 0.0,
+        "ma.L1": -0.006680276803823152,
+        "ma.L2": 0.02807419241596874,
+        "ar.S.L7": 0.6434939444229376,
+        "ma.S.L7": -0.677360010458458,
+        "sigma2": 83.99598978163948
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "trained",
+      "diagnostico": {
+        "ljung_box_p": 0.9259,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 596,
+        "n_origens": 52,
+        "venda_media_dia": 6.96,
+        "mae": 6.22,
+        "mase": 0.972,
+        "erro_relativo_naive": 0.809,
+        "vence_naive_pct": 59.6,
+        "cobertura_ic95_pct": 94.3,
+        "largura_ic95": 25.21,
+        "previsto_sobre_real_pct": 102.0
+      }
+    },
+    "Jardim Canadá|produto|00030325": {
+      "unidade": "Jardim Canadá",
+      "nivel": "produto",
+      "chave": "00030325",
+      "nome": "BIOPLANT VASOS E FLOREIRAS 20KG",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          0,
+          0,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 3358.3331536871797
+      },
+      "params": {
+        "intercept": 28.13197109449233,
+        "dia_seg": -1.3603151883570572,
+        "dia_ter": -2.126083014839112,
+        "dia_qua": 1.3108521760005194,
+        "dia_qui": 1.4735510804839407,
+        "dia_sex": 1.698716227600387,
+        "dia_sab": -9.752743005283818,
+        "loja_fechada": -28.090470148112303,
+        "abertura_excepcional": 0.0,
+        "ma.L1": 0.12971738144567183,
+        "ma.L2": -0.002723573900868119,
+        "ma.S.L7": -0.03843999890106952,
+        "sigma2": 471.4878528500161
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "trained",
+      "diagnostico": {
+        "ljung_box_p": 0.9801,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 596,
+        "n_origens": 52,
+        "venda_media_dia": 26.69,
+        "mae": 16.66,
+        "mase": 0.895,
+        "erro_relativo_naive": 0.731,
+        "vence_naive_pct": 75.0,
+        "cobertura_ic95_pct": 93.0,
+        "largura_ic95": 63.87,
+        "previsto_sobre_real_pct": 98.2
+      }
+    },
+    "Jardim Canadá|produto|00030197": {
+      "unidade": "Jardim Canadá",
+      "nivel": "produto",
+      "chave": "00030197",
+      "nome": "TERRA VEGETAL ADUBADA 25KG GRAM TERRA",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          0,
+          0,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 4568.6158664161785
+      },
+      "params": {
+        "intercept": 96.56289586654106,
+        "dia_seg": 9.334739810566939,
+        "dia_ter": 4.029049520641219,
+        "dia_qua": 17.239075978029074,
+        "dia_qui": 4.047330115903185,
+        "dia_sex": 8.631366284592415,
+        "dia_sab": -51.4259588152696,
+        "loja_fechada": -96.56216571422995,
+        "abertura_excepcional": 0.0,
+        "ma.L1": 0.031890096239684064,
+        "ma.L2": 0.0431668623761705,
+        "ma.S.L7": -0.0067557345623265605,
+        "sigma2": 5598.708994830892
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "trained",
+      "diagnostico": {
+        "ljung_box_p": 0.7721,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 596,
+        "n_origens": 52,
+        "venda_media_dia": 94.79,
+        "mae": 53.97,
+        "mase": 0.791,
+        "erro_relativo_naive": 0.728,
+        "vence_naive_pct": 75.0,
+        "cobertura_ic95_pct": 96.0,
+        "largura_ic95": 252.5,
+        "previsto_sobre_real_pct": 104.4
+      }
+    },
+    "Itabirito|produto|434": {
+      "unidade": "Itabirito",
+      "nivel": "produto",
+      "chave": "434",
+      "nome": "KALANCHOE PT 11",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          1,
+          0,
+          2
+        ],
+        "seasonal_order": [
+          1,
+          0,
+          1,
+          7
+        ],
+        "aic": 3535.787692652593
+      },
+      "params": {
+        "intercept": 7.681668204633038,
+        "dia_seg": -0.217161508982318,
+        "dia_ter": -10.228001526732033,
+        "dia_qua": -7.724806641602988,
+        "dia_qui": -2.416517970158974,
+        "dia_sex": 11.473561324810568,
+        "dia_sab": 1.2904761781334262,
+        "loja_fechada": -18.39336987458849,
+        "abertura_excepcional": 119.7551760793274,
+        "ar.L1": 0.6679103984496909,
+        "ma.L1": -0.4803923929658635,
+        "ma.L2": 0.14994463342088032,
+        "ar.S.L7": -0.18244460938609255,
+        "ma.S.L7": 0.12420100055890586,
+        "sigma2": 468.4098205863973
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "trained",
+      "diagnostico": {
+        "ljung_box_p": 0.8748,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 600,
+        "n_origens": 52,
+        "venda_media_dia": 20.03,
+        "mae": 16.01,
+        "mase": 0.873,
+        "erro_relativo_naive": 0.753,
+        "vence_naive_pct": 67.3,
+        "cobertura_ic95_pct": 94.7,
+        "largura_ic95": 63.89,
+        "previsto_sobre_real_pct": 101.5
+      }
+    },
+    "Jardim Canadá|produto|00030358": {
+      "unidade": "Jardim Canadá",
+      "nivel": "produto",
+      "chave": "00030358",
+      "nome": "COMPOSTO ORGANICO 20 KG GRAM TERRA",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          0,
+          0,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 3373.2601914457246
+      },
+      "params": {
+        "intercept": 20.625407892334902,
+        "dia_seg": -1.687171808419009,
+        "dia_ter": 0.7683968289471635,
+        "dia_qua": 28.30361899848612,
+        "dia_qui": 2.207433113475497,
+        "dia_sex": -0.7545103789271704,
+        "dia_sab": -12.993981467668357,
+        "loja_fechada": -20.702257252426023,
+        "abertura_excepcional": 0.0,
+        "ma.L1": -0.05681512849398615,
+        "ma.L2": -0.01700656491280103,
+        "ma.S.L7": -0.012002819525064653,
+        "sigma2": 2094.558147563838
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "low_confidence",
+      "diagnostico": {
+        "ljung_box_p": 0.9999,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 596,
+        "n_origens": 52,
+        "venda_media_dia": 24.26,
+        "mae": 22.46,
+        "mase": 1.176,
+        "erro_relativo_naive": 0.708,
+        "vence_naive_pct": 73.1,
+        "cobertura_ic95_pct": 92.6,
+        "largura_ic95": 69.54,
+        "previsto_sobre_real_pct": 74.1
+      }
+    },
+    "Jardim Canadá|produto|00030332": {
+      "unidade": "Jardim Canadá",
+      "nivel": "produto",
+      "chave": "00030332",
+      "nome": "ARGILA EXP 3222 SC 50L",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          1,
+          0,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 2905.999220265716
+      },
+      "params": {
+        "intercept": 8.363572211116113,
+        "dia_seg": -1.1444704119774403,
+        "dia_ter": 0.4838543684299467,
+        "dia_qua": 6.954587832095649,
+        "dia_qui": 0.2971914257828642,
+        "dia_sex": 0.9674544329645928,
+        "dia_sab": -3.9324278716800967,
+        "loja_fechada": -9.728789962854774,
+        "abertura_excepcional": 0.0,
+        "ar.L1": 0.13749744342855652,
+        "ma.L1": -0.14678343756967507,
+        "ma.L2": -0.0482740801102636,
+        "ma.S.L7": -0.014225646710852828,
+        "sigma2": 502.6028841920385
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "low_confidence",
+      "diagnostico": {
+        "ljung_box_p": 0.9998,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 596,
+        "n_origens": 52,
+        "venda_media_dia": 10.52,
+        "mae": 9.37,
+        "mase": 1.069,
+        "erro_relativo_naive": 0.711,
+        "vence_naive_pct": 69.2,
+        "cobertura_ic95_pct": 96.6,
+        "largura_ic95": 39.05,
+        "previsto_sobre_real_pct": 88.1
+      }
+    },
+    "Itabirito|produto|72": {
+      "unidade": "Itabirito",
+      "nivel": "produto",
+      "chave": "72",
+      "nome": "BEIJO IMPATIENS SAQ.",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          0,
+          0,
+          2
+        ],
+        "seasonal_order": [
+          1,
+          0,
+          1,
+          7
+        ],
+        "aic": 3598.958421637295
+      },
+      "params": {
+        "intercept": 28.119466867705103,
+        "dia_seg": -1.2655054438037394,
+        "dia_ter": -5.444211435452315,
+        "dia_qua": -0.06476552894992313,
+        "dia_qui": 2.7871083612016654,
+        "dia_sex": 9.094057064713786,
+        "dia_sab": -7.392791215147583,
+        "loja_fechada": -16.24232174746145,
+        "abertura_excepcional": 41.63349235208516,
+        "ma.L1": 0.08019829478355531,
+        "ma.L2": 0.10477774592065214,
+        "ar.S.L7": -0.7512135613865167,
+        "ma.S.L7": 0.8941841890018661,
+        "sigma2": 285.4876793746589
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "trained",
+      "diagnostico": {
+        "ljung_box_p": 0.1294,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 600,
+        "n_origens": 52,
+        "venda_media_dia": 15.65,
+        "mae": 14.09,
+        "mase": 0.85,
+        "erro_relativo_naive": 0.848,
+        "vence_naive_pct": 51.9,
+        "cobertura_ic95_pct": 95.2,
+        "largura_ic95": 52.82,
+        "previsto_sobre_real_pct": 109.2
+      }
+    },
+    "Jardim Canadá|produto|147": {
+      "unidade": "Jardim Canadá",
+      "nivel": "produto",
+      "chave": "147",
+      "nome": "GRAMA AMENDOIM UNID. BDJA",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          2,
+          0,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 6306.65985844573
+      },
+      "params": {
+        "intercept": 16.668701021842846,
+        "dia_seg": 815.5998056577782,
+        "dia_ter": 806.1390442824426,
+        "dia_qua": 694.1020309170987,
+        "dia_qui": 723.7743113170928,
+        "dia_sex": 537.6143319228663,
+        "dia_sab": 255.85622327712494,
+        "loja_fechada": -140.25021259069848,
+        "abertura_excepcional": 0.0,
+        "ar.L1": 0.37611683716112027,
+        "ar.L2": 0.1807907763093114,
+        "ma.L1": -0.3430704838900462,
+        "ma.L2": -0.06766566555822708,
+        "ma.S.L7": -0.009190758997080441,
+        "sigma2": 461091.92749762407
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "trained",
+      "diagnostico": {
+        "ljung_box_p": 0.2504,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 596,
+        "n_origens": 52,
+        "venda_media_dia": 682.55,
+        "mae": 575.73,
+        "mase": 0.942,
+        "erro_relativo_naive": 0.804,
+        "vence_naive_pct": 73.1,
+        "cobertura_ic95_pct": 93.3,
+        "largura_ic95": 2078.76,
+        "previsto_sobre_real_pct": 102.7
+      }
+    },
+    "Jardim Canadá|produto|3": {
+      "unidade": "Jardim Canadá",
+      "nivel": "produto",
+      "chave": "3",
+      "nome": "GRAMA ESMERALDA",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          0,
+          0,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 6038.704094602284
+      },
+      "params": {
+        "intercept": 16.337440606728965,
+        "dia_seg": 611.631758198643,
+        "dia_ter": 841.0336501738016,
+        "dia_qua": 756.6618981084932,
+        "dia_qui": 580.0964352758065,
+        "dia_sex": 578.5565566844513,
+        "dia_sab": 224.17169592468107,
+        "loja_fechada": -122.22708387876759,
+        "abertura_excepcional": 0.0,
+        "ma.L1": 0.04867287109562883,
+        "ma.L2": 0.05179892502430166,
+        "ma.S.L7": 0.20146070573777977,
+        "sigma2": 186800.38834043418
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "trained",
+      "diagnostico": {
+        "ljung_box_p": 0.0092,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 596,
+        "n_origens": 52,
+        "venda_media_dia": 611.97,
+        "mae": 358.56,
+        "mase": 0.868,
+        "erro_relativo_naive": 0.846,
+        "vence_naive_pct": 69.2,
+        "cobertura_ic95_pct": 95.8,
+        "largura_ic95": 1586.45,
+        "previsto_sobre_real_pct": 113.4
+      }
+    },
+    "Jardim Canadá|produto|2391": {
+      "unidade": "Jardim Canadá",
+      "nivel": "produto",
+      "chave": "2391",
+      "nome": "BEIJO SUNPATIENS SAQ.",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          0,
+          0,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 5032.4143968040535
+      },
+      "params": {
+        "intercept": 49.04515444224954,
+        "dia_seg": 4.415267414265571,
+        "dia_ter": -8.196611777094702,
+        "dia_qua": -9.415619271570558,
+        "dia_qui": -2.1048488467679025,
+        "dia_sex": 27.28438789525074,
+        "dia_sab": -29.682074831643167,
+        "loja_fechada": -48.9349581843791,
+        "abertura_excepcional": 0.0,
+        "ma.L1": 0.03989296210445232,
+        "ma.L2": 0.023912915881112703,
+        "ma.S.L7": -0.0546450661512507,
+        "sigma2": 5783.877862627028
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "trained",
+      "diagnostico": {
+        "ljung_box_p": 0.9648,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 596,
+        "n_origens": 52,
+        "venda_media_dia": 48.35,
+        "mae": 51.32,
+        "mase": 0.742,
+        "erro_relativo_naive": 0.809,
+        "vence_naive_pct": 63.5,
+        "cobertura_ic95_pct": 97.7,
+        "largura_ic95": 287.81,
+        "previsto_sobre_real_pct": 120.2
+      }
+    },
+    "Jardim Canadá|produto|00020131": {
+      "unidade": "Jardim Canadá",
+      "nivel": "produto",
+      "chave": "00020131",
+      "nome": "ERVAS AROMATICAS / TEMPEROS PT 15",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          1,
+          0,
+          2
+        ],
+        "seasonal_order": [
+          1,
+          0,
+          1,
+          7
+        ],
+        "aic": 3222.5223473715423
+      },
+      "params": {
+        "intercept": 0.528074818732734,
+        "dia_seg": 2.927852413288432,
+        "dia_ter": -8.379717217056413,
+        "dia_qua": -4.699877842322287,
+        "dia_qui": 2.3287958913421356,
+        "dia_sex": 6.523861942458303,
+        "dia_sab": -5.747874730033791,
+        "loja_fechada": -15.730027671060407,
+        "abertura_excepcional": 0.0,
+        "ar.L1": 0.9696859807610443,
+        "ma.L1": -0.9512434172259632,
+        "ma.L2": 0.0071860919237742545,
+        "ar.S.L7": -0.062023432727873945,
+        "ma.S.L7": -0.038635448513427935,
+        "sigma2": 271.17029134815516
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "trained",
+      "diagnostico": {
+        "ljung_box_p": 0.9243,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 596,
+        "n_origens": 52,
+        "venda_media_dia": 15.55,
+        "mae": 11.65,
+        "mase": 0.912,
+        "erro_relativo_naive": 0.736,
+        "vence_naive_pct": 76.9,
+        "cobertura_ic95_pct": 94.3,
+        "largura_ic95": 45.48,
+        "previsto_sobre_real_pct": 98.3
+      }
+    },
+    "Jardim Canadá|produto|00030200": {
+      "unidade": "Jardim Canadá",
+      "nivel": "produto",
+      "chave": "00030200",
+      "nome": "TERRA PURA 25KG GRAM TERRA",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          2,
+          0,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 4147.988483203707
+      },
+      "params": {
+        "intercept": 28.70145292438971,
+        "dia_seg": 0.05923991924793853,
+        "dia_ter": 24.555952188669316,
+        "dia_qua": 7.773254093346857,
+        "dia_qui": 3.83338329752843,
+        "dia_sex": -10.422164059045903,
+        "dia_sab": -27.149228199036255,
+        "loja_fechada": -43.15000126738671,
+        "abertura_excepcional": 0.0,
+        "ar.L1": 0.20932437885993932,
+        "ar.L2": 0.13101041286214454,
+        "ma.L1": -0.13964173557799353,
+        "ma.L2": -0.1768148155560669,
+        "ma.S.L7": 0.03105364010954676,
+        "sigma2": 6221.670854215847
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "low_confidence",
+      "diagnostico": {
+        "ljung_box_p": 1.0,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 596,
+        "n_origens": 52,
+        "venda_media_dia": 45.98,
+        "mae": 40.68,
+        "mase": 1.03,
+        "erro_relativo_naive": 0.73,
+        "vence_naive_pct": 78.8,
+        "cobertura_ic95_pct": 94.6,
+        "largura_ic95": 165.76,
+        "previsto_sobre_real_pct": 88.7
+      }
+    },
+    "Jardim Canadá|produto|1340": {
+      "unidade": "Jardim Canadá",
+      "nivel": "produto",
+      "chave": "1340",
+      "nome": "LAVANDA PT 14",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          0,
+          0,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 4138.400482370061
+      },
+      "params": {
+        "intercept": 34.253745908988996,
+        "dia_seg": -8.40536609531443,
+        "dia_ter": -5.5943999914018265,
+        "dia_qua": -9.277028351700324,
+        "dia_qui": 5.63253521858908,
+        "dia_sex": 16.241476769388875,
+        "dia_sab": -14.864462930397771,
+        "loja_fechada": -34.19284354467604,
+        "abertura_excepcional": 0.0,
+        "ma.L1": 0.11386069054091916,
+        "ma.L2": -0.0532783217988497,
+        "ma.S.L7": -0.04432941899974945,
+        "sigma2": 1626.0689095003852
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "trained",
+      "diagnostico": {
+        "ljung_box_p": 1.0,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 596,
+        "n_origens": 52,
+        "venda_media_dia": 32.46,
+        "mae": 27.01,
+        "mase": 0.92,
+        "erro_relativo_naive": 0.727,
+        "vence_naive_pct": 71.2,
+        "cobertura_ic95_pct": 94.8,
+        "largura_ic95": 109.14,
+        "previsto_sobre_real_pct": 88.7
+      }
+    },
+    "Jardim Canadá|produto|1029": {
+      "unidade": "Jardim Canadá",
+      "nivel": "produto",
+      "chave": "1029",
+      "nome": "ESTERCO BOVINO ENSACADO",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          1,
+          0,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 2995.9429424891514
+      },
+      "params": {
+        "intercept": 0.19739731388481965,
+        "dia_seg": 0.7353236979027992,
+        "dia_ter": 1.2619463609629389,
+        "dia_qua": 1.782281201144701,
+        "dia_qui": 2.0579935781078698,
+        "dia_sex": -0.7733371612359733,
+        "dia_sab": -3.639919142952993,
+        "loja_fechada": -6.9378568478024745,
+        "abertura_excepcional": 0.0,
+        "ar.L1": 0.9720214105800132,
+        "ma.L1": -0.8734926002350238,
+        "ma.L2": -0.06032161535087132,
+        "ma.S.L7": -0.01978440186888606,
+        "sigma2": 79.7331335846856
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "trained",
+      "diagnostico": {
+        "ljung_box_p": 0.0457,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 596,
+        "n_origens": 52,
+        "venda_media_dia": 7.43,
+        "mae": 6.51,
+        "mase": 0.914,
+        "erro_relativo_naive": 0.755,
+        "vence_naive_pct": 76.9,
+        "cobertura_ic95_pct": 95.6,
+        "largura_ic95": 26.86,
+        "previsto_sobre_real_pct": 106.0
+      }
+    },
+    "Jardim Canadá|produto|00200512": {
+      "unidade": "Jardim Canadá",
+      "nivel": "produto",
+      "chave": "00200512",
+      "nome": "INSUMO",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          0,
+          0,
+          2
+        ],
+        "seasonal_order": [
+          1,
+          0,
+          1,
+          7
+        ],
+        "aic": 3729.0075155152153
+      },
+      "params": {
+        "intercept": 7.279843725483382,
+        "dia_seg": -2.444140410865038,
+        "dia_ter": 1.397378819756888,
+        "dia_qua": -0.06061415526876343,
+        "dia_qui": 2.140583765063438,
+        "dia_sex": 8.670924218744634,
+        "dia_sab": -3.328344497671897,
+        "loja_fechada": -7.503712890970553,
+        "abertura_excepcional": 0.0,
+        "ma.L1": 0.17946606734137185,
+        "ma.L2": -0.014218479818331044,
+        "ar.S.L7": 0.03364917615712894,
+        "ma.S.L7": -0.059202179072722,
+        "sigma2": 910.77365504078
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "low_confidence",
+      "diagnostico": {
+        "ljung_box_p": 0.9972,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 596,
+        "n_origens": 52,
+        "venda_media_dia": 9.54,
+        "mae": 11.09,
+        "mase": 1.179,
+        "erro_relativo_naive": 0.767,
+        "vence_naive_pct": 26.9,
+        "cobertura_ic95_pct": 97.7,
+        "largura_ic95": 63.9,
+        "previsto_sobre_real_pct": 80.5
+      }
+    },
+    "Jardim Canadá|produto|530": {
+      "unidade": "Jardim Canadá",
+      "nivel": "produto",
+      "chave": "530",
+      "nome": "CASCA DE PINUS 40L",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          0,
+          0,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 3205.851073820283
+      },
+      "params": {
+        "intercept": 11.721210345688844,
+        "dia_seg": 0.5697194371583791,
+        "dia_ter": -0.6526931587610012,
+        "dia_qua": 0.18993347013630585,
+        "dia_qui": -0.15777632014497983,
+        "dia_sex": 4.493719556143474,
+        "dia_sab": -6.413998266325386,
+        "loja_fechada": -11.689821795700587,
+        "abertura_excepcional": 0.0,
+        "ma.L1": 0.05596275685752453,
+        "ma.L2": 0.05299961233549313,
+        "ma.S.L7": -0.012531087848516817,
+        "sigma2": 159.10785396896375
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "low_confidence",
+      "diagnostico": {
+        "ljung_box_p": 0.7311,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 596,
+        "n_origens": 52,
+        "venda_media_dia": 11.88,
+        "mae": 9.7,
+        "mase": 1.019,
+        "erro_relativo_naive": 0.748,
+        "vence_naive_pct": 84.6,
+        "cobertura_ic95_pct": 90.4,
+        "largura_ic95": 33.62,
+        "previsto_sobre_real_pct": 83.5
+      }
+    },
+    "Jardim Canadá|produto|637": {
+      "unidade": "Jardim Canadá",
+      "nivel": "produto",
+      "chave": "637",
+      "nome": "MANTA BIDIM METRO",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          0,
+          0,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 3116.8340787056973
+      },
+      "params": {
+        "intercept": 13.780705847021238,
+        "dia_seg": 2.5076394400428588,
+        "dia_ter": 4.978872984564171,
+        "dia_qua": -3.105606104048555,
+        "dia_qui": -1.5494167911766668,
+        "dia_sex": -3.5318928023925307,
+        "dia_sab": -5.182269333278747,
+        "loja_fechada": -13.789267089639361,
+        "abertura_excepcional": 0.0,
+        "ma.L1": 0.0036614576496054154,
+        "ma.L2": -0.04763819278458341,
+        "ma.S.L7": -0.04483051640690547,
+        "sigma2": 386.4013672350938
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "trained",
+      "diagnostico": {
+        "ljung_box_p": 0.7951,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 596,
+        "n_origens": 52,
+        "venda_media_dia": 12.82,
+        "mae": 10.28,
+        "mase": 0.854,
+        "erro_relativo_naive": 0.673,
+        "vence_naive_pct": 88.5,
+        "cobertura_ic95_pct": 97.5,
+        "largura_ic95": 48.36,
+        "previsto_sobre_real_pct": 93.4
+      }
+    },
+    "Jardim Canadá|produto|669": {
+      "unidade": "Jardim Canadá",
+      "nivel": "produto",
+      "chave": "669",
+      "nome": "ARGILA EXPANDIDA FRACIONADA",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          1,
+          0,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 2053.0247360780986
+      },
+      "params": {
+        "intercept": 2.9691420181129438,
+        "dia_seg": 1.351006219991853,
+        "dia_ter": -1.0223538667596357,
+        "dia_qua": -0.8826642044342435,
+        "dia_qui": -0.5890707954474949,
+        "dia_sex": -0.23241028102507386,
+        "dia_sab": -0.02262738247341896,
+        "loja_fechada": -3.550698116953455,
+        "abertura_excepcional": 0.0,
+        "ar.L1": 0.16315239233320225,
+        "ma.L1": -0.14227616757202427,
+        "ma.L2": 0.07605363476767858,
+        "ma.S.L7": 0.011770769652970067,
+        "sigma2": 7.438403740393847
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "trained",
+      "diagnostico": {
+        "ljung_box_p": 0.7061,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 596,
+        "n_origens": 52,
+        "venda_media_dia": 3.11,
+        "mae": 2.5,
+        "mase": 0.88,
+        "erro_relativo_naive": 0.822,
+        "vence_naive_pct": 73.1,
+        "cobertura_ic95_pct": 96.5,
+        "largura_ic95": 9.63,
+        "previsto_sobre_real_pct": 119.8
+      }
+    },
+    "Jardim Canadá|produto|2342": {
+      "unidade": "Jardim Canadá",
+      "nivel": "produto",
+      "chave": "2342",
+      "nome": "BIOPLANT CANTEIROS GRAMADOS 20KG",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          2,
+          0,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 3738.3004858180716
+      },
+      "params": {
+        "intercept": 4.057655835657639,
+        "dia_seg": -4.7135800936613474,
+        "dia_ter": 6.833353340941818,
+        "dia_qua": 3.919998678746394,
+        "dia_qui": -2.777530253609292,
+        "dia_sex": 34.99652296907647,
+        "dia_sab": -24.769050260187434,
+        "loja_fechada": -50.68463942006941,
+        "abertura_excepcional": 0.0,
+        "ar.L1": 0.5848292309177295,
+        "ar.L2": 0.33565820513372985,
+        "ma.L1": -0.7717714343266474,
+        "ma.L2": -0.36152443191884226,
+        "ma.S.L7": -0.029513520756475807,
+        "sigma2": 4024.0417207920686
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "low_confidence",
+      "diagnostico": {
+        "ljung_box_p": 0.1343,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 596,
+        "n_origens": 52,
+        "venda_media_dia": 54.16,
+        "mae": 34.06,
+        "mase": 1.04,
+        "erro_relativo_naive": 0.753,
+        "vence_naive_pct": 71.2,
+        "cobertura_ic95_pct": 97.7,
+        "largura_ic95": 164.38,
+        "previsto_sobre_real_pct": 90.9
+      }
+    },
+    "Jardim Canadá|produto|3393": {
+      "unidade": "Jardim Canadá",
+      "nivel": "produto",
+      "chave": "3393",
+      "nome": "ALSTROEMERIA (ASTROMELIA) FLOR DE CORTE",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          1,
+          0,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 2619.0596712007973
+      },
+      "params": {
+        "intercept": 8.637259018685906,
+        "dia_seg": -3.080422085319422,
+        "dia_ter": -6.842285010583145,
+        "dia_qua": -6.919525403875433,
+        "dia_qui": 2.6311962685771424,
+        "dia_sex": 7.123745855288614,
+        "dia_sab": -1.2411354566302133,
+        "loja_fechada": -10.999271555391381,
+        "abertura_excepcional": 0.0,
+        "ar.L1": 0.21084636403592666,
+        "ma.L1": -0.0738418889335429,
+        "ma.L2": -0.06771812182483027,
+        "ma.S.L7": 0.023261615981932174,
+        "sigma2": 66.96834675829099
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "trained",
+      "diagnostico": {
+        "ljung_box_p": 0.6055,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 596,
+        "n_origens": 52,
+        "venda_media_dia": 9.55,
+        "mae": 6.13,
+        "mase": 0.922,
+        "erro_relativo_naive": 0.724,
+        "vence_naive_pct": 82.7,
+        "cobertura_ic95_pct": 92.6,
+        "largura_ic95": 23.1,
+        "previsto_sobre_real_pct": 89.6
+      }
+    },
+    "Jardim Canadá|produto|2753": {
+      "unidade": "Jardim Canadá",
+      "nivel": "produto",
+      "chave": "2753",
+      "nome": "BIOPLANT 5 KG",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          2,
+          0,
+          2
+        ],
+        "seasonal_order": [
+          1,
+          0,
+          1,
+          7
+        ],
+        "aic": 1504.1677988599838
+      },
+      "params": {
+        "intercept": 0.22667986968717596,
+        "dia_seg": 0.8233368261522157,
+        "dia_ter": -0.5699845684577781,
+        "dia_qua": -0.6162820450178412,
+        "dia_qui": -0.7814269403271307,
+        "dia_sex": -0.7001666145848742,
+        "dia_sab": -0.4967215769249743,
+        "loja_fechada": -2.583590907959964,
+        "abertura_excepcional": 0.0,
+        "ar.L1": -0.15673927046043046,
+        "ar.L2": 0.5838626385336732,
+        "ma.L1": 0.18295247907394974,
+        "ma.L2": -0.5869627107805724,
+        "ar.S.L7": 0.8471324974841008,
+        "ma.S.L7": -1.0000522670943959,
+        "sigma2": 2.5965433691906967
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "trained",
+      "diagnostico": {
+        "ljung_box_p": 0.9568,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 596,
+        "n_origens": 52,
+        "venda_media_dia": 2.15,
+        "mae": 1.48,
+        "mase": 0.908,
+        "erro_relativo_naive": 0.788,
+        "vence_naive_pct": 76.9,
+        "cobertura_ic95_pct": 93.1,
+        "largura_ic95": 5.18,
+        "previsto_sobre_real_pct": 94.9
+      }
+    },
+    "Jardim Canadá|produto|710": {
+      "unidade": "Jardim Canadá",
+      "nivel": "produto",
+      "chave": "710",
+      "nome": "GRAMA SAO CARLOS",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          1,
+          0,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 4774.021776374573
+      },
+      "params": {
+        "intercept": 93.60213433372971,
+        "dia_seg": -35.77718381990612,
+        "dia_ter": 19.989271151762924,
+        "dia_qua": 41.11396081736738,
+        "dia_qui": 31.312594116546524,
+        "dia_sex": 19.686010195844602,
+        "dia_sab": -52.119457090310874,
+        "loja_fechada": -82.56526195288403,
+        "abertura_excepcional": 0.0,
+        "ar.L1": -0.13105912294466152,
+        "ma.L1": 0.1640286449051466,
+        "ma.L2": 0.10404207672617845,
+        "ma.S.L7": 0.2485560519563394,
+        "sigma2": 12305.999119330556
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "low_confidence",
+      "diagnostico": {
+        "ljung_box_p": 0.9718,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 596,
+        "n_origens": 52,
+        "venda_media_dia": 85.56,
+        "mae": 77.93,
+        "mase": 1.03,
+        "erro_relativo_naive": 0.767,
+        "vence_naive_pct": 78.8,
+        "cobertura_ic95_pct": 93.3,
+        "largura_ic95": 279.59,
+        "previsto_sobre_real_pct": 92.9
+      }
+    },
+    "Jardim Canadá|produto|650": {
+      "unidade": "Jardim Canadá",
+      "nivel": "produto",
+      "chave": "650",
+      "nome": "BEIJO SUNPATIENS PT13",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          0,
+          0,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 4466.770103468412
+      },
+      "params": {
+        "intercept": 80.56350891253652,
+        "dia_seg": -0.3825108269756035,
+        "dia_ter": -0.49731838718552795,
+        "dia_qua": -11.633628241507038,
+        "dia_qui": -4.635203707406643,
+        "dia_sex": -1.9423852177071144,
+        "dia_sab": -33.023899739321244,
+        "loja_fechada": -80.45833754139416,
+        "abertura_excepcional": 0.0,
+        "ma.L1": -0.021159543156383766,
+        "ma.L2": 0.06255626677745936,
+        "ma.S.L7": 0.06344212496352987,
+        "sigma2": 4006.3006476213573
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "trained",
+      "diagnostico": {
+        "ljung_box_p": 0.0,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 596,
+        "n_origens": 52,
+        "venda_media_dia": 74.36,
+        "mae": 52.51,
+        "mase": 0.916,
+        "erro_relativo_naive": 0.782,
+        "vence_naive_pct": 78.8,
+        "cobertura_ic95_pct": 93.3,
+        "largura_ic95": 196.66,
+        "previsto_sobre_real_pct": 96.3
+      }
+    },
+    "Jardim Canadá|produto|433NL": {
+      "unidade": "Jardim Canadá",
+      "nivel": "produto",
+      "chave": "433NL",
+      "nome": "ERVAS AROMATICAS / TEMPEROS SAQ",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          1,
+          0,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 3807.9548198564394
+      },
+      "params": {
+        "intercept": 40.82677788985212,
+        "dia_seg": 4.1429968103670145,
+        "dia_ter": -11.494582989692821,
+        "dia_qua": -2.8684271522006206,
+        "dia_qui": 2.9848826440963996,
+        "dia_sex": 2.651275843003097,
+        "dia_sab": -15.562496670574244,
+        "loja_fechada": -33.16112461725616,
+        "abertura_excepcional": 0.0,
+        "ar.L1": -0.23037095836358,
+        "ma.L1": 0.23835299077109062,
+        "ma.L2": 0.05189927999410989,
+        "ma.S.L7": 0.08520428528424026,
+        "sigma2": 695.2263025969767
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "trained",
+      "diagnostico": {
+        "ljung_box_p": 0.0426,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 596,
+        "n_origens": 52,
+        "venda_media_dia": 28.36,
+        "mae": 22.3,
+        "mase": 0.833,
+        "erro_relativo_naive": 0.85,
+        "vence_naive_pct": 61.5,
+        "cobertura_ic95_pct": 94.5,
+        "largura_ic95": 90.97,
+        "previsto_sobre_real_pct": 122.4
+      }
+    },
+    "Jardim Canadá|produto|434": {
+      "unidade": "Jardim Canadá",
+      "nivel": "produto",
+      "chave": "434",
+      "nome": "KALANCHOE PT 11",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          2,
+          0,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 3285.199653854288
+      },
+      "params": {
+        "intercept": 2.232334555938811,
+        "dia_seg": -2.5456235073119724,
+        "dia_ter": -8.279227236848433,
+        "dia_qua": -8.803505496134038,
+        "dia_qui": 1.382500707872789,
+        "dia_sex": 8.29235115230283,
+        "dia_sab": -0.6586362994989112,
+        "loja_fechada": -15.829577214026429,
+        "abertura_excepcional": 0.0,
+        "ar.L1": 0.5611469003988385,
+        "ar.L2": 0.3003423903673006,
+        "ma.L1": -0.5669167278852263,
+        "ma.L2": -0.24708970942891634,
+        "ma.S.L7": -0.03345663544803527,
+        "sigma2": 207.0429260764744
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "trained",
+      "diagnostico": {
+        "ljung_box_p": 0.8668,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 596,
+        "n_origens": 52,
+        "venda_media_dia": 14.77,
+        "mae": 11.71,
+        "mase": 0.902,
+        "erro_relativo_naive": 0.752,
+        "vence_naive_pct": 82.7,
+        "cobertura_ic95_pct": 95.3,
+        "largura_ic95": 44.29,
+        "previsto_sobre_real_pct": 105.7
+      }
+    },
+    "Itabirito|loja|total": {
+      "unidade": "Itabirito",
+      "nivel": "loja",
+      "chave": "total",
+      "nome": "Loja Itabirito",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          0,
+          1,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 6117.46205849398
+      },
+      "params": {
+        "dia_seg": 68.36302051853768,
+        "dia_ter": -144.61928201778437,
+        "dia_qua": -147.26221488731485,
+        "dia_qui": -157.2560922531842,
+        "dia_sex": 176.99594014541995,
+        "dia_sab": -373.2037450112846,
+        "loja_fechada": -1166.4222635167637,
+        "abertura_excepcional": -543.657616572678,
+        "ma.L1": -0.9930173780243234,
+        "ma.L2": -0.05659422384166456,
+        "ma.S.L7": -0.05115139578025913,
+        "sigma2": 211488.94743412445
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "trained",
+      "diagnostico": {
+        "ljung_box_p": 0.7947,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 600,
+        "n_origens": 52,
+        "venda_media_dia": 1111.26,
+        "mae": 404.05,
+        "mase": 0.775,
+        "erro_relativo_naive": 0.725,
+        "vence_naive_pct": 90.4,
+        "cobertura_ic95_pct": 94.2,
+        "largura_ic95": 2108.33,
+        "previsto_sobre_real_pct": 100.1
+      }
+    },
+    "Jardim Canadá|loja|total": {
+      "unidade": "Jardim Canadá",
+      "nivel": "loja",
+      "chave": "total",
+      "nome": "Loja Jardim Canadá",
+      "ativa": true,
+      "ultima_execucao": "20261015T232553",
+      "motivo": "",
+      "versao": 1,
+      "ordem_selecionada_em": "2026-03-03",
+      "spec": {
+        "order": [
+          0,
+          1,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 6734.549652685408
+      },
+      "params": {
+        "dia_seg": 382.71932883844033,
+        "dia_ter": 890.9080273853431,
+        "dia_qua": 660.8006427263891,
+        "dia_qui": 418.4436148234827,
+        "dia_sex": 503.44264879873015,
+        "dia_sab": -1210.8332154998934,
+        "loja_fechada": -2951.1712274252586,
+        "abertura_excepcional": 0.0,
+        "ma.L1": -0.8652952205245075,
+        "ma.L2": -0.05469776240070175,
+        "ma.S.L7": 0.08933459861567743,
+        "sigma2": 1633607.491697547
+      },
+      "params_ajustados_com_dados_ate": "2026-02-28",
+      "status": "trained",
+      "diagnostico": {
+        "ljung_box_p": 0.6292,
+        "shapiro_p": 0.0
+      },
+      "fallback": false,
+      "ordem_reselecionada": false,
+      "n_obs_treino": 425,
+      "metricas_backtest": {
+        "n_dias": 596,
+        "n_origens": 52,
+        "venda_media_dia": 3291.22,
+        "mae": 1068.14,
+        "mase": 0.844,
+        "erro_relativo_naive": 0.728,
+        "vence_naive_pct": 90.4,
+        "cobertura_ic95_pct": 92.6,
+        "largura_ic95": 4831.88,
+        "previsto_sobre_real_pct": 100.1
+      }
+    }
+  },
+  "atualizado_em": "2026-10-15T23:45:13",
+  "ultima_execucao": "20261015T232553"
+}

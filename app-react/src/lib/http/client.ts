@@ -6,7 +6,8 @@ interface RequestOptions {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
   formData?: FormData;
-  query?: Record<string, string | number | boolean | undefined>;
+  /** Listas viram o parâmetro repetido (`?lojas=a&lojas=b`). */
+  query?: Record<string, string | number | boolean | undefined | null | (string | number)[]>;
   signal?: AbortSignal;
   publica?: boolean;
   blob?: boolean;
@@ -16,7 +17,8 @@ function montarUrl(path: string, query?: RequestOptions["query"]): string {
   const url = new URL(env.apiBaseUrl + path);
   if (query) {
     for (const [chave, valor] of Object.entries(query)) {
-      if (valor !== undefined && valor !== "") url.searchParams.set(chave, String(valor));
+      if (Array.isArray(valor)) for (const v of valor) url.searchParams.append(chave, String(v));
+      else if (valor !== undefined && valor !== null && valor !== "") url.searchParams.set(chave, String(valor));
     }
   }
   return url.toString();

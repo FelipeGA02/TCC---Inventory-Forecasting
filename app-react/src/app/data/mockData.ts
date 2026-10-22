@@ -1,19 +1,21 @@
 /**
- * Dados do frontend enquanto a API (ia-predictor/openapi.yaml) não está conectada.
+ * Painel de previsão vindo da API (`GET /api/v1/painel`, formato `BaseReal`): previsão da
+ * loja e das categorias, histórico, produtos, encomendas e testes de acerto, montados no
+ * backend a partir das vendas do banco e do último treino concluído.
  *
- * Nada aqui é inventado: `baseReal.json` é gerado a partir da base real da Verde Perto
- * (jan/2024–fev/2026) por
- *   python -m training_scripts.frontend_mock.gerar_dados_frontend   (em ia-predictor/)
- * com os modelos escolhidos na etapa de testes: previsão da loja na venda sem encomendas
- * (SARIMAX, sem log1p, janela deslizante), categoria como participação na previsão da loja e
- * um SARIMAX por produto de venda regular.
- *
- * Este módulo só tipa o JSON e oferece seletores para os filtros de loja e categoria.
+ * Carregado em duas partes, por isso os valores abaixo são `let` (o import do ES module
+ * enxerga o valor atual):
+ *   - `definirContexto()` (logo após o login, `GET /api/v1/contexto`): lojas, categorias e
+ *     configuração — o que o layout e os filtros usam;
+ *   - `definirPainel()` (só quando uma tela que usa a previsão é aberta, ver `recursos.ts`):
+ *     o painel inteiro em `dados` e `unidades`.
+ * Este módulo oferece os seletores para os filtros de loja e categoria.
  */
-import bruto from "./baseReal.json";
 import type {
   BaseReal,
+  Categoria,
   CategoriaId,
+  Contexto,
   DiaHistorico,
   DiaPrevisto,
   Faixa,
@@ -25,12 +27,29 @@ import type {
   UnidadeDados,
 } from "@/domain/types";
 
-export const dados = bruto as unknown as BaseReal;
+export let contexto: Contexto;
+export let lojas: Contexto["lojas"];
+export let categorias: Categoria[];
+export let HORIZONTE_DIAS: number;
+export let LIMIAR_ENCOMENDA: number;
+export let IDS_CATEGORIA: CategoriaId[];
 
-export const categorias = dados.categorias;
-export const unidades = dados.unidades;
-export const HORIZONTE_DIAS = dados.configuracao.horizonte_dias;
-export const LIMIAR_ENCOMENDA = dados.configuracao.limiar_encomenda_un;
+export let dados: BaseReal;
+export let unidades: UnidadeDados[];
+
+export function definirContexto(c: Contexto): void {
+  contexto = c;
+  lojas = c.lojas;
+  categorias = c.categorias;
+  HORIZONTE_DIAS = c.configuracao.horizonte_dias;
+  LIMIAR_ENCOMENDA = c.configuracao.limiar_encomenda_un;
+  IDS_CATEGORIA = c.categorias.map((x) => x.id);
+}
+
+export function definirPainel(painel: BaseReal): void {
+  dados = painel;
+  unidades = painel.unidades;
+}
 
 /** Paleta categórica validada (dataviz: lightness, chroma, CVD e contraste). Ordem fixa. */
 export const CORES_CATEGORIA: PorCategoria<string> = {
@@ -43,8 +62,6 @@ export const CORES_CATEGORIA: PorCategoria<string> = {
 export const COR_ENCOMENDA = "#9aa4b1";
 export const COR_TOTAL = "#1a6b3c";
 
-export const IDS_CATEGORIA = categorias.map((c) => c.id) as CategoriaId[];
-
 export function nomeCategoria(id: CategoriaId | "todas"): string {
   if (id === "todas") return "Todas as categorias";
   return categorias.find((c) => c.id === id)?.nome ?? id;
@@ -56,7 +73,7 @@ export function corCategoria(id: FiltroCategoria): string {
 
 export function nomeUnidade(filtro: FiltroUnidade): string {
   if (filtro === "todas") return "Todas as lojas";
-  return unidades.find((u) => u.id === filtro)?.nome ?? filtro;
+  return lojas.find((u) => u.id === filtro)?.nome ?? filtro;
 }
 
 export function unidadesDoFiltro(filtro: FiltroUnidade): UnidadeDados[] {

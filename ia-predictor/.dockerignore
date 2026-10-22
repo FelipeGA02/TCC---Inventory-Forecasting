@@ -1,0 +1,12 @@
+.env
+.env.*
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/*.ipynb
+*.db
+data
+models
+tests
+training_scripts/output
+training_scripts/results

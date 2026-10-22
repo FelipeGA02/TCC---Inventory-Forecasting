@@ -1,11 +1,13 @@
-import { useMemo, useState } from "react";
-import { CheckCircle2, Scale, Search, Target, TrendingUp, type LucideIcon } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { CheckCircle2, Loader2, Scale, Search, Target, TrendingUp, type LucideIcon } from "lucide-react";
 import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Input } from "../ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import type { CategoriaId, DiaBacktest, MetricasModelo, ProdutoDaLoja, StatusModelo, UnidadeId } from "@/domain/types";
 import { CORES_CATEGORIA, COR_TOTAL, categorias, nomeCategoria, produtosDe, unidades } from "../../data/mockData";
+import { api } from "../../data/api";
+import { mensagemDoErro } from "@/lib/http/errors";
 import { Segmentado, StatusBadge } from "../shared";
 import { eixo, estiloTooltip } from "@/styles/tokens";
 import { formatarData, formatarDiaMes, formatarMesAno, formatarNumero, formatarQtd } from "@/lib/format";
@@ -21,6 +23,33 @@ type Tipo = "loja" | "categoria" | "produto";
 type Periodo = string;
 
 const chave = (p: ProdutoDaLoja) => `${p.unidade}-${p.codigo}`;
+
+// O teste de acerto de cada produto não vem no painel (seria 70% dele): é buscado quando o
+// produto é aberto e guardado enquanto a tela existir.
+const backtestsBuscados = new Map<string, Promise<DiaBacktest[]>>();
+
+function useBacktestProduto(produto: ProdutoDaLoja | undefined) {
+  const [estado, setEstado] = useState<{ chave: string; serie?: DiaBacktest[]; erro?: string } | null>(null);
+  const k = produto ? chave(produto) : "";
+  useEffect(() => {
+    if (!produto) return;
+    let vivo = true;
+    let busca = backtestsBuscados.get(k);
+    if (!busca) {
+      busca = api.backtestProduto(produto.unidade, produto.codigo);
+      backtestsBuscados.set(k, busca);
+      busca.catch(() => backtestsBuscados.delete(k));
+    }
+    busca
+      .then((serie) => vivo && setEstado({ chave: k, serie }))
+      .catch((e: unknown) => vivo && setEstado({ chave: k, erro: mensagemDoErro(e) }));
+    return () => {
+      vivo = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [k]);
+  return estado?.chave === k ? estado : null;
+}
 
 // ---------------------------------------------------------------------------
 // Indicadores em linguagem simples
@@ -102,6 +131,7 @@ export function HistoricoPrevisao({ produtoSelecionado, onSelecionarProduto }: {
     return t ? produtos.filter((p) => p.nome.toLowerCase().includes(t) || p.codigo.includes(t)) : produtos;
   }, [produtos, busca]);
   const produto = produtos.find((p) => chave(p) === produtoSelecionado) ?? produtos[0];
+  const backtest = useBacktestProduto(tipo === "produto" ? produto : undefined);
   const loja = unidades.find((u) => u.id === lojaId)!;
   const desag = loja.desagregacao?.[cat];
 
@@ -243,12 +273,20 @@ export function HistoricoPrevisao({ produtoSelecionado, onSelecionarProduto }: {
               </div>
             </div>
             <div className="min-w-0">
-              {produto && produto.modelo?.metricas ? (
+              {produto && produto.modelo?.metricas && !backtest?.serie ? (
+                <p className="text-xs p-8 flex items-center justify-center gap-2" style={{ color: backtest?.erro ? "var(--destructive)" : "var(--muted-foreground)" }}>
+                  {backtest?.erro ?? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" /> Carregando o histórico do produto...
+                    </>
+                  )}
+                </p>
+              ) : produto && produto.modelo?.metricas ? (
                 <PainelHistorico
                   titulo={`${produto.nome} · ${produto.nomeUnidade}`}
                   status={produto.modelo.status}
                   metricas={produto.modelo.metricas}
-                  serie={produto.backtest ?? []}
+                  serie={backtest?.serie ?? []}
                   periodo={periodo}
                   cor={CORES_CATEGORIA[produto.categoria]}
                   fmt={formatarQtd}

@@ -335,11 +335,24 @@ class BacktestPoint(Base):
 # --------------------------------------------------------------------------- #
 # Engine e sessão
 # --------------------------------------------------------------------------- #
-_IS_SQLITE = settings.DATABASE_URL.startswith("sqlite")
+def database_url(url: str) -> str:
+    """Aceita a URL como o Neon (e outros Postgres gerenciados) entrega —
+    `postgres://` ou `postgresql://` — e fixa o driver psycopg 3."""
+    for prefixo in ("postgres://", "postgresql://"):
+        if url.startswith(prefixo):
+            return "postgresql+psycopg://" + url[len(prefixo):]
+    return url
+
+
+_URL = database_url(settings.DATABASE_URL)
+_IS_SQLITE = _URL.startswith("sqlite")
 
 engine = create_engine(
-    settings.DATABASE_URL,
+    _URL,
     connect_args={"check_same_thread": False, "timeout": 30} if _IS_SQLITE else {},
+    # Neon suspende o servidor ocioso e fecha as conexões: testa antes de usar e renova a
+    # cada 5 min, para a primeira requisição depois da pausa não falhar.
+    **({} if _IS_SQLITE else {"pool_pre_ping": True, "pool_recycle": 300}),
 )
 
 if _IS_SQLITE:

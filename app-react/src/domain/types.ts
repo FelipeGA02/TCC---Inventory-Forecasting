@@ -17,6 +17,7 @@ export type Perfil = "admin" | "viewer";
 export interface Usuario {
   id: number;
   email: string;
+  nome: string;
   perfil: Perfil;
 }
 
@@ -238,4 +239,24 @@ export interface BaseReal {
       duplicatas: number;
     };
   };
+}
+
+/**
+ * O pouco que o layout precisa logo depois do login (`GET /api/v1/contexto`): lojas,
+ * categorias, período da base, status dos previsores e planilhas carregadas. As telas pedem
+ * o resto (painel, análises, registros) quando são abertas.
+ */
+export interface Contexto {
+  lojas: { id: UnidadeId; nome: string; cidade: string }[];
+  categorias: Categoria[];
+  /** treino_na_api: falso quando a API não treina (Render) — o front não oferece "Atualizar os modelos" */
+  configuracao: { horizonte_dias: number; limiar_encomenda_un: number; treino_na_api: boolean };
+  base: { inicio: string | null; fim: string | null; linhas: number; skus: number };
+  previsao: {
+    gerada_em: string;
+    dados_ate: string;
+    lojas: { id: UnidadeId; status: StatusModelo }[];
+    produtos: { loja: UnidadeId; codigo: string; nome: string; status: StatusModelo | null }[];
+  } | null;
+  importacao: BaseReal["importacao"];
 }

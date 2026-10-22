@@ -1,0 +1,1062 @@
+{
+  "unidade": "Jardim Canadá",
+  "gerado_em": "2026-10-15T20:53:43",
+  "config": {
+    "base": "fluxo diario (sem servico e taxa, sem encomendas > 2.000 un. no documento — ADR-013)",
+    "categorias": [
+      "Grama",
+      "Plantas diversas",
+      "Produtos de jardim",
+      "Flores de corte"
+    ],
+    "janela": "deslizante",
+    "janela_dias": 425,
+    "passo_origem_dias": 1,
+    "horizonte_dias": 14,
+    "primeira_origem": "2025-03-02",
+    "n_origens": 351,
+    "n_origens_comuns": 351,
+    "janela_participacao_dias": 56,
+    "receita_sarimax": "sem log1p, d = 1, D = 0, m = 7, exogenas de calendario; ordem por AIC antes da 1a origem",
+    "ordens": {
+      "__loja__": {
+        "order": [
+          0,
+          1,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 7079.4158146323625
+      },
+      "Grama": {
+        "order": [
+          0,
+          1,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 6825.825713876815
+      },
+      "Plantas diversas": {
+        "order": [
+          0,
+          1,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 6426.757410057331
+      },
+      "Produtos de jardim": {
+        "order": [
+          0,
+          1,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 5464.507103708636
+      },
+      "Flores de corte": {
+        "order": [
+          1,
+          1,
+          2
+        ],
+        "seasonal_order": [
+          0,
+          0,
+          1,
+          7
+        ],
+        "aic": 4284.400794799831
+      }
+    },
+    "metodos": [
+      "direto",
+      "desag_8sem_dds",
+      "desag_8sem",
+      "naive",
+      "l1_loja",
+      "bottom_up_direto"
+    ],
+    "referencia": "desag_8sem_dds",
+    "tempo_s": 469
+  },
+  "metricas": {
+    "Grama": {
+      "metodos": {
+        "desag_8sem": {
+          "dias_abertos_h1_14": {
+            "n_dias": 4042,
+            "n_origens": 351,
+            "venda_media_dia": 1406.1,
+            "mae": 712.72,
+            "mase": 0.819,
+            "erro_relativo_naive": 0.761,
+            "vence_naive_pct": 84.9,
+            "cobertura_ic95_pct": 81.0,
+            "largura_ic95": 2030.7,
+            "previsto_sobre_real_pct": 99.7,
+            "erro_total_14d_pct": 20.7,
+            "passa_criterio_diario": false
+          },
+          "dias_abertos_h1": {
+            "n_dias": 288,
+            "n_origens": 288,
+            "venda_media_dia": 1412.0,
+            "mae": 706.47,
+            "mase": 0.813,
+            "erro_relativo_naive": 0.747,
+            "vence_naive_pct": 62.5,
+            "cobertura_ic95_pct": 80.2,
+            "largura_ic95": 1965.2,
+            "previsto_sobre_real_pct": 99.5,
+            "erro_total_14d_pct": 50.0,
+            "passa_criterio_diario": false
+          },
+          "dias_abertos_h14": {
+            "n_dias": 289,
+            "n_origens": 289,
+            "venda_media_dia": 1390.9,
+            "mae": 713.17,
+            "mase": 0.82,
+            "erro_relativo_naive": 0.771,
+            "vence_naive_pct": 59.9,
+            "cobertura_ic95_pct": 82.7,
+            "largura_ic95": 2082.4,
+            "previsto_sobre_real_pct": 100.6,
+            "erro_total_14d_pct": 51.3,
+            "passa_criterio_diario": false
+          },
+          "todos_os_dias_h1_14": {
+            "n_dias": 4914,
+            "n_origens": 351,
+            "venda_media_dia": 1156.6,
+            "mae": 610.72,
+            "mase": 0.702,
+            "erro_relativo_naive": 0.742,
+            "vence_naive_pct": 88.3,
+            "cobertura_ic95_pct": 84.4,
+            "largura_ic95": 1866.1,
+            "previsto_sobre_real_pct": 101.8,
+            "erro_total_14d_pct": 21.4,
+            "passa_criterio_diario": false
+          }
+        },
+        "desag_8sem_dds": {
+          "dias_abertos_h1_14": {
+            "n_dias": 4042,
+            "n_origens": 351,
+            "venda_media_dia": 1406.1,
+            "mae": 712.79,
+            "mase": 0.819,
+            "erro_relativo_naive": 0.761,
+            "vence_naive_pct": 86.3,
+            "cobertura_ic95_pct": 78.7,
+            "largura_ic95": 1971.1,
+            "previsto_sobre_real_pct": 98.9,
+            "erro_total_14d_pct": 20.8,
+            "passa_criterio_diario": false
+          },
+          "dias_abertos_h1": {
+            "n_dias": 288,
+            "n_origens": 288,
+            "venda_media_dia": 1412.0,
+            "mae": 714.3,
+            "mase": 0.822,
+            "erro_relativo_naive": 0.755,
+            "vence_naive_pct": 61.1,
+            "cobertura_ic95_pct": 77.1,
+            "largura_ic95": 1907.2,
+            "previsto_sobre_real_pct": 98.8,
+            "erro_total_14d_pct": 50.6,
+            "passa_criterio_diario": false
+          },
+          "dias_abertos_h14": {
+            "n_dias": 289,
+            "n_origens": 289,
+            "venda_media_dia": 1390.9,
+            "mae": 710.14,
+            "mase": 0.816,
+            "erro_relativo_naive": 0.767,
+            "vence_naive_pct": 60.9,
+            "cobertura_ic95_pct": 81.0,
+            "largura_ic95": 2021.7,
+            "previsto_sobre_real_pct": 99.9,
+            "erro_total_14d_pct": 51.1,
+            "passa_criterio_diario": false
+          },
+          "todos_os_dias_h1_14": {
+            "n_dias": 4914,
+            "n_origens": 351,
+            "venda_media_dia": 1156.6,
+            "mae": 610.52,
+            "mase": 0.701,
+            "erro_relativo_naive": 0.742,
+            "vence_naive_pct": 88.9,
+            "cobertura_ic95_pct": 82.5,
+            "largura_ic95": 1815.4,
+            "previsto_sobre_real_pct": 101.0,
+            "erro_total_14d_pct": 21.3,
+            "passa_criterio_diario": false
+          }
+        },
+        "direto": {
+          "dias_abertos_h1_14": {
+            "n_dias": 4042,
+            "n_origens": 351,
+            "venda_media_dia": 1406.1,
+            "mae": 693.16,
+            "mase": 0.797,
+            "erro_relativo_naive": 0.74,
+            "vence_naive_pct": 87.5,
+            "cobertura_ic95_pct": 94.3,
+            "largura_ic95": 3143.4,
+            "previsto_sobre_real_pct": 101.2,
+            "erro_total_14d_pct": 20.0,
+            "passa_criterio_diario": true
+          },
+          "dias_abertos_h1": {
+            "n_dias": 288,
+            "n_origens": 288,
+            "venda_media_dia": 1412.0,
+            "mae": 692.77,
+            "mase": 0.797,
+            "erro_relativo_naive": 0.732,
+            "vence_naive_pct": 63.9,
+            "cobertura_ic95_pct": 94.8,
+            "largura_ic95": 3099.2,
+            "previsto_sobre_real_pct": 101.0,
+            "erro_total_14d_pct": 49.1,
+            "passa_criterio_diario": true
+          },
+          "dias_abertos_h14": {
+            "n_dias": 289,
+            "n_origens": 289,
+            "venda_media_dia": 1390.9,
+            "mae": 689.58,
+            "mase": 0.793,
+            "erro_relativo_naive": 0.745,
+            "vence_naive_pct": 59.5,
+            "cobertura_ic95_pct": 93.8,
+            "largura_ic95": 3179.3,
+            "previsto_sobre_real_pct": 102.0,
+            "erro_total_14d_pct": 49.6,
+            "passa_criterio_diario": true
+          },
+          "todos_os_dias_h1_14": {
+            "n_dias": 4914,
+            "n_origens": 351,
+            "venda_media_dia": 1156.6,
+            "mae": 600.81,
+            "mase": 0.691,
+            "erro_relativo_naive": 0.73,
+            "vence_naive_pct": 89.2,
+            "cobertura_ic95_pct": 95.3,
+            "largura_ic95": 2905.6,
+            "previsto_sobre_real_pct": 103.8,
+            "erro_total_14d_pct": 21.0,
+            "passa_criterio_diario": true
+          }
+        }
+      },
+      "diebold_mariano_vs_desag_8sem_dds": {
+        "direto": {
+          "h1_erro_absoluto_diario": {
+            "n": 288,
+            "dif_media_perda": -21.534,
+            "estatistica_hln": -1.96,
+            "p_valor": 0.0509
+          },
+          "soma_14d_erro_absoluto": {
+            "n": 351,
+            "dif_media_perda": -138.246,
+            "estatistica_hln": -1.247,
+            "p_valor": 0.2131
+          }
+        },
+        "desag_8sem": {
+          "h1_erro_absoluto_diario": {
+            "n": 288,
+            "dif_media_perda": -7.83,
+            "estatistica_hln": -0.601,
+            "p_valor": 0.5481
+          },
+          "soma_14d_erro_absoluto": {
+            "n": 351,
+            "dif_media_perda": -22.616,
+            "estatistica_hln": -0.654,
+            "p_valor": 0.5134
+          }
+        }
+      }
+    },
+    "Plantas diversas": {
+      "metodos": {
+        "desag_8sem": {
+          "dias_abertos_h1_14": {
+            "n_dias": 4042,
+            "n_origens": 351,
+            "venda_media_dia": 1399.2,
+            "mae": 505.46,
+            "mase": 0.931,
+            "erro_relativo_naive": 0.72,
+            "vence_naive_pct": 84.0,
+            "cobertura_ic95_pct": 89.6,
+            "largura_ic95": 2052.6,
+            "previsto_sobre_real_pct": 100.7,
+            "erro_total_14d_pct": 13.4,
+            "passa_criterio_diario": false
+          },
+          "dias_abertos_h1": {
+            "n_dias": 288,
+            "n_origens": 288,
+            "venda_media_dia": 1405.7,
+            "mae": 499.65,
+            "mase": 0.92,
+            "erro_relativo_naive": 0.737,
+            "vence_naive_pct": 59.4,
+            "cobertura_ic95_pct": 88.9,
+            "largura_ic95": 1987.6,
+            "previsto_sobre_real_pct": 100.6,
+            "erro_total_14d_pct": 35.5,
+            "passa_criterio_diario": false
+          },
+          "dias_abertos_h14": {
+            "n_dias": 289,
+            "n_origens": 289,
+            "venda_media_dia": 1391.2,
+            "mae": 516.7,
+            "mase": 0.951,
+            "erro_relativo_naive": 0.712,
+            "vence_naive_pct": 65.1,
+            "cobertura_ic95_pct": 89.3,
+            "largura_ic95": 2103.4,
+            "previsto_sobre_real_pct": 101.0,
+            "erro_total_14d_pct": 37.1,
+            "passa_criterio_diario": false
+          },
+          "todos_os_dias_h1_14": {
+            "n_dias": 4914,
+            "n_origens": 351,
+            "venda_media_dia": 1150.9,
+            "mae": 437.81,
+            "mase": 0.805,
+            "erro_relativo_naive": 0.7,
+            "vence_naive_pct": 88.9,
+            "cobertura_ic95_pct": 91.5,
+            "largura_ic95": 1879.1,
+            "previsto_sobre_real_pct": 102.6,
+            "erro_total_14d_pct": 13.9,
+            "passa_criterio_diario": true
+          }
+        },
+        "desag_8sem_dds": {
+          "dias_abertos_h1_14": {
+            "n_dias": 4042,
+            "n_origens": 351,
+            "venda_media_dia": 1399.2,
+            "mae": 510.32,
+            "mase": 0.94,
+            "erro_relativo_naive": 0.727,
+            "vence_naive_pct": 84.0,
+            "cobertura_ic95_pct": 88.6,
+            "largura_ic95": 2094.1,
+            "previsto_sobre_real_pct": 101.0,
+            "erro_total_14d_pct": 13.3,
+            "passa_criterio_diario": false
+          },
+          "dias_abertos_h1": {
+            "n_dias": 288,
+            "n_origens": 288,
+            "venda_media_dia": 1405.7,
+            "mae": 500.39,
+            "mase": 0.922,
+            "erro_relativo_naive": 0.738,
+            "vence_naive_pct": 57.6,
+            "cobertura_ic95_pct": 88.9,
+            "largura_ic95": 2028.6,
+            "previsto_sobre_real_pct": 100.9,
+            "erro_total_14d_pct": 35.6,
+            "passa_criterio_diario": false
+          },
+          "dias_abertos_h14": {
+            "n_dias": 289,
+            "n_origens": 289,
+            "venda_media_dia": 1391.2,
+            "mae": 519.43,
+            "mase": 0.956,
+            "erro_relativo_naive": 0.715,
+            "vence_naive_pct": 59.9,
+            "cobertura_ic95_pct": 88.9,
+            "largura_ic95": 2145.2,
+            "previsto_sobre_real_pct": 101.3,
+            "erro_total_14d_pct": 37.3,
+            "passa_criterio_diario": false
+          },
+          "todos_os_dias_h1_14": {
+            "n_dias": 4914,
+            "n_origens": 351,
+            "venda_media_dia": 1150.9,
+            "mae": 442.11,
+            "mase": 0.814,
+            "erro_relativo_naive": 0.707,
+            "vence_naive_pct": 87.2,
+            "cobertura_ic95_pct": 90.6,
+            "largura_ic95": 1914.7,
+            "previsto_sobre_real_pct": 102.9,
+            "erro_total_14d_pct": 13.9,
+            "passa_criterio_diario": true
+          }
+        },
+        "direto": {
+          "dias_abertos_h1_14": {
+            "n_dias": 4042,
+            "n_origens": 351,
+            "venda_media_dia": 1399.2,
+            "mae": 515.12,
+            "mase": 0.948,
+            "erro_relativo_naive": 0.734,
+            "vence_naive_pct": 85.8,
+            "cobertura_ic95_pct": 90.6,
+            "largura_ic95": 2231.2,
+            "previsto_sobre_real_pct": 99.6,
+            "erro_total_14d_pct": 15.0,
+            "passa_criterio_diario": true
+          },
+          "dias_abertos_h1": {
+            "n_dias": 288,
+            "n_origens": 288,
+            "venda_media_dia": 1405.7,
+            "mae": 505.84,
+            "mase": 0.931,
+            "erro_relativo_naive": 0.746,
+            "vence_naive_pct": 59.7,
+            "cobertura_ic95_pct": 91.0,
+            "largura_ic95": 2196.5,
+            "previsto_sobre_real_pct": 99.3,
+            "erro_total_14d_pct": 36.0,
+            "passa_criterio_diario": true
+          },
+          "dias_abertos_h14": {
+            "n_dias": 289,
+            "n_origens": 289,
+            "venda_media_dia": 1391.2,
+            "mae": 526.59,
+            "mase": 0.968,
+            "erro_relativo_naive": 0.725,
+            "vence_naive_pct": 61.2,
+            "cobertura_ic95_pct": 89.6,
+            "largura_ic95": 2259.8,
+            "previsto_sobre_real_pct": 99.9,
+            "erro_total_14d_pct": 37.9,
+            "passa_criterio_diario": false
+          },
+          "todos_os_dias_h1_14": {
+            "n_dias": 4914,
+            "n_origens": 351,
+            "venda_media_dia": 1150.9,
+            "mae": 440.13,
+            "mase": 0.809,
+            "erro_relativo_naive": 0.703,
+            "vence_naive_pct": 87.7,
+            "cobertura_ic95_pct": 92.3,
+            "largura_ic95": 2042.9,
+            "previsto_sobre_real_pct": 101.0,
+            "erro_total_14d_pct": 15.1,
+            "passa_criterio_diario": true
+          }
+        }
+      },
+      "diebold_mariano_vs_desag_8sem_dds": {
+        "direto": {
+          "h1_erro_absoluto_diario": {
+            "n": 288,
+            "dif_media_perda": 5.447,
+            "estatistica_hln": 0.556,
+            "p_valor": 0.5784
+          },
+          "soma_14d_erro_absoluto": {
+            "n": 351,
+            "dif_media_perda": 279.93,
+            "estatistica_hln": 2.023,
+            "p_valor": 0.0439
+          }
+        },
+        "desag_8sem": {
+          "h1_erro_absoluto_diario": {
+            "n": 288,
+            "dif_media_perda": -0.744,
+            "estatistica_hln": -0.072,
+            "p_valor": 0.943
+          },
+          "soma_14d_erro_absoluto": {
+            "n": 351,
+            "dif_media_perda": 25.097,
+            "estatistica_hln": 1.007,
+            "p_valor": 0.3144
+          }
+        }
+      }
+    },
+    "Produtos de jardim": {
+      "metodos": {
+        "desag_8sem": {
+          "dias_abertos_h1_14": {
+            "n_dias": 4042,
+            "n_origens": 351,
+            "venda_media_dia": 449.3,
+            "mae": 158.5,
+            "mase": 0.878,
+            "erro_relativo_naive": 0.695,
+            "vence_naive_pct": 92.9,
+            "cobertura_ic95_pct": 90.4,
+            "largura_ic95": 659.1,
+            "previsto_sobre_real_pct": 100.7,
+            "erro_total_14d_pct": 15.8,
+            "passa_criterio_diario": true
+          },
+          "dias_abertos_h1": {
+            "n_dias": 288,
+            "n_origens": 288,
+            "venda_media_dia": 450.0,
+            "mae": 159.18,
+            "mase": 0.883,
+            "erro_relativo_naive": 0.735,
+            "vence_naive_pct": 60.8,
+            "cobertura_ic95_pct": 90.3,
+            "largura_ic95": 638.3,
+            "previsto_sobre_real_pct": 101.0,
+            "erro_total_14d_pct": 35.4,
+            "passa_criterio_diario": true
+          },
+          "dias_abertos_h14": {
+            "n_dias": 289,
+            "n_origens": 289,
+            "venda_media_dia": 447.2,
+            "mae": 159.05,
+            "mase": 0.88,
+            "erro_relativo_naive": 0.663,
+            "vence_naive_pct": 67.5,
+            "cobertura_ic95_pct": 90.7,
+            "largura_ic95": 675.4,
+            "previsto_sobre_real_pct": 101.0,
+            "erro_total_14d_pct": 35.6,
+            "passa_criterio_diario": true
+          },
+          "todos_os_dias_h1_14": {
+            "n_dias": 4914,
+            "n_origens": 351,
+            "venda_media_dia": 369.6,
+            "mae": 137.26,
+            "mase": 0.759,
+            "erro_relativo_naive": 0.687,
+            "vence_naive_pct": 93.2,
+            "cobertura_ic95_pct": 92.1,
+            "largura_ic95": 602.8,
+            "previsto_sobre_real_pct": 102.6,
+            "erro_total_14d_pct": 17.2,
+            "passa_criterio_diario": true
+          }
+        },
+        "desag_8sem_dds": {
+          "dias_abertos_h1_14": {
+            "n_dias": 4042,
+            "n_origens": 351,
+            "venda_media_dia": 449.3,
+            "mae": 167.69,
+            "mase": 0.929,
+            "erro_relativo_naive": 0.736,
+            "vence_naive_pct": 91.2,
+            "cobertura_ic95_pct": 89.9,
+            "largura_ic95": 671.2,
+            "previsto_sobre_real_pct": 101.8,
+            "erro_total_14d_pct": 16.0,
+            "passa_criterio_diario": false
+          },
+          "dias_abertos_h1": {
+            "n_dias": 288,
+            "n_origens": 288,
+            "venda_media_dia": 450.0,
+            "mae": 166.99,
+            "mase": 0.926,
+            "erro_relativo_naive": 0.771,
+            "vence_naive_pct": 56.6,
+            "cobertura_ic95_pct": 88.9,
+            "largura_ic95": 649.9,
+            "previsto_sobre_real_pct": 102.0,
+            "erro_total_14d_pct": 37.1,
+            "passa_criterio_diario": false
+          },
+          "dias_abertos_h14": {
+            "n_dias": 289,
+            "n_origens": 289,
+            "venda_media_dia": 447.2,
+            "mae": 167.94,
+            "mase": 0.929,
+            "erro_relativo_naive": 0.7,
+            "vence_naive_pct": 64.4,
+            "cobertura_ic95_pct": 90.7,
+            "largura_ic95": 687.8,
+            "previsto_sobre_real_pct": 101.9,
+            "erro_total_14d_pct": 37.6,
+            "passa_criterio_diario": true
+          },
+          "todos_os_dias_h1_14": {
+            "n_dias": 4914,
+            "n_origens": 351,
+            "venda_media_dia": 369.6,
+            "mae": 144.77,
+            "mase": 0.801,
+            "erro_relativo_naive": 0.724,
+            "vence_naive_pct": 91.7,
+            "cobertura_ic95_pct": 91.7,
+            "largura_ic95": 612.7,
+            "previsto_sobre_real_pct": 103.6,
+            "erro_total_14d_pct": 17.4,
+            "passa_criterio_diario": true
+          }
+        },
+        "direto": {
+          "dias_abertos_h1_14": {
+            "n_dias": 4042,
+            "n_origens": 351,
+            "venda_media_dia": 449.3,
+            "mae": 156.98,
+            "mase": 0.869,
+            "erro_relativo_naive": 0.689,
+            "vence_naive_pct": 90.9,
+            "cobertura_ic95_pct": 92.2,
+            "largura_ic95": 692.5,
+            "previsto_sobre_real_pct": 97.9,
+            "erro_total_14d_pct": 15.2,
+            "passa_criterio_diario": true
+          },
+          "dias_abertos_h1": {
+            "n_dias": 288,
+            "n_origens": 288,
+            "venda_media_dia": 450.0,
+            "mae": 156.59,
+            "mase": 0.868,
+            "erro_relativo_naive": 0.723,
+            "vence_naive_pct": 61.5,
+            "cobertura_ic95_pct": 92.7,
+            "largura_ic95": 687.9,
+            "previsto_sobre_real_pct": 97.9,
+            "erro_total_14d_pct": 34.8,
+            "passa_criterio_diario": true
+          },
+          "dias_abertos_h14": {
+            "n_dias": 289,
+            "n_origens": 289,
+            "venda_media_dia": 447.2,
+            "mae": 159.02,
+            "mase": 0.879,
+            "erro_relativo_naive": 0.663,
+            "vence_naive_pct": 67.1,
+            "cobertura_ic95_pct": 92.0,
+            "largura_ic95": 695.3,
+            "previsto_sobre_real_pct": 98.4,
+            "erro_total_14d_pct": 35.6,
+            "passa_criterio_diario": true
+          },
+          "todos_os_dias_h1_14": {
+            "n_dias": 4914,
+            "n_origens": 351,
+            "venda_media_dia": 369.6,
+            "mae": 135.02,
+            "mase": 0.747,
+            "erro_relativo_naive": 0.675,
+            "vence_naive_pct": 91.7,
+            "cobertura_ic95_pct": 93.5,
+            "largura_ic95": 636.4,
+            "previsto_sobre_real_pct": 99.5,
+            "erro_total_14d_pct": 15.9,
+            "passa_criterio_diario": true
+          }
+        }
+      },
+      "diebold_mariano_vs_desag_8sem_dds": {
+        "direto": {
+          "h1_erro_absoluto_diario": {
+            "n": 288,
+            "dif_media_perda": -10.397,
+            "estatistica_hln": -2.258,
+            "p_valor": 0.0247
+          },
+          "soma_14d_erro_absoluto": {
+            "n": 351,
+            "dif_media_perda": -41.322,
+            "estatistica_hln": -0.552,
+            "p_valor": 0.5811
+          }
+        },
+        "desag_8sem": {
+          "h1_erro_absoluto_diario": {
+            "n": 288,
+            "dif_media_perda": -7.81,
+            "estatistica_hln": -2.086,
+            "p_valor": 0.0378
+          },
+          "soma_14d_erro_absoluto": {
+            "n": 351,
+            "dif_media_perda": -11.151,
+            "estatistica_hln": -1.071,
+            "p_valor": 0.2848
+          }
+        }
+      }
+    },
+    "Flores de corte": {
+      "metodos": {
+        "desag_8sem": {
+          "dias_abertos_h1_14": {
+            "n_dias": 4042,
+            "n_origens": 351,
+            "venda_media_dia": 54.9,
+            "mae": 42.8,
+            "mase": 1.081,
+            "erro_relativo_naive": 0.878,
+            "vence_naive_pct": 53.3,
+            "cobertura_ic95_pct": 60.3,
+            "largura_ic95": 81.2,
+            "previsto_sobre_real_pct": 100.7,
+            "erro_total_14d_pct": 39.1,
+            "passa_criterio_diario": false
+          },
+          "dias_abertos_h1": {
+            "n_dias": 288,
+            "n_origens": 288,
+            "venda_media_dia": 55.9,
+            "mae": 44.26,
+            "mase": 1.122,
+            "erro_relativo_naive": 0.925,
+            "vence_naive_pct": 45.1,
+            "cobertura_ic95_pct": 58.0,
+            "largura_ic95": 78.9,
+            "previsto_sobre_real_pct": 99.4,
+            "erro_total_14d_pct": 79.2,
+            "passa_criterio_diario": false
+          },
+          "dias_abertos_h14": {
+            "n_dias": 289,
+            "n_origens": 289,
+            "venda_media_dia": 54.7,
+            "mae": 42.54,
+            "mase": 1.07,
+            "erro_relativo_naive": 0.846,
+            "vence_naive_pct": 48.8,
+            "cobertura_ic95_pct": 61.6,
+            "largura_ic95": 83.3,
+            "previsto_sobre_real_pct": 100.7,
+            "erro_total_14d_pct": 77.7,
+            "passa_criterio_diario": false
+          },
+          "todos_os_dias_h1_14": {
+            "n_dias": 4914,
+            "n_origens": 351,
+            "venda_media_dia": 45.1,
+            "mae": 36.02,
+            "mase": 0.909,
+            "erro_relativo_naive": 0.854,
+            "vence_naive_pct": 55.6,
+            "cobertura_ic95_pct": 67.3,
+            "largura_ic95": 74.3,
+            "previsto_sobre_real_pct": 102.5,
+            "erro_total_14d_pct": 39.4,
+            "passa_criterio_diario": false
+          }
+        },
+        "desag_8sem_dds": {
+          "dias_abertos_h1_14": {
+            "n_dias": 4042,
+            "n_origens": 351,
+            "venda_media_dia": 54.9,
+            "mae": 40.0,
+            "mase": 1.008,
+            "erro_relativo_naive": 0.821,
+            "vence_naive_pct": 57.8,
+            "cobertura_ic95_pct": 69.1,
+            "largura_ic95": 87.2,
+            "previsto_sobre_real_pct": 102.5,
+            "erro_total_14d_pct": 38.1,
+            "passa_criterio_diario": false
+          },
+          "dias_abertos_h1": {
+            "n_dias": 288,
+            "n_origens": 288,
+            "venda_media_dia": 55.9,
+            "mae": 41.01,
+            "mase": 1.039,
+            "erro_relativo_naive": 0.857,
+            "vence_naive_pct": 52.1,
+            "cobertura_ic95_pct": 66.7,
+            "largura_ic95": 84.3,
+            "previsto_sobre_real_pct": 100.5,
+            "erro_total_14d_pct": 73.4,
+            "passa_criterio_diario": false
+          },
+          "dias_abertos_h14": {
+            "n_dias": 289,
+            "n_origens": 289,
+            "venda_media_dia": 54.7,
+            "mae": 39.8,
+            "mase": 0.998,
+            "erro_relativo_naive": 0.792,
+            "vence_naive_pct": 58.1,
+            "cobertura_ic95_pct": 69.9,
+            "largura_ic95": 89.6,
+            "previsto_sobre_real_pct": 102.7,
+            "erro_total_14d_pct": 72.7,
+            "passa_criterio_diario": false
+          },
+          "todos_os_dias_h1_14": {
+            "n_dias": 4914,
+            "n_origens": 351,
+            "venda_media_dia": 45.1,
+            "mae": 33.72,
+            "mase": 0.849,
+            "erro_relativo_naive": 0.799,
+            "vence_naive_pct": 61.8,
+            "cobertura_ic95_pct": 74.6,
+            "largura_ic95": 79.4,
+            "previsto_sobre_real_pct": 104.3,
+            "erro_total_14d_pct": 38.4,
+            "passa_criterio_diario": false
+          }
+        },
+        "direto": {
+          "dias_abertos_h1_14": {
+            "n_dias": 4042,
+            "n_origens": 351,
+            "venda_media_dia": 54.9,
+            "mae": 35.25,
+            "mase": 0.892,
+            "erro_relativo_naive": 0.723,
+            "vence_naive_pct": 75.5,
+            "cobertura_ic95_pct": 96.2,
+            "largura_ic95": 159.3,
+            "previsto_sobre_real_pct": 96.2,
+            "erro_total_14d_pct": 35.3,
+            "passa_criterio_diario": true
+          },
+          "dias_abertos_h1": {
+            "n_dias": 288,
+            "n_origens": 288,
+            "venda_media_dia": 55.9,
+            "mae": 35.84,
+            "mase": 0.909,
+            "erro_relativo_naive": 0.749,
+            "vence_naive_pct": 54.2,
+            "cobertura_ic95_pct": 95.5,
+            "largura_ic95": 158.0,
+            "previsto_sobre_real_pct": 95.1,
+            "erro_total_14d_pct": 64.1,
+            "passa_criterio_diario": true
+          },
+          "dias_abertos_h14": {
+            "n_dias": 289,
+            "n_origens": 289,
+            "venda_media_dia": 54.7,
+            "mae": 35.22,
+            "mase": 0.888,
+            "erro_relativo_naive": 0.7,
+            "vence_naive_pct": 55.0,
+            "cobertura_ic95_pct": 96.2,
+            "largura_ic95": 159.7,
+            "previsto_sobre_real_pct": 96.6,
+            "erro_total_14d_pct": 64.3,
+            "passa_criterio_diario": true
+          },
+          "todos_os_dias_h1_14": {
+            "n_dias": 4914,
+            "n_origens": 351,
+            "venda_media_dia": 45.1,
+            "mae": 29.79,
+            "mase": 0.754,
+            "erro_relativo_naive": 0.706,
+            "vence_naive_pct": 79.8,
+            "cobertura_ic95_pct": 96.9,
+            "largura_ic95": 150.7,
+            "previsto_sobre_real_pct": 98.0,
+            "erro_total_14d_pct": 36.2,
+            "passa_criterio_diario": true
+          }
+        }
+      },
+      "diebold_mariano_vs_desag_8sem_dds": {
+        "direto": {
+          "h1_erro_absoluto_diario": {
+            "n": 288,
+            "dif_media_perda": -5.166,
+            "estatistica_hln": -3.287,
+            "p_valor": 0.0011
+          },
+          "soma_14d_erro_absoluto": {
+            "n": 351,
+            "dif_media_perda": -17.973,
+            "estatistica_hln": -0.905,
+            "p_valor": 0.366
+          }
+        },
+        "desag_8sem": {
+          "h1_erro_absoluto_diario": {
+            "n": 288,
+            "dif_media_perda": 3.256,
+            "estatistica_hln": 1.805,
+            "p_valor": 0.0721
+          },
+          "soma_14d_erro_absoluto": {
+            "n": 351,
+            "dif_media_perda": 6.207,
+            "estatistica_hln": 1.003,
+            "p_valor": 0.3166
+          }
+        }
+      }
+    },
+    "__loja__": {
+      "metodos": {
+        "bottom_up_direto": {
+          "dias_abertos_h1_14": {
+            "n_dias": 4042,
+            "n_origens": 351,
+            "venda_media_dia": 3309.5,
+            "mae": 1078.88,
+            "mase": 0.854,
+            "erro_relativo_naive": 0.727,
+            "vence_naive_pct": 88.3,
+            "cobertura_ic95_pct": 96.3,
+            "largura_ic95": 6226.4,
+            "previsto_sobre_real_pct": 100.0,
+            "erro_total_14d_pct": 14.3,
+            "passa_criterio_diario": true
+          },
+          "dias_abertos_h1": {
+            "n_dias": 288,
+            "n_origens": 288,
+            "venda_media_dia": 3323.7,
+            "mae": 1047.22,
+            "mase": 0.83,
+            "erro_relativo_naive": 0.724,
+            "vence_naive_pct": 62.8,
+            "cobertura_ic95_pct": 96.9,
+            "largura_ic95": 6141.6,
+            "previsto_sobre_real_pct": 99.8,
+            "erro_total_14d_pct": 31.5,
+            "passa_criterio_diario": true
+          },
+          "dias_abertos_h14": {
+            "n_dias": 289,
+            "n_origens": 289,
+            "venda_media_dia": 3283.9,
+            "mae": 1101.58,
+            "mase": 0.871,
+            "erro_relativo_naive": 0.723,
+            "vence_naive_pct": 58.5,
+            "cobertura_ic95_pct": 96.5,
+            "largura_ic95": 6294.0,
+            "previsto_sobre_real_pct": 100.5,
+            "erro_total_14d_pct": 33.5,
+            "passa_criterio_diario": true
+          },
+          "todos_os_dias_h1_14": {
+            "n_dias": 4914,
+            "n_origens": 351,
+            "venda_media_dia": 2722.2,
+            "mae": 941.2,
+            "mase": 0.745,
+            "erro_relativo_naive": 0.704,
+            "vence_naive_pct": 91.5,
+            "cobertura_ic95_pct": 96.9,
+            "largura_ic95": 5735.5,
+            "previsto_sobre_real_pct": 102.0,
+            "erro_total_14d_pct": 14.8,
+            "passa_criterio_diario": true
+          }
+        },
+        "l1_loja": {
+          "dias_abertos_h1_14": {
+            "n_dias": 4042,
+            "n_origens": 351,
+            "venda_media_dia": 3309.5,
+            "mae": 1078.06,
+            "mase": 0.853,
+            "erro_relativo_naive": 0.726,
+            "vence_naive_pct": 88.0,
+            "cobertura_ic95_pct": 92.7,
+            "largura_ic95": 4823.6,
+            "previsto_sobre_real_pct": 100.2,
+            "erro_total_14d_pct": 14.0,
+            "passa_criterio_diario": true
+          },
+          "dias_abertos_h1": {
+            "n_dias": 288,
+            "n_origens": 288,
+            "venda_media_dia": 3323.7,
+            "mae": 1059.07,
+            "mase": 0.839,
+            "erro_relativo_naive": 0.732,
+            "vence_naive_pct": 61.5,
+            "cobertura_ic95_pct": 92.4,
+            "largura_ic95": 4670.0,
+            "previsto_sobre_real_pct": 100.1,
+            "erro_total_14d_pct": 31.9,
+            "passa_criterio_diario": true
+          },
+          "dias_abertos_h14": {
+            "n_dias": 289,
+            "n_origens": 289,
+            "venda_media_dia": 3283.9,
+            "mae": 1088.02,
+            "mase": 0.861,
+            "erro_relativo_naive": 0.714,
+            "vence_naive_pct": 60.6,
+            "cobertura_ic95_pct": 93.8,
+            "largura_ic95": 4944.4,
+            "previsto_sobre_real_pct": 100.8,
+            "erro_total_14d_pct": 33.1,
+            "passa_criterio_diario": true
+          },
+          "todos_os_dias_h1_14": {
+            "n_dias": 4914,
+            "n_origens": 351,
+            "venda_media_dia": 2722.2,
+            "mae": 940.99,
+            "mase": 0.744,
+            "erro_relativo_naive": 0.704,
+            "vence_naive_pct": 92.3,
+            "cobertura_ic95_pct": 94.0,
+            "largura_ic95": 4422.2,
+            "previsto_sobre_real_pct": 102.2,
+            "erro_total_14d_pct": 14.7,
+            "passa_criterio_diario": true
+          }
+        }
+      },
+      "diebold_mariano_vs_desag_8sem_dds": {}
+    }
+  },
+  "arquivos": {
+    "previsoes": "C:\\Users\\felip\\OneDrive\\Documentos\\Estudos\\TCC\\TCC---Inventory-Forecasting\\ia-predictor\\training_scripts\\results\\metrics\\categoria_direta_vs_desag_jardim-canada_previsoes.csv"
+  }
+}

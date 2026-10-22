@@ -20,6 +20,7 @@ bcrypt==5.0.0
 # Database
 sqlalchemy==2.0.52
 alembic==1.19.1
+psycopg[binary]==3.3.6     # driver do Postgres (Neon) — ver ADR-014
 
 # ML / Stats
 statsmodels==0.14.6

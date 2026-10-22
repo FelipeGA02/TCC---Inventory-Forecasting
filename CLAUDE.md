@@ -38,7 +38,7 @@ pipeline de dados e modelagem preditiva
 | Modelagem | statsmodels 0.14 (SARIMAX — camada agregada L1) + scikit-learn 1.4 (RF) + Croston/TSB/SBA (demanda intermitente por SKU — trilha de comparação) |
 | Análise exploratória (EDA) | Jupyter Notebooks + matplotlib, seaborn, plotly (não entram no runtime de produção) |
 | Auth | python-jose (JWT HS256) + passlib (bcrypt) |
-| Banco | SQLite via SQLAlchemy 2.0 |
+| Banco | Postgres no Neon (compartilhado) e SQLite (local), via SQLAlchemy 2.0 + psycopg 3 — ADR-014 |
 | Scheduler | APScheduler 3.10 (ajuste dos modelos segunda 02:00, pulado sem venda nova · conferência do calendário 03:00, gera de novo a previsão só se ele mudou) |
 | Serialização | joblib (modelos), openpyxl (XLSX), reportlab (PDF) |
 | Frontend | React 18 + Recharts + MUI (em `app-react/`) — decisão pós-prototipagem; o projeto técnico original cogitava Streamlit/Dash |
@@ -151,6 +151,10 @@ uvicorn backend.main:app --reload --app-dir ia-predictor
 # Pré-processamento completo (Etapas 1–7 + relatório de qualidade), a partir de ia-predictor/
 python -m training_scripts.preprocessing.run_all
 
+# Carga inicial do banco de DATABASE_URL (SQLite ou Neon) a partir do pré-processamento,
+# a partir de ia-predictor/ — só com o banco vazio; --recriar apaga tudo antes
+python -m backend.scripts.carga_inicial
+
 # Rodar testes unitários
 pytest ia-predictor/tests/unit/ -v
 
@@ -170,7 +174,7 @@ cd app-react && npm run dev
 
 ```
 # Banco
-DATABASE_URL=sqlite:///./floricultura.db
+DATABASE_URL=sqlite:///./floricultura.db   # local; Neon: postgresql://usuario:senha@ep-...neon.tech/neondb?sslmode=require
 
 # Diretórios
 DATA_DIR=data

@@ -1,15 +1,22 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# `ia-predictor/.env`, de onde quer que o comando seja rodado (uvicorn na raiz do repo com
+# --app-dir, scripts a partir de ia-predictor/...).
+ENV_FILE = Path(__file__).resolve().parents[1] / ".env"
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(env_file=ENV_FILE, env_file_encoding="utf-8")
 
     # Diretórios
     DATA_DIR: str = "data"
     MODELS_DIR: str = "models"
     RESULTS_DIR: str = "results"
 
-    # Banco
+    # Banco: SQLite local por padrão; Postgres no Neon com a URL de conexão do console
+    # (postgresql://usuario:senha@ep-...neon.tech/neondb?sslmode=require). Ver ADR-014.
     DATABASE_URL: str = "sqlite:///./floricultura.db"
 
     # Auth

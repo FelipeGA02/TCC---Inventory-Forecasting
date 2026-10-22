@@ -1,6 +1,6 @@
 # ADR-005: SQLite como Banco de Dados
 
-**Status**: Aceito  
+**Status**: Revisado pelo [ADR-014](ADR-014-postgres-neon.md) (Postgres no Neon); SQLite fica para desenvolvimento local  
 **Data**: 2026-07-28  
 **Autores**: Daniel Nunes da Silva, Felipe Gurgel Araújo
 

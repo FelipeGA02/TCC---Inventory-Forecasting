@@ -128,7 +128,7 @@ export const relatorios: Relatorio[] = [
     id: "vendas-semanais",
     grupo: "Histórico de vendas",
     titulo: "Vendas por semana · base completa",
-    descricao: `Quantidade vendida por semana e categoria, de ${formatarData(dados.base.inicio)} a ${formatarData(dados.base.fim)}, com as encomendas em coluna à parte.`,
+    descricao: `Quantidade vendida por semana e categoria, de ${formatarData(dados.base.inicio)} a ${formatarData(dados.base.fim)}, com as encomendas grandes em coluna à parte.`,
     uso: "Comparar com o mesmo período do ano anterior e ver a sazonalidade.",
     filtros: ["unidade", "categoria"],
     formatos: ["xlsx", "csv"],
@@ -137,8 +137,8 @@ export const relatorios: Relatorio[] = [
         { titulo: "Semana (segunda)", tipo: "data" },
         { titulo: "Loja", tipo: "texto" },
         ...cats(f).map((c) => ({ titulo: nomeCategoria(c), tipo: "numero" as const })),
-        { titulo: "Total sem encomendas", tipo: "numero" },
-        { titulo: "Encomendas", tipo: "numero" },
+        { titulo: "Total sem encomendas grandes", tipo: "numero" },
+        { titulo: "Encomendas grandes", tipo: "numero" },
       ],
       linhas: unidadesDoFiltro(f.unidade).flatMap((u) =>
         u.historico_semanal.map((s) => [
@@ -165,8 +165,8 @@ export const relatorios: Relatorio[] = [
         { titulo: "Dia", tipo: "texto" },
         { titulo: "Loja", tipo: "texto" },
         ...cats(f).map((c) => ({ titulo: nomeCategoria(c), tipo: "numero" as const })),
-        { titulo: "Total sem encomendas", tipo: "numero" },
-        { titulo: "Encomendas", tipo: "numero" },
+        { titulo: "Total sem encomendas grandes", tipo: "numero" },
+        { titulo: "Encomendas grandes", tipo: "numero" },
       ],
       linhas: unidadesDoFiltro(f.unidade).flatMap((u) =>
         u.historico_diario.map((d) => [
@@ -183,7 +183,7 @@ export const relatorios: Relatorio[] = [
   {
     id: "encomendas",
     grupo: "Histórico de vendas",
-    titulo: "Encomendas por semana",
+    titulo: "Encomendas grandes por semana",
     descricao: `Volume vendido em notas com mais de ${formatarNumero(LIMIAR_ENCOMENDA)} unidades, que fica fora da previsão.`,
     uso: "Acompanhar quando as vendas grandes acontecem e quanto pesam.",
     filtros: ["unidade"],
@@ -192,9 +192,9 @@ export const relatorios: Relatorio[] = [
       colunas: [
         { titulo: "Semana (segunda)", tipo: "data" },
         { titulo: "Loja", tipo: "texto" },
-        { titulo: "Encomendas", tipo: "numero" },
-        { titulo: "Venda sem encomendas", tipo: "numero" },
-        { titulo: "Encomendas no total (%)", tipo: "numero" },
+        { titulo: "Encomendas grandes", tipo: "numero" },
+        { titulo: "Venda sem encomendas grandes", tipo: "numero" },
+        { titulo: "Encomendas grandes no total (%)", tipo: "numero" },
       ],
       linhas: unidadesDoFiltro(f.unidade).flatMap((u) =>
         u.historico_semanal
@@ -207,7 +207,7 @@ export const relatorios: Relatorio[] = [
     id: "acerto-resumo",
     grupo: "Qualidade da previsão",
     titulo: "Acerto da previsão da loja",
-    descricao: "Indicadores dos testes de acerto da previsão de cada loja (venda sem encomendas).",
+    descricao: "Indicadores dos testes de acerto da previsão de cada loja (venda sem encomendas grandes).",
     uso: "Saber quanto confiar na previsão de cada loja.",
     filtros: ["unidade"],
     formatos: ["xlsx", "csv", "pdf"],
@@ -234,7 +234,7 @@ export const relatorios: Relatorio[] = [
           `${m.rodadas_vence_naive} de ${m.rodadas}`,
           m.mae,
           m.previsto_sobre_real_pct,
-          `SARIMAX(${u.modelo.ordem.join(",")})(${u.modelo.ordem_sazonal.join(",")}) · sem encomendas · sem log1p · janela deslizante de ${u.modelo.janela_dias} dias`,
+          `SARIMAX(${u.modelo.ordem.join(",")})(${u.modelo.ordem_sazonal.join(",")}) · sem encomendas grandes · sem log1p · janela deslizante de ${u.modelo.janela_dias} dias`,
         ];
       }),
     }),
@@ -283,7 +283,7 @@ export const relatorios: Relatorio[] = [
     id: "acerto-dias",
     grupo: "Qualidade da previsão",
     titulo: "Testes de acerto da loja · dia a dia",
-    descricao: "Cada dia testado: o que o sistema previu, a faixa, o que foi vendido (sem encomendas) e o naive sazonal.",
+    descricao: "Cada dia testado: o que o sistema previu, a faixa, o que foi vendido (sem encomendas grandes) e o naive sazonal.",
     uso: "Auditar a previsão em datas específicas (feriados, picos de venda).",
     filtros: ["unidade"],
     formatos: ["xlsx", "csv"],
@@ -369,7 +369,7 @@ export function relatorioGerencialHtml(f: FiltrosRelatorio): string {
     <div class="kpi"><span>Previsão (${HORIZONTE_DIAS} dias)</span><b>${formatarNumero(total)}</b><span>faixa ${formatarNumero(somar(faixas.map((d) => d.inf)))} a ${formatarNumero(somar(faixas.map((d) => d.sup)))}</span></div>
     <div class="kpi"><span>Média por dia aberto</span><b>${formatarNumero(total / Math.max(1, abertos))}</b><span>${abertos} dias abertos</span></div>
     <div class="kpi"><span>Produtos com previsão</span><b>${regulares.length}</b><span>vendem quase todo dia</span></div>
-    <div class="kpi"><span>Encomendas (fora da previsão)</span><b>${formatarNumero(enc.vendas)}</b><span>${formatarPercentual(enc.pctVolume / 100)} do volume histórico</span></div>
+    <div class="kpi"><span>Encomendas grandes (fora da previsão)</span><b>${formatarNumero(enc.vendas)}</b><span>${formatarPercentual(enc.pctVolume / 100)} do volume histórico</span></div>
   </div>`;
 
   const confianca = tabelaHtml(
@@ -438,7 +438,7 @@ export function relatorioGerencialHtml(f: FiltrosRelatorio): string {
     `Previsão de vendas · ${nomeUnidade(f.unidade)} · ${nomeCategoria(f.categoria)}`,
     `Próximos ${HORIZONTE_DIAS} dias: ${formatarData(ini)} a ${formatarData(fim)} · vendas registradas até ${formatarData(dados.base.fim)}`,
     `${kpis}<h2>Confiança da previsão</h2>${confianca}${f.categoria === "todas" ? `<h2>Por categoria</h2>${porCategoria}` : ""}<h2>Dia a dia</h2>${diaria}<h2>Produtos com previsão própria</h2>${top}
-     <p class="nota">A previsão é da venda do dia a dia; as encomendas (notas com mais de ${formatarNumero(LIMIAR_ENCOMENDA)} unidades) ficam fora.
+     <p class="nota">A previsão é da venda do dia a dia; as encomendas grandes (notas com mais de ${formatarNumero(LIMIAR_ENCOMENDA)} unidades) ficam fora.
      A categoria é a parte dela na previsão da loja. Os produtos que vendem quase todo dia têm previsão própria; os de venda irregular ficam dentro da previsão da categoria.
      Faixa provável = intervalo de 95%.</p>`,
   );
@@ -447,6 +447,6 @@ export function relatorioGerencialHtml(f: FiltrosRelatorio): string {
 export const relatorioGerencial = {
   id: "gerencial",
   titulo: "Relatório gerencial",
-  descricao: "Resumo para a gestão: previsão dos próximos 14 dias, por categoria e dia, por produto, encomendas e confiança da previsão.",
+  descricao: "Resumo para a gestão: previsão dos próximos 14 dias, por categoria e dia, por produto, encomendas grandes e confiança da previsão.",
   uso: "Levar para a reunião semanal ou enviar para os gerentes das lojas.",
 };

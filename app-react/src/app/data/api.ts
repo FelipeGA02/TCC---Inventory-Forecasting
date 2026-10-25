@@ -48,6 +48,7 @@ export const api = {
     http.post<TokenApi>("/auth/login", { email, password }, { publica: true }),
   renovar: (refresh_token: string) =>
     http.post<{ access_token: string; expires_in: number }>("/auth/refresh", { refresh_token }, { publica: true }),
+  sair: (refresh_token: string) => http.post<void>("/auth/logout", { refresh_token }, { publica: true }),
   eu: () => http.get<UsuarioApi>("/auth/me"),
 
   contexto: () => http.get<Contexto>("/api/v1/contexto"),

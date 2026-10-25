@@ -6,7 +6,7 @@ Diagrama: `docs/database/modelo_dados.drawio`.
 
 Três grupos de tabelas:
 
-  * Acesso: `users`.
+  * Acesso: `users` e `revoked_tokens` (sessões encerradas no logout).
   * Base de vendas: `units`, `categories`, `products`, `sales` (os campos da planilha que
     o sistema usa — a planilha em si não é guardada), `calendar_days` e `processing_log`
     (cada planilha recebida: nome, hash e resultado da carga).
@@ -64,6 +64,17 @@ class User(Base):
     role = Column(String, nullable=False, info={"hint": "admin|viewer"})
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=func.now(), nullable=False)
+
+
+class RevokedToken(Base):
+    """Token de renovação encerrado no logout: `/auth/refresh` passa a recusá-lo. A linha
+    só serve até o token expirar sozinho e é apagada depois disso."""
+
+    __tablename__ = "revoked_tokens"
+
+    jti = Column(String, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    expires_at = Column(DateTime, nullable=False, index=True)
 
 
 # --------------------------------------------------------------------------- #

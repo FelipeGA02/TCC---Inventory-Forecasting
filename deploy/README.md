@@ -84,6 +84,9 @@ A previsão nova aparece nas telas assim que o script termina. A API percebe pel
 | Sintoma | O que ver |
 | --- | --- |
 | Primeiro acesso demora ou dá erro de rede | a API estava dormindo; espere 1 a 3 minutos e recarregue |
-| Front abre, mas o login dá erro de rede (com a API acordada) | `CORS_ORIGINS` sem o endereço exato da Vercel |
+| Front abre, mas o login dá erro de rede (com a API acordada) | `CORS_ORIGINS` sem o endereço exato da Vercel; ou a API fora de `*.onrender.com` — inclua o endereço em `connect-src` no `app-react/vercel.json` |
 | Deploy falha no Render com erro de memória | o build ou a subida passou de 512 MB; veja os logs do serviço |
 | API não sobe (logs com erro de validação) | valor em formato errado numa variável, ex.: `CORS_ORIGINS` precisa ser uma lista JSON |
+| API não sobe (`RuntimeError: Configure no .env ou nas variáveis do servidor`) | `JWT_SECRET_KEY` vazia, com menos de 32 caracteres ou de exemplo, ou `ADMIN_PASSWORD`/`VIEWER_PASSWORD` vazia, com menos de 8 ou de exemplo — a mensagem diz qual |
+| Login responde "Muitas tentativas com senha errada" | 5 senhas erradas seguidas para o e-mail (ou 20 de vários lugares) bloqueiam por 15 minutos; reiniciar o serviço também libera |
+| Todos precisam entrar de novo logo depois de publicar a versão com logout no servidor | esperado, uma vez só: as sessões abertas antes dela não podem ser encerradas no logout e por isso são recusadas |

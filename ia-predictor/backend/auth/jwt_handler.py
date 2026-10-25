@@ -1,6 +1,7 @@
 """Criação e decodificação de tokens JWT usando `python-jose`."""
 from __future__ import annotations
 
+import uuid
 from datetime import datetime, timedelta, timezone
 
 from jose import jwt
@@ -22,10 +23,11 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
 
 
 def create_refresh_token(data: dict) -> str:
-    """Cria um refresh_token JWT. Expira em `REFRESH_TOKEN_EXPIRE_DAYS`."""
+    """Cria um refresh_token JWT. Expira em `REFRESH_TOKEN_EXPIRE_DAYS`. O `jti` identifica o
+    token para o logout revogá-lo (`revoked_tokens`)."""
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
-    to_encode.update({"exp": expire, "type": "refresh"})
+    to_encode.update({"exp": expire, "type": "refresh", "jti": uuid.uuid4().hex})
     return jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
 

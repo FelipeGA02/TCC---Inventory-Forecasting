@@ -15,6 +15,8 @@ from backend.infrastructure.scheduler import start_scheduler, stop_scheduler
 
 log = logging.getLogger(__name__)
 
+settings.exigir_segredos()
+
 
 def _aquecer_cache() -> None:
     """Monta painel e análises logo ao subir: a primeira leitura das vendas leva de segundos
@@ -46,8 +48,9 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(
     title="Floricultura — API de Previsão de Vendas",
     version="1.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url="/docs" if settings.DOCS_ENABLED else None,
+    redoc_url="/redoc" if settings.DOCS_ENABLED else None,
+    openapi_url="/openapi.json" if settings.DOCS_ENABLED else None,
     lifespan=lifespan,
 )
 

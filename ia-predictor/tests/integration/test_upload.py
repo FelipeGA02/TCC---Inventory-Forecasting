@@ -14,6 +14,15 @@ def test_upload_recusa_arquivo_que_nao_e_planilha(client, admin):
     assert r.json()["detail"] == "Apenas arquivos .xlsx e .xlsm são aceitos."
 
 
+def test_upload_recusa_arquivo_acima_do_limite(client, admin, monkeypatch):
+    from backend.config import settings
+
+    monkeypatch.setattr(settings, "MAX_UPLOAD_MB", 1)
+    r = client.post("/api/v1/upload", headers=admin,
+                    files={"file": ("grande.xlsx", b"0" * (1024 * 1024 + 10))})
+    assert r.status_code == 413
+
+
 def test_upload_recusa_xlsx_sem_vendas(client, admin):
     wb = openpyxl.Workbook()
     wb.active["A1"] = "outra coisa"

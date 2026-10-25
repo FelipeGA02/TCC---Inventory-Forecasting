@@ -30,6 +30,7 @@ GRUPOS = {
 LAYOUT = {
     "users": ("acesso", (40, 40)),
     "processing_log": ("acesso", (40, 300)),
+    "revoked_tokens": ("acesso", (40, 860)),
     "sales": ("vendas", (640, 40)),
     "calendar_days": ("vendas", (640, 520)),
     "units": ("catalogo", (1240, 40)),

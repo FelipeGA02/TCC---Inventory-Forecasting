@@ -900,6 +900,7 @@ components:
           type: string
           example: "Você não tem permissão para esta ação."
 
+
     ValidationError:
       type: object
       properties:
@@ -984,6 +985,21 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ValidationError"
+        "429":
+          description: >
+            Senha errada 5 vezes para o mesmo e-mail do mesmo IP, ou 20 vezes de qualquer IP,
+            nos últimos 15 minutos. Nem a senha certa entra até a janela passar.
+          headers:
+            Retry-After:
+              description: Segundos até poder tentar de novo
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+              example:
+                detail: "Muitas tentativas com senha errada. Tente de novo em 15 minutos."
 
   /auth/refresh:
     post:
@@ -1010,11 +1026,29 @@ paths:
                   expires_in:
                     type: integer
         "401":
-          description: Refresh token inválido ou expirado
+          description: Refresh token inválido, expirado ou encerrado no logout
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorDetail"
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      summary: Encerrar a sessão
+      description: >
+        Revoga o refresh_token: `/auth/refresh` passa a recusá-lo. Público (o access_token pode
+        já ter expirado). Token inválido ou expirado também responde 204, sem nada a revogar.
+      operationId: logout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+      responses:
+        "204":
+          description: Sessão encerrada
 
   /auth/me:
     get:

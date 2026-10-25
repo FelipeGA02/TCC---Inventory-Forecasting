@@ -4,7 +4,7 @@ Mantido como módulo único (em vez do pacote `database/{engine,models,migration
 sugerido em SPECS.md) para acompanhar o layout já commitado em `ia-predictor/backend/`.
 Diagrama: `docs/database/modelo_dados.drawio`.
 
-Três grupos de tabelas:
+Quatro grupos de tabelas:
 
   * Acesso: `users`.
   * Base de vendas: `units`, `categories`, `products`, `sales` (os campos da planilha que
@@ -15,6 +15,9 @@ Três grupos de tabelas:
     `forecast_runs` (cada geração da previsão: ao fim de cada treino e quando o calendário
     muda depois dele) com o seu `forecasts_cache`. O painel mostra os próximos 14 dias da
     última geração concluída; as anteriores ficam para comparação.
+  * Serviço de previsão (botão do admin): `forecast_jobs` (cada disparo, com o andamento),
+    `forecast_job_logs`, e por série treinada `series_models`, `series_forecasts` e
+    `series_backtest_points`. Independente do grupo anterior — não muda o painel.
 
 Resumos por loja, categoria e produto (volume, SKUs, encomendas, venda das últimas 8
 semanas...) não são gravados: saem de `sales` até `retrain_history.data_until`. Produto
@@ -325,6 +328,130 @@ class BacktestPoint(Base):
     model_id = Column(Integer, ForeignKey("model_artifacts.id", ondelete="CASCADE"), nullable=False, index=True)
     origin_date = Column(Date, nullable=False)
     day = Column(Date, nullable=False)
+    predicted = Column(Float, nullable=False)
+    lower_95 = Column(Float, nullable=False)
+    upper_95 = Column(Float, nullable=False)
+    actual = Column(Float, nullable=False)
+    naive = Column(Float, nullable=False)
+
+
+# --------------------------------------------------------------------------- #
+# Serviço de previsão (categorias + produtos de grama, botão do admin)
+# --------------------------------------------------------------------------- #
+class ForecastJob(Base):
+    """Um disparo do serviço de previsão (`backend/services/servico_previsao.py`): SARIMAX
+    direto nas 4 categorias e em cada produto de grama, por loja.
+
+    Separado de `retrain_history`: o painel atual lê aquela tabela e espera loja +
+    desagregação; este serviço treina categoria direto (ADR-016) e não pode trocar o que o
+    painel mostra.
+
+    `data_fingerprint` é a impressão digital das vendas, do calendário e do catálogo quando
+    o treino leu os dados. Um disparo com a mesma impressão do último `done` é registrado
+    como `skipped` (Princípio V) e não treina. `heartbeat_at` é gravado a cada 30 s enquanto o treino roda: `running`
+    sem sinal há mais de 3 min é de um processo que caiu e vira `error`.
+    """
+
+    __tablename__ = "forecast_jobs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    trigger = Column(String, nullable=False, default="manual", info={"hint": "manual"})
+    status = Column(String, nullable=False, default="pending", info=_RETRAIN_STATUS)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.now, nullable=False)
+    started_at = Column(DateTime, nullable=True)
+    finished_at = Column(DateTime, nullable=True)
+    heartbeat_at = Column(DateTime, nullable=True)
+    data_fingerprint = Column(String(64), nullable=True, index=True)
+    data_until = Column(Date, nullable=True)  # último dia com venda usado no treino
+    config = Column(JSON, nullable=True)  # m, d, D, janela, origens, horizonte, limiares
+    total_series = Column(Integer, default=0, nullable=False)  # séries com dados para treinar
+    done_series = Column(Integer, default=0, nullable=False)  # delas, quantas já terminaram
+    current_series = Column(String, nullable=True)  # rótulo da série em treino, para o progresso
+    progress_pct = Column(Float, default=0.0, nullable=False)
+    series_trained = Column(Integer, default=0, nullable=False)
+    series_low_confidence = Column(Integer, default=0, nullable=False)
+    series_insufficient = Column(Integer, default=0, nullable=False)
+    series_failed = Column(Integer, default=0, nullable=False)
+    message = Column(String, nullable=True)
+
+
+class ForecastJobLog(Base):
+    """Linha do log de um disparo do serviço de previsão (o que aconteceu em cada série)."""
+
+    __tablename__ = "forecast_job_logs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    job_id = Column(Integer, ForeignKey("forecast_jobs.id", ondelete="CASCADE"), nullable=False, index=True)
+    logged_at = Column(DateTime, default=datetime.now, nullable=False)
+    level = Column(String, nullable=False, default="info", info={"hint": "info|warning|error"})
+    series_key = Column(String, nullable=True)
+    message = Column(String, nullable=False)
+
+
+class SeriesModel(Base):
+    """Uma série treinada (ou recusada) num disparo do serviço de previsão.
+
+    `level = category` (`category_id`) ou `product` (`product_code`, sempre de Grama).
+    `series_key` = `loja:nível:id`. Série sem dados suficientes fica registrada com
+    `status = insufficient_data` e o motivo em `message`, sem previsão. `metrics` é o
+    walk-forward nos dias de loja aberta; `params`, o que foi ajustado.
+    """
+
+    __tablename__ = "series_models"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    job_id = Column(Integer, ForeignKey("forecast_jobs.id", ondelete="CASCADE"), nullable=False, index=True)
+    unit_id = Column(String, ForeignKey("units.id"), nullable=False)
+    level = Column(String, nullable=False, info={"hint": "category|product"})
+    category_id = Column(String, ForeignKey("categories.id"), nullable=True)
+    product_code = Column(String, ForeignKey("products.code"), nullable=True)
+    series_key = Column(String, nullable=False)
+    status = Column(String, nullable=False, info={"hint": "trained|low_confidence|insufficient_data|error"})
+    sarimax_order = Column(JSON, nullable=True, info={"hint": "[p,d,q]"})
+    seasonal_order = Column(JSON, nullable=True, info={"hint": "[P,D,Q,m]"})
+    aic = Column(Float, nullable=True)
+    mase = Column(Float, nullable=True)
+    ci95_coverage_pct = Column(Float, nullable=True)
+    # {origens, dias_avaliados, mae, rmse, mase, erro_relativo_naive, origens_vence_naive_pct,
+    #  cobertura_ic95_pct, largura_ic95, venda_media_dia, previsto_sobre_real_pct, origens_com_falha}
+    metrics = Column(JSON, nullable=True)
+    # {trend, transformation, training_base, window_days, ordens_convergidas, dias_historico, dias_com_venda_janela}
+    params = Column(JSON, nullable=True)
+    train_start = Column(Date, nullable=True)  # janela da previsão final
+    train_end = Column(Date, nullable=True)
+    message = Column(String, nullable=True)
+    trained_at = Column(DateTime, default=datetime.now, nullable=False)
+
+    __table_args__ = (Index("ix_series_models_job_unit", "job_id", "unit_id"),)
+
+
+class SeriesForecast(Base):
+    """Previsão diária com faixa de 95% de uma série: os `FORECAST_HORIZON_DAYS` dias
+    seguintes ao último dia com venda."""
+
+    __tablename__ = "series_forecasts"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    model_id = Column(Integer, ForeignKey("series_models.id", ondelete="CASCADE"), nullable=False, index=True)
+    forecast_date = Column(Date, nullable=False)
+    predicted = Column(Float, nullable=False)
+    lower_95 = Column(Float, nullable=False)
+    upper_95 = Column(Float, nullable=False)
+
+
+class SeriesBacktestPoint(Base):
+    """Previsto × real × naïve do walk-forward de uma série. A origem anda 1 dia e cada
+    origem prevê os 14 seguintes, então o mesmo dia aparece em várias origens (`horizon`
+    diz a distância até a origem)."""
+
+    __tablename__ = "series_backtest_points"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    model_id = Column(Integer, ForeignKey("series_models.id", ondelete="CASCADE"), nullable=False, index=True)
+    origin_date = Column(Date, nullable=False)
+    day = Column(Date, nullable=False)
+    horizon = Column(Integer, nullable=False)
     predicted = Column(Float, nullable=False)
     lower_95 = Column(Float, nullable=False)
     upper_95 = Column(Float, nullable=False)

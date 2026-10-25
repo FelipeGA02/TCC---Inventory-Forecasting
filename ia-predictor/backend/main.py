@@ -6,7 +6,14 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
-from backend.api import router_auth, router_health, router_models, router_painel, router_upload
+from backend.api import (
+    router_auth,
+    router_health,
+    router_models,
+    router_painel,
+    router_servico_previsao,
+    router_upload,
+)
 from backend.auth.dependencies import get_current_user
 from backend.auth.seed_users import seed_initial_users
 from backend.config import settings
@@ -67,7 +74,8 @@ app.include_router(router_health.router, tags=["health"])
 app.include_router(router_auth.router, prefix="/auth", tags=["auth"])
 
 # Endpoints protegidos — exigem Authorization: Bearer <access_token> em todos.
-# Perfis mínimos (admin em upload/retrain) são aplicados dentro de cada router.
+# Perfis mínimos (admin em upload/retrain e em todo o serviço de previsão) são aplicados
+# dentro de cada router.
 # products, forecast, alerts, simulation e reports (openapi.yaml) ainda não têm
 # implementação (os routers estão vazios): as telas leem tudo de /api/v1/painel.
 _v1_auth = [Depends(get_current_user)]
@@ -75,3 +83,5 @@ _v1_auth = [Depends(get_current_user)]
 app.include_router(router_painel.router, prefix="/api/v1", tags=["painel"], dependencies=_v1_auth)
 app.include_router(router_upload.router, prefix="/api/v1", tags=["upload"], dependencies=_v1_auth)
 app.include_router(router_models.router, prefix="/api/v1", tags=["models"], dependencies=_v1_auth)
+app.include_router(router_servico_previsao.router, prefix="/api/v1", tags=["servico-previsao"],
+                   dependencies=_v1_auth)

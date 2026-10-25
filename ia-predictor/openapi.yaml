@@ -17,7 +17,7 @@ info:
     Obtenha o token em `POST /auth/login`.
 
     ## Perfis
-    - **admin**: upload, retrain, acesso completo
+    - **admin**: upload, retrain, serviço de previsão (`/api/v1/servico-previsao/*`), acesso completo
     - **viewer**: somente visualização (painel, análises, registros, status dos modelos)
 
     ## Telas do frontend
@@ -27,7 +27,7 @@ info:
     o produto) e Conferir Dados consulta a base **paginada** em `/api/v1/registros/*`. Os
     endpoints de products, forecast, alerts, simulation e reports estão no contrato mas
     **ainda não implementados** (marcados com `x-implementado: false`).
-  version: "3.5.0"
+  version: "3.6.0"
   contact:
     name: Daniel Nunes da Silva & Felipe Gurgel Araújo
     email: felipegurgel5@gmail.com
@@ -57,6 +57,11 @@ tags:
     description: Exportação de relatórios PDF e Excel
   - name: models
     description: Status e controle dos modelos preditivos
+  - name: servico-previsao
+    description: |
+      Serviço de previsão (só admin): SARIMAX direto nas 4 categorias e em cada produto de
+      grama, por loja (m=7, d=0, D=0), com walk-forward de janela deslizante e origem andando
+      1 dia, prevendo 14 dias. Roda em segundo plano; andamento, log e resultados ficam no banco.
 
 # ─────────────────────────────────────────────
 # Security Schemes
@@ -893,6 +898,119 @@ components:
         valor_liquido: {type: number}
 
     # --- Errors ---
+    # --- Serviço de previsão ---
+    ConfigServico:
+      type: object
+      description: Como o serviço treina (o modal de confirmação mostra isto).
+      required: [m, d, D, janela_dias, origens, passo_dias, horizonte_dias, base, categoria_produtos]
+      properties:
+        m: {type: integer, example: 7, description: Período sazonal (semanal)}
+        d: {type: integer, example: 0, description: Diferenciação regular (fixa em 0 — séries estacionárias)}
+        D: {type: integer, example: 0, description: Diferenciação sazonal (fixa em 0 — o ciclo entra pelas dummies)}
+        janela_dias: {type: integer, example: 365, description: Janela deslizante de treino}
+        origens: {type: integer, example: 56, description: Origens do walk-forward}
+        passo_dias: {type: integer, example: 1, description: A origem anda este número de dias}
+        horizonte_dias: {type: integer, example: 14}
+        base: {type: string, example: "fluxo diário (sem encomendas acima de 2.000 un. no documento, ADR-013)"}
+        categoria_produtos: {type: string, example: grama, description: Categoria cujos produtos são treinados um a um}
+
+    TreinoServico:
+      type: object
+      description: Um disparo do serviço de previsão (`forecast_jobs`).
+      required: [id, status, criado_em]
+      properties:
+        id: {type: integer}
+        status:
+          type: string
+          enum: [pending, running, done, error, skipped]
+          description: "`skipped` = dados sem alteração desde o último treino concluído; nada treinado"
+        criado_em: {type: string, format: date-time}
+        iniciado_em: {type: string, format: date-time, nullable: true}
+        concluido_em: {type: string, format: date-time, nullable: true}
+        dados_ate: {type: string, format: date, nullable: true, description: Último dia com venda usado}
+        total_series: {type: integer, description: "Séries com dados suficientes para treinar (as demais vêm em `series_dados_insuficientes`)"}
+        series_concluidas: {type: integer, description: "Delas, quantas já terminaram — base de `progresso_pct`"}
+        progresso_pct: {type: number, format: float}
+        serie_atual: {type: string, nullable: true, example: "Itabirito · Grama"}
+        series_treinadas: {type: integer, description: "Passaram nos limiares (MASE < 1 e IC 95% entre 90% e 98%)"}
+        series_baixa_confianca: {type: integer}
+        series_dados_insuficientes: {type: integer}
+        series_com_erro: {type: integer}
+        mensagem: {type: string, nullable: true}
+
+    StatusServico:
+      type: object
+      required: [treino_na_api, config]
+      properties:
+        treino_na_api: {type: boolean, description: "Falso com `TRAINING_RUNNER=externo`: o botão não aparece"}
+        em_andamento:
+          allOf: [{$ref: "#/components/schemas/TreinoServico"}]
+          nullable: true
+        ultimo:
+          allOf: [{$ref: "#/components/schemas/TreinoServico"}]
+          nullable: true
+        ultimo_concluido_em: {type: string, format: date-time, nullable: true}
+        dados_alterados:
+          type: boolean
+          nullable: true
+          description: Se um disparo agora treinaria. Nulo enquanto há treino em andamento.
+        config:
+          $ref: "#/components/schemas/ConfigServico"
+
+    DisparoResposta:
+      type: object
+      required: [iniciado, mensagem, treino]
+      properties:
+        iniciado: {type: boolean, description: Falso quando os dados não mudaram (disparo registrado como `skipped`)}
+        mensagem: {type: string}
+        treino:
+          $ref: "#/components/schemas/TreinoServico"
+
+    LogTreino:
+      type: object
+      required: [id, registrado_em, nivel, mensagem]
+      properties:
+        id: {type: integer}
+        registrado_em: {type: string, format: date-time}
+        nivel: {type: string, enum: [info, warning, error]}
+        serie: {type: string, nullable: true, example: "itabirito:category:grama"}
+        mensagem: {type: string}
+
+    PrevisaoDia:
+      type: object
+      required: [data, previsto, inf_95, sup_95]
+      properties:
+        data: {type: string, format: date}
+        previsto: {type: number}
+        inf_95: {type: number}
+        sup_95: {type: number}
+
+    SerieTreinada:
+      type: object
+      required: [id, loja, loja_nome, nivel, nome, status, previsao]
+      properties:
+        id: {type: integer}
+        loja: {type: string, example: itabirito}
+        loja_nome: {type: string, example: Itabirito}
+        nivel: {type: string, enum: [category, product]}
+        categoria: {type: string, nullable: true, example: grama}
+        produto_codigo: {type: string, nullable: true}
+        nome: {type: string, description: Nome da categoria ou do produto}
+        status: {type: string, enum: [trained, low_confidence, insufficient_data, error]}
+        ordem: {type: array, items: {type: integer}, nullable: true, example: [1, 0, 2]}
+        ordem_sazonal: {type: array, items: {type: integer}, nullable: true, example: [0, 0, 1, 7]}
+        aic: {type: number, nullable: true}
+        mase: {type: number, nullable: true}
+        cobertura_ic95_pct: {type: number, nullable: true}
+        metricas:
+          type: object
+          nullable: true
+          description: Walk-forward nos dias de loja aberta (origens, mae, rmse, mase, erro_relativo_naive, cobertura_ic95_pct, largura_ic95, ...)
+        mensagem: {type: string, nullable: true, description: Motivo de `insufficient_data` ou `error`}
+        previsao:
+          type: array
+          items: {$ref: "#/components/schemas/PrevisaoDia"}
+
     ErrorDetail:
       type: object
       properties:
@@ -1709,6 +1827,159 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorDetail"
+
+  # ── Serviço de previsão (só admin) ─────────────
+  /api/v1/servico-previsao/status:
+    get:
+      tags: [servico-previsao]
+      summary: Andamento do serviço de previsão
+      description: |
+        Treino em andamento (com o progresso), o último disparo e se os dados mudaram desde o
+        último treino concluído. A aba de notificações consulta isto. **Requer perfil admin.**
+      operationId: getForecastServiceStatus
+      responses:
+        "200":
+          description: Status
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/StatusServico"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403":
+          description: Perfil insuficiente (requer admin)
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ErrorDetail"}
+
+  /api/v1/servico-previsao/treinos:
+    post:
+      tags: [servico-previsao]
+      summary: Disparar o treino das categorias e dos produtos de grama
+      description: |
+        Treina, em segundo plano, as 4 categorias e cada produto de grama de cada loja:
+        SARIMAX m=7, d=0, D=0 com constante e exógenas de calendário, ordem por AIC; walk-forward
+        com janela deslizante, origem andando 1 dia e horizonte de 14 dias; previsão dos 14 dias
+        seguintes à última venda. Grava andamento, log e resultados no banco.
+
+        Só treina se os dados (vendas, calendário, catálogo) mudaram desde o último treino
+        concluído; senão registra o disparo como `skipped` e responde 200 sem treinar.
+        **Requer perfil admin.**
+      operationId: triggerForecastService
+      responses:
+        "202":
+          description: Treino iniciado em segundo plano
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/DisparoResposta"}
+        "200":
+          description: Dados sem alteração — disparo registrado como `skipped`, nada treinado
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/DisparoResposta"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403":
+          description: Perfil insuficiente (requer admin)
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ErrorDetail"}
+        "409":
+          description: Já existe treino em andamento (deste serviço ou dos modelos da loja)
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ErrorDetail"}
+              example:
+                detail: "Já existe um treino em andamento. Acompanhe o progresso nas notificações."
+        "503":
+          description: Esta API não treina (`TRAINING_RUNNER=externo`)
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ErrorDetail"}
+
+  /api/v1/servico-previsao/treinos/{treino_id}:
+    get:
+      tags: [servico-previsao]
+      summary: Um disparo do serviço de previsão
+      description: "**Requer perfil admin.**"
+      operationId: getForecastServiceJob
+      parameters:
+        - {name: treino_id, in: path, required: true, schema: {type: integer}}
+      responses:
+        "200":
+          description: Disparo
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/TreinoServico"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403":
+          description: Perfil insuficiente (requer admin)
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ErrorDetail"}
+        "404":
+          description: Treino não encontrado
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ErrorDetail"}
+
+  /api/v1/servico-previsao/treinos/{treino_id}/logs:
+    get:
+      tags: [servico-previsao]
+      summary: Log do treino
+      description: Linhas do log em ordem, com leitura incremental por `apos_id`. **Requer perfil admin.**
+      operationId: getForecastServiceJobLogs
+      parameters:
+        - {name: treino_id, in: path, required: true, schema: {type: integer}}
+        - {name: apos_id, in: query, required: false, schema: {type: integer, minimum: 0, default: 0}}
+        - {name: limite, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 2000, default: 500}}
+      responses:
+        "200":
+          description: Linhas do log
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: "#/components/schemas/LogTreino"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403":
+          description: Perfil insuficiente (requer admin)
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ErrorDetail"}
+        "404":
+          description: Treino não encontrado
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ErrorDetail"}
+
+  /api/v1/servico-previsao/treinos/{treino_id}/series:
+    get:
+      tags: [servico-previsao]
+      summary: Resultado de cada série do treino
+      description: |
+        Ordem, AIC, métricas do walk-forward e previsão dos próximos 14 dias de cada série
+        (categoria ou produto de grama, por loja). Série sem dados suficientes vem com
+        `status = insufficient_data`, o motivo em `mensagem` e sem previsão. **Requer perfil admin.**
+      operationId: getForecastServiceJobSeries
+      parameters:
+        - {name: treino_id, in: path, required: true, schema: {type: integer}}
+      responses:
+        "200":
+          description: Séries
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: "#/components/schemas/SerieTreinada"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "403":
+          description: Perfil insuficiente (requer admin)
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ErrorDetail"}
+        "404":
+          description: Treino não encontrado
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ErrorDetail"}
 
 security:
   - BearerAuth: []

@@ -44,6 +44,13 @@ class Settings(BaseSettings):
     MAX_UPLOAD_MB: int = 50
     TRAINING_WORKERS: int = 8            # processos no treino dos produtos (no servidor: o nº de CPUs)
 
+    # Serviço de previsão (botão do admin): SARIMAX direto nas 4 categorias e nos produtos de
+    # grama, por loja, com m = SEASONAL_PERIOD, d = 0, D = 0 (fixos em servico_previsao.py),
+    # horizonte FORECAST_HORIZON_DAYS e mínimo de histórico MIN_OBSERVATIONS_DAYS.
+    FORECAST_SERVICE_WINDOW_DAYS: int = 365     # janela deslizante de treino (dias)
+    FORECAST_SERVICE_WF_ORIGINS: int = 56       # origens do walk-forward, andando 1 dia (8 semanas)
+    FORECAST_SERVICE_MIN_SALE_DAYS: int = 28    # produto: dias com venda na última janela para treinar
+
     # Politica de reposicao (L3)
     SAFETY_STOCK_DAYS: int = 2           # estoque de seguranca em dias de demanda prevista
     SHELF_LIFE_DEFAULT_DAYS: int = 7     # validade usada quando a categoria nao tem parametro proprio

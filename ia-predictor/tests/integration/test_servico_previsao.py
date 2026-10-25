@@ -193,6 +193,30 @@ def test_pool_quebrado_segue_uma_serie_por_vez(client, admin, config_rapida, mon
     assert any(l["nivel"] == "warning" and "seguem uma a uma" in l["mensagem"] for l in logs)
 
 
+def test_series_do_treino_nao_tem_encomendas(client):
+    """O `conftest` marca como encomenda (`is_bulk_order`) a venda de 3.000 un. do produto 100
+    no dia 15; ela não pode entrar nem na série da categoria Grama nem na do produto."""
+    with SessionLocal() as db:
+        job = ForecastJob(status="running", heartbeat_at=datetime.now())
+        db.add(job)
+        db.commit()
+        try:
+            series, _ = servico_previsao._montar_series(db, CONFIG_TESTE, job.id)
+            dia = date(2026, 1, 15)  # quinta-feira, com a encomenda
+            encomenda = db.scalar(select(func.sum(Sale.quantity)).where(
+                Sale.unit_id == "itabirito", Sale.sale_date == dia, Sale.is_bulk_order.is_(True)))
+            balcao = db.scalar(select(func.sum(Sale.quantity)).where(
+                Sale.unit_id == "itabirito", Sale.sale_date == dia, Sale.product_code == "100",
+                Sale.is_bulk_order.is_(False))) or 0.0
+        finally:
+            db.delete(job)
+            db.commit()
+    assert encomenda == 3000.0  # a encomenda existe na base...
+    por_chave = {s.chave: s.y for s in series}
+    for chave in ("itabirito:category:grama", "itabirito:product:100"):
+        assert por_chave[chave].loc["2026-01-15"] == balcao  # ...e fica fora das duas séries
+
+
 def test_venda_nova_ou_alterada_muda_a_impressao_digital(client, admin):
     with SessionLocal() as db:
         antes = servico_previsao.impressao_digital(db)

@@ -2,8 +2,10 @@
 
   * `/contexto`: o que o layout precisa logo depois do login (lojas, categorias, data da
     última venda, status dos previsores, planilhas carregadas) — leve, só consultas agregadas;
-  * `/painel` (tela de previsão e relatórios) e `/painel/produtos/{loja}/{codigo}/backtest`
-    (teste de acerto de um produto, quando ele é aberto);
+  * `/painel` (tela de previsão e relatórios), `/painel/produtos/{loja}/{codigo}/backtest`
+    (teste de acerto de um produto, quando ele é aberto) e
+    `/painel/historico/{loja}/{categoria|produto}/{item}` (vendido × previsto gravado, na
+    tela de histórico da previsão);
   * `/analises` (painel inicial);
   * `/registros/*` (Conferir Dados): a base paginada no banco — índice dos meses, uma página,
     os totais do filtro, os itens de uma nota e a exportação.
@@ -33,6 +35,7 @@ _MSG_SEM_PREVISAO = (
     "A previsão ainda não foi gerada. Peça à gestora para atualizar os modelos e tente de novo."
 )
 _MSG_SEM_TESTE = "Este produto não tem teste de acerto na última previsão."
+_MSG_SEM_HISTORICO = "Não há vendas deste item nesta loja."
 
 
 def _padrao(valor: Any):
@@ -69,6 +72,17 @@ def backtest_produto(unidade: str, codigo: str, db: Session = Depends(get_db)) -
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=_MSG_SEM_PREVISAO)
     except painel_service.ProdutoInexistente:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_MSG_SEM_TESTE)
+
+
+@router.get("/painel/historico/{unidade}/{nivel}/{item}", response_class=RespostaJSON)
+def historico(unidade: str, nivel: Literal["categoria", "produto"], item: str,
+              db: Session = Depends(get_db)) -> RespostaJSON:
+    try:
+        return RespostaJSON(painel_service.historico(db, unidade, nivel, item))
+    except painel_service.PrevisaoIndisponivel:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=_MSG_SEM_PREVISAO)
+    except painel_service.ItemSemHistorico:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_MSG_SEM_HISTORICO)
 
 
 @router.get("/analises", response_class=RespostaJSON)

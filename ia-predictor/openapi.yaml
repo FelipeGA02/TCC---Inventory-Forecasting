@@ -1018,6 +1018,16 @@ components:
           type: string
           example: "Você não tem permissão para esta ação."
 
+    DiaHistoricoPrevisao:
+      type: object
+      required: [data, real, previsto, inf, sup]
+      properties:
+        data: {type: string, format: date}
+        real: {type: number, description: vendido no dia, sem encomendas grandes}
+        previsto: {type: number, nullable: true}
+        inf: {type: number, nullable: true, description: limite inferior da faixa de 95%}
+        sup: {type: number, nullable: true, description: limite superior da faixa de 95%}
+
     ValidationError:
       type: object
       properties:
@@ -1102,6 +1112,21 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ValidationError"
+        "429":
+          description: >
+            Senha errada 5 vezes para o mesmo e-mail do mesmo IP, ou 20 vezes de qualquer IP,
+            nos últimos 15 minutos. Nem a senha certa entra até a janela passar.
+          headers:
+            Retry-After:
+              description: Segundos até poder tentar de novo
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+              example:
+                detail: "Muitas tentativas com senha errada. Tente de novo em 15 minutos."
 
   /auth/refresh:
     post:
@@ -1128,11 +1153,29 @@ paths:
                   expires_in:
                     type: integer
         "401":
-          description: Refresh token inválido ou expirado
+          description: Refresh token inválido, expirado ou encerrado no logout
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorDetail"
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      summary: Encerrar a sessão
+      description: >
+        Revoga o refresh_token: `/auth/refresh` passa a recusá-lo. Público (o access_token pode
+        já ter expirado). Token inválido ou expirado também responde 204, sem nada a revogar.
+      operationId: logout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+      responses:
+        "204":
+          description: Sessão encerrada
 
   /auth/me:
     get:
@@ -1227,6 +1270,48 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           description: Produto sem previsor próprio na loja
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+
+  /api/v1/painel/historico/{unidade}/{nivel}/{item}:
+    get:
+      tags: [painel]
+      summary: Histórico da previsão de uma categoria ou produto (vendido × previsto gravado)
+      description: |
+        Um ponto por dia, do começo da base até o fim do último treino: o vendido sem
+        encomendas grandes (de `sales`) e o previsto gravado em `forecast_history`. O previsto
+        de cada dia é o da última previsão feita antes dele e não muda depois que o dia passa;
+        dias que nenhuma previsão cobriu vêm do walk-forward. `previsto`, `inf` e `sup` são
+        nulos antes da data fixa de treino.
+      operationId: getHistoricoPrevisao
+      security:
+        - BearerAuth: []
+      parameters:
+        - {name: unidade, in: path, required: true, schema: {type: string}, example: jardim-canada}
+        - {name: nivel, in: path, required: true, schema: {type: string, enum: [categoria, produto]}}
+        - {name: item, in: path, required: true, schema: {type: string}, example: grama,
+           description: id da categoria ou código do produto}
+      responses:
+        "200":
+          description: Série diária
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DiaHistoricoPrevisao"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Item sem venda na loja
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorDetail"
+        "409":
+          description: Ainda não há previsão gravada (nenhum treino concluído)
           content:
             application/json:
               schema:

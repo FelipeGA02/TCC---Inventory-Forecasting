@@ -20,17 +20,20 @@ class Settings(BaseSettings):
     # (postgresql://usuario:senha@ep-...neon.tech/neondb?sslmode=require). Ver ADR-014.
     DATABASE_URL: str = "sqlite:///./floricultura.db"
 
-    # Auth
-    JWT_SECRET_KEY: str = "change-me-32-characters-minimum!!"
+    # Auth — chave e senhas sem valor padrão: a API não sobe sem elas (`exigir_segredos`)
+    JWT_SECRET_KEY: str = ""
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_HOURS: int = 8
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # Usuários iniciais (seed)
     ADMIN_EMAIL: str = "gestora@floricultura.com"
-    ADMIN_PASSWORD: str = "troque_por_senha_forte"
+    ADMIN_PASSWORD: str = ""
     VIEWER_EMAIL: str = "gerente@floricultura.com"
-    VIEWER_PASSWORD: str = "troque_por_senha_forte"
+    VIEWER_PASSWORD: str = ""
+
+    # /docs, /redoc e /openapi.json (desligados no Render pelo render.yaml)
+    DOCS_ENABLED: bool = True
 
     # Pipeline ML — camada L1 (unidade x categoria, diario). Ver ADR-009.
     TOP_N_PRODUCTS: int = 20              # SKUs com desagregacao (L2) e reposicao (L3) detalhadas
@@ -66,6 +69,23 @@ class Settings(BaseSettings):
 
     # CORS
     CORS_ORIGINS: list[str] = ["http://localhost:5173"]
+
+    def exigir_segredos(self) -> None:
+        """Chamado na subida da API. Os scripts (carga, treino) não precisam destes valores."""
+        faltando = []
+        if len(self.JWT_SECRET_KEY) < 32 or _de_exemplo(self.JWT_SECRET_KEY):
+            faltando.append("JWT_SECRET_KEY (texto aleatório com 32 ou mais caracteres)")
+        for nome in ("ADMIN_PASSWORD", "VIEWER_PASSWORD"):
+            valor = getattr(self, nome)
+            if len(valor) < 8 or _de_exemplo(valor):
+                faltando.append(f"{nome} (senha própria com 8 ou mais caracteres)")
+        if faltando:
+            raise RuntimeError("Configure no .env ou nas variáveis do servidor: " + "; ".join(faltando))
+
+
+def _de_exemplo(valor: str) -> bool:
+    """Valores de exemplo do .env.example e os antigos padrões do código."""
+    return any(trecho in valor.lower() for trecho in ("troque", "change-me"))
 
 
 settings = Settings()

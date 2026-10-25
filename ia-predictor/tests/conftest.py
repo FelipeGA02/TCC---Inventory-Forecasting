@@ -1,7 +1,8 @@
 """Fixtures dos testes: um SQLite temporário com uma base sintética pequena.
 
 `DATABASE_URL` é trocado ANTES de importar o backend (o engine nasce no import), então os
-testes nunca tocam o banco do `.env` (Neon ou o SQLite de desenvolvimento).
+testes nunca tocam o banco do `.env` (Neon ou o SQLite de desenvolvimento). A chave do JWT e
+as senhas também são dos testes: não dependem do `.env` de quem roda.
 """
 from __future__ import annotations
 
@@ -12,6 +13,9 @@ from datetime import date, timedelta
 
 _PASTA = tempfile.mkdtemp(prefix="testes_api_")
 os.environ["DATABASE_URL"] = "sqlite:///" + os.path.join(_PASTA, "testes.db").replace("\\", "/")
+os.environ["JWT_SECRET_KEY"] = "chave-dos-testes-0123456789abcdef0123456789"
+os.environ["ADMIN_PASSWORD"] = "senha-admin-dos-testes"
+os.environ["VIEWER_PASSWORD"] = "senha-viewer-dos-testes"
 
 _IA_PREDICTOR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _IA_PREDICTOR not in sys.path:
@@ -21,6 +25,7 @@ import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import func, insert, select  # noqa: E402
 
+from backend.auth import tentativas_login  # noqa: E402
 from backend.config import settings  # noqa: E402
 from backend.infrastructure.database import (  # noqa: E402
     Base,
@@ -116,6 +121,11 @@ def painel_sintetico() -> dict:
                           "previsao": [{"data": str(d), **faixa(8.0)} for d in futuro], "backtest": backtest}],
         })
     return {"base": {"fim": str(FIM)}, "configuracao": {}, "unidades": unidades}
+
+
+@pytest.fixture(autouse=True)
+def _zerar_tentativas_login():
+    tentativas_login.limpar()
 
 
 @pytest.fixture(scope="session")

@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Loader2, Scale, Search, Target, TrendingUp, type LucideIcon } from "lucide-react";
-import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Check, CheckCircle2, ChevronsUpDown, Loader2, Scale, Target, TrendingUp, type LucideIcon } from "lucide-react";
+import { Area, CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { Input } from "../ui/input";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "../ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
-import type { CategoriaId, DiaBacktest, MetricasModelo, ProdutoDaLoja, StatusModelo, UnidadeId } from "@/domain/types";
-import { CORES_CATEGORIA, COR_TOTAL, categorias, nomeCategoria, produtosDe, unidades } from "../../data/mockData";
+import type { CategoriaId, DiaHistorico, MetricasModelo, ProdutoDaLoja, StatusModelo, UnidadeId } from "@/domain/types";
+import { CORES_CATEGORIA, categorias, nomeCategoria, produtosDe, unidades } from "../../data/mockData";
 import { api } from "../../data/api";
 import { mensagemDoErro } from "@/lib/http/errors";
 import { Segmentado, StatusBadge } from "../shared";
@@ -13,32 +14,32 @@ import { eixo, estiloTooltip } from "@/styles/tokens";
 import { formatarData, formatarDiaMes, formatarMesAno, formatarNumero, formatarQtd } from "@/lib/format";
 
 /**
- * Aba "Ver histórico de previsão": para cada previsão feita — a de cada loja, a de cada
- * categoria em cada loja (desagregação) e a de cada produto com previsão própria — o que foi
- * previsto × o que foi vendido, dia a dia, com 4 indicadores em linguagem simples.
+ * Aba "Histórico de previsão": para cada categoria em cada loja (desagregação) e cada produto
+ * com previsão própria, o vendido (sem encomendas grandes) desde o começo da base × o previsto
+ * gravado de cada dia — o que a previsão mostrava antes dele, congelado depois que o dia passa.
+ * Antes da data fixa de treino só há vendido. Os 4 indicadores são os do teste do modelo.
  */
 
-type Tipo = "loja" | "categoria" | "produto";
-/** "3m", "ano" ou um mês "AAAA-MM". */
+type Tipo = "categoria" | "produto";
+/** "3m", "ano" (últimos 12 meses), "tudo" ou um mês "AAAA-MM". */
 type Periodo = string;
 
 const chave = (p: ProdutoDaLoja) => `${p.unidade}-${p.codigo}`;
 
-// O teste de acerto de cada produto não vem no painel (seria 70% dele): é buscado quando o
-// produto é aberto e guardado enquanto a tela existir.
-const backtestsBuscados = new Map<string, Promise<DiaBacktest[]>>();
+// A série de cada item é buscada quando ele é aberto e guardada enquanto a tela existir.
+const historicosBuscados = new Map<string, Promise<DiaHistorico[]>>();
 
-function useBacktestProduto(produto: ProdutoDaLoja | undefined) {
-  const [estado, setEstado] = useState<{ chave: string; serie?: DiaBacktest[]; erro?: string } | null>(null);
-  const k = produto ? chave(produto) : "";
+function useHistorico(loja: UnidadeId, nivel: Tipo, item: string | undefined) {
+  const [estado, setEstado] = useState<{ chave: string; serie?: DiaHistorico[]; erro?: string } | null>(null);
+  const k = item ? `${loja}/${nivel}/${item}` : "";
   useEffect(() => {
-    if (!produto) return;
+    if (!item) return;
     let vivo = true;
-    let busca = backtestsBuscados.get(k);
+    let busca = historicosBuscados.get(k);
     if (!busca) {
-      busca = api.backtestProduto(produto.unidade, produto.codigo);
-      backtestsBuscados.set(k, busca);
-      busca.catch(() => backtestsBuscados.delete(k));
+      busca = api.historico(loja, nivel, item);
+      historicosBuscados.set(k, busca);
+      busca.catch(() => historicosBuscados.delete(k));
     }
     busca
       .then((serie) => vivo && setEstado({ chave: k, serie }))
@@ -97,21 +98,24 @@ const INDICADORES: { icone: LucideIcon; titulo: string; valor: (m: MetricasModel
 // Período
 // ---------------------------------------------------------------------------
 
-function filtrarPeriodo(serie: DiaBacktest[], periodo: Periodo): DiaBacktest[] {
-  if (periodo === "ano" || serie.length === 0) return serie;
-  if (periodo === "3m") {
+const longo = (periodo: Periodo) => periodo === "ano" || periodo === "tudo";
+
+function filtrarPeriodo(serie: DiaHistorico[], periodo: Periodo): DiaHistorico[] {
+  if (periodo === "tudo" || serie.length === 0) return serie;
+  if (periodo === "3m" || periodo === "ano") {
     const fim = new Date(`${serie[serie.length - 1]!.data}T12:00:00`);
-    fim.setMonth(fim.getMonth() - 3);
+    fim.setMonth(fim.getMonth() - (periodo === "3m" ? 3 : 12));
     const corte = fim.toISOString().slice(0, 10);
     return serie.filter((d) => d.data > corte);
   }
   return serie.filter((d) => d.data.startsWith(periodo));
 }
 
-/** Rótulos do eixo: um por mês no ano inteiro; um por semana nos períodos curtos. */
+/** Rótulos do eixo: um por mês (a cada 2 com mais de um ano); um por semana nos períodos curtos. */
 function marcasEixo(datas: string[], periodo: Periodo): string[] {
-  if (periodo === "ano") return datas.filter((d, i) => i === 0 || d.slice(0, 7) !== datas[i - 1]!.slice(0, 7));
-  return datas.filter((_, i) => i % 7 === 0);
+  if (!longo(periodo)) return datas.filter((_, i) => i % 7 === 0);
+  const meses = datas.filter((d, i) => i === 0 || d.slice(0, 7) !== datas[i - 1]!.slice(0, 7));
+  return meses.length > 13 ? meses.filter((_, i) => i % 2 === 0) : meses;
 }
 
 // ---------------------------------------------------------------------------
@@ -119,56 +123,58 @@ function marcasEixo(datas: string[], periodo: Periodo): string[] {
 // ---------------------------------------------------------------------------
 
 export function HistoricoPrevisao({ produtoSelecionado, onSelecionarProduto }: { produtoSelecionado: string | null; onSelecionarProduto: (k: string) => void }) {
-  const [tipo, setTipo] = useState<Tipo>(produtoSelecionado ? "produto" : "loja");
-  const [lojaId, setLojaId] = useState<UnidadeId>(unidades[0]!.id);
+  const [tipo, setTipo] = useState<Tipo>(produtoSelecionado ? "produto" : "categoria");
+  // Vindo de "Ver histórico deste produto", abre na loja do produto (chave = "<loja>-<código>")
+  const [lojaId, setLojaId] = useState<UnidadeId>(
+    () => unidades.find((u) => produtoSelecionado?.startsWith(`${u.id}-`))?.id ?? unidades[0]!.id,
+  );
   const [cat, setCat] = useState<CategoriaId>(categorias[0]!.id);
   const [periodo, setPeriodo] = useState<Periodo>("3m");
-  const [busca, setBusca] = useState("");
 
-  const produtos = useMemo(() => produtosDe("todas", "todas", true), []);
-  const visiveis = useMemo(() => {
-    const t = busca.trim().toLowerCase();
-    return t ? produtos.filter((p) => p.nome.toLowerCase().includes(t) || p.codigo.includes(t)) : produtos;
-  }, [produtos, busca]);
+  // Mesmo recorte da tela de previsão: só os produtos de grama com previsão própria, da loja escolhida
+  const produtos = useMemo(() => produtosDe(lojaId, "grama", true), [lojaId]);
   const produto = produtos.find((p) => chave(p) === produtoSelecionado) ?? produtos[0];
-  const backtest = useBacktestProduto(tipo === "produto" ? produto : undefined);
   const loja = unidades.find((u) => u.id === lojaId)!;
   const desag = loja.desagregacao?.[cat];
+  const comModelo = tipo === "categoria" ? !!desag : !!produto?.modelo?.metricas;
+  const historico = useHistorico(lojaId, tipo, !comModelo ? undefined : tipo === "categoria" ? cat : produto?.codigo);
 
-  const meses = useMemo(() => [...new Set(unidades[0]!.backtest.map((d) => d.data.slice(0, 7)))], []);
-  const mesSelecionado = periodo !== "3m" && periodo !== "ano" ? periodo : "";
+  const meses = useMemo(() => [...new Set((historico?.serie ?? []).map((d) => d.data.slice(0, 7)))].reverse(), [historico]);
+  const mesSelecionado = !["3m", "ano", "tudo"].includes(periodo) ? periodo : "";
 
   return (
     <Card className="border" style={{ borderColor: "var(--border)" }}>
-      <CardHeader className="pb-3 pt-4 px-5 flex flex-col gap-3">
+      <CardHeader className="pb-3 pt-4 px-5">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <CardTitle className="text-sm" style={{ fontWeight: 600 }}>
             Histórico de previsão
           </CardTitle>
-          <Segmentado
-            rotulo="Previsão da"
-            opcoes={[
-              { valor: "loja" as Tipo, label: "Loja" },
-              { valor: "categoria" as Tipo, label: "Categoria" },
-              { valor: "produto" as Tipo, label: `Produto (${produtos.length})` },
-            ]}
-            valor={tipo}
-            onChange={setTipo}
-          />
+          <div className="flex items-center gap-4 flex-wrap">
+            <Segmentado rotulo="Unidade" opcoes={unidades.map((u) => ({ valor: u.id, label: u.nome }))} valor={lojaId} onChange={setLojaId} />
+            <Segmentado
+              rotulo="Por"
+              opcoes={[
+                { valor: "categoria" as Tipo, label: "Categoria" },
+                { valor: "produto" as Tipo, label: `Produto (${produtos.length})` },
+              ]}
+              valor={tipo}
+              onChange={setTipo}
+            />
+          </div>
         </div>
-        <div className="flex items-center gap-4 flex-wrap">
-          {tipo !== "produto" && (
-            <Segmentado rotulo="Loja" opcoes={unidades.map((u) => ({ valor: u.id, label: u.nome }))} valor={lojaId} onChange={setLojaId} />
-          )}
+        {/* Filtros numa linha inteira, como no "Dia a dia" da previsão */}
+        <div className="mt-3 pt-3 border-t flex items-center gap-x-6 gap-y-2 flex-wrap" style={{ borderColor: "var(--border)" }}>
           {tipo === "categoria" && (
             <Segmentado rotulo="Categoria" opcoes={categorias.map((c) => ({ valor: c.id, label: c.nome }))} valor={cat} onChange={setCat} />
           )}
+          {tipo === "produto" && <SeletorProduto produtos={produtos} produto={produto} onSelecionar={onSelecionarProduto} />}
           <div className="flex items-center gap-2 ml-auto">
             <Segmentado
               rotulo="Período"
               opcoes={[
                 { valor: "3m", label: "Últimos 3 meses" },
-                { valor: "ano", label: "Ano inteiro" },
+                { valor: "ano", label: "Último ano" },
+                { valor: "tudo", label: "Tudo" },
               ]}
               valor={periodo}
               onChange={setPeriodo}
@@ -192,115 +198,141 @@ export function HistoricoPrevisao({ produtoSelecionado, onSelecionarProduto }: {
         </div>
       </CardHeader>
       <CardContent className="px-0 pb-0">
-        {tipo === "loja" && (
-          <div className="border-t" style={{ borderColor: "var(--border)" }}>
+        <div className="border-t min-w-0" style={{ borderColor: "var(--border)" }}>
+          {!comModelo ? (
+            <p className="text-xs p-8 text-center" style={{ color: "var(--muted-foreground)" }}>
+              {tipo === "categoria"
+                ? "O histórico das categorias ainda não foi gerado."
+                : produtos.length
+                  ? "Selecione um produto."
+                  : "Esta loja não tem produtos de grama com previsão própria."}
+            </p>
+          ) : !historico?.serie ? (
+            <p className="text-xs p-8 flex items-center justify-center gap-2" style={{ color: historico?.erro ? "var(--destructive)" : "var(--muted-foreground)" }}>
+              {historico?.erro ?? (
+                <>
+                  <Loader2 size={14} className="animate-spin" /> Carregando o histórico...
+                </>
+              )}
+            </p>
+          ) : tipo === "categoria" ? (
             <PainelHistorico
-              titulo={`${loja.nome} · loja inteira, sem encomendas`}
-              status={loja.modelo.status}
-              metricas={loja.modelo.metricas}
-              serie={loja.backtest}
+              titulo={`${nomeCategoria(cat)} · ${loja.nome}`}
+              subtitulo="parte da categoria na previsão da loja, pelo que vendeu nas 8 semanas anteriores em cada dia da semana"
+              status={desag!.status}
+              metricas={desag!.metricas}
+              serie={historico.serie}
               periodo={periodo}
-              cor={COR_TOTAL}
+              cor={CORES_CATEGORIA[cat]}
               fmt={formatarNumero}
             />
-          </div>
-        )}
-        {tipo === "categoria" && (
-          <div className="border-t" style={{ borderColor: "var(--border)" }}>
-            {desag ? (
-              <PainelHistorico
-                titulo={`${nomeCategoria(cat)} · ${loja.nome}`}
-                subtitulo="parte da categoria na previsão da loja, pelo que vendeu nas 8 semanas anteriores em cada dia da semana"
-                status={desag.status}
-                metricas={desag.metricas}
-                serie={desag.backtest}
-                periodo={periodo}
-                cor={CORES_CATEGORIA[cat]}
-                fmt={formatarNumero}
-              />
+          ) : (
+            <PainelHistorico
+              titulo={`${produto!.nome} · ${produto!.nomeUnidade}`}
+              status={produto!.modelo!.status}
+              metricas={produto!.modelo!.metricas!}
+              serie={historico.serie}
+              periodo={periodo}
+              cor={CORES_CATEGORIA[produto!.categoria]}
+              fmt={formatarQtd}
+            />
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Seletor de produto: lista com busca num menu, para o gráfico ocupar a largura toda
+// ---------------------------------------------------------------------------
+
+function SeletorProduto({
+  produtos,
+  produto,
+  onSelecionar,
+}: {
+  produtos: ProdutoDaLoja[];
+  produto: ProdutoDaLoja | undefined;
+  onSelecionar: (k: string) => void;
+}) {
+  const [aberto, setAberto] = useState(false);
+  return (
+    <div className="flex items-center gap-2 flex-1 min-w-[280px] max-w-[520px]">
+      <span className="text-xs font-medium" style={{ color: "var(--muted-foreground)" }}>
+        Produto
+      </span>
+      <Popover open={aberto} onOpenChange={setAberto}>
+        <PopoverTrigger asChild>
+          <button
+            role="combobox"
+            aria-expanded={aberto}
+            className="flex-1 min-w-0 h-8 rounded-md border px-2.5 flex items-center gap-2 text-xs text-left hover:bg-[var(--muted)]"
+            style={{ borderColor: "var(--border)", background: "var(--card)" }}
+          >
+            {produto ? (
+              <>
+                <span className="inline-block w-2 h-2 rounded-sm flex-shrink-0" style={{ background: CORES_CATEGORIA[produto.categoria] }} />
+                <span className="truncate" style={{ fontWeight: 600 }}>
+                  {produto.nome}
+                </span>
+                <span className="flex-shrink-0" style={{ color: "var(--muted-foreground)" }}>
+                  cód. {produto.codigo}
+                </span>
+              </>
             ) : (
-              <p className="text-xs p-8 text-center" style={{ color: "var(--muted-foreground)" }}>
-                O histórico das categorias ainda não foi gerado.
-              </p>
+              <span style={{ color: "var(--muted-foreground)" }}>Nenhum produto</span>
             )}
-          </div>
-        )}
-        {tipo === "produto" && (
-          <div className="grid grid-cols-1 xl:grid-cols-[320px_minmax(0,1fr)] border-t" style={{ borderColor: "var(--border)" }}>
-            <div className="border-b xl:border-b-0 xl:border-r flex flex-col" style={{ borderColor: "var(--border)" }}>
-              <div className="p-3 border-b" style={{ borderColor: "var(--border)" }}>
-                <div className="relative">
-                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: "var(--muted-foreground)" }} />
-                  <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar produto ou código" className="h-8 text-xs pl-8" />
-                </div>
-              </div>
-              <div className="overflow-y-auto" style={{ maxHeight: 560 }}>
-                {visiveis.map((p) => {
+            <ChevronsUpDown size={13} className="ml-auto flex-shrink-0" style={{ color: "var(--muted-foreground)" }} />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="p-0 w-[var(--radix-popover-trigger-width)] min-w-[320px]">
+          <Command>
+            <CommandInput placeholder="Buscar produto ou código" className="text-xs" />
+            <CommandList>
+              <CommandEmpty className="py-6 text-center text-xs" style={{ color: "var(--muted-foreground)" }}>
+                Nenhum produto encontrado.
+              </CommandEmpty>
+              <CommandGroup>
+                {produtos.map((p) => {
                   const ativo = produto && chave(produto) === chave(p);
                   const m = p.modelo?.metricas;
                   return (
-                    <button
+                    <CommandItem
                       key={chave(p)}
-                      onClick={() => onSelecionarProduto(chave(p))}
-                      className="w-full text-left px-4 py-2.5 flex items-center gap-3 border-b hover:bg-[var(--muted)]"
-                      style={{ borderColor: "var(--border)", background: ativo ? "var(--secondary)" : undefined }}
+                      value={`${p.nome} ${p.codigo}`}
+                      onSelect={() => {
+                        onSelecionar(chave(p));
+                        setAberto(false);
+                      }}
+                      className="text-xs"
                     >
-                      <span className="w-1 self-stretch rounded-full" style={{ background: ativo ? CORES_CATEGORIA[p.categoria] : "transparent" }} />
+                      <Check size={13} className="flex-shrink-0" style={{ opacity: ativo ? 1 : 0, color: "var(--primary)" }} />
                       <span className="flex-1 min-w-0">
-                        <span className="block text-xs truncate" style={{ fontWeight: 500 }}>
+                        <span className="block truncate" style={{ fontWeight: ativo ? 700 : 500 }}>
                           {p.nome}
                         </span>
-                        <span className="block text-[11px] truncate" style={{ color: "var(--muted-foreground)" }}>
-                          {nomeCategoria(p.categoria)} · {p.nomeUnidade}
+                        <span className="block text-[11px]" style={{ color: "var(--muted-foreground)" }}>
+                          cód. {p.codigo}
                         </span>
                       </span>
-                      <span className="text-right">
-                        <span className="block text-xs" style={{ fontWeight: 700 }}>
+                      <span className="text-right flex-shrink-0">
+                        <span className="block" style={{ fontWeight: 700 }}>
                           {m ? acerto14d(m) : "—"}
                         </span>
                         <span className="block text-[10px]" style={{ color: "var(--muted-foreground)" }}>
                           acerto
                         </span>
                       </span>
-                    </button>
+                    </CommandItem>
                   );
                 })}
-                {visiveis.length === 0 && (
-                  <p className="text-xs text-center py-8" style={{ color: "var(--muted-foreground)" }}>
-                    Nenhum produto encontrado.
-                  </p>
-                )}
-              </div>
-            </div>
-            <div className="min-w-0">
-              {produto && produto.modelo?.metricas && !backtest?.serie ? (
-                <p className="text-xs p-8 flex items-center justify-center gap-2" style={{ color: backtest?.erro ? "var(--destructive)" : "var(--muted-foreground)" }}>
-                  {backtest?.erro ?? (
-                    <>
-                      <Loader2 size={14} className="animate-spin" /> Carregando o histórico do produto...
-                    </>
-                  )}
-                </p>
-              ) : produto && produto.modelo?.metricas ? (
-                <PainelHistorico
-                  titulo={`${produto.nome} · ${produto.nomeUnidade}`}
-                  status={produto.modelo.status}
-                  metricas={produto.modelo.metricas}
-                  serie={backtest?.serie ?? []}
-                  periodo={periodo}
-                  cor={CORES_CATEGORIA[produto.categoria]}
-                  fmt={formatarQtd}
-                />
-              ) : (
-                <p className="text-xs p-8 text-center" style={{ color: "var(--muted-foreground)" }}>
-                  Selecione um produto.
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    </div>
   );
 }
 
@@ -322,13 +354,18 @@ function PainelHistorico({
   subtitulo?: string;
   status: StatusModelo;
   metricas: MetricasModelo;
-  serie: DiaBacktest[];
+  serie: DiaHistorico[];
   periodo: Periodo;
   cor: string;
   fmt: (v: number) => string;
 }) {
-  const dadosGrafico = useMemo(() => filtrarPeriodo(serie, periodo).map((d) => ({ ...d, faixa: [d.inf, d.sup] as [number, number] })), [serie, periodo]);
-  const testado = serie.length ? `${formatarMesAno(serie[0]!.data)} a ${formatarMesAno(serie[serie.length - 1]!.data)}` : "";
+  const dadosGrafico = useMemo(
+    () => filtrarPeriodo(serie, periodo).map((d) => ({ ...d, faixa: d.inf != null && d.sup != null ? ([d.inf, d.sup] as [number, number]) : null })),
+    [serie, periodo],
+  );
+  // 1º dia com previsto: a data fixa de treino (antes dela, o modelo ainda estava aprendendo)
+  const inicioPrevisto = serie.find((d) => d.previsto != null)?.data;
+  const marcaInicio = inicioPrevisto && dadosGrafico.some((d) => d.data === inicioPrevisto) && dadosGrafico[0]!.data !== inicioPrevisto;
 
   return (
     <div className="p-5 flex flex-col gap-4">
@@ -338,8 +375,10 @@ function PainelHistorico({
             {titulo}
           </p>
           <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-            {subtitulo ? `${subtitulo}. ` : ""}Indicadores de todo o período testado{testado ? ` (${testado})` : ""}, sempre prevendo as 2 semanas seguintes com o
-            que se sabia até ali.
+            {subtitulo ? `${subtitulo}. ` : ""}
+            {inicioPrevisto
+              ? `O previsto começa em ${formatarData(inicioPrevisto)}: até ali o modelo aprendia com as vendas. Cada dia mostra o que a previsão dizia antes dele.`
+              : "O previsto ainda não foi gravado: aparece depois do próximo treino."}
           </p>
         </div>
         <StatusBadge status={status} compacto />
@@ -366,13 +405,13 @@ function PainelHistorico({
 
       {serie.length === 0 ? (
         <p className="text-xs text-center py-10 rounded-lg" style={{ color: "var(--muted-foreground)", background: "var(--background)" }}>
-          O histórico dia a dia ainda não foi gerado.
+          Sem vendas no período.
         </p>
       ) : (
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-4 text-xs flex-wrap" style={{ color: "var(--muted-foreground)" }}>
             <span className="inline-flex items-center gap-1.5">
-              <span className="inline-block w-4 h-0.5" style={{ background: "var(--foreground)" }} /> Vendido
+              <span className="inline-block w-4 h-0.5" style={{ background: "var(--foreground)" }} /> Vendido (sem encomendas grandes)
             </span>
             <span className="inline-flex items-center gap-1.5">
               <span className="inline-block w-4 h-0.5" style={{ background: cor }} /> Previsto
@@ -390,7 +429,7 @@ function PainelHistorico({
                   dadosGrafico.map((d) => d.data),
                   periodo,
                 )}
-                tickFormatter={(d: string) => (periodo === "ano" ? formatarMesAno(d) : formatarDiaMes(d))}
+                tickFormatter={(d: string) => (longo(periodo) ? formatarMesAno(d) : formatarDiaMes(d))}
                 tick={eixo}
                 tickLine={false}
                 axisLine={false}
@@ -406,8 +445,16 @@ function PainelHistorico({
                     : [fmt(v as number), nome === "real" ? "Vendido" : "Previsto"]
                 }
               />
+              {marcaInicio && (
+                <ReferenceLine
+                  x={inicioPrevisto}
+                  stroke="var(--muted-foreground)"
+                  strokeDasharray="4 4"
+                  label={{ value: "início da previsão", position: "insideTopLeft", fontSize: 10, fill: "var(--muted-foreground)" }}
+                />
+              )}
               <Area dataKey="faixa" stroke="none" fill={cor} fillOpacity={0.15} isAnimationActive={false} />
-              <Line dataKey="real" stroke="var(--foreground)" strokeWidth={1.5} dot={periodo !== "ano" ? { r: 2 } : false} isAnimationActive={false} />
+              <Line dataKey="real" stroke="var(--foreground)" strokeWidth={1.5} dot={!longo(periodo) ? { r: 2 } : false} isAnimationActive={false} />
               <Line dataKey="previsto" stroke={cor} strokeWidth={2} dot={false} isAnimationActive={false} />
             </ComposedChart>
           </ResponsiveContainer>

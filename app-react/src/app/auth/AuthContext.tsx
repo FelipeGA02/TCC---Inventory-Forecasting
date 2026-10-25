@@ -1,5 +1,6 @@
 /**
- * Sessão do usuário: login em `/auth/login`, renovação em `/auth/refresh` e logout.
+ * Sessão do usuário: login em `/auth/login`, renovação em `/auth/refresh` e logout em
+ * `/auth/logout`, que revoga o token de renovação na API.
  *
  * O token de acesso fica só na memória (`tokenStore`); o de renovação fica no
  * `localStorage` para a sessão sobreviver a um recarregamento da página. Ao abrir o
@@ -67,6 +68,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const sair = useCallback(() => {
+    const refresh = tokenStore.getRefreshToken();
+    // sem esperar a resposta: sem rede, a sessão local termina do mesmo jeito
+    if (refresh) api.sair(refresh).catch(() => {});
     tokenStore.limpar();
     setUsuario(null);
   }, []);

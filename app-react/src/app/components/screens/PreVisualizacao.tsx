@@ -150,7 +150,7 @@ const COLUNAS: Coluna[] = [
 type Visao = "todos" | "encomendas" | "cadastrados" | "descontos" | "devolucoes";
 const VISOES: { id: Visao; rotulo: string }[] = [
   { id: "todos", rotulo: "Todos" },
-  { id: "encomendas", rotulo: "Encomendas" },
+  { id: "encomendas", rotulo: "Encomendas grandes" },
   { id: "cadastrados", rotulo: "Clientes cadastrados" },
   { id: "descontos", rotulo: "Com desconto" },
   { id: "devolucoes", rotulo: "Devoluções" },
@@ -526,7 +526,7 @@ export function PreVisualizacao() {
           linhas: todas.map(([data, loja, nota, cod, nome, cat, qtd, unit, desc, liq, pag, cad, enc]) => [
             isoParaBr(String(data)), nomeUnidade(loja as UnidadeId), String(nota), String(cod), String(nome),
             NOME_CAT[cat as CategoriaAnalise] ?? String(cat), Number(qtd), Number(unit), Number(desc), Number(liq), String(pag),
-            cad ? "Cadastrado" : "Consumidor", enc ? "Encomenda" : "Dia a dia",
+            cad ? "Cadastrado" : "Consumidor", enc ? "Encomenda grande" : "Dia a dia",
           ]),
         };
         const nome = todosMeses ? "registros-todos-os-meses" : meses.length === 1 ? `registros-${meses[0]}` : `registros-${meses[0]}-a-${meses[meses.length - 1]}`;
@@ -578,7 +578,7 @@ export function PreVisualizacao() {
       case "tipo":
         return r.enc ? (
           <span className="inline-flex rounded-full px-2 py-0.5 text-[11px] whitespace-nowrap" style={{ background: "#f1f3f5", color: "#3d4651", border: "1px solid #d8dce1", fontWeight: 600 }}>
-            encomenda
+            encomenda grande
           </span>
         ) : (
           <span className="whitespace-nowrap" style={{ color: "var(--muted-foreground)" }}>
@@ -600,7 +600,7 @@ export function PreVisualizacao() {
     ...filtros.categorias.map((c) => ({ chave: `c${c}`, texto: `Categoria: ${NOME_CAT[c]}`, remover: () => set("categorias", filtros.categorias.filter((x) => x !== c)) })),
     ...filtros.pagamentos.map((p) => ({ chave: `p${p}`, texto: `Pagamento: ${p}`, remover: () => set("pagamentos", filtros.pagamentos.filter((x) => x !== p)) })),
     ...(filtros.cliente !== "todos" ? [{ chave: "cli", texto: `Cliente: ${filtros.cliente === "cadastrado" ? "cadastrado" : "consumidor"}`, remover: () => set("cliente", "todos") }] : []),
-    ...(filtros.tipo !== "todos" ? [{ chave: "tipo", texto: `Tipo: ${filtros.tipo === "encomenda" ? "encomenda" : "dia a dia"}`, remover: () => set("tipo", "todos") }] : []),
+    ...(filtros.tipo !== "todos" ? [{ chave: "tipo", texto: `Tipo: ${filtros.tipo === "encomenda" ? "encomenda grande" : "dia a dia"}`, remover: () => set("tipo", "todos") }] : []),
     ...(filtros.dataDe || filtros.dataAte
       ? [{
           chave: "periodo",
@@ -698,7 +698,7 @@ export function PreVisualizacao() {
                   <Escolha opcoes={[{ valor: "todos", label: "Todos" }, { valor: "consumidor", label: "Consumidor" }, { valor: "cadastrado", label: "Cadastrado" }]} valor={filtros.cliente} onChange={(v) => set("cliente", v)} />
                 </SecaoFiltro>
                 <SecaoFiltro titulo="Tipo de venda">
-                  <Escolha opcoes={[{ valor: "todos", label: "Todos" }, { valor: "dia", label: "Dia a dia" }, { valor: "encomenda", label: "Encomenda" }]} valor={filtros.tipo} onChange={(v) => set("tipo", v)} />
+                  <Escolha opcoes={[{ valor: "todos", label: "Todos" }, { valor: "dia", label: "Dia a dia" }, { valor: "encomenda", label: "Encomenda grande" }]} valor={filtros.tipo} onChange={(v) => set("tipo", v)} />
                 </SecaoFiltro>
                 <SecaoFiltro titulo="Período">
                   <div className="flex items-center gap-2">
@@ -970,7 +970,7 @@ export function PreVisualizacao() {
                 <SheetTitle>Nota {notaAberta.nota}</SheetTitle>
                 <SheetDescription>
                   {dataDe(notaAberta)} · {nomeUnidade(notaAberta.loja)} · {notaAberta.cad ? "cliente cadastrado" : "consumidor"} · {notaAberta.pag}
-                  {notaAberta.enc ? " · encomenda (fora da previsão)" : ""}
+                  {notaAberta.enc ? " · encomenda grande (fora da previsão)" : ""}
                 </SheetDescription>
               </SheetHeader>
               <div className="px-4 pb-6 flex flex-col gap-4">

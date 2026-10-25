@@ -4,9 +4,9 @@ Mantido como módulo único (em vez do pacote `database/{engine,models,migration
 sugerido em SPECS.md) para acompanhar o layout já commitado em `ia-predictor/backend/`.
 Diagrama: `docs/database/modelo_dados.drawio`.
 
-Quatro grupos de tabelas:
+Cinco grupos de tabelas:
 
-  * Acesso: `users`.
+  * Acesso: `users` e `revoked_tokens` (sessões encerradas no logout).
   * Base de vendas: `units`, `categories`, `products`, `sales` (os campos da planilha que
     o sistema usa — a planilha em si não é guardada), `calendar_days` e `processing_log`
     (cada planilha recebida: nome, hash e resultado da carga).
@@ -14,7 +14,8 @@ Quatro grupos de tabelas:
     `model_artifacts` (um modelo por loja e por produto regular) e `backtest_points` —, e
     `forecast_runs` (cada geração da previsão: ao fim de cada treino e quando o calendário
     muda depois dele) com o seu `forecasts_cache`. O painel mostra os próximos 14 dias da
-    última geração concluída; as anteriores ficam para comparação.
+    última geração concluída; as anteriores ficam para comparação. `forecast_history`
+    guarda o previsto de cada dia já passado (congelado), para o histórico da previsão.
   * Serviço de previsão (botão do admin): `forecast_jobs` (cada disparo, com o andamento),
     `forecast_job_logs`, e por série treinada `series_models`, `series_forecasts` e
     `series_backtest_points`. Independente do grupo anterior — não muda o painel.
@@ -40,6 +41,7 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
+    UniqueConstraint,
     create_engine,
     event,
     func,
@@ -67,6 +69,17 @@ class User(Base):
     role = Column(String, nullable=False, info={"hint": "admin|viewer"})
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=func.now(), nullable=False)
+
+
+class RevokedToken(Base):
+    """Token de renovação encerrado no logout: `/auth/refresh` passa a recusá-lo. A linha
+    só serve até o token expirar sozinho e é apagada depois disso."""
+
+    __tablename__ = "revoked_tokens"
+
+    jti = Column(String, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    expires_at = Column(DateTime, nullable=False, index=True)
 
 
 # --------------------------------------------------------------------------- #
@@ -333,6 +346,37 @@ class BacktestPoint(Base):
     upper_95 = Column(Float, nullable=False)
     actual = Column(Float, nullable=False)
     naive = Column(Float, nullable=False)
+
+
+class ForecastHistory(Base):
+    """Histórico da previsão de cada categoria e produto regular de uma loja: o previsto de
+    cada dia, para a tela comparar com o vendido (que sai de `sales`, sem encomendas grandes).
+
+    Ao contrário de `backtest_points` (refeito a cada treino), aqui o dia fica congelado
+    (`domain.historico_previsao`): cada geração da previsão troca os dias de `start_date` em
+    diante e nunca mexe nos anteriores; dia que nenhuma geração cobriu (antes da 1ª, ou
+    vendas com mais de 14 dias de atraso) vem do walk-forward e só preenche dia vazio.
+
+    `source`: `forecast` (geração `run_id`) ou `walk_forward` (rodada que começou em
+    `origin_date`). `item`: id da categoria ou código do produto.
+    """
+
+    __tablename__ = "forecast_history"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    unit_id = Column(String, ForeignKey("units.id"), nullable=False)
+    level = Column(String, nullable=False, info={"hint": "category|product"})
+    item = Column(String, nullable=False)
+    day = Column(Date, nullable=False)
+    predicted = Column(Float, nullable=False)
+    lower_95 = Column(Float, nullable=False)
+    upper_95 = Column(Float, nullable=False)
+    source = Column(String, nullable=False, info={"hint": "forecast|walk_forward"})
+    origin_date = Column(Date, nullable=False)  # início da geração ou da rodada
+    retrain_id = Column(Integer, ForeignKey("retrain_history.id", ondelete="SET NULL"), nullable=True)
+    run_id = Column(Integer, ForeignKey("forecast_runs.id", ondelete="SET NULL"), nullable=True)
+
+    __table_args__ = (UniqueConstraint("unit_id", "level", "item", "day", name="uq_forecast_history_dia"),)
 
 
 # --------------------------------------------------------------------------- #

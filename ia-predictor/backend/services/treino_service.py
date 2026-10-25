@@ -8,7 +8,9 @@ de cada loja vai para:
   * `retrain_history`: a execução (trigger, período, configuração, contagens);
   * `model_artifacts`: um previsor por loja, por categoria e por produto regular;
   * `backtest_points`: previsto × real × naïve de cada dia do walk-forward;
-  * `forecast_runs` + `forecasts_cache`: a previsão dos próximos dias.
+  * `forecast_runs` + `forecasts_cache`: a previsão dos próximos dias;
+  * `forecast_history`: o previsto de cada dia por categoria e produto, congelado quando o
+    dia passa (`domain.historico_previsao`) — o histórico da previsão na tela.
 
 `importar_painel()` grava as mesmas tabelas a partir de um `baseReal.json` já gerado — o
 treino completo leva ~40 min, e o JSON é o resultado do mesmo código.
@@ -22,10 +24,11 @@ não devolve o objeto ajustado. Uma nova previsão exige treinar de novo.
 from __future__ import annotations
 
 import threading
+from collections import defaultdict
 from datetime import date, datetime, timedelta
 
 import pandas as pd
-from sqlalchemy import func, insert, select, update
+from sqlalchemy import delete, func, insert, select, update
 from sqlalchemy.orm import Session
 
 from backend.config import settings
@@ -33,6 +36,7 @@ from backend.infrastructure.database import (
     BacktestPoint,
     Category,
     ForecastCache,
+    ForecastHistory,
     ForecastRun,
     ModelArtifact,
     ProcessingLog,
@@ -40,6 +44,7 @@ from backend.infrastructure.database import (
     SessionLocal,
     Unit,
 )
+from backend.domain import historico_previsao
 from backend.services import base_vendas
 from training_scripts.frontend_mock import gerar_dados_frontend as gerador
 from training_scripts.preprocessing.remove_encomendas_06 import LIMIAR_QTD_VENDA
@@ -152,6 +157,26 @@ def _pontos_previsao(run_id: int, model_id: int, level: str, previsao: list[dict
              "lower_95": d["inf"], "upper_95": d["sup"]} for d in previsao]
 
 
+def _ponto_historico(level: str, item: str, d: dict, source: str, origem: date) -> dict:
+    return {"level": level, "item": item, "day": date.fromisoformat(d["data"]), "predicted": d["previsto"],
+            "lower_95": d["inf"], "upper_95": d["sup"], "source": source, "origin_date": origem}
+
+
+def gravar_historico(db: Session, unit_id: str, inicio: date, walk_forward: list[dict], previsao: list[dict],
+                     retrain_id: int | None, run_id: int | None) -> int:
+    """Atualiza `forecast_history` de uma loja: a previsão que começa em `inicio` troca os
+    dias de `inicio` em diante; o walk-forward só preenche dia anterior ainda vazio."""
+    db.execute(delete(ForecastHistory).where(ForecastHistory.unit_id == unit_id, ForecastHistory.day >= inicio))
+    gravados = set(db.execute(select(ForecastHistory.level, ForecastHistory.item, ForecastHistory.day)
+                              .where(ForecastHistory.unit_id == unit_id)).tuples())
+    novos = historico_previsao.pontos_a_gravar(gravados, walk_forward, previsao, inicio)
+    if novos:
+        db.execute(insert(ForecastHistory), [
+            {**p, "unit_id": unit_id, "retrain_id": retrain_id,
+             "run_id": run_id if p["source"] == "forecast" else None} for p in novos])
+    return len(novos)
+
+
 def gravar_unidade(db: Session, retrain_id: int, run_id: int, unidade: dict, config: dict) -> int:
     """Grava os previsores de uma loja (formato `UnidadeDados` do painel) e devolve quantos
     produtos têm previsão."""
@@ -167,13 +192,24 @@ def gravar_unidade(db: Session, retrain_id: int, run_id: int, unidade: dict, con
     backtest += _pontos_backtest(loja, unidade["backtest"], primeira, passo)
     previsao += _pontos_previsao(run_id, loja, "unit", unidade["previsao"])
 
+    # histórico da previsão: walk-forward (rodadas completas + a parcial do fim) e a geração nova
+    inicio = min(date.fromisoformat(d["data"]) for d in unidade["previsao"])
+    hist_wf, hist_prev = [], []
+
+    def walk_forward(level: str, item: str, pontos: list[dict]) -> None:
+        hist_wf.extend(_ponto_historico(level, item, p, "walk_forward",
+                                        origem_da_rodada(date.fromisoformat(p["data"]), primeira, passo))
+                       for p in pontos)
+
     semanas = int(config["janela_participacao_dias"]) // 7
     for cat, d in unidade["desagregacao"].items():
         mid = _novo_modelo(db, retrain_id, uid, "category", d["status"], category_id=cat,
                            metricas=d["metricas"], params={"share_window_weeks": semanas})
         backtest += _pontos_backtest(mid, d["backtest"], primeira, passo)
-        previsao += _pontos_previsao(run_id, mid, "category", [
-            {"data": dia["data"], **dia["categorias"][cat]} for dia in unidade["previsao"]])
+        dias_cat = [{"data": dia["data"], **dia["categorias"][cat]} for dia in unidade["previsao"]]
+        previsao += _pontos_previsao(run_id, mid, "category", dias_cat)
+        walk_forward("category", cat, d["backtest"] + d.get("complemento", []))
+        hist_prev += [_ponto_historico("category", cat, p, "forecast", inicio) for p in dias_cat]
 
     com_previsao = 0
     for p in unidade["produtos"]:
@@ -188,13 +224,48 @@ def gravar_unidade(db: Session, retrain_id: int, run_id: int, unidade: dict, con
                            params={"transformation": "nenhuma", "training_base": unidade["modelo"]["base"]})
         backtest += _pontos_backtest(mid, p.get("backtest") or [], primeira, passo)
         previsao += _pontos_previsao(run_id, mid, "product", p["previsao"])
+        walk_forward("product", p["codigo"], (p.get("backtest") or []) + p.get("complemento", []))
+        hist_prev += [_ponto_historico("product", p["codigo"], x, "forecast", inicio) for x in p["previsao"]]
         com_previsao += bool(p["previsao"])
 
     if backtest:
         db.execute(insert(BacktestPoint), backtest)
     if previsao:
         db.execute(insert(ForecastCache), previsao)
+    gravar_historico(db, uid, inicio, hist_wf, hist_prev, retrain_id, run_id)
     return com_previsao
+
+
+def semear_historico(db: Session) -> int:
+    """Preenche `forecast_history` a partir do último treino já gravado (bancos de antes da
+    tabela): `backtest_points` como walk-forward e a última geração como previsão. Não tem a
+    rodada parcial do fim — o próximo treino completa esses dias. Devolve os pontos gravados."""
+    linha = db.execute(select(ForecastRun, RetrainHistory)
+                       .join(RetrainHistory, RetrainHistory.id == ForecastRun.retrain_id)
+                       .where(ForecastRun.status == "done", RetrainHistory.status == "done")
+                       .order_by(ForecastRun.id.desc()).limit(1)).first()
+    if linha is None:
+        return 0
+    run, retrain = linha
+    modelos = {m.id: m for m in db.scalars(select(ModelArtifact).where(
+        ModelArtifact.retrain_id == retrain.id, ModelArtifact.level.in_(("category", "product"))))}
+    item = {i: (m.category_id if m.level == "category" else m.product_code) for i, m in modelos.items()}
+    wf, prev = defaultdict(list), defaultdict(list)
+    for p in db.scalars(select(BacktestPoint).where(BacktestPoint.model_id.in_(list(modelos)))):
+        m = modelos[p.model_id]
+        wf[m.unit_id].append({"level": m.level, "item": item[m.id], "day": p.day, "predicted": p.predicted,
+                              "lower_95": p.lower_95, "upper_95": p.upper_95, "source": "walk_forward",
+                              "origin_date": p.origin_date})
+    for p in db.scalars(select(ForecastCache).where(ForecastCache.run_id == run.id,
+                                                    ForecastCache.model_id.in_(list(modelos)))):
+        m = modelos[p.model_id]
+        prev[m.unit_id].append({"level": m.level, "item": item[m.id], "day": p.forecast_date,
+                                "predicted": p.predicted, "lower_95": p.lower_95, "upper_95": p.upper_95,
+                                "source": "forecast", "origin_date": run.start_date})
+    total = sum(gravar_historico(db, u, run.start_date, wf[u], prev[u], retrain.id, run.id)
+                for u in set(wf) | set(prev))
+    db.commit()
+    return total
 
 
 def _abrir_execucao(trigger: str, user_id: int | None, config: dict) -> int:

@@ -1,12 +1,12 @@
 import { useMemo, useState } from "react";
-import { CalendarDays, History, Info, Search } from "lucide-react";
+import * as DicaPrimitive from "@radix-ui/react-tooltip";
+import { CalendarDays, History, Search } from "lucide-react";
 import { Area, CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Input } from "../ui/input";
 import type { CategoriaId, DiaPrevisto, FiltroUnidade, ProdutoDaLoja, UnidadeDados } from "@/domain/types";
 import {
   CORES_CATEGORIA,
-  COR_TOTAL,
   HORIZONTE_DIAS,
   categorias,
   historicoDiarioDe,
@@ -26,8 +26,8 @@ const DIAS_HISTORICO_GRAFICO = 28;
 
 type Aba = "previsao" | "historico";
 type Visao = "categoria" | "produto";
-/** O que o gráfico mostra: as 4 categorias, uma só, ou a série total da loja (modelo da unidade). */
-type Foco = CategoriaId | "todas" | "loja";
+/** O que o gráfico mostra: as 4 categorias ou uma só. */
+type Foco = CategoriaId | "todas";
 
 const chave = (p: ProdutoDaLoja) => `${p.unidade}-${p.codigo}`;
 
@@ -38,11 +38,9 @@ const chave = (p: ProdutoDaLoja) => `${p.unidade}-${p.codigo}`;
 export function PrevisaoSarimax() {
   const [aba, setAba] = useState<Aba>("previsao");
   const [selecionado, setSelecionado] = useState<string | null>(null);
-  const rodadas = unidades[0]!.modelo.rodadas.length;
-
-  const abas: { id: Aba; rotulo: string; contagem: string }[] = [
+  const abas: { id: Aba; rotulo: string; contagem?: string }[] = [
     { id: "previsao", rotulo: "Previsão", contagem: `${HORIZONTE_DIAS} dias` },
-    { id: "historico", rotulo: "Histórico de previsão", contagem: `${rodadas} testes` },
+    { id: "historico", rotulo: "Histórico de previsão" },
   ];
 
   return (
@@ -60,9 +58,11 @@ export function PrevisaoSarimax() {
               style={{ borderColor: ativo ? "var(--primary)" : "transparent", color: ativo ? "var(--primary)" : "var(--muted-foreground)", fontWeight: ativo ? 600 : 500 }}
             >
               {a.rotulo}
-              <span className="ml-1.5 rounded-full px-1.5 py-0.5 text-[10px]" style={{ background: ativo ? "var(--secondary)" : "var(--muted)" }}>
-                {a.contagem}
-              </span>
+              {a.contagem && (
+                <span className="ml-1.5 rounded-full px-1.5 py-0.5 text-[10px]" style={{ background: ativo ? "var(--secondary)" : "var(--muted)" }}>
+                  {a.contagem}
+                </span>
+              )}
             </button>
           );
         })}
@@ -91,21 +91,26 @@ export function PrevisaoSarimax() {
 function PainelPrevisao({ selecionado, onSelecionar, onVerHistorico }: { selecionado: string | null; onSelecionar: (k: string) => void; onVerHistorico: (k: string) => void }) {
   const [visao, setVisao] = useState<Visao>("categoria");
   const [visaoTabela, setVisaoTabela] = useState<Visao>("categoria");
-  const [foco, setFoco] = useState<Foco>("loja");
+  const [foco, setFoco] = useState<Foco>("todas");
   const [unidadeTabela, setUnidadeTabela] = useState<FiltroUnidade>("todas");
   const [busca, setBusca] = useState("");
 
   const lojas = unidades;
+  const [unidadeFoco, setUnidadeFoco] = useState<UnidadeDados["id"]>(lojas[0]!.id);
+  const lojaFoco = lojas.find((l) => l.id === unidadeFoco) ?? lojas[0]!;
   const previsao = useMemo(() => previsaoDe("todas"), []);
   const eventos = previsao.filter((d) => d.evento);
 
-  // Só os produtos que têm previsão diária própria
-  const produtos = useMemo(() => produtosDe("todas", "todas", true), []);
-  const filtrados = useMemo(() => {
+  // Só os produtos de grama com previsão diária própria: o gráfico mostra os da loja escolhida,
+  // a tabela dia a dia os das lojas do filtro dela
+  const buscar = (lista: ProdutoDaLoja[]) => {
     const termo = busca.trim().toLowerCase();
-    return termo ? produtos.filter((p) => p.nome.toLowerCase().includes(termo) || p.codigo.includes(termo)) : produtos;
-  }, [produtos, busca]);
-  const produto = produtos.find((p) => chave(p) === selecionado) ?? produtos[0];
+    return termo ? lista.filter((p) => p.nome.toLowerCase().includes(termo) || p.codigo.includes(termo)) : lista;
+  };
+  const produtos = useMemo(() => produtosDe(unidadeFoco, "grama", true), [unidadeFoco]);
+  const filtrados = useMemo(() => buscar(produtos), [produtos, busca]);
+  const produtosTabela = useMemo(() => buscar(produtosDe("todas", "grama", true)), [busca]);
+  const produto = filtrados.find((p) => chave(p) === selecionado) ?? filtrados[0];
 
   return (
     <>
@@ -131,6 +136,12 @@ function PainelPrevisao({ selecionado, onSelecionar, onVerHistorico }: { selecio
             </CardTitle>
             <div className="flex items-center gap-4 flex-wrap">
               <Segmentado
+                rotulo="Unidade"
+                opcoes={lojas.map((l) => ({ valor: l.id as UnidadeDados["id"], label: l.nome }))}
+                valor={unidadeFoco}
+                onChange={setUnidadeFoco}
+              />
+              <Segmentado
                 rotulo="Por"
                 opcoes={[
                   { valor: "categoria" as Visao, label: "Categoria" },
@@ -144,11 +155,7 @@ function PainelPrevisao({ selecionado, onSelecionar, onVerHistorico }: { selecio
         </CardHeader>
         <CardContent className="px-0 pb-0">
           {visao === "categoria" ? (
-            <div className="flex flex-col">
-              {lojas.map((l, i) => (
-                <PrevisaoCategoria key={l.id} loja={l} foco={foco} onFoco={setFoco} primeira={i === 0} />
-              ))}
-            </div>
+            <PrevisaoCategoria loja={lojaFoco} foco={foco} onFoco={setFoco} primeira />
           ) : (
             <PrevisaoProduto
               produtos={filtrados}
@@ -157,7 +164,7 @@ function PainelPrevisao({ selecionado, onSelecionar, onVerHistorico }: { selecio
               onBusca={setBusca}
               onSelecionar={onSelecionar}
               onVerHistorico={onVerHistorico}
-              todasLojas
+              todasLojas={false}
             />
           )}
         </CardContent>
@@ -166,42 +173,45 @@ function PainelPrevisao({ selecionado, onSelecionar, onVerHistorico }: { selecio
       {/* Dia a dia */}
       <Card className="border" style={{ borderColor: "var(--border)" }}>
         <CardHeader className="pb-3 pt-4 px-5">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div>
-              <CardTitle className="text-sm" style={{ fontWeight: 600 }}>
-                Dia a dia
-              </CardTitle>
-              <p className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>
-                Quantidade prevista em cada dia. Passe o mouse num valor para ver a faixa provável.
-              </p>
-            </div>
-            <div className="flex items-center gap-3 flex-wrap">
-              {visaoTabela === "produto" && (
-                <div className="relative">
-                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: "var(--muted-foreground)" }} />
-                  <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar produto ou código" className="h-8 text-xs pl-8 w-56" />
-                </div>
-              )}
-              <Segmentado
-                rotulo="Unidade"
-                opcoes={[{ valor: "todas" as FiltroUnidade, label: "As duas lojas" }, ...unidades.map((u) => ({ valor: u.id as FiltroUnidade, label: u.nome }))]}
-                valor={unidadeTabela}
-                onChange={setUnidadeTabela}
-              />
-              <Segmentado
-                rotulo="Mostrar"
-                opcoes={[
-                  { valor: "categoria" as Visao, label: "Categorias" },
-                  { valor: "produto" as Visao, label: "Produtos" },
-                ]}
-                valor={visaoTabela}
-                onChange={setVisaoTabela}
+          <div>
+            <CardTitle className="text-sm" style={{ fontWeight: 600 }}>
+              Dia a dia
+            </CardTitle>
+            <p className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>
+              Quantidade prevista em cada dia. Passe o mouse num valor para ver a faixa provável.
+            </p>
+          </div>
+          {/* Filtros fixos numa linha: a busca some ao mostrar categorias, mas guarda o lugar para os filtros não pularem */}
+          <div className="mt-3 pt-3 border-t flex items-center gap-x-6 gap-y-2 flex-wrap" style={{ borderColor: "var(--border)" }}>
+            <Segmentado
+              rotulo="Mostrar"
+              opcoes={[
+                { valor: "categoria" as Visao, label: "Categorias" },
+                { valor: "produto" as Visao, label: "Produtos" },
+              ]}
+              valor={visaoTabela}
+              onChange={setVisaoTabela}
+            />
+            <Segmentado
+              rotulo="Unidade"
+              opcoes={[{ valor: "todas" as FiltroUnidade, label: "As duas lojas" }, ...unidades.map((u) => ({ valor: u.id as FiltroUnidade, label: u.nome }))]}
+              valor={unidadeTabela}
+              onChange={setUnidadeTabela}
+            />
+            <div className={`relative flex-1 min-w-[220px] ${visaoTabela === "produto" ? "" : "invisible"}`} aria-hidden={visaoTabela !== "produto"}>
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: "var(--muted-foreground)" }} />
+              <Input
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder="Buscar produto ou código"
+                disabled={visaoTabela !== "produto"}
+                className="h-8 text-xs pl-8 w-full"
               />
             </div>
           </div>
         </CardHeader>
         <CardContent className="px-0 pb-2">
-          <TabelaDiaria previsao={previsao} lojas={unidadesDoFiltro(unidadeTabela)} visao={visaoTabela} produtos={filtrados} />
+          <TabelaDiaria previsao={previsao} lojas={unidadesDoFiltro(unidadeTabela)} visao={visaoTabela} produtos={produtosTabela} />
         </CardContent>
       </Card>
     </>
@@ -215,7 +225,7 @@ function PainelPrevisao({ selecionado, onSelecionar, onVerHistorico }: { selecio
 function PrevisaoCategoria({ loja, foco, onFoco, primeira }: { loja: UnidadeDados; foco: Foco; onFoco: (f: Foco) => void; primeira: boolean }) {
   const previsao = useMemo(() => previsaoDe(loja.id), [loja.id]);
   const historico = useMemo(() => historicoDiarioDe(loja.id).slice(-DIAS_HISTORICO_GRAFICO), [loja.id]);
-  const visiveis = foco === "todas" ? categorias : foco === "loja" ? [] : categorias.filter((c) => c.id === foco);
+  const visiveis = foco === "todas" ? categorias : categorias.filter((c) => c.id === foco);
 
   // Uma linha por categoria: vendido (cheia) até hoje, previsto (tracejada) depois.
   // O último dia vendido repete no previsto para as duas linhas se encontrarem.
@@ -223,12 +233,10 @@ function PrevisaoCategoria({ loja, foco, onFoco, primeira }: { loja: UnidadeDado
     const linhas: Record<string, string | number | [number, number]>[] = historico.map((d) => {
       const r: Record<string, string | number> = { data: d.data };
       for (const c of categorias) r[`${c.id}_real`] = d.categorias[c.id] ?? 0;
-      r.loja_real = d.total;
       return r;
     });
     const ultimo = linhas[linhas.length - 1]!;
     for (const c of categorias) ultimo[`${c.id}_prev`] = ultimo[`${c.id}_real`]!;
-    ultimo.loja_prev = ultimo.loja_real!;
     for (const d of previsao) {
       const r: Record<string, string | number | [number, number]> = { data: d.data };
       for (const c of categorias) {
@@ -236,37 +244,33 @@ function PrevisaoCategoria({ loja, foco, onFoco, primeira }: { loja: UnidadeDado
         r[`${c.id}_prev`] = f.previsto;
         r[`${c.id}_faixa`] = [f.inf, f.sup];
       }
-      r.loja_prev = d.previsto;
-      r.loja_faixa = [d.inf, d.sup];
       linhas.push(r);
     }
     return linhas;
   }, [historico, previsao]);
 
-  // Valores do painel: a previsão de hoje (1º dia previsto). Se a loja fecha hoje, o painel
-  // mostra o próximo dia aberto, com a data escrita.
-  const hoje = previsao[0]!;
-  const dia = hoje.loja_fechada ? (previsao.find((d) => !d.loja_fechada) ?? hoje) : hoje;
-  const nomeDia = (d: DiaPrevisto) => `${d.dia_semana}, ${formatarDiaMes(d.data)}`;
+  // Valores do painel: a previsão de hoje (1º dia previsto), mesmo com a loja fechada
+  const dia = previsao[0]!;
   const totais = categorias.map((c) => ({ c, v: dia.categorias[c.id].previsto }));
-  const total = dia.previsto;
+  const total = somar(totais.map((t) => t.v));
+  // O número grande acompanha o foco: a categoria escolhida ou a soma das 4
+  const valorFoco = foco === "todas" ? total : dia.categorias[foco].previsto;
   const nomePorChave = (k: string) => {
     const [id, tipo] = [k.slice(0, k.lastIndexOf("_")), k.slice(k.lastIndexOf("_") + 1)];
-    const nome = id === "loja" ? "Total da loja" : nomeCategoria(id as CategoriaId);
+    const nome = nomeCategoria(id as CategoriaId);
     return `${nome} · ${tipo === "real" ? "vendido" : tipo === "faixa" ? "faixa provável" : "previsão"}`;
   };
-  const corFoco = foco === "loja" ? COR_TOTAL : foco === "todas" ? undefined : CORES_CATEGORIA[foco];
+  const corFoco = foco === "todas" ? undefined : CORES_CATEGORIA[foco];
 
   return (
     <div className={`grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_380px] ${primeira ? "" : "border-t"}`} style={{ borderColor: "var(--border)" }}>
       <div className="px-3 pt-3 pb-4 min-w-0">
         <div className="flex items-center gap-4 text-xs px-2 pb-2 flex-wrap" style={{ color: "var(--muted-foreground)" }}>
           <span style={{ color: "var(--foreground)", fontWeight: 600 }}>
-            {loja.nome} · {foco === "loja" ? "total da loja" : foco === "todas" ? "4 categorias" : nomeCategoria(foco)} · últimos {DIAS_HISTORICO_GRAFICO} dias e próximos{" "}
-            {HORIZONTE_DIAS}
+            {loja.nome} · {foco === "todas" ? "4 categorias" : nomeCategoria(foco)}
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span className="inline-block w-4 h-0.5" style={{ background: "var(--muted-foreground)" }} /> Vendido (sem encomendas)
+            <span className="inline-block w-4 h-0.5" style={{ background: "var(--muted-foreground)" }} /> Vendido (sem encomendas grandes)
           </span>
           <span className="inline-flex items-center gap-1.5">
             <span className="inline-block w-4 border-t-2 border-dashed" style={{ borderColor: "var(--muted-foreground)" }} /> Previsão
@@ -291,17 +295,6 @@ function PrevisaoCategoria({ loja, foco, onFoco, primeira }: { loja: UnidadeDado
             />
             <ReferenceLine x={previsao[0]!.data} stroke="var(--muted-foreground)" strokeDasharray="4 4" label={{ value: "hoje", position: "insideTopLeft", fontSize: 10, fill: "var(--muted-foreground)" }} />
             {corFoco && <Area dataKey={`${foco}_faixa`} stroke="none" fill={corFoco} fillOpacity={0.18} isAnimationActive={false} />}
-            {foco === "loja" && <Line dataKey="loja_real" stroke="var(--foreground)" strokeWidth={2} dot={false} isAnimationActive={false} />}
-            {foco === "loja" && (
-              <Line
-                dataKey="loja_prev"
-                stroke={COR_TOTAL}
-                strokeWidth={2}
-                strokeDasharray="5 4"
-                dot={{ r: 2.5, fill: COR_TOTAL, stroke: "#fff", strokeWidth: 1 }}
-                isAnimationActive={false}
-              />
-            )}
             {visiveis.map((c) => (
               <Line key={`${c.id}_real`} dataKey={`${c.id}_real`} stroke={CORES_CATEGORIA[c.id]} strokeWidth={2} dot={false} isAnimationActive={false} />
             ))}
@@ -325,35 +318,23 @@ function PrevisaoCategoria({ loja, foco, onFoco, primeira }: { loja: UnidadeDado
           <p className="text-xs mb-1" style={{ fontWeight: 700 }}>
             {loja.nome}
           </p>
-          {hoje.loja_fechada && (
-            <p className="text-xs mb-2 rounded-md px-2 py-1 inline-block" style={{ background: "var(--muted)", color: "var(--muted-foreground)" }}>
-              Hoje ({nomeDia(hoje)}) a loja não abre{hoje.evento ? ` · ${hoje.evento}` : ""}
-            </p>
-          )}
-          <p className="text-[11px] uppercase tracking-wide" style={{ color: "var(--muted-foreground)", fontWeight: 700 }}>
-            {hoje.loja_fechada ? `Próximo dia aberto · ${nomeDia(dia)}` : `Hoje · ${nomeDia(dia)}`}
-          </p>
-          <p className="text-3xl mt-1" style={{ fontWeight: 700, lineHeight: 1, color: COR_TOTAL }}>
-            {formatarNumero(total)}
-          </p>
-          <p className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>
-            unidades que a previsão espera vender no dia · faixa de {formatarNumero(dia.inf)} a {formatarNumero(dia.sup)}
+          <p className="text-3xl mt-1" style={{ fontWeight: 700, lineHeight: 1, color: foco === "todas" ? "var(--foreground)" : CORES_CATEGORIA[foco] }}>
+            {formatarNumero(valorFoco)}
           </p>
         </div>
         <div className="flex flex-col gap-2">
           <button
-            className="flex items-center justify-between gap-2 text-left rounded-md px-1.5 py-1.5 border hover:bg-[var(--muted)]"
-            style={{ background: foco === "loja" ? "var(--secondary)" : undefined, borderColor: foco === "loja" ? "var(--primary)" : "var(--border)" }}
-            onClick={() => onFoco(foco === "loja" ? "todas" : "loja")}
-            title={foco === "loja" ? "Voltar às 4 categorias" : "Ver a previsão do modelo da loja (venda total), com a faixa provável"}
+            className="self-start text-xs rounded-md px-2.5 py-1 border hover:bg-[var(--muted)] disabled:cursor-default disabled:hover:bg-transparent"
+            style={{
+              borderColor: "var(--border)",
+              background: foco === "todas" ? "var(--secondary)" : undefined,
+              fontWeight: foco === "todas" ? 700 : 500,
+            }}
+            onClick={() => onFoco("todas")}
+            disabled={foco === "todas"}
+            title="Mostrar as 4 categorias juntas no gráfico"
           >
-            <span className="inline-flex items-center gap-1.5 text-xs whitespace-nowrap" style={{ fontWeight: foco === "loja" ? 700 : 600 }}>
-              <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: COR_TOTAL }} /> Total da loja
-            </span>
-            <span className="inline-flex items-center gap-2 text-xs">
-              <StatusBadge status={loja.modelo.status} compacto />
-              <span style={{ fontWeight: 700 }}>{formatarNumero(total)}</span>
-            </span>
+            Todas as categorias
           </button>
           {totais.map(({ c, v }) => {
             const ativo = foco === c.id;
@@ -370,10 +351,7 @@ function PrevisaoCategoria({ loja, foco, onFoco, primeira }: { loja: UnidadeDado
                   <span className="inline-flex items-center gap-1.5 whitespace-nowrap" style={{ fontWeight: ativo ? 700 : 500 }}>
                     <MarcaCategoria id={c.id} /> {c.nome}
                   </span>
-                  <span className="inline-flex items-center gap-2">
-                    {st && <StatusBadge status={st} compacto />}
-                    <span style={{ fontWeight: 700 }}>{formatarNumero(v)}</span>
-                  </span>
+                  {st && <StatusBadge status={st} compacto />}
                 </div>
                 <div className="h-1.5 rounded-full w-full" style={{ background: "var(--muted)" }}>
                   <div
@@ -385,11 +363,6 @@ function PrevisaoCategoria({ loja, foco, onFoco, primeira }: { loja: UnidadeDado
             );
           })}
         </div>
-        <p className="text-xs flex gap-1.5 pt-3 border-t" style={{ color: "var(--muted-foreground)", borderColor: "var(--border)" }}>
-          <Info size={13} className="flex-shrink-0 mt-0.5" />
-          "Total da loja" é a previsão do modelo treinado na venda total da loja. Clique numa categoria para ver só ela, com a faixa provável: cada
-          categoria é a parte dela nessa previsão, pelo que vendeu nas últimas 8 semanas em cada dia da semana.
-        </p>
       </div>
     </div>
   );
@@ -511,7 +484,7 @@ function DetalheProduto({ p, onVerHistorico }: { p: ProdutoDaLoja; onVerHistoric
       </div>
       <div className="flex items-center gap-4 text-xs flex-wrap" style={{ color: "var(--muted-foreground)" }}>
         <span className="inline-flex items-center gap-1.5">
-          <span className="inline-block w-4 h-0.5" style={{ background: "var(--foreground)" }} /> Vendido (sem encomendas)
+          <span className="inline-block w-4 h-0.5" style={{ background: "var(--foreground)" }} /> Vendido (sem encomendas grandes)
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span className="inline-block w-4 border-t-2 border-dashed" style={{ borderColor: cor }} /> Previsão
@@ -603,6 +576,7 @@ function TabelaDiaria({
   const fixa = "sticky left-0 z-10";
 
   return (
+    <DicaPrimitive.Provider delayDuration={150} skipDelayDuration={300}>
     <div className="overflow-auto border-t" style={{ borderColor: "var(--border)", maxHeight: visao === "produto" ? 520 : undefined }}>
       <table className="text-xs w-full" style={{ fontVariantNumeric: "tabular-nums", borderCollapse: "separate", borderSpacing: 0 }}>
         <thead className="sticky top-0 z-20">
@@ -613,20 +587,41 @@ function TabelaDiaria({
             <th className="text-left px-3 py-2 whitespace-nowrap" style={{ background: "#eef4ea", borderBottom: "1px solid var(--border)", fontWeight: 600 }}>
               Unidade
             </th>
-            {previsao.map((d) => (
-              <th
-                key={d.data}
-                className="px-2 py-2 text-right whitespace-nowrap"
-                title={d.evento ?? undefined}
-                style={{ background: "#eef4ea", borderBottom: "1px solid var(--border)", fontWeight: 600 }}
-              >
-                <span className="block text-[10px]" style={{ fontWeight: 500, color: "var(--muted-foreground)" }}>
-                  {d.dia_semana}
-                  {d.evento ? " ●" : ""}
-                </span>
-                {formatarDiaMes(d.data)}
-              </th>
-            ))}
+            {previsao.map((d) => {
+              const th = (
+                <th
+                  key={d.data}
+                  className="px-2 py-2 text-right whitespace-nowrap"
+                  style={{ background: "#eef4ea", borderBottom: "1px solid var(--border)", fontWeight: 600 }}
+                >
+                  <span className="block text-[10px]" style={{ fontWeight: 500, color: "var(--muted-foreground)" }}>
+                    {d.dia_semana}
+                    {d.evento ? " ●" : ""}
+                  </span>
+                  {formatarDiaMes(d.data)}
+                </th>
+              );
+              return d.evento ? (
+                <DicaPrimitive.Root key={d.data}>
+                  <DicaPrimitive.Trigger asChild>{th}</DicaPrimitive.Trigger>
+                  <CaixaDica>
+                    <p className="text-[11px]" style={{ color: "var(--muted-foreground)" }}>
+                      {d.dia_semana}, {formatarData(d.data)}
+                    </p>
+                    <p className="text-xs mt-1" style={{ fontWeight: 600 }}>
+                      {d.evento}
+                    </p>
+                    {d.loja_fechada && (
+                      <p className="text-[11px] mt-1" style={{ color: "var(--muted-foreground)" }}>
+                        Loja fechada, sem venda prevista.
+                      </p>
+                    )}
+                  </CaixaDica>
+                </DicaPrimitive.Root>
+              ) : (
+                th
+              );
+            })}
           </tr>
         </thead>
         <tbody>
@@ -658,14 +653,14 @@ function TabelaDiaria({
                 {l.dias.map((d, i) => {
                   const fechado = l.fechados[i];
                   return (
-                    <td
-                      key={i}
-                      className="px-2 py-2 text-right"
-                      title={`${formatarData(previsao[i]!.data)}: ${fmt(d.previsto)} (faixa ${fmt(d.inf)} a ${fmt(d.sup)})`}
-                      style={{ background: fechado ? "#f6f7f8" : fundo, borderBottom: "1px solid var(--border)", borderTop: borda, color: fechado ? "var(--muted-foreground)" : undefined }}
-                    >
-                      {fechado ? "—" : fmt(d.previsto)}
-                    </td>
+                    <DicaCelula key={i} linha={l} dia={previsao[i]!} valor={d} fechado={!!fechado} fmt={fmt}>
+                      <td
+                        className={`px-2 py-2 text-right ${fechado ? "" : "cursor-default hover:bg-[var(--secondary)]"}`}
+                        style={{ background: fechado ? "#f6f7f8" : undefined, borderBottom: "1px solid var(--border)", borderTop: borda, color: fechado ? "var(--muted-foreground)" : undefined }}
+                      >
+                        {fechado ? "—" : fmt(d.previsto)}
+                      </td>
+                    </DicaCelula>
                   );
                 })}
               </tr>
@@ -704,5 +699,83 @@ function TabelaDiaria({
         — loja fechada · ● data comemorativa (passe o mouse no dia)
       </p>
     </div>
+    </DicaPrimitive.Provider>
+  );
+}
+
+/** Caixa no estilo do tooltip dos gráficos (estiloTooltip), para as células da tabela. */
+function CaixaDica({ children }: { children: React.ReactNode }) {
+  return (
+    <DicaPrimitive.Portal>
+      <DicaPrimitive.Content
+        side="top"
+        sideOffset={6}
+        collisionPadding={8}
+        className="z-50 px-3 py-2.5 min-w-[190px] animate-in fade-in-0 zoom-in-95"
+        style={{ ...estiloTooltip, color: "var(--foreground)" }}
+      >
+        {children}
+        <DicaPrimitive.Arrow width={12} height={6} style={{ fill: "#fff", stroke: "var(--border)" }} />
+      </DicaPrimitive.Content>
+    </DicaPrimitive.Portal>
+  );
+}
+
+/** Dica de uma célula: dia, previsão e a faixa provável, com a previsão marcada dentro da faixa. */
+function DicaCelula({
+  linha,
+  dia,
+  valor,
+  fechado,
+  fmt,
+  children,
+}: {
+  linha: LinhaDiaria;
+  dia: DiaPrevisto;
+  valor: { previsto: number; inf: number; sup: number };
+  fechado: boolean;
+  fmt: (v: number) => string;
+  children: React.ReactElement;
+}) {
+  const largura = valor.sup - valor.inf;
+  const pos = largura > 0 ? Math.min(100, Math.max(0, ((valor.previsto - valor.inf) / largura) * 100)) : 50;
+  return (
+    <DicaPrimitive.Root>
+      <DicaPrimitive.Trigger asChild>{children}</DicaPrimitive.Trigger>
+      <CaixaDica>
+        <p className="text-[11px]" style={{ color: "var(--muted-foreground)" }}>
+          {dia.dia_semana}, {formatarData(dia.data)}
+          {dia.evento ? ` · ${dia.evento}` : ""}
+        </p>
+        <p className="text-xs mt-1 inline-flex items-center gap-1.5" style={{ fontWeight: 600 }}>
+          <span className="inline-block w-2 h-2 rounded-sm" style={{ background: linha.cor }} />
+          {linha.nome} · {linha.unidade}
+        </p>
+        {fechado ? (
+          <p className="text-xs mt-2" style={{ color: "var(--muted-foreground)" }}>
+            Loja fechada, sem venda prevista.
+          </p>
+        ) : (
+          <>
+            <div className="flex items-baseline justify-between gap-4 mt-2">
+              <span className="text-[11px]" style={{ color: "var(--muted-foreground)" }}>Previsão</span>
+              <span className="text-base" style={{ fontWeight: 700, lineHeight: 1 }}>{fmt(valor.previsto)}</span>
+            </div>
+            <div className="relative h-2.5 mt-2.5">
+              <span className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-1.5 rounded-full" style={{ background: linha.cor, opacity: 0.22 }} />
+              <span
+                className="absolute top-1/2 w-2.5 h-2.5 rounded-full -translate-x-1/2 -translate-y-1/2"
+                style={{ left: `${pos}%`, background: linha.cor, border: "2px solid #fff", boxShadow: "0 0 0 1px var(--border)" }}
+              />
+            </div>
+            <div className="flex justify-between text-[11px] mt-1.5" style={{ color: "var(--muted-foreground)" }}>
+              <span>{fmt(valor.inf)}</span>
+              <span>faixa provável</span>
+              <span>{fmt(valor.sup)}</span>
+            </div>
+          </>
+        )}
+      </CaixaDica>
+    </DicaPrimitive.Root>
   );
 }

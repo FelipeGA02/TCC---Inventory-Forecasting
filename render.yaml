@@ -13,6 +13,9 @@ services:
     envVars:
       - key: TRAINING_RUNNER    # a API não treina: 512 MB e 0,1 CPU não bastam
         value: externo
+      - key: DOCS_ENABLED       # sem /docs, /redoc e /openapi.json na API publicada
+        value: "false"
+      # a API não sobe sem JWT_SECRET_KEY (32+ caracteres) e as duas senhas (8+), nenhuma de exemplo
       - key: DATABASE_URL
         sync: false
       - key: JWT_SECRET_KEY

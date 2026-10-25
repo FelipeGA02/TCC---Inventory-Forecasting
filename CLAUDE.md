@@ -185,7 +185,8 @@ DATABASE_URL=sqlite:///./floricultura.db   # local; Neon: postgresql://usuario:s
 DATA_DIR=data
 MODELS_DIR=models
 
-# Auth (OBRIGATÓRIO configurar antes do primeiro boot)
+# Auth (OBRIGATÓRIO: sem valor padrão; a API não sobe com chave < 32 caracteres, senha < 8
+# ou valor de exemplo — Settings.exigir_segredos)
 JWT_SECRET_KEY=<string_aleatoria_32_chars_minimo>
 JWT_ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_HOURS=8
@@ -196,6 +197,7 @@ ADMIN_EMAIL=gestora@floricultura.com
 ADMIN_PASSWORD=<senha_forte>
 VIEWER_EMAIL=gerente@floricultura.com
 VIEWER_PASSWORD=<senha_forte>
+DOCS_ENABLED=true              # /docs, /redoc, /openapi.json — false no Render (render.yaml)
 
 # Pipeline ML — camada agregada L1 (unidade, diário — 2 séries)
 TOP_N_PRODUCTS=20               # SKUs com desagregação (L2) detalhada
@@ -230,6 +232,7 @@ diagrama em `docs/database/modelo_dados.drawio`, gerado por `docs/database/gerar
 | Tabela | Propósito |
 | --- | --- |
 | `users` | Usuários com e-mail, hash bcrypt, role (admin/viewer) |
+| `revoked_tokens` | Refresh tokens encerrados no logout (`jti`), recusados por `/auth/refresh` até expirarem |
 | `units` | As 2 lojas (`jardim-canada`, `itabirito`) |
 | `categories` | As 4 categorias do negócio (coluna `categoria` da Etapa 3: Grama, Plantas diversas, Produtos de jardim, Flores de corte) + Serviço e taxa, com `show_on_dashboard` falso |
 | `products` | Catálogo: código, nome mais recente, categoria, subcategoria (`categoria_fina`) |
@@ -246,6 +249,7 @@ diagrama em `docs/database/modelo_dados.drawio`, gerado por `docs/database/gerar
 | `series_models` | Cada série do serviço (4 categorias + cada produto de grama, por loja): status, ordem, AIC, MASE, cobertura, métricas do walk-forward; `insufficient_data` com o motivo |
 | `series_forecasts` | Previsão dos 14 dias seguintes à última venda, com IC 95%, por série |
 | `series_backtest_points` | Previsto × real × naïve de cada origem e horizonte do walk-forward (origem andando 1 dia), por série |
+| `forecast_history` | Histórico da previsão por categoria e produto: o previsto de cada dia é o da última geração feita antes dele, congelado depois que o dia passa; dia que nenhuma geração cobriu (antes da 1ª, ou vendas com mais de 14 dias de atraso) vem do walk-forward. Horizonte continua 14 dias. A tela compara com o vendido de `sales` (sem encomendas grandes) |
 
 Resumos (volume por loja/categoria, histórico, encomendas, venda das últimas 8 semanas)
 não são gravados: saem de `sales`. A previsão não é recalculada todo dia: com o mesmo
@@ -337,6 +341,7 @@ logados por modelo L1 treinado.
 | `/health` | GET | público |
 | `/auth/login` | POST | público |
 | `/auth/refresh` | POST | qualquer |
+| `/auth/logout` | POST | público — revoga o refresh token |
 | `/auth/me` | GET | qualquer |
 | `/api/v1/upload` | POST | **admin** |
 | `/api/v1/models/retrain` | POST | **admin** |

@@ -40,6 +40,53 @@ export interface StatusModelos {
   last_retrain_summary: string | null;
 }
 
+/** Serviço de previsão (`/api/v1/servico-previsao/*`, só admin). */
+export type StatusTreino = "pending" | "running" | "done" | "error" | "skipped";
+
+export interface TreinoServico {
+  id: number;
+  status: StatusTreino;
+  criado_em: string;
+  iniciado_em: string | null;
+  concluido_em: string | null;
+  dados_ate: string | null;
+  total_series: number;
+  series_concluidas: number;
+  progresso_pct: number;
+  serie_atual: string | null;
+  series_treinadas: number;
+  series_baixa_confianca: number;
+  series_dados_insuficientes: number;
+  series_com_erro: number;
+  mensagem: string | null;
+}
+
+export interface StatusServicoPrevisao {
+  treino_na_api: boolean;
+  em_andamento: TreinoServico | null;
+  ultimo: TreinoServico | null;
+  ultimo_concluido_em: string | null;
+  /** se um disparo agora treinaria; nulo enquanto há treino em andamento */
+  dados_alterados: boolean | null;
+  config: {
+    m: number;
+    d: number;
+    D: number;
+    janela_dias: number;
+    origens: number;
+    passo_dias: number;
+    horizonte_dias: number;
+    base: string;
+    categoria_produtos: string;
+  };
+}
+
+export interface DisparoTreino {
+  iniciado: boolean;
+  mensagem: string;
+  treino: TreinoServico;
+}
+
 /** Filtros, ordem e página da tela Conferir Dados (query de `/api/v1/registros/*`). */
 export type ConsultaRegistros = Record<string, string | number | null | undefined | string[]>;
 
@@ -73,4 +120,7 @@ export const api = {
   },
   statusModelos: () => http.get<StatusModelos>("/api/v1/models/status"),
   atualizarModelos: () => http.post<{ message: string; started_at: string }>("/api/v1/models/retrain"),
+
+  statusServicoPrevisao: () => http.get<StatusServicoPrevisao>("/api/v1/servico-previsao/status"),
+  treinarPrevisoes: () => http.post<DisparoTreino>("/api/v1/servico-previsao/treinos"),
 };

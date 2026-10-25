@@ -11,6 +11,7 @@ import { Header } from "./components/layout/Header";
 import { CarregandoTela, ErroTela, Tela } from "./components/layout/Tela";
 import { FiltroLojaProvider } from "./components/shared";
 import { useDados } from "./data/CarregarDados";
+import { ServicoPrevisaoProvider } from "./data/ServicoPrevisao";
 
 const Dashboard = lazy(() => import("./components/screens/Dashboard").then((m) => ({ default: m.Dashboard })));
 const ImportarPlanilha = lazy(() => import("./components/screens/ImportarPlanilha").then((m) => ({ default: m.ImportarPlanilha })));
@@ -50,9 +51,11 @@ function Rotas() {
 export default function AppAutenticado() {
   return (
     <FiltroLojaProvider>
-      <Layout>
-        <Rotas />
-      </Layout>
+      <ServicoPrevisaoProvider>
+        <Layout>
+          <Rotas />
+        </Layout>
+      </ServicoPrevisaoProvider>
     </FiltroLojaProvider>
   );
 }

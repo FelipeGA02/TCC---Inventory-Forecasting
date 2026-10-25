@@ -1,23 +1,39 @@
 import { useNavigate } from "react-router";
-import { AlertTriangle, Bell, CalendarClock, CheckCircle2, Database, type LucideIcon } from "lucide-react";
+import { AlertTriangle, Bell, BrainCircuit, CalendarClock, CheckCircle2, Database, Info, XCircle, type LucideIcon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { Progress } from "../ui/progress";
 import { AGENDA, proximoDiaSemana } from "@/config/agenda";
 import { useDados } from "../../data/CarregarDados";
+import type { StatusServicoPrevisao } from "../../data/api";
+import { useServicoPrevisao } from "../../data/ServicoPrevisao";
 import { nomeUnidade } from "../../data/mockData";
 import { useFiltroLoja } from "../shared";
 import { formatarData, formatarNumero } from "@/lib/format";
+
+type Tom = "alerta" | "andamento" | "sucesso" | "erro" | "info";
 
 interface Notificacao {
   id: string;
   icone: LucideIcon;
   titulo: string;
   texto: string;
-  acao: { rotulo: string; destino: string };
+  tom?: Tom;
+  acao?: { rotulo: string; destino: string };
+  /** barra de andamento (0–100), para o treino em segundo plano */
+  progresso?: number;
 }
 
 const DIAS_SEMANA = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
 const UM_DIA = 86_400_000;
-const COR = { cor: "#8a5a00", fundo: "#fff8e1", borda: "#ffe0a0" };
+const CORES: Record<Tom, { cor: string; fundo: string; borda: string }> = {
+  alerta: { cor: "#8a5a00", fundo: "#fff8e1", borda: "#ffe0a0" },
+  andamento: { cor: "#1d4f91", fundo: "#eef4ff", borda: "#c9dbff" },
+  info: { cor: "#1d4f91", fundo: "#eef4ff", borda: "#c9dbff" },
+  sucesso: { cor: "#1a6b3c", fundo: "#ecf8f0", borda: "#bfe5cc" },
+  erro: { cor: "#a12622", fundo: "#fdecea", borda: "#f5c2bf" },
+};
+/** Resultado de um treino do serviço de previsão fica no sino por um dia depois de terminar. */
+const RESULTADO_TREINO_POR_MS = 86_400_000;
 
 function quando(alvo: Date, agora: Date): string {
   const dias = Math.round((new Date(alvo).setHours(0, 0, 0, 0) - new Date(agora).setHours(0, 0, 0, 0)) / UM_DIA);
@@ -28,13 +44,55 @@ function quando(alvo: Date, agora: Date): string {
 
 const hora = (d: Date) => `${String(d.getHours()).padStart(2, "0")}:00`;
 const dataCurta = (d: Date) => d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+const horaMinuto = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
-/** Só o que pede ação: base desatualizada e previsões que não passaram nos testes. */
+/** Treino do serviço de previsão (só admin): andamento, ou o resultado do último por 1 dia. */
+function notificacaoDoTreino(status: StatusServicoPrevisao | null, agora: Date): Notificacao | null {
+  const andamento = status?.em_andamento;
+  if (andamento) {
+    const pct = Math.round(andamento.progresso_pct);
+    const detalhe = andamento.total_series
+      ? `${andamento.series_concluidas} de ${andamento.total_series} séries${andamento.serie_atual ? ` · ${andamento.serie_atual}` : ""}`
+      : (andamento.mensagem ?? "Preparando o treino...");
+    return {
+      id: "treino",
+      icone: BrainCircuit,
+      tom: "andamento",
+      titulo: `Treinando as previsões: ${pct}%`,
+      texto: `${detalhe}. Você pode continuar usando o sistema.`,
+      progresso: andamento.progresso_pct,
+    };
+  }
+  const ultimo = status?.ultimo;
+  if (!ultimo?.concluido_em || agora.getTime() - new Date(ultimo.concluido_em).getTime() > RESULTADO_TREINO_POR_MS) return null;
+  const quandoTerminou = `${dataCurta(new Date(ultimo.concluido_em))} às ${horaMinuto(ultimo.concluido_em)}`;
+  if (ultimo.status === "done") {
+    return { id: "treino", icone: CheckCircle2, tom: "sucesso", titulo: `Previsões treinadas em ${quandoTerminou}`,
+             texto: ultimo.mensagem ?? "Treino concluído.", acao: { rotulo: "Ver previsão", destino: "/previsao" } };
+  }
+  if (ultimo.status === "error") {
+    return { id: "treino", icone: XCircle, tom: "erro", titulo: `O treino das previsões falhou (${quandoTerminou})`,
+             texto: `${ultimo.mensagem ?? "Erro desconhecido."} Tente treinar de novo; se continuar, avise a equipe do projeto.` };
+  }
+  if (ultimo.status === "skipped") {
+    return { id: "treino", icone: Info, tom: "info", titulo: `Treino não executado (${quandoTerminou})`,
+             texto: ultimo.mensagem ?? "Os dados não mudaram desde o último treino." };
+  }
+  return null;
+}
+
+/**
+ * O que pede ação — base desatualizada e previsões que não passaram nos testes — e, para o
+ * admin, o andamento do treino das previsões (primeiro da lista).
+ */
 function useNotificacoes(): Notificacao[] {
   const { unidade } = useFiltroLoja();
   const { contexto } = useDados();
+  const { status: servico } = useServicoPrevisao();
   const agora = new Date();
   const lista: Notificacao[] = [];
+  const treino = notificacaoDoTreino(servico, agora);
+  if (treino) lista.push(treino);
   if (!contexto?.base.fim) return lista;
 
   const ultimaVenda = new Date(`${contexto.base.fim}T23:59:59`);
@@ -113,19 +171,26 @@ export function Notificacoes() {
           ) : (
             notificacoes.map((a) => {
               const Icone = a.icone;
+              const cor = CORES[a.tom ?? "alerta"];
+              const acao = a.acao;
               return (
-                <div key={a.id} className="rounded-lg px-3 py-2.5 flex items-start gap-2.5" style={{ background: COR.fundo, border: `1px solid ${COR.borda}` }}>
-                  <Icone size={16} className="flex-shrink-0 mt-0.5" style={{ color: COR.cor }} aria-hidden />
+                <div key={a.id} className="rounded-lg px-3 py-2.5 flex items-start gap-2.5" style={{ background: cor.fundo, border: `1px solid ${cor.borda}` }}>
+                  <Icone size={16} className="flex-shrink-0 mt-0.5" style={{ color: cor.cor }} aria-hidden />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs" style={{ fontWeight: 600, color: "var(--foreground)" }}>
                       {a.titulo}
                     </p>
+                    {a.progresso !== undefined && (
+                      <Progress value={a.progresso} className="h-1.5 mt-1.5" aria-label={`Andamento do treino: ${Math.round(a.progresso)}%`} />
+                    )}
                     <p className="text-[11px] mt-0.5" style={{ color: "var(--muted-foreground)" }}>
                       {a.texto}
                     </p>
-                    <button className="text-[11px] mt-1.5 hover:underline" style={{ color: COR.cor, fontWeight: 600 }} onClick={() => navigate(a.acao.destino)}>
-                      {a.acao.rotulo} →
-                    </button>
+                    {acao && (
+                      <button className="text-[11px] mt-1.5 hover:underline" style={{ color: cor.cor, fontWeight: 600 }} onClick={() => navigate(acao.destino)}>
+                        {acao.rotulo} →
+                      </button>
+                    )}
                   </div>
                 </div>
               );

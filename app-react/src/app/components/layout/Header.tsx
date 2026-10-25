@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import { Notificacoes } from "./Notificacoes";
+import { TreinarPrevisoes } from "./TreinarPrevisoes";
 
 const routeTitles: Record<string, { title: string; subtitle: string }> = {
   "/": { title: "Início", subtitle: "Visão geral das vendas da base: faturamento, mix, clientes e produtos" },
@@ -59,6 +60,7 @@ export function Header() {
           <RefreshCw size={14} className={atualizando ? "animate-spin" : undefined} />
           {atualizando ? "Atualizando..." : "Atualizar"}
         </Button>
+        <TreinarPrevisoes />
         <Notificacoes />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

@@ -3,7 +3,7 @@
  * cliente HTTP (`@/lib/http/client`), que renova o acesso sozinho quando expira.
  */
 import { http } from "@/lib/http/client";
-import type { BaseReal, Contexto, DiaBacktest, Perfil } from "@/domain/types";
+import type { BaseReal, Contexto, DiaHistorico, Perfil } from "@/domain/types";
 import type { AnalisesJson } from "./analises";
 
 export interface UsuarioApi {
@@ -53,8 +53,10 @@ export const api = {
 
   contexto: () => http.get<Contexto>("/api/v1/contexto"),
   painel: () => http.get<BaseReal>("/api/v1/painel"),
-  backtestProduto: (loja: string, codigo: string) =>
-    http.get<DiaBacktest[]>(`/api/v1/painel/produtos/${encodeURIComponent(loja)}/${encodeURIComponent(codigo)}/backtest`),
+  historico: (loja: string, nivel: "categoria" | "produto", item: string) =>
+    http.get<DiaHistorico[]>(
+      `/api/v1/painel/historico/${encodeURIComponent(loja)}/${nivel}/${encodeURIComponent(item)}`,
+    ),
   analises: () => http.get<AnalisesJson>("/api/v1/analises"),
 
   // Conferir Dados: a base paginada no banco

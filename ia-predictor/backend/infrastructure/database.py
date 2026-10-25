@@ -14,7 +14,8 @@ Três grupos de tabelas:
     `model_artifacts` (um modelo por loja e por produto regular) e `backtest_points` —, e
     `forecast_runs` (cada geração da previsão: ao fim de cada treino e quando o calendário
     muda depois dele) com o seu `forecasts_cache`. O painel mostra os próximos 14 dias da
-    última geração concluída; as anteriores ficam para comparação.
+    última geração concluída; as anteriores ficam para comparação. `forecast_history`
+    guarda o previsto de cada dia já passado (congelado), para o histórico da previsão.
 
 Resumos por loja, categoria e produto (volume, SKUs, encomendas, venda das últimas 8
 semanas...) não são gravados: saem de `sales` até `retrain_history.data_until`. Produto
@@ -37,6 +38,7 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
+    UniqueConstraint,
     create_engine,
     event,
     func,
@@ -341,6 +343,37 @@ class BacktestPoint(Base):
     upper_95 = Column(Float, nullable=False)
     actual = Column(Float, nullable=False)
     naive = Column(Float, nullable=False)
+
+
+class ForecastHistory(Base):
+    """Histórico da previsão de cada categoria e produto regular de uma loja: o previsto de
+    cada dia, para a tela comparar com o vendido (que sai de `sales`, sem encomendas grandes).
+
+    Ao contrário de `backtest_points` (refeito a cada treino), aqui o dia fica congelado
+    (`domain.historico_previsao`): cada geração da previsão troca os dias de `start_date` em
+    diante e nunca mexe nos anteriores; dia que nenhuma geração cobriu (antes da 1ª, ou
+    vendas com mais de 14 dias de atraso) vem do walk-forward e só preenche dia vazio.
+
+    `source`: `forecast` (geração `run_id`) ou `walk_forward` (rodada que começou em
+    `origin_date`). `item`: id da categoria ou código do produto.
+    """
+
+    __tablename__ = "forecast_history"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    unit_id = Column(String, ForeignKey("units.id"), nullable=False)
+    level = Column(String, nullable=False, info={"hint": "category|product"})
+    item = Column(String, nullable=False)
+    day = Column(Date, nullable=False)
+    predicted = Column(Float, nullable=False)
+    lower_95 = Column(Float, nullable=False)
+    upper_95 = Column(Float, nullable=False)
+    source = Column(String, nullable=False, info={"hint": "forecast|walk_forward"})
+    origin_date = Column(Date, nullable=False)  # início da geração ou da rodada
+    retrain_id = Column(Integer, ForeignKey("retrain_history.id", ondelete="SET NULL"), nullable=True)
+    run_id = Column(Integer, ForeignKey("forecast_runs.id", ondelete="SET NULL"), nullable=True)
+
+    __table_args__ = (UniqueConstraint("unit_id", "level", "item", "day", name="uq_forecast_history_dia"),)
 
 
 # --------------------------------------------------------------------------- #

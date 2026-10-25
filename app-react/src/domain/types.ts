@@ -151,6 +151,19 @@ export interface DiaBacktest extends Faixa {
   naive: number;
 }
 
+/**
+ * Um dia do histórico da previsão (`/painel/historico/...`): o vendido sem encomendas
+ * grandes e o previsto gravado — o da última previsão feita antes do dia. Previsto nulo antes
+ * da data fixa de treino.
+ */
+export interface DiaHistorico {
+  data: string;
+  real: number;
+  previsto: number | null;
+  inf: number | null;
+  sup: number | null;
+}
+
 export interface DesagregacaoCategoria {
   metricas: MetricasModelo;
   status: StatusModelo;

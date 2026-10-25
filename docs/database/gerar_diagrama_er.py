@@ -41,6 +41,7 @@ LAYOUT = {
     "forecast_runs": ("previsao", (2440, 40)),
     "forecasts_cache": ("previsao", (2440, 400)),
     "backtest_points": ("previsao", (2440, 720)),
+    "forecast_history": ("previsao", (1840, 900)),
 }
 
 W_KEY, W_NOME, W_TIPO = 46, 200, 200

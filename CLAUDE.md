@@ -234,6 +234,7 @@ diagrama em `docs/database/modelo_dados.drawio`, gerado por `docs/database/gerar
 | `backtest_points` | Previsto × real × naïve de cada dia do walk-forward de cada previsor (loja, categoria, produto) — tela de histórico da previsão |
 | `forecast_runs` | Cada geração da previsão (ao fim do treino ou quando o calendário muda): período previsto e SKUs atendidos |
 | `forecasts_cache` | Previsão diária com IC 95% por geração, em 3 níveis (loja, categoria, produto); grava `FORECAST_STORED_DAYS` dias e a API entrega os 14 a partir de hoje |
+| `forecast_history` | Histórico da previsão por categoria e produto: o previsto de cada dia é o da última geração feita antes dele, congelado depois que o dia passa; dia que nenhuma geração cobriu (antes da 1ª, ou vendas com mais de 14 dias de atraso) vem do walk-forward. Horizonte continua 14 dias. A tela compara com o vendido de `sales` (sem encomendas grandes) |
 
 Resumos (volume por loja/categoria, histórico, encomendas, venda das últimas 8 semanas)
 não são gravados: saem de `sales`. A previsão não é recalculada todo dia: com o mesmo

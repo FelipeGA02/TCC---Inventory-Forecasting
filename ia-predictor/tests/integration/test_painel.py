@@ -1,5 +1,11 @@
 """Telas do frontend montadas do banco: formatos de `app-react/src/domain/types.ts`
 (`BaseReal`) e de `app-react/src/app/data/analises.ts`."""
+from datetime import date, timedelta
+
+from sqlalchemy import delete, select
+
+from backend.infrastructure.database import ForecastHistory, SessionLocal
+from backend.services import treino_service
 from tests.conftest import CATEGORIAS, FIM
 
 IDS_CAT = [c for c, _, _ in CATEGORIAS]
@@ -67,6 +73,49 @@ def test_backtest_do_produto(client, viewer, com_previsao):
     assert r.status_code == 200
     assert len(r.json()) == 28 and {"data", "previsto", "real"} <= set(r.json()[0])
     assert client.get("/api/v1/painel/produtos/jardim-canada/999/backtest", headers=viewer).status_code == 404
+
+
+def test_historico_da_categoria(client, viewer, com_previsao):
+    r = client.get("/api/v1/painel/historico/jardim-canada/categoria/grama", headers=viewer)
+    assert r.status_code == 200
+    serie = r.json()
+    assert serie[0]["data"] == "2025-12-01" and serie[-1]["data"] == str(FIM)  # base inteira
+    com_previsto = [d for d in serie if d["previsto"] is not None]
+    assert len(com_previsto) == 28  # walk-forward do treino sintético
+    assert serie[0]["previsto"] is None and serie[0]["inf"] is None
+    assert serie[-1]["previsto"] == 40.0
+
+
+def test_historico_do_produto_sem_encomendas_grandes(client, viewer, com_previsao):
+    serie = client.get("/api/v1/painel/historico/jardim-canada/produto/100", headers=viewer).json()
+    dia15 = next(d for d in serie if d["data"] == "2026-01-15")
+    assert dia15["real"] == 0.0  # a nota de 3.000 un. é encomenda grande
+    assert client.get("/api/v1/painel/historico/jardim-canada/produto/999", headers=viewer).status_code == 404
+    assert client.get("/api/v1/painel/historico/jardim-canada/loja/x", headers=viewer).status_code == 422
+
+
+def test_historico_congela_os_dias_que_passaram(com_previsao):
+    """Duas gerações seguidas: a 2ª troca só os dias a partir do início dela."""
+    def ponto(dia, valor, source="forecast"):
+        return {"level": "product", "item": "300", "day": dia, "predicted": valor, "lower_95": 0.0,
+                "upper_95": valor, "source": source, "origin_date": dia}
+
+    sem1 = date(2026, 4, 1)
+    sem2 = sem1 + timedelta(days=7)
+    with SessionLocal() as db:
+        treino_service.gravar_historico(db, "itabirito", sem1, [],
+                                        [ponto(sem1 + timedelta(days=i), 10.0) for i in range(14)], None, None)
+        treino_service.gravar_historico(db, "itabirito", sem2, [ponto(sem1, 99.0, "walk_forward")],
+                                        [ponto(sem2 + timedelta(days=i), 20.0) for i in range(14)], None, None)
+        db.commit()
+        valores = dict(db.execute(select(ForecastHistory.day, ForecastHistory.predicted).where(
+            ForecastHistory.unit_id == "itabirito", ForecastHistory.item == "300")).all())
+        db.execute(delete(ForecastHistory).where(ForecastHistory.item == "300"))
+        db.commit()
+    assert len(valores) == 21
+    assert valores[sem1] == 10.0  # congelado: o walk-forward não troca
+    assert valores[sem2 - timedelta(days=1)] == 10.0
+    assert valores[sem2] == 20.0 and valores[sem2 + timedelta(days=13)] == 20.0
 
 
 def test_contexto_leve(client, viewer, com_previsao):

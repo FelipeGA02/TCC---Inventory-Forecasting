@@ -22,11 +22,13 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from backend.config import settings
+from backend.domain import historico_previsao
 from backend.domain import painel as montagem
 from backend.infrastructure.database import (
     BacktestPoint,
     Category,
     ForecastCache,
+    ForecastHistory,
     ForecastRun,
     ModelArtifact,
     ProcessingLog,
@@ -180,6 +182,31 @@ def painel_leve(db: Session) -> dict:
         return {**{k: v for k, v in completo.items() if k != "registros_amostra"}, "unidades": unidades}
 
     return cache.obter("painel_leve", versao, construir)
+
+
+class ItemSemHistorico(Exception):
+    """Categoria do painel ou produto sem venda na loja."""
+
+
+def historico(db: Session, unidade: str, nivel: str, item: str) -> list[dict]:
+    """Histórico da previsão de uma categoria (`nivel="categoria"`) ou produto da loja: o
+    vendido de cada dia (sem encomendas grandes), do começo da base ao fim do último treino,
+    com o previsto gravado em `forecast_history` — vazio antes da data fixa de treino."""
+    versao = cache.versao_dados(db)
+    geracao = ultima_geracao(db)
+    if geracao is None:
+        raise PrevisaoIndisponivel()
+    fim = pd.Timestamp(geracao[1].data_until)
+    level, coluna = ("category", "cat") if nivel == "categoria" else ("product", "produto_cod")
+    df = _vendas(db, versao)
+    real = montagem.venda_diaria(df[df["unit_id"] == unidade], coluna, item, fim)
+    if real is None:
+        raise ItemSemHistorico()
+    previstos = {p.day: (p.predicted, p.lower_95, p.upper_95) for p in db.scalars(
+        select(ForecastHistory).where(ForecastHistory.unit_id == unidade, ForecastHistory.level == level,
+                                      ForecastHistory.item == item, ForecastHistory.day <= fim.date()))}
+    db.commit()
+    return historico_previsao.serie_com_previsto(real, previstos)
 
 
 def backtest_produto(db: Session, unidade: str, codigo: str) -> list[dict]:

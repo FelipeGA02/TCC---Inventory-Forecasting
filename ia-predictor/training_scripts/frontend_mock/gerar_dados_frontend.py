@@ -17,7 +17,8 @@ modelos escolhidos na etapa de testes (branch `feat/desagregacao-l2`, e-mail ao 
   * Demais produtos: so historico, sem previsao diaria (venda irregular).
 
 Validacao (as duas lojas): walk-forward com 26 rodadas a cada 14 dias desde 2025-03-02,
-h = 14; metricas nos dias de loja aberta.
+h = 14; metricas nos dias de loja aberta. Os dias depois da ultima rodada completa ganham
+uma rodada parcial (`complemento`), fora das metricas, so para o historico da previsao.
 
 Categorias: as 4 da coluna `categoria` da Etapa 3 (Grama, Plantas diversas — todas as
 plantas exceto flores de corte —, Produtos de jardim — substrato, adubo, vaso, insumo — e
@@ -197,10 +198,17 @@ def status(m: dict) -> str:
 
 def linhas_rodada(origem, futuro, real, prev, lo, hi, treino):
     ult7 = treino.values[-M:]
-    naive = np.array([ult7[i % M] for i in range(HORIZONTE)])
+    n = len(futuro)  # HORIZONTE; menos na rodada parcial (`gerar_unidade`)
+    naive = np.array([ult7[i % M] for i in range(n)])
     escala = float(np.mean(np.abs(treino.values[M:] - treino.values[:-M])))
     return [{"origem": origem, "data": futuro[h], "previsto": prev[h], "inf": lo[h], "sup": hi[h],
-             "real": real[h], "naive": naive[h], "escala": escala} for h in range(HORIZONTE)]
+             "real": real[h], "naive": naive[h], "escala": escala} for h in range(n)]
+
+
+def pontos_dia(linhas: list[dict]) -> list[dict]:
+    """Linhas de rodada no formato do backtest da tela."""
+    return [{"data": str(r["data"].date()), "previsto": r1(r["previsto"]), "inf": r1(r["inf"]),
+             "sup": r1(r["sup"]), "real": r1(r["real"]), "naive": r1(r["naive"])} for r in linhas]
 
 
 # --------------------------------------------------------------------------- #
@@ -237,8 +245,8 @@ def _serie(sku, ate):
 
 
 def _modelo_produto(args):
-    """Ordem por AIC, validacao (rodadas em que o SKU e regular) e previsao final."""
-    sku, origens_sku, fim = args
+    """Ordem por AIC, validacao (rodadas em que o SKU e regular), rodada parcial e previsao final."""
+    sku, origens_sku, fim, parcial = args
     X, m = _G["X"], _G["m"]
     corte = origens_sku[0] if origens_sku else fim + pd.Timedelta(days=1)
     ordem = selecionar_ordem(_serie(sku, corte), X, D_PRODUTO)
@@ -253,6 +261,15 @@ def _modelo_produto(args):
         except Exception:  # noqa: BLE001
             continue
         linhas += linhas_rodada(o, fut, m.loc[fut, sku].values, p, lo, hi, s)
+    complemento = []
+    if parcial is not None:
+        s = _serie(sku, parcial)
+        fut = pd.date_range(parcial, fim, freq="D")
+        try:
+            p, lo, hi = prever(s, X, ordem, fut)
+            complemento = linhas_rodada(parcial, fut, m.loc[fut, sku].values, p, lo, hi, s)
+        except Exception:  # noqa: BLE001
+            pass
     futuro = pd.date_range(fim + pd.Timedelta(days=1), periods=HORIZONTE, freq="D")
     p, lo, hi = prever(_serie(sku, futuro[0]), X, ordem, futuro)
     met = metricas(linhas, _G["fech"]) if linhas else None
@@ -262,8 +279,8 @@ def _modelo_produto(args):
         "previsao": [{"data": str(futuro[i].date()), "previsto": r1(p[i]), "inf": r1(lo[i]),
                       "sup": r1(hi[i])} for i in range(HORIZONTE)],
         # Teste dia a dia (rodadas de 14 dias sem sobreposicao) para o historico da tela
-        "backtest": [{"data": str(r["data"].date()), "previsto": r1(r["previsto"]), "inf": r1(r["inf"]),
-                      "sup": r1(r["sup"]), "real": r1(r["real"]), "naive": r1(r["naive"])} for r in linhas],
+        "backtest": pontos_dia(linhas),
+        "complemento": pontos_dia(complemento),
     }
 
 
@@ -299,6 +316,11 @@ def gerar_unidade(df: pd.DataFrame, cal: pd.DataFrame, u: dict, workers: int) ->
     aberta = (X.loc[idx, "loja_fechada"] == 0).astype(int)
     origens = list(pd.date_range(PRIMEIRA_ORIGEM, fim - pd.Timedelta(days=HORIZONTE - 1),
                                  freq=f"{PASSO_ORIGEM}D"))
+    # Rodada parcial depois da ultima completa: os dias com venda que nenhuma rodada de 14
+    # dias cobre ainda (ate 13). Fica FORA das metricas; so preenche o historico da previsao
+    # quando as vendas chegam com atraso maior que o horizonte (`domain.historico_previsao`).
+    prox = origens[-1] + pd.Timedelta(days=PASSO_ORIGEM) if origens else PRIMEIRA_ORIGEM
+    parcial = prox if prox <= fim else None
 
     # ---- Loja: fluxo sem encomendas, sem log1p, janela deslizante
     y = fluxo.groupby("emissao")["qtdade"].sum().reindex(idx, fill_value=0.0)
@@ -311,6 +333,12 @@ def gerar_unidade(df: pd.DataFrame, cal: pd.DataFrame, u: dict, workers: int) ->
         fut = pd.date_range(o, periods=HORIZONTE, freq="D")
         p, lo, hi = prever(treino, X, ordem, fut)
         linhas += linhas_rodada(o, fut, y.loc[fut].values, p, lo, hi, treino)
+    linhas_parcial = []
+    if parcial is not None:
+        treino = y[y.index < parcial].iloc[-janela:]
+        fut = pd.date_range(parcial, fim, freq="D")
+        p, lo, hi = prever(treino, X, ordem, fut)
+        linhas_parcial = linhas_rodada(parcial, fut, y.loc[fut].values, p, lo, hi, treino)
     met = metricas(linhas, fechados)
     bt = pd.DataFrame(linhas)
     rodadas = [{"origem": str(o.date()), "erro_modelo": r1(g.loc[~g.data.isin(fechados), "previsto"].sub(g.real).abs().sum()),
@@ -321,21 +349,26 @@ def gerar_unidade(df: pd.DataFrame, cal: pd.DataFrame, u: dict, workers: int) ->
     # ---- Desagregacao loja -> categoria, testada nas mesmas rodadas
     cat_dia = (fluxo.groupby(["emissao", "cat"])["qtdade"].sum().unstack(fill_value=0.0)
                .reindex(index=idx, columns=IDS_CAT, fill_value=0.0))
-    desagregacao = {}
-    for k in IDS_CAT:
+
+    def desagregar(rodadas_loja: pd.DataFrame, k: str) -> list[dict]:
         linhas_k = []
-        for o, g in bt.groupby("origem"):
+        for o, g in rodadas_loja.groupby("origem"):
             sh = shares_por_dia_semana(fluxo, o - pd.Timedelta(days=1))[k]
             fut = pd.DatetimeIndex(g["data"])
             f = np.array([sh[d.weekday()] for d in fut])
             treino_k = cat_dia.loc[cat_dia.index < o, k].iloc[-janela:]
             linhas_k += linhas_rodada(o, fut, cat_dia.loc[fut, k].values, g["previsto"].values * f,
                                       g["inf"].values * f, g["sup"].values * f, treino_k)
+        return linhas_k
+
+    desagregacao = {}
+    for k in IDS_CAT:
+        linhas_k = desagregar(bt, k)
         met_k = metricas(linhas_k, fechados)
         desagregacao[k] = {
             "metricas": met_k, "status": status(met_k),
-            "backtest": [{"data": str(r["data"].date()), "previsto": r1(r["previsto"]), "inf": r1(r["inf"]),
-                          "sup": r1(r["sup"]), "real": r1(r["real"]), "naive": r1(r["naive"])} for r in linhas_k],
+            "backtest": pontos_dia(linhas_k),
+            "complemento": pontos_dia(desagregar(pd.DataFrame(linhas_parcial), k)) if linhas_parcial else [],
         }
     print(f"[{u['nome']}] desagregacao · " + " · ".join(
         f"{k}: acerto 14d {100 - (desagregacao[k]['metricas']['erro_total_14d_pct'] or 0):.0f}%, "
@@ -384,7 +417,9 @@ def gerar_unidade(df: pd.DataFrame, cal: pd.DataFrame, u: dict, workers: int) ->
     regulares_fim = regulares_na_origem(matriz, aberta, fim + pd.Timedelta(days=1))
     regulares = sorted(s for s in regulares_fim if cat_sku.get(s) in IDS_CAT)
     flores_regulares = sorted(s for s in regulares_fim if cat_sku.get(s) == CAT_FORA)
-    tarefas = [(s, [o for o in origens if s in reg_por_origem[o]], fim) for s in regulares]
+    reg_parcial = regulares_na_origem(matriz, aberta, parcial) if parcial is not None else set()
+    tarefas = [(s, [o for o in origens if s in reg_por_origem[o]], fim, parcial if s in reg_parcial else None)
+               for s in regulares]
     with ProcessPoolExecutor(workers, initializer=_init,
                              initargs=(matriz[regulares], X, fechados)) as ex:
         modelos = dict(ex.map(_modelo_produto, tarefas))
@@ -428,6 +463,7 @@ def gerar_unidade(df: pd.DataFrame, cal: pd.DataFrame, u: dict, workers: int) ->
             "previsao": [] if mod is None else mod["previsao"],
             "previsao_14d": r1(sum(x["previsto"] for x in mod["previsao"])) if mod else None,
             "backtest": [] if mod is None else mod["backtest"],
+            "complemento": [] if mod is None else mod["complemento"],
         })
 
     # ---- Encomendas: resumo e ultimas

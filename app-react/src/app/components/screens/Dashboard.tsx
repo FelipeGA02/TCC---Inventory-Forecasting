@@ -86,7 +86,7 @@ export function Dashboard() {
         <Kpi icone={Boxes} rotulo="Quantidade vendida" valor={formatarNumero(r.volume)} detalhe={`${formatarNumero(unidade === "todas" ? contexto.base.skus : r.produtos)} produtos diferentes · m², bandeja, saco, unidade`} />
         <Kpi
           icone={Truck}
-          rotulo="Encomendas"
+          rotulo="Encomendas grandes"
           valor={`${formatarNumero(r.encomendas.notas)} notas`}
           detalhe={`Acima de ${formatarNumero(LIMIAR_ENCOMENDA)} un. · ${formatarPercentual(r.encomendas.volume / r.volume)} da quantidade e ${formatarPercentual(r.encomendas.faturamento / r.faturamento)} do faturamento`}
         />
@@ -100,7 +100,7 @@ export function Dashboard() {
                 {medida === "faturamento" ? "Faturamento" : "Quantidade vendida"} por mês
               </CardTitle>
               <div className="mt-1">
-                <Legenda itens={[{ cor: COR_TOTAL, nome: "Venda do dia a dia" }, { cor: COR_ENCOMENDA, nome: "Encomendas" }]} />
+                <Legenda itens={[{ cor: COR_TOTAL, nome: "Venda do dia a dia" }, { cor: COR_ENCOMENDA, nome: "Encomendas grandes" }]} />
               </div>
             </div>
             <Segmentado
@@ -126,7 +126,7 @@ export function Dashboard() {
                 labelFormatter={(m: string) => formatarMesAno(m)}
                 formatter={(v: number, nome: string) => [
                   medida === "faturamento" ? formatarMoeda(v) : formatarNumero(v),
-                  nome === "dia_a_dia" ? "Venda do dia a dia" : "Encomendas",
+                  nome === "dia_a_dia" ? "Venda do dia a dia" : "Encomendas grandes",
                 ]}
               />
               <Bar dataKey="dia_a_dia" stackId="m" fill={COR_TOTAL} stroke="#fff" strokeWidth={1} isAnimationActive={false} />
@@ -143,7 +143,7 @@ export function Dashboard() {
               Faturamento médio por dia da semana
             </CardTitle>
             <p className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>
-              Último ano, dias de loja aberta, sem encomendas · domingo: loja fechada
+              Último ano, dias de loja aberta, sem encomendas grandes · domingo: loja fechada
             </p>
           </CardHeader>
           <CardContent className="px-3 pb-4">
@@ -172,7 +172,7 @@ export function Dashboard() {
               Mix por categoria
             </CardTitle>
             <p className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>
-              Participação na quantidade vendida e no faturamento do período, incluindo encomendas
+              Participação na quantidade vendida e no faturamento do período, incluindo encomendas grandes
             </p>
           </CardHeader>
           <CardContent className="px-5 pb-5 grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -263,7 +263,7 @@ export function Dashboard() {
                 Produtos mais vendidos · último ano
               </CardTitle>
               <p className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>
-                {formatarData(a.periodo.inicio_ultimo_ano)} a {formatarData(a.periodo.fim)} · inclui encomendas
+                {formatarData(a.periodo.inicio_ultimo_ano)} a {formatarData(a.periodo.fim)} · inclui encomendas grandes
               </p>
             </div>
             <Segmentado

@@ -30,6 +30,7 @@ GRUPOS = {
 LAYOUT = {
     "users": ("acesso", (40, 40)),
     "processing_log": ("acesso", (40, 300)),
+    "revoked_tokens": ("acesso", (40, 860)),
     "sales": ("vendas", (640, 40)),
     "calendar_days": ("vendas", (640, 520)),
     "units": ("catalogo", (1240, 40)),
@@ -40,6 +41,7 @@ LAYOUT = {
     "forecast_runs": ("previsao", (2440, 40)),
     "forecasts_cache": ("previsao", (2440, 400)),
     "backtest_points": ("previsao", (2440, 720)),
+    "forecast_history": ("previsao", (1840, 900)),
 }
 
 W_KEY, W_NOME, W_TIPO = 46, 200, 200

@@ -30,7 +30,8 @@ def upload(
     user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> UploadResponse:
-    conteudo = file.file.read()
+    # 1 byte além do limite basta para `processar` recusar o arquivo sem carregá-lo inteiro
+    conteudo = file.file.read(settings.MAX_UPLOAD_MB * 1024 * 1024 + 1)
     try:
         resultado = upload_service.processar(db, conteudo, file.filename or "planilha.xlsx", user.id)
     except upload_service.PlanilhaInvalida as erro:

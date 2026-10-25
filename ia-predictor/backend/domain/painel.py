@@ -184,6 +184,18 @@ def montar_unidade(v: pd.DataFrame, cal_u: pd.DataFrame, loja: dict, ids_cat: li
     }
 
 
+def venda_diaria(v: pd.DataFrame, coluna: str, item: str, fim: pd.Timestamp) -> pd.Series | None:
+    """Venda diária sem encomendas grandes de uma categoria (`coluna="cat"`) ou produto
+    (`"produto_cod"`) da loja `v`: da 1ª venda da loja (categoria) ou do produto até `fim`.
+    `None` se o item não vendeu na loja."""
+    fluxo = v[~v["encomenda"] & (v["emissao"] <= fim)]
+    do_item = fluxo[fluxo[coluna] == item]
+    if do_item.empty:
+        return None
+    ini = (fluxo if coluna == "cat" else do_item)["emissao"].min()
+    return do_item.groupby("emissao")["qtdade"].sum().reindex(pd.date_range(ini, fim, freq="D"), fill_value=0.0)
+
+
 def amostra_registros(df: pd.DataFrame, lojas: list[dict]) -> list[dict]:
     """Últimos 2 dias com venda de cada loja — o cliente vira só o tipo."""
     linhas = []

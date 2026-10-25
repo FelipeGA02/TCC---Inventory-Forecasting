@@ -45,8 +45,18 @@ de calendário.
 
 `categoria` e SKU MUST ser obtidos por **desagregação proporcional em cascata**
 (`unidade` → `categoria` → SKU), cada passo pela participação móvel × perfil de
-dia-da-semana do nível — não por um SARIMAX próprio: o teste de separação (ADR-011 §4)
-não mostrou redução de erro em modelar `categoria` direto.
+dia-da-semana do nível — não por um SARIMAX próprio: o teste de separação de
+`training_scripts/eda/eda_separacao.py` (EDA 4) não mostrou redução de erro em modelar
+`categoria` direto.
+
+> **⚠️ Princípio sob contestação empírica — requer emenda via `/speckit-constitution`.**
+> O experimento `disaggregation/categoria_direta_vs_desagregacao.py` (351 origens dia a
+> dia, h=14, 4 categorias, fluxo diário — protocolo muito mais forte que o da EDA 4)
+> mostra o SARIMAX **direto** na categoria vencendo a desagregação em **7 dos 8** pares
+> categoria-unidade, com destaque em Flores de corte (erro relativo à naïve 0,733 vs
+> 0,830 em Itabirito; 0,723 vs 0,878 em Jardim Canadá, onde a faixa de 95% da
+> desagregação cobre só 60,3% do realizado). Ver ADR-016. Enquanto a emenda não for
+> votada, este parágrafo continua valendo como norma.
 
 Para a **camada de SKU** especificamente, onde a série diária individual é
 majoritariamente composta de zeros e o SARIMAX é matematicamente inaplicável, também são

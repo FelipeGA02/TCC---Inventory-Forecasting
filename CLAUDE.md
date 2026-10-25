@@ -211,8 +211,13 @@ RETRAIN_DAY_OF_WEEK=mon        # ajuste (fit) dos modelos; pulado sem venda nova
 RETRAIN_HOUR=2
 RETRAIN_AFTER_UPLOAD_MINUTES=10  # treino após planilha com venda nova; outra planilha no intervalo adia
 TRAINING_RUNNER=local          # local: treino em thread da API · externo: a API não treina (Render, ADR-015)
-TRAINING_WORKERS=8             # processos no treino dos produtos
+TRAINING_WORKERS=8             # processos no treino dos produtos (proot/Termux de desenvolvimento: use 1)
 DAILY_FORECAST_HOUR=3          # confere o calendário; gera de novo a previsão só se ele mudou
+
+# Serviço de previsão (botão "Treinar previsões", só admin) — m=SEASONAL_PERIOD, d=0, D=0 fixos
+FORECAST_SERVICE_WINDOW_DAYS=365   # janela deslizante de treino
+FORECAST_SERVICE_WF_ORIGINS=56     # origens do walk-forward, andando 1 dia (8 semanas)
+FORECAST_SERVICE_MIN_SALE_DAYS=28  # produto de grama: dias com venda na última janela para treinar
 ```
 
 ---
@@ -236,6 +241,11 @@ diagrama em `docs/database/modelo_dados.drawio`, gerado por `docs/database/gerar
 | `backtest_points` | Previsto × real × naïve de cada dia do walk-forward de cada previsor (loja, categoria, produto) — tela de histórico da previsão |
 | `forecast_runs` | Cada geração da previsão (ao fim do treino ou quando o calendário muda): período previsto e SKUs atendidos |
 | `forecasts_cache` | Previsão diária com IC 95% por geração, em 3 níveis (loja, categoria, produto); grava `FORECAST_STORED_DAYS` dias e a API entrega os 14 a partir de hoje |
+| `forecast_jobs` | Serviço de previsão: cada disparo do botão do admin — status, andamento (série atual, %), impressão digital dos dados (`skipped` se não mudaram desde o último `done`), contagens por status. Independente de `retrain_history`: não muda o painel |
+| `forecast_job_logs` | Log do treino do serviço, uma linha por série (ordem, AIC, métricas, status ou motivo da recusa) |
+| `series_models` | Cada série do serviço (4 categorias + cada produto de grama, por loja): status, ordem, AIC, MASE, cobertura, métricas do walk-forward; `insufficient_data` com o motivo |
+| `series_forecasts` | Previsão dos 14 dias seguintes à última venda, com IC 95%, por série |
+| `series_backtest_points` | Previsto × real × naïve de cada origem e horizonte do walk-forward (origem andando 1 dia), por série |
 
 Resumos (volume por loja/categoria, histórico, encomendas, venda das últimas 8 semanas)
 não são gravados: saem de `sales`. A previsão não é recalculada todo dia: com o mesmo
@@ -333,6 +343,7 @@ logados por modelo L1 treinado.
 | `/api/v1/forecast/{produto_cod}` | GET | viewer — previsão diária, `horizon_days` |
 | `/api/v1/forecast/batch` | GET | viewer — previsão dos top N para o dashboard |
 | `/api/v1/models/status` | GET | viewer — status dos 2 modelos L1 (um por unidade) |
+| `/api/v1/servico-previsao/*` | GET/POST | **admin** — status, disparo (`POST /treinos`: 202 treina em segundo plano, 200 `skipped` sem dados novos), log e resultado por série |
 | Demais `/api/v1/*` | GET/POST | viewer |
 
 Os endpoints de reposição (`/api/v1/replenishment/*`) foram removidos do contrato na

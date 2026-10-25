@@ -24,6 +24,7 @@ GRUPOS = {
     "vendas": ("Vendas", "#DAE8FC", "#6C8EBF"),
     "catalogo": ("Catálogo", "#D5E8D4", "#82B366"),
     "previsao": ("Previsão", "#FFE6CC", "#D79B00"),
+    "servico": ("Serviço de previsão", "#E1D5E7", "#9673A6"),
 }
 
 # tabela: (grupo, (x, y))
@@ -40,6 +41,11 @@ LAYOUT = {
     "forecast_runs": ("previsao", (2440, 40)),
     "forecasts_cache": ("previsao", (2440, 400)),
     "backtest_points": ("previsao", (2440, 720)),
+    "forecast_jobs": ("servico", (3040, 40)),
+    "forecast_job_logs": ("servico", (3040, 720)),
+    "series_models": ("servico", (3640, 40)),
+    "series_forecasts": ("servico", (4240, 40)),
+    "series_backtest_points": ("servico", (4240, 300)),
 }
 
 W_KEY, W_NOME, W_TIPO = 46, 200, 200

@@ -117,9 +117,14 @@ Consulte `.specify/memory/constitution.md` para o texto completo. Resumo:
 2. **Estatística antes de ML**: SARIMAX é o modelo central da camada agregada L1
    (`unidade`, diário — 2 séries). `categoria` e SKU são obtidos por desagregação em
    cascata (participação móvel × perfil de dia-da-semana do nível), não por modelo
-   próprio: o teste de separação (ADR-011 §4) não mostrou ganho de acurácia em modelar
-   categoria direto. Croston/TSB/SBA são permitidos no nível de SKU (série quase toda
-   zero, SARIMAX inaplicável). NN/boosting só com evidência empírica.
+   próprio: o teste de separação de `training_scripts/eda/eda_separacao.py` (EDA 4, 26
+   janelas de 14 dias, 3 categorias, SARIMAX e ETS) não mostrou ganho de acurácia em
+   modelar categoria direto. **⚠️ Em revisão (ADR-016):** o experimento posterior
+   `disaggregation/categoria_direta_vs_desagregacao.py`, com protocolo muito mais forte
+   (351 origens dia a dia, 4 categorias, fluxo diário), inverte o resultado — o SARIMAX
+   direto na categoria vence a desagregação em 7 dos 8 pares categoria-unidade. Croston/
+   TSB/SBA são permitidos no nível de SKU (série quase toda zero, SARIMAX inaplicável).
+   NN/boosting só com evidência empírica.
 3. **Validação obrigatória**: walk-forward CV (≥4 folds, origem móvel, h=14 dias) +
    `MASE < 1.0` + cobertura do IC 95% em [90%, 98%], antes de `status = "trained"`.
    A simulação de perda/ruptura caiu junto com a L3 (ADR-011); a constituição ainda a

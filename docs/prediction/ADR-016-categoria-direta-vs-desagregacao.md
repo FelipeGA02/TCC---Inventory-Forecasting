@@ -1,13 +1,15 @@
 # ADR-016 — SARIMAX direto na categoria vence a desagregação do L1
 
-**Status:** proposto · **Data:** 2026-10-25 · **Contesta:** Princípio II da constituição (v3.1.0)
+**Status:** aceito pelo [ADR-017](ADR-017-previsao-por-categoria-e-grama.md) (2026-10-26) · **Data:** 2026-10-25 · **Contesta:** Princípio II da constituição (v3.1.0)
 **Afeta:** `.specify/memory/constitution.md` (Princípio II), `CLAUDE.md` (Regra Inviolável nº 2,
 seção L2), `backend/domain/disaggregation/`
 
-> **Este ADR não está aceito.** Ele registra que a norma vigente — categoria obtida por
-> desagregação, nunca por modelo próprio — está contestada pelos dados do próprio repo, e
-> que mudá-la exige emenda do Princípio II via `/speckit-constitution`. Até a emenda, a
-> norma vigente continua valendo.
+> **Aceito, com outra forma (ADR-017).** A categoria passou a ter SARIMAX próprio, como este
+> ADR propõe, mas o sistema foi além do §3: saíram também o L1 por unidade (o total da loja
+> é a soma das categorias) e a desagregação para SKU — os produtos de grama têm modelo
+> próprio, e os de outras categorias não são previstos. A receita é `d = 0` com janela de
+> 365 dias (§5, pendência resolvida no `trainer.py`). A emenda do Princípio II continua
+> pendente (`/speckit-constitution`).
 
 ---
 

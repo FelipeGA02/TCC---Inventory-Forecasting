@@ -6,7 +6,7 @@ A decisão e as alternativas estão no [ADR-015](../docs/backend/ADR-015-publica
 navegador ──► Vercel (front estático)
          └──► Render "verde-perto-api" (Virgínia, EUA) ──► Neon (São Paulo)
 
-treino (fora da API): python -m backend.scripts.gravar_previsao, numa máquina da equipe ──► Neon
+treino (fora da API): python -m backend.scripts.treinar_previsoes, numa máquina da equipe ──► Neon
 ```
 
 | Arquivo | Para quê |
@@ -24,7 +24,7 @@ treino (fora da API): python -m backend.scripts.gravar_previsao, numa máquina d
 - 750 horas por mês: dá para um serviço o mês inteiro.
 - **A API não treina** (`TRAINING_RUNNER=externo`): não há memória nem CPU para isso. O
   upload de planilha funciona e grava as vendas, mas a previsão só muda quando a equipe
-  roda o treino (passo 6).
+  roda o treino (passo 6). O botão "Treinar previsões" não aparece nessa instalação.
 
 ## 1. Acesso ao repositório
 
@@ -68,16 +68,19 @@ uma prévia de cada PR.
 
 ## 6. Atualizar a previsão (treino)
 
-Quando entrarem planilhas novas, alguém da equipe roda o treino de uma máquina com o
-`ia-predictor/.env` apontando para o Neon (~40 minutos com 8 processos):
+Quando entrarem planilhas novas, alguém da equipe roda o treino das categorias e dos
+produtos de grama (ADR-017) de uma máquina com o `ia-predictor/.env` apontando para o Neon.
+Cada série leva uns 4 minutos num processo; `--workers` divide entre processos (no
+proot/Termux use 1):
 
 ```bash
 cd ia-predictor
-python -m backend.scripts.gravar_previsao
+python -m backend.scripts.treinar_previsoes --workers 8
 ```
 
-A previsão nova aparece nas telas assim que o script termina. A API percebe pela tabela
-`forecast_runs` e refaz o cache.
+Se os dados não mudaram desde o último treino, o script registra o disparo como `skipped` e
+termina. A previsão nova aparece nas telas assim que ele conclui: a API percebe pela tabela
+`forecast_jobs` e refaz o cache. O log de cada série fica em `forecast_job_logs`.
 
 ## Problemas comuns
 

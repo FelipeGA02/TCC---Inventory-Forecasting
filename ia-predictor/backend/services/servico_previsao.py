@@ -1,13 +1,35 @@
 """Serviço de previsão: treina as 4 categorias e todos os produtos de grama de cada loja.
 
-Disparado pelo botão "Treinar previsões" (só admin), roda em segundo plano numa thread da
-API e grava tudo no banco de `DATABASE_URL` (o Neon, em produção — ADR-014):
+É o treino da previsão do sistema (ADR-017): a previsão de 14 dias, o histórico e os
+relatórios leem o último disparo concluído. Disparado pelo botão "Treinar previsões" (só
+admin), roda em segundo plano numa thread da API; com `TRAINING_RUNNER=externo` (API no
+Render) roda pelo script `backend/scripts/treinar_previsoes.py`, de outra máquina, com o
+mesmo código (`treinar_agora`). Não há agendador: a loja envia as planilhas e treina. Grava
+tudo no banco de `DATABASE_URL` (o Neon, em produção — ADR-014):
 
   * `forecast_jobs`: o disparo, com o andamento que a aba de notificações mostra;
   * `forecast_job_logs`: o log do treino, série a série;
   * `series_models` + `series_forecasts` + `series_backtest_points`: o resultado de cada
     série — ordem, AIC, métricas do walk-forward, previsão dos próximos 14 dias e os pontos
-    do walk-forward.
+    do walk-forward;
+  * `forecast_history`: o previsto de cada dia, congelado quando o dia passa — o histórico
+    da previsão na tela (`domain.historico_previsao`);
+  * `processing_log.forecast_job_id`: as planilhas que entraram pela primeira vez neste
+    treino ("a previsão mudou por causa de qual envio?").
+
+Ao concluir, apaga o walk-forward (`series_backtest_points`) dos treinos mais antigos que os
+últimos `FORECAST_SERVICE_KEEP_BACKTEST_JOBS` concluídos — é a tabela que mais cresce (~13
+mil linhas por treino) e o que a tela usa dela já está congelado em `forecast_history`.
+Modelos, métricas e previsões de todos os treinos ficam.
+
+Histórico da previsão
+---------------------
+Gravado só quando o disparo termina `done`, na mesma transação que muda o status: previsão
+de treino que falhou ou caiu no meio a loja nunca viu, então não pode congelar. Em cada loja
+do treino, apaga os dias a partir do início da previsão nova (dia seguinte à última venda),
+de todas as séries — inclusive a que desta vez ficou sem modelo, cujo número sai da tela —,
+grava os 14 dias novos e preenche com o 1º dia das janelas do walk-forward só os dias
+anteriores ainda vazios. `skipped` não muda nada.
 
 Só treina se os dados mudaram
 -----------------------------
@@ -24,6 +46,9 @@ calendário; série diária do **fluxo** — vendas sem as encomendas acima de 2
 no documento (ADR-013), a mesma base dos experimentos que fixaram a receita. Walk-forward
 com janela deslizante de `FORECAST_SERVICE_WINDOW_DAYS` dias e origem andando 1 dia por
 `FORECAST_SERVICE_WF_ORIGINS` origens, cada uma prevendo `FORECAST_HORIZON_DAYS` dias.
+Do ajuste final ficam os coeficientes (`series_models.params`) e o diagnóstico dos resíduos
+(Ljung-Box e Shapiro-Wilk, em `metrics`, citado no log quando p ≤ 0,05 — não muda o
+status). A configuração gravada no disparo leva a versão do código (`versao_codigo`).
 
 Série que não tem dados para isso (histórico curto, produto que quase não vende) fica
 registrada como `insufficient_data`, com o motivo, sem previsão — "todos os produtos de
@@ -43,18 +68,22 @@ import json
 import logging
 import multiprocessing
 import os
+import subprocess
 import threading
 import time
+from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from concurrent.futures.process import BrokenProcessPool
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
+from pathlib import Path
 
 import pandas as pd
-from sqlalchemy import case, func, insert, select
+from sqlalchemy import case, delete, func, insert, select, update
 from sqlalchemy.orm import Session
 
 from backend.config import settings
+from backend.domain import historico_previsao
 from backend.domain.features.exogenous import matriz_exogena
 from backend.domain.features.time_series import serie_diaria
 from backend.domain.models import evaluator
@@ -70,8 +99,10 @@ from backend.domain.models.trainer import (
 from backend.infrastructure.database import (
     CalendarDay,
     Category,
+    ForecastHistory,
     ForecastJob,
     ForecastJobLog,
+    ProcessingLog,
     Product,
     Sale,
     SeriesBacktestPoint,
@@ -96,12 +127,12 @@ _BATIMENTO_S = 30
 _SEM_SINAL_APOS = timedelta(minutes=3)
 _INTERVALO_PROGRESSO_S = 2.0              # no modo sequencial, grava o andamento no máximo a cada 2 s
 
-# Um treino por vez neste processo. Adquirida em `iniciar()` e liberada pela thread do treino.
+# Um treino por vez neste processo. Adquirida no disparo e liberada ao fim de `_executar`.
 _TRAVA = threading.Lock()
 
 
 class TreinoEmAndamento(Exception):
-    """Já existe um treino rodando (deste serviço ou o treino dos modelos da loja)."""
+    """Já existe um treino rodando."""
 
 
 class TreinoForaDaApi(Exception):
@@ -190,62 +221,100 @@ def na_api() -> bool:
     return settings.TRAINING_RUNNER == "local"
 
 
-def _treino_da_loja_rodando(db: Session) -> bool:
-    # import tardio: `treino_service` carrega o gerador do treino antigo (statsmodels etc.)
-    from backend.services import treino_service
-
-    return treino_service.ha_treino_rodando(db)
-
-
 # --------------------------------------------------------------------------- #
 # Disparo
 # --------------------------------------------------------------------------- #
+def _abrir(user_id: int | None, trigger: str, cfg: ConfigTreino) -> tuple[ForecastJob, bool]:
+    """Registra o disparo (com a trava já adquirida). Devolve (disparo, vai treinar): sem
+    dados novos desde o último treino concluído, o disparo fica `skipped`."""
+    with SessionLocal() as db:
+        _marcar_parados(db, trava_e_minha=True)
+        if em_andamento(db) is not None:
+            raise TreinoEmAndamento()
+        digital = impressao_digital(db)
+        concluido = ultimo_concluido(db)
+        if concluido is not None and concluido.data_fingerprint == digital:
+            agora = datetime.now()
+            job = ForecastJob(user_id=user_id, trigger=trigger, status="skipped", created_at=agora,
+                              finished_at=agora, data_fingerprint=digital, data_until=concluido.data_until,
+                              config=concluido.config, progress_pct=100.0,
+                              message=("Os dados não mudaram desde o último treino "
+                                       f"({concluido.finished_at:%d/%m/%Y %H:%M}). Nada a treinar."))
+            db.add(job)
+            db.flush()
+            db.add(ForecastJobLog(job_id=job.id, message=job.message))
+            db.commit()
+            db.refresh(job)
+            return job, False
+
+        job = ForecastJob(user_id=user_id, trigger=trigger, status="pending", heartbeat_at=datetime.now(),
+                          config=_config_registrada(cfg), message="Na fila: o treino começa em instantes.")
+        db.add(job)
+        db.commit()
+        db.refresh(job)
+        return job, True
+
+
 def iniciar(user_id: int | None) -> tuple[ForecastJob, bool]:
-    """Dispara o treino. Devolve (disparo, iniciou): `iniciou = False` quando os dados não
-    mudaram desde o último treino concluído — o disparo fica registrado como `skipped`."""
+    """Dispara o treino em segundo plano (botão "Treinar previsões"). Devolve (disparo,
+    iniciou): `iniciou = False` quando os dados não mudaram — o disparo fica `skipped`."""
     if not na_api():
         raise TreinoForaDaApi()
     if not _TRAVA.acquire(blocking=False):
         raise TreinoEmAndamento()
     iniciou = False
     try:
-        with SessionLocal() as db:
-            _marcar_parados(db, trava_e_minha=True)
-            if em_andamento(db) is not None or _treino_da_loja_rodando(db):
-                raise TreinoEmAndamento()
-            digital = impressao_digital(db)
-            concluido = ultimo_concluido(db)
-            if concluido is not None and concluido.data_fingerprint == digital:
-                agora = datetime.now()
-                job = ForecastJob(user_id=user_id, status="skipped", created_at=agora, finished_at=agora,
-                                  data_fingerprint=digital, data_until=concluido.data_until,
-                                  config=concluido.config, progress_pct=100.0,
-                                  message=("Os dados não mudaram desde o último treino "
-                                           f"({concluido.finished_at:%d/%m/%Y %H:%M}). Nada a treinar."))
-                db.add(job)
-                db.flush()
-                db.add(ForecastJobLog(job_id=job.id, message=job.message))
-                db.commit()
-                db.refresh(job)
-                return job, False
-
-            job = ForecastJob(user_id=user_id, status="pending", heartbeat_at=datetime.now(),
-                              config=_config_registrada(config_treino()),
-                              message="Na fila: o treino começa em instantes.")
-            db.add(job)
-            db.commit()
-            db.refresh(job)
-        threading.Thread(target=_executar, args=(job.id,), daemon=True, name=f"servico-previsao-{job.id}").start()
-        iniciou = True
-        return job, True
+        cfg = config_treino()
+        job, treinar = _abrir(user_id, "manual", cfg)
+        if treinar:
+            threading.Thread(target=_executar, args=(job.id, cfg), daemon=True,
+                             name=f"servico-previsao-{job.id}").start()
+            iniciou = True
+        return job, iniciou
     finally:
         if not iniciou:  # quando inicia, quem libera é a thread do treino
             _TRAVA.release()
 
 
+def treinar_agora(user_id: int | None = None, trigger: str = "script", cfg: ConfigTreino | None = None) -> ForecastJob:
+    """Treina neste processo e só volta no fim — o script `treinar_previsoes` (API que não
+    treina, `TRAINING_RUNNER=externo`). Devolve o disparo como terminou (`done`, `error` ou
+    `skipped`)."""
+    if not _TRAVA.acquire(blocking=False):
+        raise TreinoEmAndamento()
+    executou = False
+    try:
+        cfg = cfg or config_treino()
+        job, treinar = _abrir(user_id, trigger, cfg)
+        if treinar:
+            executou = True
+            _executar(job.id, cfg)  # libera a trava ao terminar
+    finally:
+        if not executou:
+            _TRAVA.release()
+    with SessionLocal() as db:
+        return db.get(ForecastJob, job.id)
+
+
+def versao_codigo() -> str | None:
+    """Commit do código que treinou, para saber com qual versão cada previsão do histórico
+    foi feita: `RENDER_GIT_COMMIT` no Render, senão o `git` da pasta do projeto."""
+    commit = os.environ.get("RENDER_GIT_COMMIT")
+    if commit:
+        return commit[:12]
+    try:
+        r = subprocess.run(["git", "rev-parse", "--short=12", "HEAD"], capture_output=True, text=True,
+                           timeout=5, cwd=Path(__file__).resolve().parent)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if r.returncode != 0:
+        return None
+    return r.stdout.strip() or None
+
+
 def _config_registrada(cfg: ConfigTreino) -> dict:
     return {**cfg.como_dict(), "base": BASE_TREINO, "categoria_produtos": CATEGORIA_PRODUTOS,
-            "workers": max(1, settings.TRAINING_WORKERS)}
+            "workers": max(1, settings.TRAINING_WORKERS), "versao_codigo": versao_codigo()}
 
 
 # --------------------------------------------------------------------------- #
@@ -345,16 +414,32 @@ def _texto_resultado(r: ResultadoSerie) -> tuple[str, str]:
     status = "confiável" if r.status == evaluator.STATUS_TREINADO else "usar com cautela"
     return "info", (f"SARIMAX{ordem}, AIC {r.aic:.1f}. Walk-forward com {m.get('origens')} origens: "
                     f"MASE {m.get('mase')}{comparacao}, faixa de 95% acertou {m.get('cobertura_ic95_pct')}% "
-                    f"dos dias. Previsão de {len(r.previsao)} dias gravada — {status}.")
+                    f"dos dias. Previsão de {len(r.previsao)} dias gravada — {status}.{_texto_residuos(r.diagnostico)}")
+
+
+def _texto_residuos(diagnostico: dict | None) -> str:
+    """Aviso do diagnóstico dos resíduos (CLAUDE.md: registrado, não bloqueia)."""
+    d, partes = diagnostico or {}, []
+    if (lb := d.get("ljung_box_p")) is not None and lb <= evaluator.P_DIAGNOSTICO:
+        partes.append(f"ainda correlacionados até {evaluator.LJUNG_BOX_LAG} dias (Ljung-Box p = {lb})")
+    if (sw := d.get("shapiro_p")) is not None and sw <= evaluator.P_DIAGNOSTICO:
+        partes.append(f"fora da distribuição normal (Shapiro-Wilk p = {sw})")
+    return f" Resíduos {' e '.join(partes)}." if partes else ""
 
 
 def _gravar_serie(job_id: int, s: _Serie, r: ResultadoSerie, cfg: ConfigTreino, contadores: dict,
-                  total: int, treinada: bool = True) -> None:
-    """Grava o resultado de uma série, o log e o andamento numa transação só.
+                  total: int, historico: dict | None = None, treinada: bool = True) -> None:
+    """Grava o resultado de uma série, o log e o andamento numa transação só, e guarda em
+    `historico[loja]` os pontos dela para o histórico da previsão, gravado no fim do disparo.
 
     O andamento conta só as séries treinadas (`treinada`): a recusada por falta de dados é
     instantânea e, se contasse, a barra pularia no início e ficaria parada no treino de verdade.
     """
+    if historico is not None and r.previsao is not None:
+        wf, prev = historico_previsao.pontos_da_serie(s.nivel, s.product_code or s.category_id, r.backtest,
+                                                      r.complemento, r.previsao, fechada=~s.aberta)
+        historico[s.unit_id][0].extend(wf)
+        historico[s.unit_id][1].extend(prev)
     if treinada:
         contadores["concluidas"] += 1
     contadores[r.status] = contadores.get(r.status, 0) + 1
@@ -366,10 +451,12 @@ def _gravar_serie(job_id: int, s: _Serie, r: ResultadoSerie, cfg: ConfigTreino, 
             sarimax_order=list(r.ordem) if r.ordem else None,
             seasonal_order=list(r.ordem_sazonal) if r.ordem_sazonal else None,
             aic=r.aic, mase=(r.metricas or {}).get("mase"),
-            ci95_coverage_pct=(r.metricas or {}).get("cobertura_ic95_pct"), metrics=r.metricas,
+            ci95_coverage_pct=(r.metricas or {}).get("cobertura_ic95_pct"),
+            metrics=None if r.metricas is None else {**r.metricas, **(r.diagnostico or {})},
             params={"trend": "c" if cfg.d == 0 else "n", "transformation": "nenhuma", "training_base": BASE_TREINO,
                     "window_days": cfg.janela_dias, "ordens_convergidas": r.ordens_convergidas,
-                    "dias_historico": r.dias_historico, "dias_com_venda_janela": r.dias_com_venda_janela},
+                    "dias_historico": r.dias_historico, "dias_com_venda_janela": r.dias_com_venda_janela,
+                    "coeficientes": r.coeficientes},
             train_start=r.treino_inicio.date() if r.treino_inicio is not None else None,
             train_end=r.treino_fim.date() if r.treino_fim is not None else None,
             message=r.motivo)
@@ -398,7 +485,8 @@ def _gravar_serie(job_id: int, s: _Serie, r: ResultadoSerie, cfg: ConfigTreino, 
         db.commit()
 
 
-def _treinar_sequencial(job_id: int, series: list[_Serie], cfg: ConfigTreino, contadores: dict, total: int) -> None:
+def _treinar_sequencial(job_id: int, series: list[_Serie], cfg: ConfigTreino, contadores: dict, total: int,
+                        historico: dict) -> None:
     ultimo_envio = 0.0
     for s in series:
         base = contadores["concluidas"]
@@ -413,11 +501,11 @@ def _treinar_sequencial(job_id: int, series: list[_Serie], cfg: ConfigTreino, co
                                progress_pct=round((base + feitos / total_ajustes) / total * 100, 1))
 
         _gravar_serie(job_id, s, treinar_serie(s.y, s.X, s.aberta, cfg, s.nivel, ao_progredir=progresso),
-                      cfg, contadores, total)
+                      cfg, contadores, total, historico)
 
 
 def _treinar_em_paralelo(job_id: int, series: list[_Serie], cfg: ConfigTreino, contadores: dict, total: int,
-                         workers: int) -> list[_Serie]:
+                         historico: dict, workers: int) -> list[_Serie]:
     """Uma série por processo. Devolve as séries que ficaram sem resultado se o pool quebrar."""
     for var in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):
         os.environ.setdefault(var, "1")  # herdado pelos processos: um núcleo por série
@@ -429,7 +517,7 @@ def _treinar_em_paralelo(job_id: int, series: list[_Serie], cfg: ConfigTreino, c
             for futuro in as_completed(futuros):
                 chave, resultado = futuro.result()
                 s = pendentes.pop(chave)
-                _gravar_serie(job_id, s, resultado, cfg, contadores, total)
+                _gravar_serie(job_id, s, resultado, cfg, contadores, total, historico)
                 _atualizar_job(job_id, current_series=f"{len(pendentes)} série(s) restante(s)")
     except BrokenProcessPool as erro:
         _registrar(job_id, f"Os processos paralelos pararam ({erro}); as {len(pendentes)} séries restantes "
@@ -447,16 +535,17 @@ def _batimento(job_id: int, parar: threading.Event) -> None:
             log.warning("serviço de previsão: batimento do treino %s falhou", job_id, exc_info=True)
 
 
-def _executar(job_id: int) -> None:
+def _executar(job_id: int, cfg: ConfigTreino) -> None:
     parar = threading.Event()
     threading.Thread(target=_batimento, args=(job_id, parar), daemon=True,
                      name=f"servico-previsao-{job_id}-batimento").start()
     try:
-        cfg = config_treino()
         _atualizar_job(job_id, status="running", started_at=datetime.now(),
                        message="Lendo as vendas e o calendário da base...")
         with SessionLocal() as db:
             digital = impressao_digital(db)  # do momento da leitura, não do clique
+            # as planilhas que já estavam carregadas quando o treino leu as vendas
+            ultima_planilha = db.scalar(select(func.max(ProcessingLog.id)).where(ProcessingLog.status == "done"))
             series, data_until = _montar_series(db, cfg, job_id)
 
         inelegiveis, treinaveis = [], []
@@ -480,11 +569,12 @@ def _executar(job_id: int) -> None:
                                                     dias_com_venda_janela=int((s.y.iloc[-cfg.janela_dias:] > 0).sum())),
                           cfg, contadores, total, treinada=False)
 
+        historico = defaultdict(lambda: ([], []))  # loja → (walk-forward, previsão)
         restantes = [s for s, _ in treinaveis]
         workers = min(max(1, settings.TRAINING_WORKERS), len(restantes)) if restantes else 1
         if workers > 1:
-            restantes = _treinar_em_paralelo(job_id, restantes, cfg, contadores, total, workers)
-        _treinar_sequencial(job_id, restantes, cfg, contadores, total)
+            restantes = _treinar_em_paralelo(job_id, restantes, cfg, contadores, total, historico, workers)
+        _treinar_sequencial(job_id, restantes, cfg, contadores, total, historico)
 
         boas = contadores.get(evaluator.STATUS_TREINADO, 0)
         cautela = contadores.get(evaluator.STATUS_BAIXA_CONFIANCA, 0)
@@ -496,9 +586,8 @@ def _executar(job_id: int) -> None:
         if falhas:
             partes.append(f"{falhas} com falha")
         mensagem = "Treino concluído: " + "; ".join(partes) + "."
-        _atualizar_job(job_id, status="done", finished_at=datetime.now(), progress_pct=100.0,
-                       current_series=None, message=mensagem)
-        _registrar(job_id, mensagem)
+        _concluir(job_id, mensagem, data_until + timedelta(days=1), {s.unit_id for s in series}, historico,
+                  ultima_planilha)
     except Exception as erro:  # noqa: BLE001 — o erro vai para o disparo e para o log
         log.exception("serviço de previsão: treino %s falhou", job_id)
         mensagem = f"O treino falhou: {type(erro).__name__}: {erro}"[:500]
@@ -510,3 +599,98 @@ def _executar(job_id: int) -> None:
     finally:
         parar.set()
         _TRAVA.release()
+
+
+# --------------------------------------------------------------------------- #
+# Histórico da previsão
+# --------------------------------------------------------------------------- #
+def gravar_historico(db: Session, unit_id: str, inicio: date, walk_forward: list[dict], previsao: list[dict],
+                     job_id: int | None) -> int:
+    """Atualiza `forecast_history` de uma loja (sem commit): a previsão que começa em
+    `inicio` troca os dias de `inicio` em diante, de todas as séries da loja; o walk-forward
+    só preenche dia anterior ainda vazio. Devolve quantos dias gravou."""
+    db.execute(delete(ForecastHistory).where(ForecastHistory.unit_id == unit_id, ForecastHistory.day >= inicio))
+    gravados = {tuple(c) for c in db.execute(select(ForecastHistory.level, ForecastHistory.item, ForecastHistory.day)
+                                             .where(ForecastHistory.unit_id == unit_id))}
+    novos = historico_previsao.pontos_a_gravar(gravados, walk_forward, previsao, inicio)
+    if novos:
+        db.execute(insert(ForecastHistory), [{**p, "unit_id": unit_id, "job_id": job_id} for p in novos])
+    return len(novos)
+
+
+def _concluir(job_id: int, mensagem: str, inicio: date, lojas: set[str], historico: dict,
+              ultima_planilha: int | None) -> None:
+    """Numa transação só: grava o histórico da previsão de cada loja do treino, liga a este
+    treino as planilhas que entraram nele pela primeira vez, marca o disparo como `done` e
+    apaga o walk-forward dos treinos antigos."""
+    with SessionLocal() as db:
+        dias = sum(gravar_historico(db, loja, inicio, *historico[loja], job_id) for loja in sorted(lojas))
+        _registrar(job_id, f"Histórico da previsão atualizado: {dias} dia(s) gravados, com a previsão "
+                           f"a partir de {inicio:%d/%m/%Y}.", db=db)
+        _registrar(job_id, _ligar_planilhas(db, job_id, ultima_planilha), db=db)
+        job = db.get(ForecastJob, job_id)
+        job.status, job.finished_at, job.progress_pct, job.current_series = "done", datetime.now(), 100.0, None
+        job.message, job.heartbeat_at = mensagem, datetime.now()
+        db.flush()
+        if apagados := _apagar_backtest_antigo(db):
+            _registrar(job_id, f"Walk-forward de treinos antigos apagado: {apagados} ponto(s) (ficam os "
+                               f"{settings.FORECAST_SERVICE_KEEP_BACKTEST_JOBS} últimos treinos).", db=db)
+        _registrar(job_id, mensagem, db=db)
+        db.commit()
+
+
+def _ligar_planilhas(db: Session, job_id: int, ultima_planilha: int | None) -> str:
+    """Liga ao treino as planilhas gravadas até a leitura das vendas que nenhum treino
+    concluído usou ainda. Devolve a linha do log."""
+    if ultima_planilha is None:
+        return "Nenhuma planilha carregada."
+    novas = list(db.scalars(select(ProcessingLog).where(
+        ProcessingLog.status == "done", ProcessingLog.forecast_job_id.is_(None), ProcessingLog.id <= ultima_planilha)
+        .order_by(ProcessingLog.id)))
+    if not novas:
+        return "Nenhuma planilha nova desde o último treino (mudou o calendário ou o catálogo)."
+    db.execute(update(ProcessingLog).where(ProcessingLog.id.in_([p.id for p in novas])).values(forecast_job_id=job_id))
+    nomes = ", ".join(p.filename for p in novas[:5]) + (f" e mais {len(novas) - 5}" if len(novas) > 5 else "")
+    return f"{len(novas)} planilha(s) nova(s) neste treino: {nomes}."
+
+
+def _apagar_backtest_antigo(db: Session) -> int:
+    """Apaga `series_backtest_points` dos treinos que não estão entre os últimos
+    `FORECAST_SERVICE_KEEP_BACKTEST_JOBS` concluídos (os em andamento ficam)."""
+    manter = (select(ForecastJob.id).where(ForecastJob.status == "done").order_by(ForecastJob.id.desc())
+              .limit(max(1, settings.FORECAST_SERVICE_KEEP_BACKTEST_JOBS)))
+    antigos = select(SeriesModel.id).join(ForecastJob, ForecastJob.id == SeriesModel.job_id).where(
+        ForecastJob.status.not_in(_EM_CURSO), SeriesModel.job_id.not_in(list(db.scalars(manter))))
+    return db.execute(delete(SeriesBacktestPoint).where(SeriesBacktestPoint.model_id.in_(antigos))).rowcount or 0
+
+
+def semear_historico(db: Session, recriar: bool = False) -> int:
+    """Preenche `forecast_history` a partir do último disparo concluído (bancos com treino
+    anterior à gravação do histórico): o 1º dia das janelas do walk-forward e a previsão.
+    Sem o complemento, que esse treino não gravou — o próximo completa esses dias.
+    `recriar` apaga o histórico antes (o que veio do treino antigo do painel). Devolve os
+    dias gravados."""
+    if recriar:
+        db.execute(delete(ForecastHistory))
+    job = ultimo_concluido(db)
+    if job is None:
+        db.commit()
+        return 0
+    modelos = {m.id: m for m in db.scalars(select(SeriesModel).where(SeriesModel.job_id == job.id))}
+    pontos = defaultdict(lambda: ([], []))
+    for p in db.scalars(select(SeriesBacktestPoint).where(SeriesBacktestPoint.model_id.in_(list(modelos)),
+                                                          SeriesBacktestPoint.horizon == 1)):
+        m = modelos[p.model_id]
+        pontos[m.unit_id][0].append({"level": m.level, "item": m.product_code or m.category_id, "day": p.day,
+                                     "predicted": p.predicted, "lower_95": p.lower_95, "upper_95": p.upper_95,
+                                     "source": "walk_forward", "origin_date": p.origin_date})
+    inicio = job.data_until + timedelta(days=1)
+    for p in db.scalars(select(SeriesForecast).where(SeriesForecast.model_id.in_(list(modelos)))):
+        m = modelos[p.model_id]
+        pontos[m.unit_id][1].append({"level": m.level, "item": m.product_code or m.category_id,
+                                     "day": p.forecast_date, "predicted": p.predicted, "lower_95": p.lower_95,
+                                     "upper_95": p.upper_95, "source": "forecast", "origin_date": inicio})
+    total = sum(gravar_historico(db, loja, inicio, *pontos[loja], job.id)
+                for loja in sorted({m.unit_id for m in modelos.values()}))
+    db.commit()
+    return total

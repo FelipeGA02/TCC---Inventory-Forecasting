@@ -2,10 +2,9 @@
 
   * `/contexto`: o que o layout precisa logo depois do login (lojas, categorias, data da
     última venda, status dos previsores, planilhas carregadas) — leve, só consultas agregadas;
-  * `/painel` (tela de previsão e relatórios), `/painel/produtos/{loja}/{codigo}/backtest`
-    (teste de acerto de um produto, quando ele é aberto) e
-    `/painel/historico/{loja}/{categoria|produto}/{item}` (vendido × previsto gravado, na
-    tela de histórico da previsão);
+  * `/painel` (tela de previsão e relatórios: o último treino concluído das categorias e
+    dos produtos de grama) e `/painel/historico/{loja}/{categoria|produto}/{item}` (vendido
+    × previsto congelado, na tela de histórico da previsão);
   * `/analises` (painel inicial);
   * `/registros/*` (Conferir Dados): a base paginada no banco — índice dos meses, uma página,
     os totais do filtro, os itens de uma nota e a exportação.
@@ -32,9 +31,12 @@ from backend.services.registros_service import Filtros
 router = APIRouter()
 
 _MSG_SEM_PREVISAO = (
-    "A previsão ainda não foi gerada. Peça à gestora para atualizar os modelos e tente de novo."
+    "A previsão ainda não foi gerada. Peça à gestora para usar \"Treinar previsões\" e tente de novo."
 )
-_MSG_SEM_TESTE = "Este produto não tem teste de acerto na última previsão."
+_MSG_SEM_TREINO = (
+    "O histórico da previsão aparece depois do primeiro treino. Peça à gestora para usar "
+    "\"Treinar previsões\" e tente de novo."
+)
 _MSG_SEM_HISTORICO = "Não há vendas deste item nesta loja."
 
 
@@ -59,19 +61,9 @@ def contexto(db: Session = Depends(get_db)) -> RespostaJSON:
 @router.get("/painel", response_class=RespostaJSON)
 def painel(db: Session = Depends(get_db)) -> RespostaJSON:
     try:
-        return RespostaJSON(painel_service.painel_leve(db))
+        return RespostaJSON(painel_service.painel(db))
     except painel_service.PrevisaoIndisponivel:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=_MSG_SEM_PREVISAO)
-
-
-@router.get("/painel/produtos/{unidade}/{codigo}/backtest", response_class=RespostaJSON)
-def backtest_produto(unidade: str, codigo: str, db: Session = Depends(get_db)) -> RespostaJSON:
-    try:
-        return RespostaJSON(painel_service.backtest_produto(db, unidade, codigo))
-    except painel_service.PrevisaoIndisponivel:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=_MSG_SEM_PREVISAO)
-    except painel_service.ProdutoInexistente:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_MSG_SEM_TESTE)
 
 
 @router.get("/painel/historico/{unidade}/{nivel}/{item}", response_class=RespostaJSON)
@@ -80,7 +72,7 @@ def historico(unidade: str, nivel: Literal["categoria", "produto"], item: str,
     try:
         return RespostaJSON(painel_service.historico(db, unidade, nivel, item))
     except painel_service.PrevisaoIndisponivel:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=_MSG_SEM_PREVISAO)
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=_MSG_SEM_TREINO)
     except painel_service.ItemSemHistorico:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_MSG_SEM_HISTORICO)
 

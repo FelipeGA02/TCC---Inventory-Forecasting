@@ -35,37 +35,20 @@ class Settings(BaseSettings):
     # /docs, /redoc e /openapi.json (desligados no Render pelo render.yaml)
     DOCS_ENABLED: bool = True
 
-    # Pipeline ML — camada L1 (unidade x categoria, diario). Ver ADR-009.
-    TOP_N_PRODUCTS: int = 20              # SKUs com desagregacao (L2) e reposicao (L3) detalhadas
-    FORECAST_HORIZON_DAYS: int = 14       # horizonte da previsao e da recomendacao de reposicao
-    FORECAST_STORED_DAYS: int = 60        # dias previstos e gravados por geracao; a API mostra 14 a partir de hoje
-    TEST_DAYS: int = 28                   # hold-out para avaliacao
-    MIN_OBSERVATIONS_DAYS: int = 180      # minimo de dias por unidade x categoria para treinar L1
-    SEASONAL_PERIOD: int = 7             # m — sazonalidade semanal do SARIMAX
-    LOG_CV_THRESHOLD: float = 0.7        # limiar (CV = std/mean) para log1p transform
-    ALERT_VARIATION_THRESHOLD: float = 0.20  # previsao 7d 20% acima da media 4 semanas dispara alerta
-    MAX_UPLOAD_MB: int = 50
-    TRAINING_WORKERS: int = 8            # processos no treino dos produtos (no servidor: o nº de CPUs)
-
-    # Serviço de previsão (botão do admin): SARIMAX direto nas 4 categorias e nos produtos de
-    # grama, por loja, com m = SEASONAL_PERIOD, d = 0, D = 0 (fixos em servico_previsao.py),
-    # horizonte FORECAST_HORIZON_DAYS e mínimo de histórico MIN_OBSERVATIONS_DAYS.
+    # Previsão (ADR-017): SARIMAX direto nas 4 categorias e em cada produto de grama, por
+    # loja, com m = SEASONAL_PERIOD, d = 0 e D = 0 (fixos em servico_previsao.py).
+    FORECAST_HORIZON_DAYS: int = 14       # dias previstos a partir do dia seguinte à última venda
+    SEASONAL_PERIOD: int = 7              # m — sazonalidade semanal do SARIMAX
+    MIN_OBSERVATIONS_DAYS: int = 180      # histórico mínimo antes da 1ª origem do walk-forward
     FORECAST_SERVICE_WINDOW_DAYS: int = 365     # janela deslizante de treino (dias)
     FORECAST_SERVICE_WF_ORIGINS: int = 56       # origens do walk-forward, andando 1 dia (8 semanas)
     FORECAST_SERVICE_MIN_SALE_DAYS: int = 28    # produto: dias com venda na última janela para treinar
-
-    # Politica de reposicao (L3)
-    SAFETY_STOCK_DAYS: int = 2           # estoque de seguranca em dias de demanda prevista
-    SHELF_LIFE_DEFAULT_DAYS: int = 7     # validade usada quando a categoria nao tem parametro proprio
-
-    # Scheduler
-    RETRAIN_DAY_OF_WEEK: str = "mon"     # reajuste (fit) dos modelos L1; pulado sem venda nova
-    RETRAIN_HOUR: int = 2                # 02:00
-    RETRAIN_AFTER_UPLOAD_MINUTES: int = 10  # treino após planilha com venda nova; outro upload no intervalo adia
-    # onde o treino roda: "local" (thread da API + agendador) ou "externo" (a API não treina:
-    # script gravar_previsao em outra máquina; API no Render, ver services/disparo_treino.py)
+    FORECAST_SERVICE_KEEP_BACKTEST_JOBS: int = 4  # treinos concluídos que guardam o walk-forward inteiro
+    TRAINING_WORKERS: int = 8             # processos no treino (no servidor: o nº de CPUs)
+    # onde o treino roda: "local" (thread da API, pelo botão "Treinar previsões") ou "externo"
+    # (a API não treina: script treinar_previsoes em outra máquina; API no Render, ADR-015)
     TRAINING_RUNNER: Literal["local", "externo"] = "local"
-    DAILY_FORECAST_HOUR: int = 3         # confere o calendario; gera de novo a previsao so se ele mudou
+    MAX_UPLOAD_MB: int = 50
 
     # CORS
     CORS_ORIGINS: list[str] = ["http://localhost:5173"]

@@ -5,29 +5,34 @@ info:
   description: |
     Sistema de previsão de demanda diária para rede de floricultura com 2 unidades
     operacionais (Jardim Canadá e Itabirito), horizonte de 14 dias, com intervalo de
-    confiança de 95%. Modelagem hierárquica: SARIMAX na venda diária total de cada
-    `unidade` (L1, 2 séries) e desagregação em
-    cascata `unidade → categoria → SKU` (L2). A recomendação de reposição (L3) saiu de
-    escopo: o sistema informa quanto deve vender e a loja decide a compra (ADR-011).
-    Ver docs/prediction/ADR-009-granularidade-diaria-e-reposicao.md e
-    docs/prediction/ADR-011-escopo-previsao-sem-reposicao.md.
+    confiança de 95%. Cada uma das 4 categorias e cada produto de grama, em cada loja, tem o
+    seu SARIMAX (m = 7, d = 0, D = 0, janela deslizante de 365 dias, testado dia a dia em 8
+    semanas); o total da loja é a soma das categorias (ADR-017). A previsão é treinada pelo
+    admin (`POST /api/v1/servico-previsao/treinos`) depois de carregar as planilhas; não há
+    treino agendado. O histórico da previsão guarda o previsto de cada dia, congelado. A
+    loja decide a compra; o sistema informa quanto deve vender (ADR-011).
 
     ## Autenticação
     Todos os endpoints `/api/v1/*` exigem JWT via header `Authorization: Bearer <token>`.
     Obtenha o token em `POST /auth/login`.
 
     ## Perfis
-    - **admin**: upload, retrain, serviço de previsão (`/api/v1/servico-previsao/*`), acesso completo
-    - **viewer**: somente visualização (painel, análises, registros, status dos modelos)
+    - **admin**: envio de planilha e treino da previsão (`/api/v1/servico-previsao/*`), acesso completo
+    - **viewer**: somente visualização (painel, histórico, análises, registros)
 
     ## Telas do frontend
     Cada tela pede só o que usa, quando é aberta. Logo após o login o front lê só
     `GET /api/v1/contexto` (leve); a Visão Geral lê `/api/v1/analises`, Previsão e
-    Relatórios leem `/api/v1/painel` (o teste de acerto de cada produto vem à parte, ao abrir
-    o produto) e Conferir Dados consulta a base **paginada** em `/api/v1/registros/*`. Os
-    endpoints de products, forecast, alerts, simulation e reports estão no contrato mas
-    **ainda não implementados** (marcados com `x-implementado: false`).
-  version: "3.6.0"
+    Relatórios leem `/api/v1/painel`, o histórico da previsão lê
+    `/api/v1/painel/historico/*` ao abrir cada item, e Conferir Dados consulta a base
+    **paginada** em `/api/v1/registros/*`.
+
+    ## 4.0.0
+    Saíram as rotas do treino anterior (`/api/v1/models/*`: modelo da loja, desagregação e
+    produtos regulares), o teste de acerto por produto (`/painel/produtos/.../backtest`) e as
+    rotas nunca implementadas (products, forecast, alerts, simulation, reports). O painel lê
+    o último treino do serviço de previsão; o upload não agenda treino (`needs_training`).
+  version: "4.0.0"
   contact:
     name: Daniel Nunes da Silva & Felipe Gurgel Araújo
     email: felipegurgel5@gmail.com
@@ -45,23 +50,12 @@ tags:
     description: Dados das telas do frontend (previsão, histórico, análises, base linha a linha)
   - name: upload
     description: Envio das planilhas de vendas
-  - name: products
-    description: Catálogo de produtos e histórico de vendas
-  - name: forecast
-    description: Previsão de demanda diária por produto (horizonte 14 dias)
-  - name: alerts
-    description: Alertas automáticos de alta e de queda de demanda
-  - name: simulation
-    description: Simulação de promoções e vendas casadas
-  - name: reports
-    description: Exportação de relatórios PDF e Excel
-  - name: models
-    description: Status e controle dos modelos preditivos
   - name: servico-previsao
     description: |
-      Serviço de previsão (só admin): SARIMAX direto nas 4 categorias e em cada produto de
-      grama, por loja (m=7, d=0, D=0), com walk-forward de janela deslizante e origem andando
-      1 dia, prevendo 14 dias. Roda em segundo plano; andamento, log e resultados ficam no banco.
+      Treino da previsão (só admin; ADR-017): SARIMAX direto nas 4 categorias e em cada
+      produto de grama, por loja (m=7, d=0, D=0), com walk-forward de janela deslizante e
+      origem andando 1 dia, prevendo 14 dias. Roda em segundo plano; andamento, log e
+      resultados ficam no banco, e o último treino concluído é o que o painel mostra.
 
 # ─────────────────────────────────────────────
 # Security Schemes
@@ -176,545 +170,205 @@ components:
           type: number
           format: float
           example: 8.3
-        retrain_scheduled:
+        needs_training:
           type: boolean
-          description: A planilha trouxe venda nova e a previsão vai ser atualizada
-          example: true
-        retrain_at:
-          type: string
-          format: date-time
-          nullable: true
           description: |
-            Quando o treino começa (`RETRAIN_AFTER_UPLOAD_MINUTES` após o upload; outra
-            planilha nesse intervalo adia). Nulo se não houver venda nova ou se o agendador
-            não estiver rodando, ou se a API não treina (`TRAINING_RUNNER=externo`, Render).
+            A planilha trouxe venda nova: a previsão só passa a usá-la depois de "Treinar
+            previsões" (`POST /api/v1/servico-previsao/treinos`). O treino não roda sozinho.
+          example: true
         errors:
           type: array
+          description: Avisos da carga (linhas ignoradas e dias que ficaram faltando, os mesmos da conferência)
           items:
             type: string
 
-    # --- Products ---
-    ProductSummary:
+    UploadCheckResponse:
       type: object
+      description: O que a carga da planilha faria, sem gravar nada (`POST /api/v1/upload/verificacao`)
+      required: [filename, period_start, period_end, rows_new, rows_duplicate, rows_skipped, units,
+                 missing_days, warnings]
       properties:
-        produto_cod:
-          type: string
-          example: "147"
-        produto_nome:
-          type: string
-          example: ROSA VERMELHA 40CM
-        categoria:
-          type: string
-          example: "Flores de corte"
-        unidade:
-          type: string
-          example: "Jardim Canadá"
-        total_sold:
-          type: number
-          format: float
-          example: 128450.0
-        model_status:
-          type: string
-          description: Status do modelo L1 da unidade do produto (a previsão do SKU vem da desagregação desse modelo)
-          enum: [trained, low_confidence, insufficient_data, error, pending, training]
-          example: trained
-        last_mase:
-          type: number
-          format: float
-          nullable: true
-          example: 0.82
-        last_trained_at:
-          type: string
-          format: date-time
-          nullable: true
-          example: "2026-07-21T02:00:00"
-
-    ProductListResponse:
-      type: object
-      properties:
-        total:
-          type: integer
-          example: 5134
-        items:
-          type: array
-          items:
-            $ref: "#/components/schemas/ProductSummary"
-
-    DailyPoint:
-      type: object
-      properties:
-        date:
-          type: string
-          format: date
-          example: "2026-03-07"
-        quantity:
-          type: number
-          format: float
-          example: 42.0
-
-    ModelMetrics:
-      description: Métricas do modelo L1 da unidade à qual o produto pertence, medidas no walk-forward (origem móvel, h = 14 dias).
-      type: object
-      properties:
-        MASE:
-          type: number
-          format: float
-          description: Métrica primária — < 1.0 significa que bate a previsão ingênua sazonal semanal
-          example: 0.82
-        RMSSE:
-          type: number
-          format: float
-          example: 0.79
-        IC_coverage_pct:
-          type: number
-          format: float
-          description: Cobertura empírica do intervalo de 95% (esperado entre 90 e 98)
-          example: 94.1
-        MAE:
-          type: number
-          format: float
-          example: 6.4
-        RMSE:
-          type: number
-          format: float
-          example: 9.1
-        MAPE_pct:
-          type: number
-          format: float
-          description: Informativo — instável com contagem baixa; não classifica o modelo
-          nullable: true
-          example: 18.3
-        accuracy_label:
-          type: string
-          description: Rótulo em PT-BR sem jargão técnico
-          example: "Precisão estimada: 92%"
-
-    ProductDetailResponse:
-      type: object
-      properties:
-        produto_cod:
-          type: string
-          example: "147"
-        produto_nome:
-          type: string
-          example: ROSA VERMELHA 40CM
-        categoria:
-          type: string
-          example: "Flores de corte"
-        unidade:
-          type: string
-          example: "Jardim Canadá"
-        total_sold:
-          type: number
-          format: float
-          example: 128450.0
-        daily_history:
-          type: array
-          description: Histórico diário de vendas do SKU
-          items:
-            $ref: "#/components/schemas/DailyPoint"
-        model_status:
-          type: string
-          description: Status do modelo L1 da unidade do produto
-          enum: [trained, low_confidence, insufficient_data, error, pending, training]
-        metrics:
-          $ref: "#/components/schemas/ModelMetrics"
-          nullable: true
-        sarimax_order:
-          type: string
-          description: Ordem (p,d,q) do modelo L1 da unidade
-          nullable: true
-          example: "(0,1,1)"
-        seasonal_order:
-          type: string
-          description: Ordem sazonal semanal (P,D,Q,m) do modelo L1 da unidade
-          nullable: true
-          example: "(0,0,1,7)"
-        use_log_transform:
-          type: boolean
-          nullable: true
-          example: true
-        last_trained_at:
-          type: string
-          format: date-time
-          nullable: true
-
-    # --- Forecast (diário) ---
-    ForecastPoint:
-      type: object
-      properties:
-        date:
-          type: string
-          format: date
-          example: "2026-03-07"
-        predicted:
-          type: number
-          format: float
-          example: 48.0
-        lower_95:
-          type: number
-          format: float
-          example: 31.0
-        upper_95:
-          type: number
-          format: float
-          example: 65.0
-        weekday:
-          type: string
-          description: Dia da semana (PT-BR)
-          example: "sábado"
-        is_weekend:
-          type: boolean
-          example: true
-        is_holiday:
-          type: boolean
-          example: false
-        commemorative_label:
-          type: string
-          nullable: true
-          description: Data comemorativa próxima, se houver
-          example: "3 dias para o Dia das Mães"
-
-    ForecastResponse:
-      type: object
-      properties:
-        produto_cod:
-          type: string
-          example: "147"
-        produto_nome:
-          type: string
-          example: ROSA VERMELHA 40CM
-        categoria:
-          type: string
-          example: "Flores de corte"
-        unidade:
-          type: string
-          example: "Jardim Canadá"
-        horizon_days:
-          type: integer
-          example: 14
-        forecast:
-          type: array
-          items:
-            $ref: "#/components/schemas/ForecastPoint"
-        generated_at:
-          type: string
-          format: date-time
-          example: "2026-03-06T03:00:00"
-        model_trained_at:
-          type: string
-          format: date-time
-          example: "2026-03-02T02:00:00"
-
-    ForecastBatchItem:
-      type: object
-      properties:
-        produto_cod:
-          type: string
-          example: "147"
-        produto_nome:
-          type: string
-          example: ROSA VERMELHA 40CM
-        next_7d_predicted:
-          type: number
-          format: float
-          description: Soma da demanda prevista para os próximos 7 dias
-          example: 260.0
-        next_7d_lower_95:
-          type: number
-          format: float
-          example: 205.0
-        next_7d_upper_95:
-          type: number
-          format: float
-          example: 315.0
-        window_start:
-          type: string
-          format: date
-          example: "2026-03-07"
-
-    ForecastBatchResponse:
-      type: object
-      properties:
-        horizon_days:
-          type: integer
-          example: 14
-        generated_at:
-          type: string
-          format: date-time
-        forecasts:
-          type: array
-          items:
-            $ref: "#/components/schemas/ForecastBatchItem"
-
-    # --- Alerts ---
-    AlertItem:
-      type: object
-      properties:
-        produto_cod:
-          type: string
-          example: "147"
-        produto_nome:
-          type: string
-          example: ROSA VERMELHA 40CM
-        kind:
-          type: string
-          enum: [pico_demanda, risco_sobra]
-          description: pico_demanda = previsão dos próximos 7 dias ≥ 20% acima da média das últimas 4 semanas; risco_sobra = previsão dos próximos 7 dias ≥ 20% abaixo dessa média (comprar o mesmo que antes tende a sobrar)
-          example: pico_demanda
-        severity:
-          type: string
-          enum: [high, medium]
-          example: high
-        reason:
-          type: string
-          description: Justificativa em PT-BR sem jargão técnico
-          example: "Previsão dos próximos 7 dias (260 un) é 38% acima da média das últimas 4 semanas (188 un). Pico esperado no sábado (Dia das Mães)."
-        predicted_next_7d:
-          type: number
-          format: float
-          example: 260.0
-        recent_avg_4w:
-          type: number
-          format: float
-          example: 188.0
-        variation_pct:
-          type: number
-          format: float
-          example: 38.2
-        peak_date:
-          type: string
-          format: date
-          nullable: true
-          example: "2026-05-09"
-        alert_window_start:
-          type: string
-          format: date
-          example: "2026-03-07"
-
-    AlertListResponse:
-      type: object
-      properties:
-        generated_at:
-          type: string
-          format: date-time
-        total_alerts:
-          type: integer
-          example: 7
-        items:
-          type: array
-          items:
-            $ref: "#/components/schemas/AlertItem"
-
-    # --- Simulation ---
-    SimulationScenario:
-      type: object
-      required: [label, apply_dates]
-      properties:
-        label:
-          type: string
-          example: "Promoção 15%"
-        discount_pct:
-          type: number
-          format: float
-          nullable: true
-          example: 15.0
-        bundle_product_cod:
-          type: string
-          nullable: true
-          example: "150"
-        expected_uplift_pct:
-          type: number
-          format: float
-          nullable: true
-          example: 10.0
-        apply_dates:
-          type: array
-          description: Dias em que o cenário se aplica
-          items:
-            type: string
-            format: date
-          example: ["2026-05-07", "2026-05-08", "2026-05-09"]
-
-    SimulationRequest:
-      type: object
-      required: [produto_cod, scenarios]
-      properties:
-        produto_cod:
-          type: string
-          example: "147"
-        horizon_days:
-          type: integer
-          default: 14
-          example: 14
-        scenarios:
-          type: array
-          items:
-            $ref: "#/components/schemas/SimulationScenario"
-
-    SimulationForecastPoint:
-      type: object
-      properties:
-        date:
-          type: string
-          format: date
-          example: "2026-08-01"
-        predicted:
-          type: number
-          format: float
-          example: 5680.0
-        delta:
-          type: number
-          format: float
-          example: 830.0
-        delta_pct:
-          type: number
-          format: float
-          example: 17.1
-
-    SimulationScenarioResult:
-      type: object
-      properties:
-        label:
-          type: string
-          example: "Promoção 15%"
-        forecast:
-          type: array
-          items:
-            $ref: "#/components/schemas/SimulationForecastPoint"
-
-    SimulationResponse:
-      type: object
-      properties:
-        produto_cod:
-          type: string
-          example: "147"
-        base_forecast:
-          type: array
-          items:
-            $ref: "#/components/schemas/ForecastPoint"
-        scenarios:
-          type: array
-          items:
-            $ref: "#/components/schemas/SimulationScenarioResult"
-
-    # --- Model Status ---
-    UnitModelStatus:
-      description: Status do modelo L1 de uma unidade (venda diária de balcão).
-      type: object
-      properties:
-        unidade:
-          type: string
-          example: "Jardim Canadá"
-        status:
-          type: string
-          enum: [trained, low_confidence, insufficient_data, error, pending, training]
-          example: trained
-        sarimax_order:
-          type: string
-          nullable: true
-          example: "(0,1,1)"
-        seasonal_order:
-          type: string
-          nullable: true
-          example: "(0,0,1,7)"
-        metrics:
-          $ref: "#/components/schemas/ModelMetrics"
-          nullable: true
-        trained_at:
-          type: string
-          format: date-time
-          nullable: true
-          example: "2026-03-02T02:00:00"
-
-    ModelStatusResponse:
-      description: Status dos modelos L1, um por unidade (2 modelos).
-      type: object
-      properties:
-        last_retrain_at:
-          type: string
-          format: date-time
-          nullable: true
-        next_retrain_at:
-          type: string
-          format: date-time
-          nullable: true
-        last_forecast_generation_at:
-          type: string
-          format: date-time
-          nullable: true
-          description: >-
-            Última geração da previsão (ao fim de um treino ou após mudança no calendário).
-            A previsão não é recalculada todo dia: cada geração grava 60 dias e a API
-            entrega os 14 a partir de hoje.
-        forecast_until:
-          type: string
-          format: date
-          nullable: true
-          description: >-
-            Último dia com previsão gravada. Se hoje + 14 dias passa desta data, a base
-            está desatualizada e é preciso carregar planilhas novas.
-          example: "2026-04-29"
-        skus_covered:
-          type: integer
-          description: SKUs com previsão na última geração
-          example: 20
-        total_models:
-          type: integer
-          example: 2
-        trained_models:
-          type: integer
-          example: 2
-        low_confidence_models:
-          type: integer
-          example: 0
-        failed_models:
-          type: integer
-          example: 0
-        insufficient_data_models:
-          type: integer
-          example: 0
+        filename: {type: string, example: semana 43.xlsx}
+        period_start: {type: string, format: date, example: "2026-10-24"}
+        period_end: {type: string, format: date, example: "2026-10-31"}
+        rows_new: {type: integer, description: vendas que seriam gravadas, example: 2930}
+        rows_duplicate: {type: integer, description: vendas que já estão na base, example: 0}
+        rows_skipped: {type: integer, description: linhas ignoradas na leitura e na limpeza, example: 4}
         units:
           type: array
           items:
-            $ref: "#/components/schemas/UnitModelStatus"
-        is_training:
-          type: boolean
-          example: false
-        training_progress_pct:
-          type: number
-          format: float
-          nullable: true
-          example: null
-        last_retrain_summary:
-          type: string
-          nullable: true
-          example: "2 modelos atualizados, 0 com erro"
-
-    RetrainResponse:
-      type: object
-      properties:
-        message:
-          type: string
-          example: "Atualização dos modelos iniciada em segundo plano."
-        started_at:
-          type: string
-          format: date-time
+            type: object
+            required: [unit_id, unit_name, first_day, last_day, rows, last_day_loaded]
+            properties:
+              unit_id: {type: string, example: itabirito}
+              unit_name: {type: string, example: Itabirito}
+              first_day: {type: string, format: date}
+              last_day: {type: string, format: date}
+              rows: {type: integer}
+              last_day_loaded:
+                type: string
+                format: date
+                nullable: true
+                description: última venda da loja já na base, antes desta planilha
+        missing_days:
+          type: array
+          description: |
+            Lojas com dia de loja aberta (calendário da loja; fora dele, fechada só no domingo)
+            que ficaria sem venda na base: entre a última venda já carregada e o 1º dia da
+            planilha, dentro do período da planilha, ou a loja inteira se ela não está na
+            planilha. Vazio quando não falta nada.
+          items:
+            type: object
+            required: [unit_id, unit_name, days, ranges, message]
+            properties:
+              unit_id: {type: string, example: itabirito}
+              unit_name: {type: string, example: Itabirito}
+              days: {type: integer, description: dias de loja aberta sem venda, example: 3}
+              ranges:
+                type: array
+                description: os dias, juntos quando entre eles só há dia de loja fechada
+                items:
+                  type: object
+                  required: [start, end]
+                  properties:
+                    start: {type: string, format: date, example: "2026-10-21"}
+                    end: {type: string, format: date, example: "2026-10-23"}
+              message:
+                type: string
+                example: >-
+                  Itabirito: faltam as vendas de 3 dias com a loja aberta (21/10/2026 a
+                  23/10/2026). A última venda da loja já carregada é de 20/10/2026 e esta
+                  planilha traz a loja de 24/10/2026 a 31/10/2026.
+        warnings:
+          type: array
+          description: avisos da leitura (linhas de empresa ou categoria desconhecida ignoradas)
+          items:
+            type: string
 
     # --- Painel (telas do frontend) ---
+    StatusSerie:
+      type: string
+      enum: [trained, low_confidence, insufficient_data, error]
+      description: |
+        `trained`: passou nos testes (MASE < 1 e faixa de 95% entre 90% e 98%);
+        `low_confidence`: previsão gerada, com aviso; `insufficient_data`: vendeu pouco para
+        prever (sem previsão); `error`: o ajuste falhou neste treino (sem previsão).
+
+    MetricasModelo:
+      type: object
+      description: |
+        Teste de acerto do último treino (walk-forward, dias de loja aberta). Cada "rodada" é
+        uma previsão de 14 dias, com a origem andando 1 dia. `ljung_box_p` e `shapiro_p` são
+        dos resíduos do ajuste final (p ≤ 0,05 aponta o problema; não mudam o status).
+      properties:
+        rodadas: {type: integer}
+        rodadas_vence_naive: {type: integer, nullable: true}
+        dias_avaliados: {type: integer}
+        mae: {type: number}
+        mase: {type: number}
+        erro_relativo_naive: {type: number, nullable: true, description: erro do modelo ÷ erro da naïve sazonal}
+        cobertura_ic95_pct: {type: number}
+        largura_ic95: {type: number}
+        venda_media_dia: {type: number}
+        previsto_sobre_real_pct: {type: number, nullable: true}
+        erro_total_14d_pct: {type: number, nullable: true, description: erro no total de cada janela ÷ vendido}
+        ljung_box_p: {type: number, nullable: true}
+        shapiro_p: {type: number, nullable: true}
+
+    ModeloSerie:
+      type: object
+      description: SARIMAX de uma categoria ou de um produto de grama numa loja; sem previsão, só status e motivo
+      properties:
+        ordem: {type: array, items: {type: integer}, nullable: true, example: [1, 0, 1]}
+        ordem_sazonal: {type: array, items: {type: integer}, nullable: true, example: [0, 0, 1, 7]}
+        aic: {type: number, nullable: true}
+        status: {$ref: "#/components/schemas/StatusSerie"}
+        metricas:
+          allOf: [{$ref: "#/components/schemas/MetricasModelo"}]
+          nullable: true
+        mensagem: {type: string, nullable: true, description: por que ficou sem previsão}
+
+    Faixa:
+      type: object
+      properties:
+        previsto: {type: number}
+        inf: {type: number, description: limite inferior da faixa de 95%}
+        sup: {type: number, description: limite superior da faixa de 95%}
+
+    UnidadePainel:
+      type: object
+      description: |
+        Uma loja do painel (`UnidadeDados` em types.ts, fonte do detalhe). Além dos campos
+        abaixo: período, linhas, volumes e SKUs por categoria, encomendas grandes, histórico
+        diário (8 semanas) e semanal.
+      additionalProperties: true
+      properties:
+        id: {type: string, example: jardim-canada}
+        nome: {type: string}
+        categorias_modelo:
+          type: object
+          description: O modelo de cada categoria (nulo se ela não entrou no treino)
+          additionalProperties:
+            allOf: [{$ref: "#/components/schemas/ModeloSerie"}]
+            nullable: true
+        previsao:
+          type: array
+          description: 14 dias a partir do dia seguinte à última venda; previsto/inf/sup = soma das categorias
+          items:
+            allOf:
+              - $ref: "#/components/schemas/Faixa"
+              - type: object
+                properties:
+                  data: {type: string, format: date}
+                  dia_semana: {type: string}
+                  loja_fechada: {type: boolean}
+                  evento: {type: string, nullable: true}
+                  categorias:
+                    type: object
+                    additionalProperties: {$ref: "#/components/schemas/Faixa"}
+        produtos:
+          type: array
+          description: Produtos de grama do treino (com previsão primeiro)
+          items:
+            type: object
+            additionalProperties: true
+            properties:
+              codigo: {type: string}
+              nome: {type: string}
+              modelo: {$ref: "#/components/schemas/ModeloSerie"}
+              previsao:
+                type: array
+                description: vazia quando o produto ficou sem modelo
+                items:
+                  allOf: [{$ref: "#/components/schemas/Faixa"}, {type: object, properties: {data: {type: string, format: date}}}]
+              previsao_14d: {type: number, nullable: true}
+        backtest_categorias:
+          type: object
+          description: Teste de acerto de cada categoria, dia a dia (o 1º dia de cada janela do walk-forward)
+          additionalProperties:
+            type: array
+            items:
+              allOf:
+                - $ref: "#/components/schemas/Faixa"
+                - type: object
+                  properties:
+                    data: {type: string, format: date}
+                    real: {type: number}
+                    naive: {type: number}
+
     Painel:
       description: |
-        Formato `BaseReal` de `app-react/src/domain/types.ts` (fonte do detalhe de cada
-        campo): previsão de 14 dias por loja e categoria com faixa de 95%, histórico diário
-        (8 semanas) e semanal, produtos regulares com previsão própria, encomendas, testes
-        de acerto (walk-forward) e planilhas carregadas. Montado de `sales` até o fim do
-        último treino concluído e das tabelas do treino. Sem dados pessoais de clientes.
+        Formato `BaseReal` de `app-react/src/domain/types.ts`: previsão de 14 dias das 4
+        categorias e dos produtos de grama de cada loja, com faixa de 95%, histórico,
+        encomendas, teste de acerto e planilhas carregadas. Montado de `sales` até o último
+        dia com venda do último treino concluído e das tabelas do treino. Sem dados pessoais.
       type: object
       required: [gerado_em, base, configuracao, categorias, unidades, importacao]
       properties:
         gerado_em:
           type: string
           format: date-time
+          description: quando o treino terminou
         fonte:
           type: string
         base:
@@ -729,8 +383,21 @@ components:
               additionalProperties: {type: integer}
         configuracao:
           type: object
-          description: Configuração do treino (horizonte, m, limiar de encomenda, critério de produto regular...)
-          additionalProperties: true
+          description: O treino que gerou a previsão (`forecast_jobs.config`)
+          properties:
+            horizonte_dias: {type: integer, example: 14}
+            m: {type: integer, example: 7}
+            d: {type: integer, example: 0}
+            D: {type: integer, example: 0}
+            alpha_ic: {type: number, example: 0.05}
+            janela_dias: {type: integer, example: 365}
+            origens: {type: integer, example: 56}
+            passo_origem_dias: {type: integer, example: 1}
+            limiar_encomenda_un: {type: number, example: 2000}
+            base: {type: string}
+            categoria_produtos: {type: string, example: grama}
+            versao_codigo: {type: string, nullable: true, description: commit do código que treinou}
+            dados_ate: {type: string, format: date}
         categorias:
           type: array
           items:
@@ -742,13 +409,10 @@ components:
               descricao: {type: string}
         unidades:
           type: array
-          description: Uma entrada por loja (`UnidadeDados` em types.ts)
-          items:
-            type: object
-            additionalProperties: true
+          items: {$ref: "#/components/schemas/UnidadePainel"}
         importacao:
           type: object
-          description: Planilhas carregadas (`processing_log`) e resumo da limpeza
+          description: Planilhas carregadas (`processing_log`, com o período de cada uma) e resumo da limpeza
           additionalProperties: true
 
     Analises:
@@ -790,7 +454,7 @@ components:
             limiar_encomenda_un: {type: number, example: 2000}
             treino_na_api:
               type: boolean
-              description: Falso quando a API não treina (Render); o front não oferece "Atualizar os modelos"
+              description: Falso quando a API não treina (Render); o front não oferece "Treinar previsões"
         base:
           type: object
           properties:
@@ -801,27 +465,29 @@ components:
         previsao:
           type: object
           nullable: true
-          description: Última geração concluída; nulo antes do primeiro treino
+          description: Último treino concluído; nulo antes do primeiro treino
           properties:
             gerada_em: {type: string, format: date-time}
-            dados_ate: {type: string, format: date}
-            lojas:
+            dados_ate: {type: string, format: date, description: último dia com venda usado no treino}
+            categorias:
               type: array
+              description: As 4 categorias de cada loja e o status da previsão de cada uma
               items:
                 type: object
                 properties:
-                  id: {type: string}
-                  status: {type: string, enum: [trained, low_confidence, insufficient_data]}
+                  loja: {type: string}
+                  categoria: {type: string}
+                  status: {$ref: "#/components/schemas/StatusSerie"}
             produtos:
               type: array
-              description: Produtos com previsor próprio e o status de cada um
+              description: Os produtos de grama do treino e o status de cada um
               items:
                 type: object
                 properties:
                   loja: {type: string}
                   codigo: {type: string}
                   nome: {type: string}
-                  status: {type: string, nullable: true}
+                  status: {$ref: "#/components/schemas/StatusSerie"}
         importacao:
           type: object
           additionalProperties: true
@@ -1020,13 +686,28 @@ components:
 
     DiaHistoricoPrevisao:
       type: object
-      required: [data, real, previsto, inf, sup]
+      required: [data, real, previsto, inf, sup, fonte, horizonte, loja_fechada]
       properties:
         data: {type: string, format: date}
         real: {type: number, description: vendido no dia, sem encomendas grandes}
         previsto: {type: number, nullable: true}
         inf: {type: number, nullable: true, description: limite inferior da faixa de 95%}
         sup: {type: number, nullable: true, description: limite superior da faixa de 95%}
+        fonte:
+          type: string
+          nullable: true
+          enum: [forecast, walk_forward, null]
+          description: |
+            `forecast`: a previsão que a loja viu (congelada); `walk_forward`: dia que
+            nenhuma previsão cobriu, previsto no teste do treino com as vendas até a véspera
+        horizonte:
+          type: integer
+          nullable: true
+          description: a quantos dias do início da previsão o dia estava (1 no walk-forward)
+        loja_fechada:
+          type: boolean
+          nullable: true
+          description: se a previsão contava com a loja fechada no dia (o calendário da época)
 
     ValidationError:
       type: object
@@ -1223,10 +904,10 @@ paths:
       tags: [painel]
       summary: Painel de previsão (dados das telas Visão Geral, Previsão e Relatórios)
       description: |
-        Previsão de 14 dias da última geração concluída, histórico, produtos, encomendas e
-        testes de acerto, no formato `BaseReal` do frontend — **sem** o teste de acerto de
-        cada produto (`/painel/produtos/{unidade}/{codigo}/backtest`, pedido ao abrir o
-        produto). Fica em cache na API até as vendas, o calendário ou a previsão mudarem.
+        Previsão de 14 dias do último treino concluído (4 categorias e produtos de grama de
+        cada loja; o total da loja é a soma das categorias), histórico, encomendas e teste de
+        acerto de cada categoria, no formato `BaseReal` do frontend. Fica em cache na API até
+        as vendas, o calendário ou a previsão mudarem.
       operationId: getPainel
       security:
         - BearerAuth: []
@@ -1246,45 +927,21 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorDetail"
               example:
-                detail: "A previsão ainda não foi gerada. Peça à gestora para atualizar os modelos e tente de novo."
-
-  /api/v1/painel/produtos/{unidade}/{codigo}/backtest:
-    get:
-      tags: [painel]
-      summary: Teste de acerto de um produto (previsto × vendido em cada dia do walk-forward)
-      operationId: getBacktestProduto
-      security:
-        - BearerAuth: []
-      parameters:
-        - {name: unidade, in: path, required: true, schema: {type: string}, example: jardim-canada}
-        - {name: codigo, in: path, required: true, schema: {type: string}, example: "2163"}
-      responses:
-        "200":
-          description: Pontos do teste
-          content:
-            application/json:
-              schema:
-                type: array
-                items: {type: object, additionalProperties: true}
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          description: Produto sem previsor próprio na loja
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorDetail"
+                detail: "A previsão ainda não foi gerada. Peça à gestora para usar \"Treinar previsões\" e tente de novo."
 
   /api/v1/painel/historico/{unidade}/{nivel}/{item}:
     get:
       tags: [painel]
       summary: Histórico da previsão de uma categoria ou produto (vendido × previsto gravado)
       description: |
-        Um ponto por dia, do começo da base até o fim do último treino: o vendido sem
+        Um ponto por dia, do começo da base até o último dia com venda do último treino
+        concluído do serviço de previsão (`/api/v1/servico-previsao/treinos`): o vendido sem
         encomendas grandes (de `sales`) e o previsto gravado em `forecast_history`. O previsto
-        de cada dia é o da última previsão feita antes dele e não muda depois que o dia passa;
-        dias que nenhuma previsão cobriu vêm do walk-forward. `previsto`, `inf` e `sup` são
-        nulos antes da data fixa de treino.
+        de cada dia é o da última previsão feita antes dele e não muda depois que o dia passa:
+        com treinos a cada 9 dias, ficam os 9 primeiros dias de cada previsão; com mais de 14
+        dias entre treinos, os 14, e os dias que sobram vêm do 1º dia das janelas do
+        walk-forward do treino seguinte (`fonte = walk_forward`, `horizonte = 1`). `previsto`,
+        `inf`, `sup`, `fonte` e `horizonte` são nulos antes do 1º treino.
       operationId: getHistoricoPrevisao
       security:
         - BearerAuth: []
@@ -1311,7 +968,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorDetail"
         "409":
-          description: Ainda não há previsão gravada (nenhum treino concluído)
+          description: Nenhum treino do serviço de previsão concluído
           content:
             application/json:
               schema:
@@ -1497,9 +1154,10 @@ paths:
         (doc_numero, produto_cod, emissao, qtdade, vl_total); linhas iguais dentro do
         mesmo arquivo são vendas reais e são mantidas (01-pre_processing.md §2). O mesmo
         arquivo (mesmo SHA-256) não é carregado duas vezes. A planilha não é guardada: fica
-        a linha de `processing_log`. Com venda nova, o treino é agendado para alguns
-        minutos depois (`retrain_at`): enviar várias planilhas seguidas gera um treino só.
-        **Requer perfil admin.**
+        a linha de `processing_log`, com o período e os avisos em `quality`. Com venda nova,
+        `needs_training` avisa que a previsão precisa ser treinada de novo (o treino não roda
+        sozinho: várias planilhas seguidas e um treino só no fim). A tela confere a planilha antes (`POST /api/v1/upload/verificacao`) e só chama esta
+        rota quando a gestora confirma. **Requer perfil admin.**
       operationId: uploadFile
       security:
         - BearerAuth: []
@@ -1559,339 +1217,52 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorDetail"
 
-  # ── Products ─────────────────────────────────
-  /api/v1/products:
-    get:
-      x-implementado: false
-      tags: [products]
-      summary: Listar produtos
-      description: Lista produtos com status do modelo e métricas de desempenho. Requer perfil viewer ou superior.
-      operationId: listProducts
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            default: 50
-            minimum: 1
-            maximum: 200
-        - name: offset
-          in: query
-          schema:
-            type: integer
-            default: 0
-        - name: sort_by
-          in: query
-          schema:
-            type: string
-            enum: [total_sold, name, mase]
-            default: total_sold
-        - name: search
-          in: query
-          description: Busca em produto_cod e produto_nome
-          schema:
-            type: string
-            example: rosa
-        - name: model_status
-          in: query
-          description: Filtrar por status do modelo
-          schema:
-            type: string
-            enum: [trained, low_confidence, insufficient_data, error, pending]
-      responses:
-        "200":
-          description: Lista de produtos
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ProductListResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-
-  /api/v1/products/{produto_cod}:
-    get:
-      x-implementado: false
-      tags: [products]
-      summary: Detalhes de um produto
-      description: Retorna histórico diário de vendas do SKU, categoria/unidade e métricas do modelo L1 da unidade. Sem dados pessoais de clientes (LGPD).
-      operationId: getProduct
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: produto_cod
-          in: path
-          required: true
-          schema:
-            type: string
-          example: "147"
-      responses:
-        "200":
-          description: Detalhes do produto
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ProductDetailResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          description: Produto não encontrado
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorDetail"
-
-  # ── Forecast (diário) ────────────────────────
-  /api/v1/forecast/{produto_cod}:
-    get:
-      x-implementado: false
-      tags: [forecast]
-      summary: Previsão de demanda diária para um produto
-      description: |
-        Retorna a previsão de demanda **por dia** para os próximos `horizon_days` dias.
-        Obtida do modelo L1 da unidade do produto, desagregado em cascata
-        (`unidade → categoria → SKU`). Inclui intervalo de confiança de 95% e marcação de
-        fim de semana, feriado e proximidade de datas comemorativas.
-      operationId: getForecast
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: produto_cod
-          in: path
-          required: true
-          schema:
-            type: string
-          example: "147"
-        - name: horizon_days
-          in: query
-          schema:
-            type: integer
-            default: 14
-            minimum: 1
-            maximum: 28
-      responses:
-        "200":
-          description: Previsão gerada com sucesso
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ForecastResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          description: Produto não encontrado
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorDetail"
-        "409":
-          description: Modelo da unidade não disponível
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorDetail"
-              example:
-                detail: "Esta loja ainda não tem histórico suficiente para previsão. Status: insufficient_data"
-
-  /api/v1/forecast/batch:
-    get:
-      x-implementado: false
-      tags: [forecast]
-      summary: Previsão diária resumida para os top N produtos
-      description: Retorna a demanda prevista para os próximos 7 dias (somada) dos N produtos de maior volume. Ideal para o dashboard principal.
-      operationId: getForecastBatch
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: top_n
-          in: query
-          schema:
-            type: integer
-            default: 10
-            minimum: 1
-            maximum: 50
-        - name: horizon_days
-          in: query
-          schema:
-            type: integer
-            default: 14
-            minimum: 1
-            maximum: 28
-      responses:
-        "200":
-          description: Previsões dos top produtos
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ForecastBatchResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-
-  # ── Alerts ───────────────────────────────────
-  /api/v1/alerts:
-    get:
-      x-implementado: false
-      tags: [alerts]
-      summary: Alertas de pico de demanda e risco de sobra
-      description: |
-        `pico_demanda`: produtos cuja previsão dos próximos 7 dias supera em ≥20% a média
-        das últimas 4 semanas. `risco_sobra`: produtos cuja previsão dos próximos 7 dias
-        fica ≥20% abaixo dessa média. Ordenados pela variação em valor absoluto,
-        decrescente. Justificativas em PT-BR sem jargão.
-      operationId: getAlerts
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            default: 50
-        - name: severity
-          in: query
-          schema:
-            type: string
-            enum: [all, high, medium]
-            default: all
-      responses:
-        "200":
-          description: Lista de alertas
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AlertListResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-
-  # ── Simulation ───────────────────────────────
-  /api/v1/simulation:
+  /api/v1/upload/verificacao:
     post:
-      x-implementado: false
-      tags: [simulation]
-      summary: Simular impacto de promoções ou vendas casadas
+      tags: [upload]
+      summary: Conferir a planilha antes de gravar
       description: |
-        Aplica cenários de desconto ou bundle sobre a previsão base do produto.
-        Retorna comparativo entre cenário base e cada cenário simulado.
-      operationId: runSimulation
+        Passa a planilha pelas mesmas etapas de `POST /api/v1/upload` e devolve o que a carga
+        faria — período de cada loja, vendas novas, já carregadas e ignoradas — e os dias de
+        loja aberta que ficariam sem venda na base (`missing_days`), **sem gravar nada** (nem
+        em `processing_log`). A tela mostra o aviso e, se a gestora confirmar, envia o mesmo
+        arquivo para `POST /api/v1/upload`, que confere de novo e grava os avisos em
+        `processing_log.quality`. Recusa o arquivo como o upload (400, 409, 413).
+        **Requer perfil admin.**
+      operationId: checkUploadFile
       security:
         - BearerAuth: []
       requestBody:
         required: true
         content:
-          application/json:
+          multipart/form-data:
             schema:
-              $ref: "#/components/schemas/SimulationRequest"
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Arquivo .xlsx ou .xlsm (máximo 50 MB)
       responses:
         "200":
-          description: Resultado da simulação
+          description: Planilha conferida (nada foi gravado)
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SimulationResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          description: Produto não encontrado ou sem modelo treinado
+                $ref: "#/components/schemas/UploadCheckResponse"
+        "400":
+          description: Formato de arquivo inválido
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorDetail"
-
-  # ── Reports ──────────────────────────────────
-  /api/v1/reports/export:
-    get:
-      x-implementado: false
-      tags: [reports]
-      summary: Exportar relatório de previsões e alertas
-      description: |
-        Gera arquivo PDF ou Excel com a previsão diária dos top N produtos para os
-        próximos `horizon_days` dias e a lista de alertas.
-        **Excel**: abas "Previsão diária", "Métricas", "Alertas".
-        **PDF**: tabela de previsão + alertas com cabeçalho e rodapé.
-      operationId: exportReport
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: format
-          in: query
-          required: true
-          schema:
-            type: string
-            enum: [excel, pdf]
-          example: pdf
-        - name: top_n
-          in: query
-          schema:
-            type: integer
-            default: 10
-        - name: horizon_days
-          in: query
-          schema:
-            type: integer
-            default: 14
-      responses:
-        "200":
-          description: Arquivo gerado para download
-          content:
-            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
-              schema:
-                type: string
-                format: binary
-            application/pdf:
-              schema:
-                type: string
-                format: binary
-          headers:
-            Content-Disposition:
-              schema:
-                type: string
-                example: attachment; filename="previsoes_2026-07-28.pdf"
         "401":
-          $ref: "#/components/responses/Unauthorized"
-
-  # ── Models ───────────────────────────────────
-  /api/v1/models/status:
-    get:
-      tags: [models]
-      summary: Status dos modelos preditivos
-      description: Retorna data do último retrain, próximo agendado, contagem por status e progresso se em execução.
-      operationId: getModelsStatus
-      security:
-        - BearerAuth: []
-      responses:
-        "200":
-          description: Status dos modelos
+          description: Não autenticado
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ModelStatusResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-
-  /api/v1/models/retrain:
-    post:
-      tags: [models]
-      summary: Disparar reajuste manual dos modelos
-      description: |
-        Inicia em segundo plano o treino dos modelos (loja, desagregação por categoria e
-        produtos regulares, com o walk-forward) sobre as vendas do banco e grava a nova
-        previsão, numa thread da API. Leva cerca de 40 minutos; o andamento fica em
-        `retrain_history`. Responde 503 se a API não treina (`TRAINING_RUNNER=externo`, Render).
-        **Requer perfil admin.**
-        Retorna 409 se já houver reajuste em andamento.
-      operationId: triggerRetrain
-      security:
-        - BearerAuth: []
-      responses:
-        "202":
-          description: Retrain iniciado em background
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/RetrainResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
+                $ref: "#/components/schemas/ErrorDetail"
         "403":
           description: Perfil insuficiente (requer admin)
           content:
@@ -1899,15 +1270,13 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorDetail"
         "409":
-          description: Retrain já em andamento
+          description: A mesma planilha já foi carregada
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorDetail"
-              example:
-                detail: "Atualização já em andamento. Tente novamente em alguns minutos."
-        "503":
-          description: Esta API não treina (`TRAINING_RUNNER=externo`); a previsão é atualizada pelo script `gravar_previsao`
+        "413":
+          description: Arquivo maior que 50 MB
           content:
             application/json:
               schema:
@@ -1943,7 +1312,11 @@ paths:
         Treina, em segundo plano, as 4 categorias e cada produto de grama de cada loja:
         SARIMAX m=7, d=0, D=0 com constante e exógenas de calendário, ordem por AIC; walk-forward
         com janela deslizante, origem andando 1 dia e horizonte de 14 dias; previsão dos 14 dias
-        seguintes à última venda. Grava andamento, log e resultados no banco.
+        seguintes à última venda. Grava andamento, log e resultados no banco e, ao concluir, o
+        histórico congelado (`forecast_history`), as planilhas que entraram no treino
+        (`processing_log.forecast_job_id`) e apaga o walk-forward dos treinos mais antigos que
+        os últimos `FORECAST_SERVICE_KEEP_BACKTEST_JOBS`. Com `TRAINING_RUNNER=externo` a API
+        responde 503 e o treino roda pelo script `python -m backend.scripts.treinar_previsoes`.
 
         Só treina se os dados (vendas, calendário, catálogo) mudaram desde o último treino
         concluído; senão registra o disparo como `skipped` e responde 200 sem treinar.

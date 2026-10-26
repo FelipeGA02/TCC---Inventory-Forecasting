@@ -1,7 +1,8 @@
 /**
- * Painel de previsão vindo da API (`GET /api/v1/painel`, formato `BaseReal`): previsão da
- * loja e das categorias, histórico, produtos, encomendas e testes de acerto, montados no
- * backend a partir das vendas do banco e do último treino concluído.
+ * Painel de previsão vindo da API (`GET /api/v1/painel`, formato `BaseReal`): previsão das
+ * 4 categorias e dos produtos de grama de cada loja (o total da loja é a soma das
+ * categorias), histórico, encomendas e testes de acerto, montados no backend a partir das
+ * vendas do banco e do último treino concluído.
  *
  * Carregado em duas partes, por isso os valores abaixo são `let` (o import do ES module
  * enxerga o valor atual):
@@ -188,32 +189,30 @@ export function semanasPrevistasDe(filtro: FiltroUnidade): (SemanaHistorico & { 
 // Produtos
 // ---------------------------------------------------------------------------
 
+/** O produto tem previsão neste treino (os de grama que vendem pouco ficam só com o motivo). */
+export const temPrevisao = (p: { previsao: unknown[] }): boolean => p.previsao.length > 0;
+
 /**
- * Produtos do filtro. Em "Todas as lojas" cada produto aparece por loja (o mesmo código pode
- * ser regular numa loja e irregular na outra, e cada loja tem o seu modelo).
- * Ordem: regulares pela previsão de 14 dias, depois irregulares pela venda das 8 semanas.
+ * Produtos de grama do filtro, cada um com o modelo da sua loja. Em "Todas as lojas" cada
+ * produto aparece por loja (o mesmo código pode ter previsão numa loja e não na outra).
+ * Ordem: os com previsão pela previsão de 14 dias, depois os outros pela venda das 8 semanas.
  */
 export function produtosDe(
   filtro: FiltroUnidade,
   categoria: FiltroCategoria = "todas",
-  somenteRegulares = false,
+  somenteComPrevisao = false,
 ): ProdutoDaLoja[] {
   return unidadesDoFiltro(filtro)
     .flatMap((u) => u.produtos.map((p) => ({ ...p, unidade: u.id, nomeUnidade: u.nome })))
     .filter((p) => categoria === "todas" || p.categoria === categoria)
-    .filter((p) => !somenteRegulares || p.regular)
+    .filter((p) => !somenteComPrevisao || temPrevisao(p))
     .sort((a, b) =>
-      a.regular !== b.regular
-        ? a.regular ? -1 : 1
-        : a.regular
+      temPrevisao(a) !== temPrevisao(b)
+        ? temPrevisao(a) ? -1 : 1
+        : temPrevisao(a)
           ? (b.previsao_14d ?? 0) - (a.previsao_14d ?? 0)
           : b.vendido_8_semanas - a.vendido_8_semanas,
     );
-}
-
-/** Quantos produtos regulares (com modelo próprio) o filtro tem. */
-export function contarRegulares(filtro: FiltroUnidade, categoria: FiltroCategoria = "todas"): number {
-  return produtosDe(filtro, categoria, true).length;
 }
 
 /** Total previsto nos 14 dias para o filtro de categoria. */

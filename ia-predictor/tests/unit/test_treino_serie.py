@@ -13,6 +13,7 @@ from backend.domain.models.trainer import (
     NIVEL_PRODUTO,
     ConfigTreino,
     motivo_inelegivel,
+    origens_complemento,
     origens_walk_forward,
     treinar_serie,
 )
@@ -45,6 +46,8 @@ def test_origens_andam_um_dia_e_deixam_o_horizonte_a_frente():
     assert len(origens) == 56
     assert origens[-1] == FIM - pd.Timedelta(days=13)  # a última ainda tem 14 dias de venda conhecida
     assert all((b - a).days == 1 for a, b in zip(origens, origens[1:]))
+    # o complemento vai da origem seguinte até o último dia com venda
+    assert origens_complemento(FIM, cfg) == list(pd.date_range(FIM - pd.Timedelta(days=12), FIM))
 
 
 def test_treina_com_m7_d0_D0_e_preve_14_dias():
@@ -78,14 +81,27 @@ def test_janela_deslizante_e_ordem_sem_olhar_o_periodo_avaliado(monkeypatch):
     monkeypatch.setattr(trainer, "selecionar_ordem", espiao_selecionar)
     treinar_serie(y, X, aberta, RAPIDA, NIVEL_CATEGORIA)
 
-    origens = origens_walk_forward(FIM, RAPIDA)
+    origens = origens_walk_forward(FIM, RAPIDA) + origens_complemento(FIM, RAPIDA)
     assert escolha["ultimo_dia"] < origens[0]  # AIC só com dados anteriores à 1ª origem
     walk = ajustes[:-1]  # o último é a previsão final
-    assert len(walk) == RAPIDA.origens
+    assert len(walk) == RAPIDA.origens + 13  # as completas e as do complemento
     for janela, origem in zip(walk, origens):
         assert len(janela) == RAPIDA.janela_dias  # deslizante: tamanho fixo
         assert janela.max() == origem - pd.Timedelta(days=1)  # termina na véspera da origem
     assert ajustes[-1].max() == FIM and len(ajustes[-1]) == RAPIDA.janela_dias
+
+
+def test_primeiro_dia_das_janelas_chega_ate_a_ultima_venda_fora_das_metricas():
+    y, X, aberta = _serie()
+    r = treinar_serie(y, X, aberta, RAPIDA, NIVEL_CATEGORIA)
+    assert list(r.complemento["data"]) == list(pd.date_range(FIM - pd.Timedelta(days=12), FIM))
+    assert (r.complemento["origem"] == r.complemento["data"]).all()  # só h = 1
+    assert (r.complemento[["previsto", "ic_inf", "ic_sup"]] >= 0).all().all()
+    # o 1º dia das janelas completas e o do complemento: um previsto por dia, sem buraco até FIM
+    h1 = list(r.backtest.loc[r.backtest["horizonte"] == 1, "data"]) + list(r.complemento["data"])
+    assert h1 == list(pd.date_range(origens_walk_forward(FIM, RAPIDA)[0], FIM))
+    # as métricas são só das origens completas
+    assert r.backtest["origem"].nunique() == RAPIDA.origens and r.metricas["origens"] == RAPIDA.origens
 
 
 def test_produto_que_quase_nao_vende_fica_sem_modelo():
@@ -113,6 +129,33 @@ def test_falha_no_ajuste_vira_erro_sem_derrubar(monkeypatch):
     r = treinar_serie(y, X, aberta, RAPIDA, NIVEL_CATEGORIA)
     assert r.status == evaluator.STATUS_ERRO
     assert r.origens_com_falha == RAPIDA.origens
+
+
+def test_ajuste_final_registra_coeficientes_e_diagnostico_dos_residuos():
+    y, X, aberta = _serie()
+    r = treinar_serie(y, X, aberta, RAPIDA, NIVEL_CATEGORIA)
+    assert {"intercept", "loja_fechada", "dia_seg", "sigma2"} <= set(r.coeficientes)
+    assert set(r.diagnostico) == {"ljung_box_p", "shapiro_p"}
+    assert all(0 <= v <= 1 for v in r.diagnostico.values())
+
+
+def test_diagnostico_aponta_residuo_correlacionado():
+    passeio = pd.Series(np.cumsum(np.random.default_rng(3).normal(size=300)))  # cada valor puxa o seguinte
+    ruido = pd.Series(np.random.default_rng(3).normal(size=300))
+    assert evaluator.diagnostico_residuos(passeio, descartar=7)["ljung_box_p"] <= evaluator.P_DIAGNOSTICO
+    assert evaluator.diagnostico_residuos(ruido, descartar=7)["ljung_box_p"] > evaluator.P_DIAGNOSTICO
+    assert evaluator.diagnostico_residuos(pd.Series([1.0] * 30), descartar=7) == {"ljung_box_p": None,
+                                                                                   "shapiro_p": None}
+
+
+def test_erro_no_total_de_14_dias_e_origens_que_vencem_a_naive():
+    pontos = pd.DataFrame({
+        "origem": [1, 1, 2, 2], "previsto": [10.0, 10.0, 10.0, 10.0], "ic_inf": [0.0] * 4, "ic_sup": [20.0] * 4,
+        "real": [12.0, 12.0, 5.0, 5.0], "naive": [12.0, 12.0, 20.0, 20.0], "escala": [1.0] * 4, "aberta": [True] * 4})
+    m = evaluator.metricas_walk_forward(pontos)
+    # janela 1: previu 20, vendeu 24; janela 2: previu 20, vendeu 10 → (4 + 10) / 34
+    assert m["erro_total_14d_pct"] == round(14 / 34 * 100, 1)
+    assert m["origens_vence_naive"] == 1  # só a janela 2 erra menos que a naïve
 
 
 def test_metricas_ignoram_dia_fechado():

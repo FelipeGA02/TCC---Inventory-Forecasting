@@ -101,7 +101,7 @@ function PainelPrevisao({ selecionado, onSelecionar, onVerHistorico }: { selecio
   const previsao = useMemo(() => previsaoDe("todas"), []);
   const eventos = previsao.filter((d) => d.evento);
 
-  // Só os produtos de grama com previsão diária própria: o gráfico mostra os da loja escolhida,
+  // Só os produtos de grama com previsão neste treino: o gráfico mostra os da loja escolhida,
   // a tabela dia a dia os das lojas do filtro dela
   const buscar = (lista: ProdutoDaLoja[]) => {
     const termo = busca.trim().toLowerCase();
@@ -338,7 +338,7 @@ function PrevisaoCategoria({ loja, foco, onFoco, primeira }: { loja: UnidadeDado
           </button>
           {totais.map(({ c, v }) => {
             const ativo = foco === c.id;
-            const st = loja.desagregacao?.[c.id]?.status;
+            const st = loja.categorias_modelo[c.id]?.status;
             return (
               <button
                 key={c.id}

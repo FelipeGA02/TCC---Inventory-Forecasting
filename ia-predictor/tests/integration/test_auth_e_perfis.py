@@ -9,7 +9,7 @@ from backend.config import settings
 
 ROTAS_VIEWER = ["/api/v1/contexto", "/api/v1/painel", "/api/v1/analises", "/api/v1/registros",
                 "/api/v1/registros/linhas", "/api/v1/registros/resumo",
-                "/api/v1/models/status"]
+                "/api/v1/painel/historico/jardim-canada/categoria/grama"]
 
 
 def test_health_publico(client):
@@ -89,4 +89,4 @@ def test_viewer_nao_envia_planilha(client, viewer):
 
 
 def test_viewer_nao_dispara_treino(client, viewer):
-    assert client.post("/api/v1/models/retrain", headers=viewer).status_code == 403
+    assert client.post("/api/v1/servico-previsao/treinos", headers=viewer).status_code == 403

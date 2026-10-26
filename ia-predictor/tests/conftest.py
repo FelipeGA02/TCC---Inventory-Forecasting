@@ -23,22 +23,22 @@ if _IA_PREDICTOR not in sys.path:
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
-from sqlalchemy import func, insert, select  # noqa: E402
+from sqlalchemy import insert  # noqa: E402
 
 from backend.auth import tentativas_login  # noqa: E402
 from backend.config import settings  # noqa: E402
+from backend.domain.models.trainer import ConfigTreino  # noqa: E402
 from backend.infrastructure.database import (  # noqa: E402
     Base,
     CalendarDay,
     Category,
-    ForecastRun,
     Product,
     Sale,
     SessionLocal,
     Unit,
     engine,
 )
-from backend.services import cache, treino_service  # noqa: E402
+from backend.services import cache  # noqa: E402
 
 LOJAS = [("jardim-canada", "Jardim Canadá", "Nova Lima"), ("itabirito", "Itabirito", "Itabirito")]
 CATEGORIAS = [("grama", "Grama", "Grama"), ("plantas-diversas", "Plantas diversas", "Plantas diversas"),
@@ -49,9 +49,10 @@ PRODUTOS = [("100", "GRAMA ESMERALDA M2", "grama"), ("200", "SAMAMBAIA CUIA 21",
             ("900", "FRETE", "servico-e-taxa")]
 INICIO, FIM = date(2025, 12, 1), date(2026, 2, 28)
 FIM_CALENDARIO = date(2026, 3, 31)
-METRICAS = {"rodadas": 2, "rodadas_vence_naive": 2, "dias_avaliados": 24, "mae": 10.0, "mase": 0.6,
-            "erro_relativo_naive": 0.8, "cobertura_ic95_pct": 92.0, "largura_ic95": 50.0,
-            "venda_media_dia": 40.0, "previsto_sobre_real_pct": 95.0, "erro_total_14d_pct": 5.0}
+# A base sintética tem 3 meses — menos que a janela e o histórico mínimo de produção —,
+# então o treino de ponta a ponta roda com uma configuração reduzida.
+CONFIG_TESTE = ConfigTreino(janela_dias=30, origens=3, grade_pq=(0, 1), grade_PQ=(0,), min_historico_dias=20,
+                            min_dias_com_venda=10)
 
 
 def _dias(ini: date, fim: date):
@@ -95,34 +96,6 @@ def _popular_base() -> None:
             for loja, _, _ in LOJAS for d in _dias(date(2024, 1, 1), FIM_CALENDARIO)])
 
 
-def painel_sintetico() -> dict:
-    """Um `baseReal.json` mínimo (saída do gerador) para `treino_service.importar_painel`."""
-    def faixa(v):
-        return {"previsto": v, "inf": v * 0.5, "sup": v * 1.5}
-
-    futuro = [FIM + timedelta(days=i) for i in range(1, 15)]
-    passado = [FIM - timedelta(days=i) for i in range(27, -1, -1)]
-    backtest = [{"data": str(d), **faixa(40.0), "real": 42.0, "naive": 38.0} for d in passado]
-    unidades = []
-    for loja, _, _ in LOJAS:
-        unidades.append({
-            "id": loja,
-            "modelo": {"ordem": [0, 1, 1], "ordem_sazonal": [0, 0, 1, 7], "aic": 100.0, "transformacao": "nenhuma",
-                       "janela": "deslizante", "janela_dias": 425, "base": "sem encomendas",
-                       "exogenas": ["dia_seg"], "status": "trained", "metricas": METRICAS},
-            "backtest": backtest,
-            "previsao": [{"data": str(d), **faixa(40.0),
-                          "categorias": {c: faixa(10.0) for c, _, _ in CATEGORIAS}} for d in futuro],
-            "desagregacao": {c: {"metricas": METRICAS, "status": "trained", "backtest": backtest}
-                             for c, _, _ in CATEGORIAS},
-            "produtos": [{"codigo": "100", "regular": True,
-                          "modelo": {"ordem": [1, 0, 0], "ordem_sazonal": [0, 0, 0, 7], "metricas": METRICAS,
-                                     "status": "low_confidence"},
-                          "previsao": [{"data": str(d), **faixa(8.0)} for d in futuro], "backtest": backtest}],
-        })
-    return {"base": {"fim": str(FIM)}, "configuracao": {}, "unidades": unidades}
-
-
 @pytest.fixture(autouse=True)
 def _zerar_tentativas_login():
     tentativas_login.limpar()
@@ -156,8 +129,17 @@ def admin(client):
 
 @pytest.fixture(scope="session")
 def com_previsao(client):
-    """Grava a previsão sintética (uma execução `import`) — uma vez por sessão."""
+    """Um treino concluído da previsão (o do serviço, com `CONFIG_TESTE`, um processo só) —
+    uma vez por sessão. As telas leem o último treino concluído."""
+    from backend.services import servico_previsao
+
     with SessionLocal() as db:
-        if not db.scalar(select(func.count()).select_from(ForecastRun)):
-            treino_service.importar_painel(painel_sintetico())
+        ja_treinou = servico_previsao.ultimo_concluido(db) is not None
+    if not ja_treinou:
+        workers, settings.TRAINING_WORKERS = settings.TRAINING_WORKERS, 1
+        try:
+            job = servico_previsao.treinar_agora(trigger="manual", cfg=CONFIG_TESTE)
+        finally:
+            settings.TRAINING_WORKERS = workers
+        assert job.status == "done", job.message
     return True

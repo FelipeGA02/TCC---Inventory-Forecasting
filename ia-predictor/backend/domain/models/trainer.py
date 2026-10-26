@@ -12,8 +12,14 @@ Protocolo
      origem o modelo é reajustado nos últimos `janela_dias` dias antes dela e prevê os
      `horizonte` dias seguintes. As janelas de previsão se sobrepõem: cada dia avaliado
      aparece em até `horizonte` origens, uma por horizonte h = 1..`horizonte`.
-  3. **Previsão final**: o mesmo modelo ajustado nos últimos `janela_dias` dias com venda
-     conhecida prevê os `horizonte` dias seguintes.
+  3. **Complemento** (fora das métricas): a última origem completa fica `horizonte − 1` dias
+     antes do último dia com venda, então o 1º dia das janelas não chega até ele. As origens
+     seguintes, até esse dia, preveem só o próprio dia (h = 1) e servem só para o histórico
+     da previsão (`domain.historico_previsao`): sem elas, os últimos 13 dias antes da
+     previsão nova ficariam sem previsto.
+  4. **Previsão final**: o mesmo modelo ajustado nos últimos `janela_dias` dias com venda
+     conhecida prevê os `horizonte` dias seguintes. Desse ajuste saem os coeficientes e o
+     diagnóstico dos resíduos (Ljung-Box e Shapiro-Wilk), registrados sem mudar o status.
 
 Por que `d = 0`: as 12 séries de categoria e de produto de grama rejeitam raiz unitária no
 ADF e mostram sinal de sobrediferenciação com `d = 1` (autocorrelação de lag 1 da diferença
@@ -76,7 +82,10 @@ class ResultadoSerie:
     ordens_convergidas: int | None = None
     metricas: dict | None = None
     backtest: pd.DataFrame | None = None   # origem, data, horizonte, previsto, ic_inf, ic_sup, real, naive
+    complemento: pd.DataFrame | None = None  # origem, data, previsto, ic_inf, ic_sup — h = 1, fora das métricas
     previsao: pd.DataFrame | None = None   # data, previsto, ic_inf, ic_sup
+    coeficientes: dict | None = None       # do ajuste final: nome do termo → valor
+    diagnostico: dict | None = None        # ljung_box_p, shapiro_p (resíduos do ajuste final)
     treino_inicio: pd.Timestamp | None = None
     treino_fim: pd.Timestamp | None = None
     dias_historico: int = 0
@@ -90,6 +99,13 @@ def origens_walk_forward(fim: pd.Timestamp, config: ConfigTreino) -> list[pd.Tim
     ultima = fim - pd.Timedelta(days=config.horizonte - 1)
     primeira = ultima - pd.Timedelta(days=(config.origens - 1) * config.passo)
     return list(pd.date_range(primeira, ultima, freq=f"{config.passo}D"))
+
+
+def origens_complemento(fim: pd.Timestamp, config: ConfigTreino) -> list[pd.Timestamp]:
+    """As origens depois da última completa até `fim`, andando `passo` dia(s): cada uma só
+    tem o próprio dia de venda conhecida à frente."""
+    ultima = origens_walk_forward(fim, config)[-1]
+    return list(pd.date_range(ultima + pd.Timedelta(days=config.passo), fim, freq=f"{config.passo}D"))
 
 
 def _janela(y: pd.Series, antes_de: pd.Timestamp, dias: int) -> pd.Series:
@@ -131,8 +147,9 @@ def treinar_serie(y: pd.Series, X: pd.DataFrame, aberta: pd.Series, config: Conf
         return base
 
     origens = origens_walk_forward(fim, config)
+    complemento = origens_complemento(fim, config)
     n_grade = len(config.grade_pq) ** 2 * len(config.grade_PQ) ** 2
-    total, feitos = n_grade + len(origens) + 1, 0
+    total, feitos = n_grade + len(origens) + len(complemento) + 1, 0
 
     def tick():
         nonlocal feitos
@@ -184,13 +201,30 @@ def treinar_serie(y: pd.Series, X: pd.DataFrame, aberta: pd.Series, config: Conf
         base.metricas["origens_com_falha"] = falhas
         base.backtest = pontos.drop(columns=["escala", "aberta"])
 
-        # 3. Previsão dos próximos dias com a última janela.
+        # 3. Complemento: o 1º dia das origens que não têm o horizonte inteiro à frente.
+        linhas = []
+        for origem in complemento:
+            treino = _janela(y, origem, config.janela_dias)
+            try:
+                res = ajustar(treino, X.loc[treino.index], escolha.ordem, escolha.ordem_sazonal, config.maxiter)
+                prev, inf, sup = prever(res, X.loc[[origem]], config.alpha)
+            except Exception:  # noqa: BLE001 — o dia fica sem previsto, como antes da 1ª origem
+                tick()
+                continue
+            linhas.append({"origem": origem, "data": origem, "previsto": float(prev[0]),
+                           "ic_inf": float(inf[0]), "ic_sup": float(sup[0])})
+            tick()
+        base.complemento = pd.DataFrame(linhas, columns=["origem", "data", "previsto", "ic_inf", "ic_sup"])
+
+        # 4. Previsão dos próximos dias com a última janela.
         futuro = pd.date_range(fim + pd.Timedelta(days=1), periods=config.horizonte, freq="D")
         res = ajustar(janela_final, X.loc[janela_final.index], escolha.ordem, escolha.ordem_sazonal,
                       config.maxiter)
         prev, inf, sup = prever(res, X.loc[futuro], config.alpha)
         tick()
         base.previsao = pd.DataFrame({"data": futuro, "previsto": prev, "ic_inf": inf, "ic_sup": sup})
+        base.coeficientes = {nome: round(float(v), 6) for nome, v in res.params.items()}
+        base.diagnostico = evaluator.diagnostico_residuos(res.resid, descartar=config.m)
         base.status = evaluator.status_do_modelo(base.metricas, mase_max=config.mase_max,
                                                  cobertura_min=config.cobertura_min,
                                                  cobertura_max=config.cobertura_max)

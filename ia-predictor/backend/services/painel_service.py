@@ -1,17 +1,21 @@
 """Dados das telas do frontend, montados a partir do banco.
 
-  * `painel()`: formato `BaseReal` (previsão, histórico, produtos, encomendas, planilhas
-    carregadas) — o que antes vinha de `baseReal.json`;
-  * `analises()`: análises descritivas por loja — antes `analises.json`;
+  * `painel()`: formato `BaseReal` (previsão de 14 dias das categorias e dos produtos de
+    grama de cada loja, histórico, encomendas, planilhas carregadas);
+  * `historico()`: vendido × previsto congelado de uma categoria ou produto
+    (`forecast_history`), para a tela de histórico da previsão;
+  * `analises()`: análises descritivas por loja;
   * `contexto()`: o pouco que o layout precisa logo depois do login (lojas, categorias,
     data da última venda, status dos previsores) — só consultas pequenas, sem ler `sales`
     inteira. As telas pedem o resto ao abrir.
 
-A base linha a linha (tela "Conferir Dados") é paginada no banco: `registros_service`.
+A previsão vem do último treino concluído (`forecast_jobs` `done`, ADR-017); a base linha a
+linha (tela "Conferir Dados") é paginada no banco (`registros_service`).
 
-Tudo sai de `sales` (até o fim do último treino, no painel) e das tabelas do treino; nada
-é gravado. Os resultados ficam em cache até os dados mudarem (`cache.versao_dados`).
-Nenhum dado pessoal sai: o cliente vira só "consumidor" ou "cadastrado".
+Tudo sai de `sales` (até o último dia com venda do treino, no painel) e das tabelas do
+treino; nada é gravado. Os resultados ficam em cache até os dados mudarem
+(`cache.versao_dados`). Nenhum dado pessoal sai: o cliente vira só "consumidor" ou
+"cadastrado".
 """
 from __future__ import annotations
 
@@ -25,29 +29,27 @@ from backend.config import settings
 from backend.domain import historico_previsao
 from backend.domain import painel as montagem
 from backend.infrastructure.database import (
-    BacktestPoint,
     Category,
-    ForecastCache,
     ForecastHistory,
-    ForecastRun,
-    ModelArtifact,
+    ForecastJob,
     ProcessingLog,
     Product,
-    RetrainHistory,
     Sale,
+    SeriesBacktestPoint,
+    SeriesForecast,
+    SeriesModel,
 )
 from backend.services import base_vendas, cache
-from backend.services.treino_service import METRICAS_EN, PARAMS_EN
 from training_scripts.frontend_mock.gerar_analises_frontend import analisar_unidade
 from training_scripts.preprocessing.remove_encomendas_06 import LIMIAR_QTD_VENDA
 
 
 class PrevisaoIndisponivel(Exception):
-    """Ainda não há treino concluído no banco."""
+    """Ainda não há treino concluído da previsão no banco."""
 
 
-class ProdutoInexistente(Exception):
-    """Produto sem previsor próprio na loja, no último treino."""
+class ItemSemHistorico(Exception):
+    """Categoria do painel ou produto sem venda na loja."""
 
 
 # --------------------------------------------------------------------------- #
@@ -67,75 +69,69 @@ def _fechados(cal: pd.DataFrame, unit_id: str) -> set:
     return set(cal.loc[(cal["unit_id"] == unit_id) & (cal["loja_fechada"] == 1), "data"])
 
 
+def ultimo_treino(db: Session) -> ForecastJob | None:
+    """O último treino concluído da previsão — o que as telas mostram."""
+    return db.scalar(select(ForecastJob).where(ForecastJob.status == "done").order_by(ForecastJob.id.desc()))
+
+
 # --------------------------------------------------------------------------- #
 # Painel
 # --------------------------------------------------------------------------- #
-def ultima_geracao(db: Session) -> tuple[ForecastRun, RetrainHistory] | None:
-    linha = db.execute(
-        select(ForecastRun, RetrainHistory)
-        .join(RetrainHistory, RetrainHistory.id == ForecastRun.retrain_id)
-        .where(ForecastRun.status == "done", RetrainHistory.status == "done")
-        .order_by(ForecastRun.id.desc())
-        .limit(1)
-    ).first()
-    return None if linha is None else (linha[0], linha[1])
+def _modelo(m: SeriesModel) -> dict:
+    """Modelo de uma série no formato da tela; sem previsão (`insufficient_data`,
+    `error`), só o status e o motivo."""
+    return {"ordem": m.sarimax_order, "ordem_sazonal": m.seasonal_order, "aic": m.aic, "status": m.status,
+            "metricas": montagem.metricas_da_tela(m.metrics), "mensagem": m.message}
 
 
-def _metricas_pt(m: ModelArtifact) -> dict | None:
-    if m.metrics is None:
-        return None
-    pt = {p: m.metrics.get(en) for p, en in METRICAS_EN.items()}
-    pt["mase"] = m.mase
-    pt["cobertura_ic95_pct"] = m.ci95_coverage_pct
-    ordem = ["rodadas", "rodadas_vence_naive", "dias_avaliados", "mae", "mase", "erro_relativo_naive",
-             "cobertura_ic95_pct", "largura_ic95", "venda_media_dia", "previsto_sobre_real_pct",
-             "erro_total_14d_pct"]
-    return {k: pt[k] for k in ordem}
-
-
-def _previsores(db: Session, run: ForecastRun, retrain: RetrainHistory) -> dict:
-    """Previsores do treino no formato que `domain.painel` espera."""
-    modelos = list(db.scalars(select(ModelArtifact).where(ModelArtifact.retrain_id == retrain.id)))
+def _previsores(db: Session, job: ForecastJob) -> dict:
+    """Previsores do treino no formato que `domain.painel` espera: categorias (com o 1º
+    dia de cada janela do walk-forward) e produtos de grama, por loja."""
+    modelos = list(db.scalars(select(SeriesModel).where(SeriesModel.job_id == job.id)))
     ids = [m.id for m in modelos]
-    backtest, previsao = defaultdict(list), defaultdict(list)
-    for p in db.scalars(select(BacktestPoint).where(BacktestPoint.model_id.in_(ids))
-                        .order_by(BacktestPoint.model_id, BacktestPoint.day)):
-        backtest[p.model_id].append({"data": str(p.day), "previsto": p.predicted, "inf": p.lower_95,
-                                     "sup": p.upper_95, "real": p.actual, "naive": p.naive,
-                                     "origem": str(p.origin_date)})
-    for p in db.scalars(select(ForecastCache).where(ForecastCache.run_id == run.id)
-                        .order_by(ForecastCache.model_id, ForecastCache.forecast_date)):
+    previsao, backtest = defaultdict(list), defaultdict(list)
+    for p in db.scalars(select(SeriesForecast).where(SeriesForecast.model_id.in_(ids))
+                        .order_by(SeriesForecast.model_id, SeriesForecast.forecast_date)):
         previsao[p.model_id].append({"data": str(p.forecast_date), "previsto": p.predicted,
                                      "inf": p.lower_95, "sup": p.upper_95})
-
+    categorias = [m.id for m in modelos if m.level == "category"]
+    for p in db.scalars(select(SeriesBacktestPoint).where(SeriesBacktestPoint.model_id.in_(categorias),
+                                                          SeriesBacktestPoint.horizon == 1)
+                        .order_by(SeriesBacktestPoint.model_id, SeriesBacktestPoint.day)):
+        backtest[p.model_id].append({"data": str(p.day), "previsto": p.predicted, "inf": p.lower_95,
+                                     "sup": p.upper_95, "real": p.actual, "naive": p.naive})
     out: dict = {}
     for m in modelos:
-        u = out.setdefault(m.unit_id, {"loja": None, "categorias": {}, "produtos": {}})
-        if m.level == "unit":
-            params = m.params or {}
-            u["loja"] = {
-                "modelo": {"ordem": m.sarimax_order, "ordem_sazonal": m.seasonal_order,
-                           **{pt: params.get(en) for pt, en in PARAMS_EN.items()},
-                           "status": m.status, "metricas": _metricas_pt(m)},
-                "backtest": backtest[m.id], "previsao": previsao[m.id]}
-        elif m.level == "category":
-            u["categorias"][m.category_id] = {"status": m.status, "metricas": _metricas_pt(m),
-                                              "backtest": backtest[m.id], "previsao": previsao[m.id]}
+        u = out.setdefault(m.unit_id, {"categorias": {}, "produtos": {}})
+        if m.level == "category":
+            u["categorias"][m.category_id] = {"modelo": _modelo(m), "previsao": previsao[m.id],
+                                              "backtest": backtest[m.id]}
         else:
-            modelo = None if m.sarimax_order is None else {
-                "ordem": m.sarimax_order, "ordem_sazonal": m.seasonal_order,
-                "metricas": _metricas_pt(m), "status": m.status}
-            u["produtos"][m.product_code] = {"modelo": modelo, "backtest": backtest[m.id],
-                                             "previsao": previsao[m.id]}
-    return {k: v for k, v in out.items() if v["loja"] is not None}
+            u["produtos"][m.product_code] = {"modelo": _modelo(m), "previsao": previsao[m.id]}
+    return out
+
+
+def _configuracao(job: ForecastJob) -> dict:
+    cfg = job.config or {}
+    return {"horizonte_dias": cfg.get("horizonte", settings.FORECAST_HORIZON_DAYS), "m": cfg.get("m"),
+            "d": cfg.get("d"), "D": cfg.get("D"), "alpha_ic": cfg.get("alpha"), "janela_dias": cfg.get("janela_dias"),
+            "origens": cfg.get("origens"), "passo_origem_dias": cfg.get("passo"),
+            "limiar_encomenda_un": LIMIAR_QTD_VENDA, "base": cfg.get("base"),
+            "categoria_produtos": cfg.get("categoria_produtos"), "versao_codigo": cfg.get("versao_codigo"),
+            "dados_ate": str(job.data_until)}
 
 
 def importacao(db: Session) -> dict:
     """Planilhas carregadas (`processing_log` concluído) e o resumo da qualidade."""
     logs = list(db.scalars(select(ProcessingLog).where(ProcessingLog.status == "done")
                            .order_by(ProcessingLog.reference_month, ProcessingLog.id)))
+
+    def periodo(p: ProcessingLog) -> list:
+        return (p.quality or {}).get("periodo") or [None, None]
+
     return {
         "arquivos": [{"arquivo": p.filename, "competencia": p.reference_month or "",
+                      "inicio": periodo(p)[0], "fim": periodo(p)[1],
                       "registros": p.rows_added, "duplicatas": p.rows_duplicate, "hash": p.file_sha256,
                       "processado_em": (p.finished_at or p.started_at).isoformat(timespec="seconds")}
                      for p in logs],
@@ -153,68 +149,41 @@ def painel(db: Session) -> dict:
     versao = cache.versao_dados(db)
 
     def construir() -> dict:
-        geracao = ultima_geracao(db)
-        if geracao is None:
+        job = ultimo_treino(db)
+        if job is None:
             raise PrevisaoIndisponivel()
-        run, retrain = geracao
         df = _vendas(db, versao)
-        df = df[df["emissao"] <= pd.Timestamp(retrain.data_until)]
+        df = df[df["emissao"] <= pd.Timestamp(job.data_until)]
         cal = base_vendas.carregar_calendario(db)
-        entradas = (base_vendas.carregar_lojas(db), _categorias(db), _previsores(db, run, retrain),
-                    retrain.config or {}, (run.finished_at or run.started_at).isoformat(timespec="seconds"),
-                    importacao(db))
+        entradas = (base_vendas.carregar_lojas(db), _categorias(db), _previsores(db, job), _configuracao(job),
+                    (job.finished_at or job.created_at).isoformat(timespec="seconds"), importacao(db))
         db.commit()  # solta a conexão antes do cálculo (o Neon derruba transação ociosa)
         return montagem.montar_painel(df, cal, *entradas)
 
     return cache.obter("painel", versao, construir)
 
 
-def painel_leve(db: Session) -> dict:
-    """O painel sem o que a tela só usa sob demanda: o teste de acerto de cada produto (70%
-    do JSON, pedido por `backtest_produto` quando o produto é aberto) e a amostra de
-    registros (a tela "Conferir Dados" consulta a base paginada)."""
-    versao = cache.versao_dados(db)
-
-    def construir() -> dict:
-        completo = painel(db)
-        unidades = [{**u, "produtos": [{k: v for k, v in p.items() if k != "backtest"} for p in u["produtos"]]}
-                    for u in completo["unidades"]]
-        return {**{k: v for k, v in completo.items() if k != "registros_amostra"}, "unidades": unidades}
-
-    return cache.obter("painel_leve", versao, construir)
-
-
-class ItemSemHistorico(Exception):
-    """Categoria do painel ou produto sem venda na loja."""
-
-
 def historico(db: Session, unidade: str, nivel: str, item: str) -> list[dict]:
     """Histórico da previsão de uma categoria (`nivel="categoria"`) ou produto da loja: o
-    vendido de cada dia (sem encomendas grandes), do começo da base ao fim do último treino,
-    com o previsto gravado em `forecast_history` — vazio antes da data fixa de treino."""
+    vendido de cada dia (sem encomendas grandes), do começo da base ao último dia com venda
+    do último treino concluído, com o previsto gravado em `forecast_history` — vazio antes
+    do 1º treino."""
     versao = cache.versao_dados(db)
-    geracao = ultima_geracao(db)
-    if geracao is None:
+    treino = ultimo_treino(db)
+    if treino is None:
         raise PrevisaoIndisponivel()
-    fim = pd.Timestamp(geracao[1].data_until)
+    fim = pd.Timestamp(treino.data_until)
     level, coluna = ("category", "cat") if nivel == "categoria" else ("product", "produto_cod")
     df = _vendas(db, versao)
     real = montagem.venda_diaria(df[df["unit_id"] == unidade], coluna, item, fim)
     if real is None:
         raise ItemSemHistorico()
-    previstos = {p.day: (p.predicted, p.lower_95, p.upper_95) for p in db.scalars(
-        select(ForecastHistory).where(ForecastHistory.unit_id == unidade, ForecastHistory.level == level,
-                                      ForecastHistory.item == item, ForecastHistory.day <= fim.date()))}
+    previstos = {p.day: (p.predicted, p.lower_95, p.upper_95, p.source, p.origin_date, p.store_closed)
+                 for p in db.scalars(select(ForecastHistory).where(
+                     ForecastHistory.unit_id == unidade, ForecastHistory.level == level,
+                     ForecastHistory.item == item, ForecastHistory.day <= fim.date()))}
     db.commit()
     return historico_previsao.serie_com_previsto(real, previstos)
-
-
-def backtest_produto(db: Session, unidade: str, codigo: str) -> list[dict]:
-    loja = next((u for u in painel(db)["unidades"] if u["id"] == unidade), None)
-    produto = next((p for p in (loja or {}).get("produtos", []) if p["codigo"] == codigo), None)
-    if produto is None or not produto.get("backtest"):
-        raise ProdutoInexistente()
-    return produto["backtest"]
 
 
 # --------------------------------------------------------------------------- #
@@ -232,29 +201,29 @@ def contexto(db: Session) -> dict:
                func.count(func.distinct(nao_servico.c.product_code)))).one()
 
     previsao = None
-    geracao = ultima_geracao(db)
-    if geracao is not None:
-        run, retrain = geracao
+    treino = ultimo_treino(db)
+    if treino is not None:
         modelos = db.execute(
-            select(ModelArtifact, Product.name)
-            .outerjoin(Product, Product.code == ModelArtifact.product_code)
-            .where(ModelArtifact.retrain_id == retrain.id, ModelArtifact.level.in_(("unit", "product")))
+            select(SeriesModel, Product.name)
+            .outerjoin(Product, Product.code == SeriesModel.product_code)
+            .where(SeriesModel.job_id == treino.id)
+            .order_by(SeriesModel.unit_id, SeriesModel.level, SeriesModel.id)
         ).all()
         previsao = {
-            "gerada_em": (run.finished_at or run.started_at).isoformat(timespec="seconds"),
-            "dados_ate": str(retrain.data_until),
-            "lojas": [{"id": m.unit_id, "status": m.status} for m, _ in modelos if m.level == "unit"],
-            "produtos": [{"loja": m.unit_id, "codigo": m.product_code, "nome": nome,
-                          "status": m.status if m.sarimax_order is not None else None}
+            "gerada_em": (treino.finished_at or treino.created_at).isoformat(timespec="seconds"),
+            "dados_ate": str(treino.data_until),
+            "categorias": [{"loja": m.unit_id, "categoria": m.category_id, "status": m.status}
+                           for m, _ in modelos if m.level == "category"],
+            "produtos": [{"loja": m.unit_id, "codigo": m.product_code, "nome": nome, "status": m.status}
                          for m, nome in modelos if m.level == "product"],
         }
-    config = (geracao[1].config or {}) if geracao else {}
+    config = (treino.config or {}) if treino else {}
     return {
         "lojas": base_vendas.carregar_lojas(db),
         "categorias": _categorias(db),
-        "configuracao": {"horizonte_dias": config.get("horizonte_dias", 14),
-                         "limiar_encomenda_un": config.get("limiar_encomenda_un", LIMIAR_QTD_VENDA),
-                         # falso no Render: o front não oferece "Atualizar os modelos"
+        "configuracao": {"horizonte_dias": config.get("horizonte", settings.FORECAST_HORIZON_DAYS),
+                         "limiar_encomenda_un": LIMIAR_QTD_VENDA,
+                         # falso no Render: o front não oferece "Treinar previsões"
                          "treino_na_api": settings.TRAINING_RUNNER == "local"},
         "base": {"inicio": str(inicio) if inicio else None, "fim": str(fim) if fim else None,
                  "linhas": int(linhas), "skus": int(skus)},

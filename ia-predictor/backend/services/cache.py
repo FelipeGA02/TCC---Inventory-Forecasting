@@ -1,8 +1,8 @@
 """Cache em memória das leituras pesadas (base de vendas, painel, análises).
 
 Cada valor fica guardado com a "versão" dos dados de que depende — o último id de venda,
-de planilha, de geração da previsão e a última alteração do calendário. Carga de planilha,
-treino ou mudança no calendário mudam a versão, e a próxima leitura recalcula. Só a versão
+de planilha, de treino concluído da previsão e a última alteração do calendário. Carga de
+planilha, treino ou mudança no calendário mudam a versão, e a próxima leitura recalcula. Só a versão
 mais recente de cada nome fica na memória.
 """
 from __future__ import annotations
@@ -13,7 +13,7 @@ from typing import Callable, TypeVar
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from backend.infrastructure.database import CalendarDay, ForecastRun, ProcessingLog, Sale
+from backend.infrastructure.database import CalendarDay, ForecastJob, ProcessingLog, Sale
 
 T = TypeVar("T")
 
@@ -27,7 +27,7 @@ def versao_dados(db: Session) -> tuple:
         db.scalar(select(func.max(Sale.id))),
         db.scalar(select(func.count()).select_from(Sale)),
         db.scalar(select(func.max(ProcessingLog.id))),
-        db.scalar(select(func.max(ForecastRun.id)).where(ForecastRun.status == "done")),
+        db.scalar(select(func.max(ForecastJob.id)).where(ForecastJob.status == "done")),
         str(db.scalar(select(func.max(CalendarDay.updated_at)))),
     )
 

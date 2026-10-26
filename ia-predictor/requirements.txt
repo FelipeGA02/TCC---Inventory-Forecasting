@@ -29,9 +29,6 @@ pandas==3.0.5
 numpy==2.5.2
 scipy==1.18.0
 
-# Scheduler
-apscheduler==3.11.3
-
 # Serialização
 joblib==1.5.3
 openpyxl==3.1.5

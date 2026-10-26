@@ -2,7 +2,7 @@
 geradores de `training_scripts/frontend_mock/` usam (mesmos nomes de coluna da
 `BaseClassificada03.csv`).
 
-Assim o treino (`treino_service`) e os resumos do painel (`painel_service`) rodam sobre o
+Assim o treino (`servico_previsao`) e os resumos do painel (`painel_service`) rodam sobre o
 banco — SQLite local ou Neon — com o mesmo código que roda sobre os CSV do
 pré-processamento.
 

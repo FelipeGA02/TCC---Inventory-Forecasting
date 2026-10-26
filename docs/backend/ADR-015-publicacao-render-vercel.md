@@ -1,6 +1,6 @@
 # ADR-015: Publicação: API no Render, front na Vercel, treino fora da API
 
-**Status**: Aceito  
+**Status**: Aceito (o treino mudou com o [ADR-017](../prediction/ADR-017-previsao-por-categoria-e-grama.md), ver o fim)  
 **Data**: 2026-10-22  
 **Autores**: Daniel Nunes da Silva, Felipe Gurgel Araújo
 
@@ -51,3 +51,11 @@ pagamento antecipado**. Medições da API (2026-10-22):
   pela equipe. O front esconde o botão "Atualizar os modelos" (`treino_na_api` falso em
   `/contexto`).
 - Render e Vercel precisam de acesso ao repositório privado pela conta dona dele no GitHub.
+
+## Revisão (2026-10-26, ADR-017)
+
+O treino da previsão passou a ser o das 4 categorias e dos produtos de grama, por loja, e
+não roda mais sozinho: não há treino semanal nem após o upload em nenhum modo. No Render
+(`TRAINING_RUNNER=externo`) a equipe roda `python -m backend.scripts.treinar_previsoes`
+(no lugar de `gravar_previsao`) de uma máquina sua, sobre o mesmo banco, e o front esconde o
+botão "Treinar previsões". No modo `local` o botão treina numa thread da API.

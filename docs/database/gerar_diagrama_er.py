@@ -23,7 +23,7 @@ GRUPOS = {
     "acesso": ("Acesso e cargas", "#E6E6E6", "#666666"),
     "vendas": ("Vendas", "#DAE8FC", "#6C8EBF"),
     "catalogo": ("Catálogo", "#D5E8D4", "#82B366"),
-    "previsao": ("Previsão", "#FFE6CC", "#D79B00"),
+    "previsao": ("Previsão (categorias e grama, ADR-017)", "#E1D5E7", "#9673A6"),
 }
 
 # tabela: (grupo, (x, y))
@@ -36,12 +36,12 @@ LAYOUT = {
     "units": ("catalogo", (1240, 40)),
     "products": ("catalogo", (1240, 200)),
     "categories": ("catalogo", (1240, 440)),
-    "retrain_history": ("previsao", (1840, 40)),
-    "model_artifacts": ("previsao", (1840, 440)),
-    "forecast_runs": ("previsao", (2440, 40)),
-    "forecasts_cache": ("previsao", (2440, 400)),
-    "backtest_points": ("previsao", (2440, 720)),
-    "forecast_history": ("previsao", (1840, 900)),
+    "forecast_jobs": ("previsao", (1840, 40)),
+    "forecast_job_logs": ("previsao", (1840, 720)),
+    "series_models": ("previsao", (2440, 40)),
+    "forecast_history": ("previsao", (2440, 720)),
+    "series_forecasts": ("previsao", (3040, 40)),
+    "series_backtest_points": ("previsao", (3040, 300)),
 }
 
 W_KEY, W_NOME, W_TIPO = 46, 200, 200

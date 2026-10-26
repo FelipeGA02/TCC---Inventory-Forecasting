@@ -6,17 +6,23 @@ import { Button } from "../ui/button";
 import { Progress } from "../ui/progress";
 import { useNavigate } from "react-router";
 import { contexto } from "../../data/mockData";
-import { api, type ResultadoUpload } from "../../data/api";
+import { api, type ResultadoUpload, type VerificacaoUpload } from "../../data/api";
 import { useDados } from "../../data/CarregarDados";
+import { useServicoPrevisao } from "../../data/ServicoPrevisao";
 import { useAuth } from "../../auth/AuthContext";
 import { ApiError, mensagemDoErro } from "@/lib/http/errors";
-import { formatarMesAno, formatarNumero } from "@/lib/format";
+import { formatarData, formatarDiaMes, formatarMesAno, formatarNumero } from "@/lib/format";
 
+// A planilha é conferida antes de gravar (nada é gravado no passo 2) e enviada de novo
+// quando a gestora confirma.
 const steps = [
   { id: 1, label: "Enviar arquivo" },
-  { id: 2, label: "Conferindo e gravando" },
-  { id: 3, label: "Pronto!" },
+  { id: 2, label: "Conferir" },
+  { id: 3, label: "Gravar" },
+  { id: 4, label: "Pronto!" },
 ];
+
+const ALERTA = { cor: "#8a5a00", fundo: "#fff8e1", borda: "#ffe0a0" };
 
 type StepStatus = "pending" | "active" | "done";
 
@@ -36,45 +42,57 @@ function mensagemDeEnvio(erro: unknown): string {
   return mensagemDoErro(erro);
 }
 
-const hora = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-
 export function ImportarPlanilha() {
   const navigate = useNavigate();
   const { usuario } = useAuth();
   const { recarregar } = useDados();
+  const { disparar } = useServicoPrevisao();
   const admin = usuario?.perfil === "admin";
   const arquivos = contexto.importacao.arquivos;
   const treinoNaApi = contexto.configuracao.treino_na_api !== false;
 
   const [resultado, setResultado] = useState<ResultadoUpload | null>(ultimoResultado);
-  const [currentStep, setCurrentStep] = useState(ultimoResultado ? 3 : 1);
+  const [currentStep, setCurrentStep] = useState(ultimoResultado ? 4 : 1);
   const [dragging, setDragging] = useState(false);
   const [file, setFile] = useState<{ name: string; size: string } | null>(null);
+  const [arquivo, setArquivo] = useState<File | null>(null);
+  const [verificacao, setVerificacao] = useState<VerificacaoUpload | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleFile = useCallback(
-    (f: File) => {
-      const sizeMB = (f.size / 1024 / 1024).toFixed(2);
-      setFile({ name: f.name, size: `${sizeMB} MB` });
-      setErro(null);
-      setCurrentStep(2);
-      api
-        .enviarPlanilha(f)
-        .then((r) => {
-          ultimoResultado = r;
-          setResultado(r);
-          setCurrentStep(3);
-          // atualiza a lista de planilhas e a base das telas
-          return recarregar().catch(() => undefined);
-        })
-        .catch((e: unknown) => {
-          setErro(mensagemDeEnvio(e));
-          setCurrentStep(1);
-        });
-    },
-    [recarregar],
-  );
+  const handleFile = useCallback((f: File) => {
+    const sizeMB = (f.size / 1024 / 1024).toFixed(2);
+    setFile({ name: f.name, size: `${sizeMB} MB` });
+    setArquivo(f);
+    setVerificacao(null);
+    setErro(null);
+    setCurrentStep(2);
+    api
+      .verificarPlanilha(f)
+      .then(setVerificacao)
+      .catch((e: unknown) => {
+        setErro(mensagemDeEnvio(e));
+        setCurrentStep(1);
+      });
+  }, []);
+
+  const confirmar = useCallback(() => {
+    if (!arquivo) return;
+    setCurrentStep(3);
+    api
+      .enviarPlanilha(arquivo)
+      .then((r) => {
+        ultimoResultado = r;
+        setResultado(r);
+        setCurrentStep(4);
+        // atualiza a lista de planilhas e a base das telas
+        return recarregar().catch(() => undefined);
+      })
+      .catch((e: unknown) => {
+        setErro(mensagemDeEnvio(e));
+        setCurrentStep(1);
+      });
+  }, [arquivo, recarregar]);
 
   const onDrop = useCallback(
     (e: React.DragEvent) => {
@@ -90,15 +108,17 @@ export function ImportarPlanilha() {
     ultimoResultado = null;
     setResultado(null);
     setFile(null);
+    setArquivo(null);
+    setVerificacao(null);
     setErro(null);
     setCurrentStep(1);
   };
 
-  const atualizarAgora = () =>
-    api
-      .atualizarModelos()
-      .then((r) => toast.success(r.message))
-      .catch((e: unknown) => toast.error(mensagemDeEnvio(e)));
+  // O treino não roda sozinho (ADR-017): com venda nova, a gestora treina daqui ou pelo botão do topo
+  const treinarAgora = () =>
+    disparar()
+      .then((r) => (r.iniciado ? toast.success("Treino iniciado. Acompanhe o andamento no sino de notificações.") : toast.info(r.mensagem)))
+      .catch((e: unknown) => toast.error(e instanceof ApiError && e.detail ? e.detail : mensagemDoErro(e)));
 
   return (
     <div className="p-6 flex flex-col gap-6 max-w-3xl mx-auto">
@@ -159,7 +179,7 @@ export function ImportarPlanilha() {
                 Só a gestora carrega planilhas
               </p>
               <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
-                Seu acesso é de consulta. Peça à gestora (perfil de administração) para enviar o relatório do mês.
+                Seu acesso é de consulta. Peça à gestora (perfil de administração) para enviar o relatório de vendas.
               </p>
             </div>
           </CardContent>
@@ -223,7 +243,7 @@ export function ImportarPlanilha() {
                 ))}
               </div>
               <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-                Relatório “Contas a Receber” do sistema da loja, um arquivo por mês · até 50 MB
+                Relatório “Contas a Receber” do sistema da loja, da semana ou do mês · até 50 MB
               </p>
             </div>
             <input
@@ -241,7 +261,7 @@ export function ImportarPlanilha() {
         </Card>
       )}
 
-      {currentStep === 2 && file && (
+      {((currentStep === 2 && !verificacao) || currentStep === 3) && file && (
         <Card className="border" style={{ borderColor: "var(--border)" }}>
           <CardContent className="p-8 flex flex-col gap-5">
             <div className="flex items-start gap-4">
@@ -256,7 +276,10 @@ export function ImportarPlanilha() {
                   {file.name}
                 </p>
                 <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-                  {file.size} · Lendo a planilha, conferindo vendas já carregadas e gravando as novas...
+                  {file.size} ·{" "}
+                  {currentStep === 2
+                    ? "Lendo a planilha e conferindo com as vendas já carregadas..."
+                    : "Gravando as vendas novas..."}
                 </p>
               </div>
             </div>
@@ -269,7 +292,11 @@ export function ImportarPlanilha() {
         </Card>
       )}
 
-      {currentStep === 3 && resultado && (
+      {currentStep === 2 && verificacao && file && (
+        <Conferencia verificacao={verificacao} tamanho={file.size} onCancelar={reset} onConfirmar={confirmar} />
+      )}
+
+      {currentStep === 4 && resultado && (
         <Card className="border" style={{ borderColor: "var(--border)", background: "var(--secondary)" }}>
           <CardContent className="p-8 flex flex-col items-center gap-5">
             <div
@@ -315,28 +342,21 @@ export function ImportarPlanilha() {
                 ))}
               </ul>
             )}
-            {resultado.retrain_scheduled && (
+            {resultado.needs_training && (
               <p className="text-sm text-center" style={{ color: "var(--muted-foreground)" }}>
-                {resultado.retrain_at ? (
-                  <>
-                    A previsão vai ser atualizada com estas vendas sozinha, a partir das {hora(resultado.retrain_at)} (leva
-                    cerca de 40 minutos). Se tiver outras planilhas, envie agora: elas entram na mesma atualização.
-                  </>
-                ) : (
-                  <>
-                    A previsão passa a usar estas vendas na próxima atualização dos modelos.
-                    {treinoNaApi ? " Se preferir, atualize agora — leva cerca de 40 minutos." : " A equipe do projeto faz essa atualização."}
-                  </>
-                )}
+                A previsão passa a usar estas vendas depois de treinar de novo.
+                {treinoNaApi
+                  ? " Tem outras planilhas? Envie todas primeiro e treine uma vez só: o treino roda em segundo plano e o andamento aparece no sino."
+                  : " Nesta instalação a equipe do projeto faz o treino: avise quando terminar de enviar."}
               </p>
             )}
             <div className="flex gap-3 flex-wrap justify-center">
               <Button variant="outline" onClick={reset}>
                 Enviar outro arquivo
               </Button>
-              {admin && treinoNaApi && resultado.retrain_scheduled && !resultado.retrain_at && (
-                <Button variant="outline" onClick={atualizarAgora}>
-                  Atualizar a previsão agora
+              {admin && treinoNaApi && resultado.needs_training && (
+                <Button variant="outline" onClick={treinarAgora}>
+                  Treinar previsões agora
                 </Button>
               )}
               <Button style={{ background: "var(--primary)", color: "#fff" }} onClick={() => navigate("/pre-visualizacao")}>
@@ -354,7 +374,7 @@ export function ImportarPlanilha() {
               Planilhas já carregadas
             </p>
             <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-              {arquivos.length} meses · {formatarNumero(arquivos.reduce((s, a) => s + a.registros, 0))} linhas · nenhuma duplicada
+              {arquivos.length} planilhas · {formatarNumero(arquivos.reduce((s, a) => s + a.registros, 0))} linhas · nenhuma duplicada
             </p>
           </div>
           <div className="grid grid-cols-3 sm:grid-cols-6 lg:grid-cols-9 gap-2">
@@ -363,10 +383,11 @@ export function ImportarPlanilha() {
                 key={`${a.arquivo}-${a.hash}`}
                 className="rounded-md px-2 py-1.5 text-center"
                 style={{ background: "var(--secondary)", border: "1px solid var(--border)" }}
-                title={`${a.arquivo} · ${formatarNumero(a.registros)} linhas · assinatura ${a.hash.slice(0, 8)}`}
+                title={`${a.arquivo}${a.inicio && a.fim ? ` · ${formatarData(a.inicio)} a ${formatarData(a.fim)}` : ""} · ${formatarNumero(a.registros)} linhas · assinatura ${a.hash.slice(0, 8)}`}
               >
+                {/* planilha da semana: o período; as da carga inicial (mensais) não têm, ficam com o mês */}
                 <p className="text-xs" style={{ fontWeight: 600, color: "var(--secondary-foreground)" }}>
-                  {formatarMesAno(a.competencia)}
+                  {a.inicio && a.fim ? `${formatarDiaMes(a.inicio)}–${formatarDiaMes(a.fim)}` : formatarMesAno(a.competencia)}
                 </p>
                 <p className="text-[11px]" style={{ color: "var(--muted-foreground)" }}>
                   {formatarNumero(a.registros)}
@@ -377,5 +398,115 @@ export function ImportarPlanilha() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+const periodo = (inicio: string, fim: string) =>
+  inicio === fim ? formatarData(inicio) : `${formatarData(inicio)} a ${formatarData(fim)}`;
+
+/** O que a carga faria, com os dias que ficariam sem venda — antes de gravar. */
+function Conferencia({
+  verificacao: v,
+  tamanho,
+  onCancelar,
+  onConfirmar,
+}: {
+  verificacao: VerificacaoUpload;
+  tamanho: string;
+  onCancelar: () => void;
+  onConfirmar: () => void;
+}) {
+  const faltando = v.missing_days.length > 0;
+  return (
+    <Card className="border" style={{ borderColor: "var(--border)" }}>
+      <CardContent className="p-8 flex flex-col gap-5">
+        <div className="flex items-start gap-4">
+          <div
+            className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ background: "var(--secondary)" }}
+          >
+            <FileSpreadsheet size={24} style={{ color: "var(--primary)" }} />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm mb-0.5" style={{ color: "var(--foreground)", fontWeight: 600 }}>
+              Confira antes de gravar
+            </p>
+            <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+              {v.filename} · {tamanho} · vendas de {periodo(v.period_start, v.period_end)}
+            </p>
+          </div>
+        </div>
+
+        <ul className="text-sm flex flex-col gap-1" style={{ color: "var(--foreground)" }}>
+          {v.units.map((u) => (
+            <li key={u.unit_id}>
+              <strong>{u.unit_name}</strong>: {periodo(u.first_day, u.last_day)}
+              <span style={{ color: "var(--muted-foreground)" }}>
+                {u.last_day_loaded ? ` · última venda já carregada: ${formatarData(u.last_day_loaded)}` : " · primeira planilha da loja"}
+              </span>
+            </li>
+          ))}
+        </ul>
+
+        <div className="grid grid-cols-3 gap-4 w-full">
+          {[
+            { label: "Vendas novas", value: formatarNumero(v.rows_new) },
+            { label: "Já estavam carregadas", value: formatarNumero(v.rows_duplicate) },
+            { label: "Linhas ignoradas", value: formatarNumero(v.rows_skipped) },
+          ].map((stat) => (
+            <div key={stat.label} className="rounded-lg p-4 text-center" style={{ background: "var(--secondary)", border: "1px solid var(--border)" }}>
+              <p className="text-xl mb-0.5" style={{ color: "var(--primary)", fontWeight: 700 }}>
+                {stat.value}
+              </p>
+              <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                {stat.label}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {faltando && (
+          <div role="alert" className="rounded-lg px-4 py-3 text-sm flex flex-col gap-2" style={{ background: ALERTA.fundo, border: `1px solid ${ALERTA.borda}`, color: ALERTA.cor }}>
+            <p className="flex items-center gap-2" style={{ fontWeight: 600 }}>
+              <AlertTriangle size={16} style={{ flexShrink: 0 }} /> Faltam vendas de alguns dias
+            </p>
+            <ul className="flex flex-col gap-1">
+              {v.missing_days.map((m) => (
+                <li key={m.unit_id}>{m.message}</li>
+              ))}
+            </ul>
+            <p className="text-xs">
+              Se gravar assim, esses dias contam como dias sem venda na previsão até a planilha deles ser enviada. Tem a
+              planilha desses dias? Grave esta e envie a outra em seguida, antes de treinar as previsões.
+            </p>
+          </div>
+        )}
+
+        {v.warnings.length > 0 && (
+          <ul className="w-full text-xs flex flex-col gap-1" style={{ color: ALERTA.cor }}>
+            {v.warnings.map((e) => (
+              <li key={e} className="flex gap-2">
+                <AlertTriangle size={13} style={{ flexShrink: 0, marginTop: 1 }} /> {e}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {v.rows_new === 0 && (
+          <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+            Nenhuma venda nova: tudo nesta planilha já está carregado.
+          </p>
+        )}
+
+        <div className="flex gap-3 flex-wrap justify-end">
+          <Button variant="outline" onClick={onCancelar}>
+            Cancelar
+          </Button>
+          <Button style={{ background: "var(--primary)", color: "#fff" }} onClick={onConfirmar}>
+            {faltando ? "Gravar mesmo assim" : v.rows_new === 0 ? "Registrar a planilha" : "Gravar as vendas"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

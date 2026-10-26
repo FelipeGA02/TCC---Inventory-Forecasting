@@ -1,6 +1,11 @@
 # ADR-006: APScheduler In-Process vs Celery para Retrain Semanal
 
-**Status**: Aceito  
+> **Substituído pelo [ADR-017](../prediction/ADR-017-previsao-por-categoria-e-grama.md)
+> (2026-10-26):** não há mais treino agendado. A loja envia as planilhas da semana e treina
+> pelo botão "Treinar previsões" (thread da API) ou pelo script `treinar_previsoes`; o
+> APScheduler saiu do sistema. Este registro fica como histórico.
+
+**Status**: Substituído (ADR-017)  
 **Data**: 2026-07-28  
 **Autores**: Daniel Nunes da Silva, Felipe Gurgel Araújo
 

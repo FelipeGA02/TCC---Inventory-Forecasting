@@ -10,17 +10,18 @@ Leia este arquivo antes de qualquer implementação.
 TCC de Ciência da Computação (Centro Universitário Dom Helder, 2026), em parceria com a
 Floricultura Verde Perto (unidades em Nova Lima — Jardim Canadá — e Itabirito/MG).
 Sistema de **previsão de demanda diária** para rede de floricultura com 2 unidades
-operacionais, baseado em modelagem hierárquica (SARIMAX na venda total de cada
-unidade + desagregação em cascata para categoria e SKU) e dashboard React. A loja decide
-a compra; o sistema informa quanto deve vender (ADR-011).
+operacionais: um SARIMAX direto em cada uma das 4 categorias e em cada produto de grama,
+por loja (ADR-017), e dashboard React. A loja decide a compra; o sistema informa quanto
+deve vender (ADR-011).
 
 **Domínio**: floricultura / garden center · grama e produtos de jardim ≈ 98% do volume,
 flores de corte ≈ 2% · sazonalidade semanal de dia útil + datas comemorativas  
 **Dados**: 324k+ transações · Jan/2024–Fev/2026 · 5.100+ SKUs · 2 unidades  
 **Entregável**: previsão de demanda **por dia**, horizonte de **14 dias**, com intervalo de
-confiança de 95%, por unidade (L1) e, por desagregação, por categoria e SKU (L2). A
-recomendação de reposição (L3) saiu de escopo — ver
-`docs/prediction/ADR-011-escopo-previsao-sem-reposicao.md`  
+confiança de 95%, por categoria e por produto de grama de cada loja (o total da loja é a
+soma das categorias), e o histórico das previsões congelado dia a dia — ver
+`docs/prediction/ADR-017-previsao-por-categoria-e-grama.md`. A recomendação de reposição
+(L3) saiu de escopo (ADR-011)  
 **Granularidade**: diária. Ver `docs/prediction/ADR-009-granularidade-diaria-e-reposicao.md`
 (revisão de escopo de 2026-08-30 — antes era mensal; L3 e o grão `unidade × categoria`
 revisados pelo ADR-011)  
@@ -35,12 +36,12 @@ pipeline de dados e modelagem preditiva
 | Camada | Tecnologia |
 | --- | --- |
 | Backend API | FastAPI 0.111 + Python 3.11 |
-| Modelagem | statsmodels 0.14 (SARIMAX — camada agregada L1) + scikit-learn 1.4 (RF) + Croston/TSB/SBA (demanda intermitente por SKU — trilha de comparação) |
+| Modelagem | statsmodels 0.14 (SARIMAX por categoria e por produto de grama, por loja — ADR-017); scikit-learn, Croston/TSB/SBA e outros só nos experimentos (`training_scripts/`) |
 | Análise exploratória (EDA) | Jupyter Notebooks + matplotlib, seaborn, plotly (não entram no runtime de produção) |
 | Auth | python-jose (JWT HS256) + passlib (bcrypt) |
 | Banco | Postgres no Neon (compartilhado) e SQLite (local), via SQLAlchemy 2.0 + psycopg 3 — ADR-014 |
-| Scheduler | APScheduler 3.10 (ajuste dos modelos 10 min após planilha com venda nova — outra planilha no intervalo adia — e segunda 02:00 como rede de segurança, ambos pulados sem venda nova · conferência do calendário 03:00, gera de novo a previsão só se ele mudou — ainda não ativa, depende dos modelos em joblib) |
-| Serialização | joblib (modelos), openpyxl (XLSX), reportlab (PDF) |
+| Treino | Sem agendador (ADR-017): botão "Treinar previsões" (admin; thread da API com `TRAINING_RUNNER=local`) ou `python -m backend.scripts.treinar_previsoes` (API que não treina, Render); pulado (`skipped`) sem dados novos |
+| Serialização | openpyxl (XLSX), reportlab (PDF); os modelos não são salvos em joblib (coeficientes em `series_models.params`) |
 | Frontend | React 18 + Recharts + MUI (em `app-react/`) — decisão pós-prototipagem; o projeto técnico original cogitava Streamlit/Dash |
 | Cliente HTTP | gerado de `openapi.yaml` via openapi-typescript-codegen |
 
@@ -62,24 +63,26 @@ TCC---Inventory-Forecasting/
 │   │   ├── schemas/             ← Pydantic (contratos request/response)
 │   │   ├── services/            ← casos de uso (orquestração)
 │   │   ├── domain/              ← lógica pura SEM I/O
-│   │   │   ├── etl/             ← parser, normalizer, deduplicator
-│   │   │   ├── features/        ← daily_series (unidade), calendar_exogenous, importance
-│   │   │   ├── models/          ← L1: stationarity, order_selection, trainer, evaluator, forecaster
-│   │   │   └── disaggregation/  ← L2: rateio em cascata unidade→categoria→SKU (share móvel × perfil dia-da-semana)
-│   │   └── infrastructure/      ← DB, storage, scheduler
+│   │   │   ├── etl/             ← cobertura (dias de venda faltando na planilha, antes de gravar)
+│   │   │   ├── features/        ← time_series (série diária), exogenous (calendário)
+│   │   │   ├── models/          ← order_selection, trainer (walk-forward + complemento), evaluator (métricas, resíduos, status), forecaster
+│   │   │   ├── historico_previsao.py ← regra do histórico congelado
+│   │   │   └── painel.py        ← montagem do painel das telas
+│   │   └── infrastructure/      ← DB (ORM, colunas novas em banco existente), storage
 │   ├── data/
 │   │   ├── raw/                 ← XLSX brutos (upload)
 │   │   └── processed/
 │   │       └── contas_a_receber.csv   ← base consolidada (sep=";")
-│   ├── models/                  ← artefatos joblib por unidade (L1) + params de desagregação L2 (categoria/SKU)
+│   ├── models/                  ← registro dos modelos dos experimentos (o sistema não salva joblib)
 │   ├── training_scripts/        ← experimentação pré-produção (fora do backend)
 │   │   ├── preprocessing/       ← XLSX bruto → base limpa → encomendas → calendário por loja → séries diárias (L1 e desagregação); `run_all.py` roda as 7 etapas (docs/prediction/01-pre_processing.md)
 │   │   ├── eda/                 ← análise exploratória (base transacional, séries do L1, granularidade das categorias, classificação de demanda)
 │   │   ├── baseline/            ← L1: série crua (doc 02) e treino por loja `sarimax_l1_por_loja.py` (doc 04: A0, A1, A1 d=1, Holt-Winters)
 │   │   ├── enriched/            ← L1 na série crua + calendário e clima (doc 03)
 │   │   ├── alternative_models/  ← Croston/TSB/SBA por SKU, ETS, XGBoost, rede neural global
-│   │   ├── disaggregation/      ← L2: desagregação em cascata unidade→categoria→SKU (a criar)
+│   │   ├── disaggregation/      ← categoria direta × desagregação (ADR-016), estacionariedade por categoria e SKU
 │   │   ├── validation/          ← walk-forward CV (origem móvel, h=14d), MASE/RMSSE, resíduos (compartilhado)
+│   │   ├── frontend_mock/       ← receita do treino anterior (loja + desagregação), registro histórico
 │   │   ├── output/               ← CSV/JSON gerados pelo preprocessing/ (gitignored)
 │   │   └── results/             ← metrics/ e plots/ da experimentação (staging, não é o results/ de produção)
 │   └── tests/
@@ -114,25 +117,26 @@ TCC---Inventory-Forecasting/
 Consulte `.specify/memory/constitution.md` para o texto completo. Resumo:
 
 1. **Domínio Puro**: `backend/domain/` NUNCA importa FastAPI, SQLAlchemy ou APScheduler.
-2. **Estatística antes de ML**: SARIMAX é o modelo central da camada agregada L1
-   (`unidade`, diário — 2 séries). `categoria` e SKU são obtidos por desagregação em
-   cascata (participação móvel × perfil de dia-da-semana do nível), não por modelo
-   próprio: o teste de separação de `training_scripts/eda/eda_separacao.py` (EDA 4, 26
-   janelas de 14 dias, 3 categorias, SARIMAX e ETS) não mostrou ganho de acurácia em
-   modelar categoria direto. **⚠️ Em revisão (ADR-016):** o experimento posterior
-   `disaggregation/categoria_direta_vs_desagregacao.py`, com protocolo muito mais forte
-   (351 origens dia a dia, 4 categorias, fluxo diário), inverte o resultado — o SARIMAX
-   direto na categoria vence a desagregação em 7 dos 8 pares categoria-unidade. Croston/
-   TSB/SBA são permitidos no nível de SKU (série quase toda zero, SARIMAX inaplicável).
-   NN/boosting só com evidência empírica.
-3. **Validação obrigatória**: walk-forward CV (≥4 folds, origem móvel, h=14 dias) +
-   `MASE < 1.0` + cobertura do IC 95% em [90%, 98%], antes de `status = "trained"`.
+2. **Estatística antes de ML**: SARIMAX é o modelo central. **No sistema (ADR-017)**, cada
+   uma das 4 categorias e cada produto de grama, em cada loja, tem o seu SARIMAX; o total
+   da loja é a soma das categorias. O L1 por unidade e a desagregação saíram: o
+   experimento `disaggregation/categoria_direta_vs_desagregacao.py` (351 origens dia a dia,
+   4 categorias, fluxo diário) mostrou o SARIMAX direto na categoria vencendo a
+   desagregação em 7 dos 8 pares (ADR-016). A constituição ainda manda obter a categoria
+   por desagregação (Princípio II): a emenda via `/speckit-constitution` está pendente.
+   Croston/TSB/SBA ficam na trilha de comparação por SKU; NN/boosting só com evidência
+   empírica.
+3. **Validação obrigatória**: walk-forward CV (≥4 folds, origem móvel, h=14 dias; no
+   sistema, 56 origens andando 1 dia) + `MASE < 1.0` + cobertura do IC 95% em [90%, 98%],
+   antes de `status = "trained"`.
    A simulação de perda/ruptura caiu junto com a L3 (ADR-011); a constituição ainda a
    exige (Princípio III e Quality Gates) e precisa de emenda via `/speckit-constitution`.
 4. **Linguagem do usuário**: mensagens de erro e alertas em PT-BR sem jargão técnico.
-5. **Rastreabilidade**: todo upload e retrain gravados em `processing_log` e `retrain_history`
-   (treino pulado por falta de venda nova fica como `skipped`); toda geração da previsão
-   registra data, período previsto e contagem de SKUs atendidos em `forecast_runs`.
+5. **Rastreabilidade**: todo upload e treino gravados em `processing_log` e `forecast_jobs`
+   (treino sem dados novos fica como `skipped`). Cada treino registra a configuração com a
+   versão do código, o período usado, as contagens de séries por status e o log série a
+   série, e liga a si as planilhas que entraram nele (`processing_log.forecast_job_id`). A
+   constituição ainda cita `retrain_history`/`forecast_runs` (emenda pendente).
 6. **Segurança por padrão**: JWT obrigatório em todos os `/api/v1/*`; bcrypt para senhas; API não expõe dados pessoais de clientes.
 
 ---
@@ -159,6 +163,13 @@ python -m training_scripts.preprocessing.run_all
 # Carga inicial do banco de DATABASE_URL (SQLite ou Neon) a partir do pré-processamento,
 # a partir de ia-predictor/ — só com o banco vazio; --recriar apaga tudo antes
 python -m backend.scripts.carga_inicial
+
+# Treinar a previsão fora da API (o mesmo treino do botão "Treinar previsões"), a partir de
+# ia-predictor/ — para a API no Render (TRAINING_RUNNER=externo); proot/Termux: --workers 1
+python -m backend.scripts.treinar_previsoes --workers 8
+
+# Preencher o histórico da previsão de um banco antigo a partir do último treino
+python -m backend.scripts.semear_historico [--recriar]
 
 # Rodar testes unitários
 pytest ia-predictor/tests/unit/ -v
@@ -199,22 +210,16 @@ VIEWER_EMAIL=gerente@floricultura.com
 VIEWER_PASSWORD=<senha_forte>
 DOCS_ENABLED=true              # /docs, /redoc, /openapi.json — false no Render (render.yaml)
 
-# Pipeline ML — camada agregada L1 (unidade, diário — 2 séries)
-TOP_N_PRODUCTS=20               # SKUs com desagregação (L2) detalhada
-FORECAST_HORIZON_DAYS=14        # horizonte da previsão (a API mostra 14 dias a partir de hoje)
-FORECAST_STORED_DAYS=60         # dias previstos e gravados por geração, a partir do último dia com venda
-TEST_DAYS=28                    # hold-out para avaliação
-MIN_OBSERVATIONS_DAYS=180       # mínimo de dias por unidade para treinar L1
-SEASONAL_PERIOD=7              # sazonalidade semanal do SARIMAX (m=7)
-LOG_CV_THRESHOLD=0.7           # log1p acima deste CV
-
-# Scheduler
-RETRAIN_DAY_OF_WEEK=mon        # ajuste (fit) dos modelos; pulado sem venda nova desde o último treino
-RETRAIN_HOUR=2
-RETRAIN_AFTER_UPLOAD_MINUTES=10  # treino após planilha com venda nova; outra planilha no intervalo adia
-TRAINING_RUNNER=local          # local: treino em thread da API · externo: a API não treina (Render, ADR-015)
-TRAINING_WORKERS=8             # processos no treino dos produtos
-DAILY_FORECAST_HOUR=3          # confere o calendário; gera de novo a previsão só se ele mudou
+# Previsão (ADR-017) — 4 categorias e cada produto de grama, por loja; m=SEASONAL_PERIOD, d=0, D=0 fixos
+FORECAST_HORIZON_DAYS=14           # dias previstos a partir do dia seguinte à última venda
+SEASONAL_PERIOD=7                  # sazonalidade semanal do SARIMAX (m=7)
+MIN_OBSERVATIONS_DAYS=180          # histórico mínimo antes da 1ª origem do walk-forward
+FORECAST_SERVICE_WINDOW_DAYS=365   # janela deslizante de treino
+FORECAST_SERVICE_WF_ORIGINS=56     # origens do walk-forward, andando 1 dia (8 semanas)
+FORECAST_SERVICE_MIN_SALE_DAYS=28  # produto de grama: dias com venda na última janela para treinar
+FORECAST_SERVICE_KEEP_BACKTEST_JOBS=4  # treinos concluídos que guardam o walk-forward inteiro
+TRAINING_WORKERS=8                 # processos no treino (proot/Termux de desenvolvimento: use 1)
+TRAINING_RUNNER=local              # local: botão "Treinar previsões" (thread da API) · externo: a API não treina (Render, script treinar_previsoes)
 ```
 
 ---
@@ -232,26 +237,53 @@ diagrama em `docs/database/modelo_dados.drawio`, gerado por `docs/database/gerar
 | `categories` | As 4 categorias do negócio (coluna `categoria` da Etapa 3: Grama, Plantas diversas, Produtos de jardim, Flores de corte) + Serviço e taxa, com `show_on_dashboard` falso |
 | `products` | Catálogo: código, nome mais recente, categoria, subcategoria (`categoria_fina`) |
 | `sales` | Uma linha de produto por nota, só com os campos da planilha que o sistema usa (sem cliente, vendedor, operador); `is_bulk_order` = encomenda (ADR-013). Índice da deduplicação entre planilhas |
-| `calendar_days` | Calendário por loja (loja fechada, abertura excepcional, feriado, data comemorativa); cobre até o fim da previsão gravada |
-| `processing_log` | Cada planilha recebida (nome, SHA-256, linhas lidas/novas/duplicadas, qualidade); a planilha não é guardada |
-| `retrain_history` | Cada treino (trigger, período usado, config, contagens); `skipped` quando não há venda nova |
-| `model_artifacts` | Previsor de cada loja, categoria (desagregação, sem modelo próprio) e produto regular por treino: ordem, MASE, cobertura, `artifact_path` (joblib), métricas do walk-forward |
-| `backtest_points` | Previsto × real × naïve de cada dia do walk-forward de cada previsor (loja, categoria, produto) — tela de histórico da previsão |
-| `forecast_runs` | Cada geração da previsão (ao fim do treino ou quando o calendário muda): período previsto e SKUs atendidos |
-| `forecasts_cache` | Previsão diária com IC 95% por geração, em 3 níveis (loja, categoria, produto); grava `FORECAST_STORED_DAYS` dias e a API entrega os 14 a partir de hoje |
-| `forecast_history` | Histórico da previsão por categoria e produto: o previsto de cada dia é o da última geração feita antes dele, congelado depois que o dia passa; dia que nenhuma geração cobriu (antes da 1ª, ou vendas com mais de 14 dias de atraso) vem do walk-forward. Horizonte continua 14 dias. A tela compara com o vendido de `sales` (sem encomendas grandes) |
+| `calendar_days` | Calendário por loja (loja fechada, abertura excepcional, feriado, data comemorativa); precisa cobrir os 14 dias seguintes à última venda (dia que faltar usa o padrão: fechada só no domingo) |
+| `processing_log` | Cada planilha gravada (nome, SHA-256, linhas lidas/novas/duplicadas, qualidade); em `quality`, o período da planilha e os dias de loja aberta que ficaram sem venda, avisados na conferência antes de gravar; `forecast_job_id`, o primeiro treino que a usou. A planilha não é guardada |
+| `forecast_jobs` | Cada treino da previsão (botão "Treinar previsões" ou script): status, andamento (série atual, %), impressão digital dos dados (`skipped` se não mudaram desde o último `done`), `data_until`, configuração com a versão do código, contagens por status. As telas leem o último `done` |
+| `forecast_job_logs` | Log do treino, uma linha por série (ordem, AIC, métricas, resíduos, status ou motivo da recusa) e as do treino (planilhas novas, histórico gravado, limpeza do walk-forward) |
+| `series_models` | Cada série (4 categorias + cada produto de grama, por loja): status, ordem, AIC, MASE, cobertura, métricas do walk-forward e diagnóstico dos resíduos (`metrics`), coeficientes do ajuste final (`params`); `insufficient_data`/`error` com o motivo |
+| `series_forecasts` | Previsão dos 14 dias seguintes à última venda, com IC 95%, por série |
+| `series_backtest_points` | Previsto × real × naïve de cada origem e horizonte do walk-forward (origem andando 1 dia), por série — só nos últimos `FORECAST_SERVICE_KEEP_BACKTEST_JOBS` treinos concluídos |
+| `forecast_history` | Histórico da previsão por categoria e produto de grama, gravado por cada treino `done` do serviço de previsão (`job_id`): o previsto de cada dia é o da última previsão feita antes dele, congelado depois que o dia passa — treino seguinte 9 dias depois congela 9 dias; mais de 14, congela os 14 e o 1º dia das janelas do walk-forward do treino seguinte (h = 1, com o complemento até a última venda) preenche o que sobra, como antes do 1º treino. Horizonte continua 14 dias. `store_closed`: se o calendário dava a loja fechada quando o dia foi previsto. A tela compara com o vendido de `sales` (sem encomendas grandes). `semear_historico [--recriar]` preenche a partir do último treino |
 
 Resumos (volume por loja/categoria, histórico, encomendas, venda das últimas 8 semanas)
 não são gravados: saem de `sales`. A previsão não é recalculada todo dia: com o mesmo
-modelo e os mesmos dados ela daria os mesmos números, então a janela de 14 dias só anda
-sobre o que já foi gravado.
+modelo e os mesmos dados ela daria os mesmos números. Ela muda quando a loja treina de
+novo com vendas novas. As tabelas do treino anterior (`retrain_history`, `model_artifacts`,
+`backtest_points`, `forecast_runs`, `forecasts_cache`) saíram do ORM (ADR-017); num banco
+antigo continuam lá, sem uso.
 
 ---
 
-## Pipeline Hierárquico — Decisões Técnicas
+## Previsão — Decisões Técnicas (ADR-017)
+
+Ver `docs/prediction/ADR-017-previsao-por-categoria-e-grama.md` para a decisão e
+`docs/prediction/07-previsao_14_dias_e_historico.md` para o funcionamento (ciclo da loja,
+treino, histórico, conferência da planilha). Código: `backend/services/servico_previsao.py`
+e `backend/domain/models/trainer.py`.
+
+| Decisão | Valor | Motivo |
+| --- | --- | --- |
+| Séries | em cada loja, as 4 categorias e cada produto de grama (com ≥ 180 dias antes da 1ª origem; produto, venda em ≥ 28 dias da última janela) | categoria direta vence a desagregação em 7 de 8 pares (ADR-016); a loja compra grama produto a produto. Total da loja = soma das categorias (faixa conservadora). Outras categorias não têm previsão por produto |
+| Alvo | fluxo diário: sem as notas acima de 2.000 un. (ADR-013), sem `Servico e taxa` | a mesma base dos experimentos que fixaram a receita |
+| Modelo | SARIMAX m = 7, **d = 0**, D = 0, com constante; ordem por AIC (p, q ∈ 0..2; P, Q ∈ 0..1) só com a janela antes da 1ª origem | as 12 séries rejeitam raiz unitária no ADF e `d = 1` sobrediferencia (lag 1 da diferença −0,42 a −0,53); custo medido: `d = 1` erra 1–7% menos na família Grama |
+| Exógenas | 6 dummies de dia da semana, `loja_fechada`, `abertura_excepcional` (calendário de cada loja) | as do L1 (docs 03 e 04) |
+| Janela | deslizante de 365 dias | |
+| Walk-forward | 56 origens andando 1 dia (8 semanas), h = 14; métricas nos dias de loja aberta; + 13 origens parciais (complemento, h = 1, fora das métricas) até a última venda | o 1º dia de cada janela alimenta o histórico até a véspera da previsão |
+| Previsão | os 14 dias seguintes à última venda, faixa de 95% (sem `log1p`) | |
+| Resíduos | Ljung-Box (14 dias) e Shapiro-Wilk do ajuste final, em `series_models.metrics`, citados no log quando p ≤ 0,05 | dimensão "diagnóstico de resíduos" do artigo; não bloqueia |
+| Treino | botão "Treinar previsões" (admin) ou script `treinar_previsoes`; `skipped` se vendas, calendário e catálogo não mudaram (SHA-256) | com planilhas semanais, a gestora treina quando termina de enviar; não há agendador |
+| Histórico | `forecast_history`: o previsto de cada dia é o da última previsão feita antes dele; cada treino `done` troca os dias ≥ dia seguinte à última venda e o walk-forward (h = 1) preenche só os vazios | a tela mostra o que a loja viu, sem reescrever o passado |
+| Conferência da planilha | `POST /upload/verificacao` avisa os dias de loja aberta que ficariam sem venda antes de gravar | uma semana esquecida viraria venda zero no treino e no histórico |
+
+## Experimentos anteriores: L1 por unidade + desagregação (registro histórico)
+
+**Fora do sistema desde o ADR-017.** As tabelas abaixo documentam o treino que as telas
+usavam até 2026-10-26 (receita em `training_scripts/frontend_mock/gerar_dados_frontend.py`)
+e os experimentos que levaram a ele — evidência para o artigo.
 
 Ver `docs/prediction/ADR-009-granularidade-diaria-e-reposicao.md` para o racional completo,
-`ADR-011` para o escopo atual (L1 por `unidade`, sem L3) e
+`ADR-011` para o escopo da época (L1 por `unidade`, sem L3) e
 `docs/prediction/04-treino_l1_por_loja.md` para o treino que fixou os valores abaixo.
 
 ### L1 — SARIMAX na demanda agregada (`unidade`, série diária — 2 séries)
@@ -301,12 +333,12 @@ diária" — relatório em `docs/`.
 
 | Métrica | Limiar | Status se falhar |
 | --- | --- | --- |
-| MASE (L1 e SKU) | < 1.0 (bate a naïve sazonal semanal) | `low_confidence` |
+| MASE (categoria e produto de grama) | < 1.0 (bate a naïve sazonal semanal) | `low_confidence` |
 | Cobertura empírica do IC 95% | ∈ [90%, 98%] | `low_confidence` |
-| Observações mínimas L1 (`unidade`) | ≥ 180 dias | `insufficient_data` |
-| Observações mínimas SKU | ≥ 28 dias com venda ou ≥ 8 vendas | fallback de rateio da categoria |
-| Ljung-Box (p-value, resíduos L1) | > 0.05 | log de aviso; não bloqueia deploy |
-| Shapiro-Wilk (p-value, resíduos L1) | > 0.05 | log de aviso; não bloqueia deploy |
+| Histórico antes da 1ª origem do walk-forward | ≥ 180 dias | `insufficient_data` (sem previsão) |
+| Produto de grama: dias com venda na última janela de 365 | ≥ 28 | `insufficient_data` (sem previsão) |
+| Ljung-Box (p-value, resíduos do ajuste final) | > 0.05 | citado no log; não bloqueia |
+| Shapiro-Wilk (p-value, resíduos do ajuste final) | > 0.05 | citado no log; não bloqueia |
 
 **Comparação entre experimentos** (docs 02 → 03 → 04): além do MASE, reportar o erro
 relativo à naïve sazonal **na mesma janela de teste**, agregado como razão das somas
@@ -320,7 +352,8 @@ ganho de só 18% sobre a naïve, e a própria naïve tirava MASE 0,49
 MAPE e SMAPE continuam calculados e reportados, mas são **informativos** (instáveis com
 contagem baixa) — não classificam. Ljung-Box e Shapiro-Wilk compõem a dimensão de
 "diagnóstico de resíduos" (seção 6.5 do artigo) — não bloqueiam o deploy, mas MUST ser
-logados por modelo L1 treinado.
+logados por modelo treinado: ficam em `series_models.metrics` (`ljung_box_p`, `shapiro_p`)
+e no log do treino.
 
 ---
 
@@ -333,15 +366,18 @@ logados por modelo L1 treinado.
 | `/auth/refresh` | POST | qualquer |
 | `/auth/logout` | POST | público — revoga o refresh token |
 | `/auth/me` | GET | qualquer |
-| `/api/v1/upload` | POST | **admin** |
-| `/api/v1/models/retrain` | POST | **admin** |
-| `/api/v1/forecast/{produto_cod}` | GET | viewer — previsão diária, `horizon_days` |
-| `/api/v1/forecast/batch` | GET | viewer — previsão dos top N para o dashboard |
-| `/api/v1/models/status` | GET | viewer — status dos 2 modelos L1 (um por unidade) |
-| Demais `/api/v1/*` | GET/POST | viewer |
+| `/api/v1/upload/verificacao` | POST | **admin** — confere a planilha sem gravar: período por loja, vendas novas/já carregadas e dias de loja aberta que ficariam sem venda (aviso antes de confirmar) |
+| `/api/v1/upload` | POST | **admin** — grava, depois da confirmação; `needs_training` quando há venda nova |
+| `/api/v1/servico-previsao/*` | GET/POST | **admin** — treino da previsão: status, disparo (`POST /treinos`: 202 treina em segundo plano, 200 `skipped` sem dados novos, 503 se a API não treina), log e resultado por série |
+| `/api/v1/contexto` | GET | viewer — layout: lojas, categorias, última venda, status das séries do último treino |
+| `/api/v1/painel` | GET | viewer — previsão de 14 dias (categorias e grama por loja), histórico de vendas, encomendas, teste de acerto |
+| `/api/v1/painel/historico/{loja}/{categoria\|produto}/{item}` | GET | viewer — vendido × previsto congelado |
+| Demais `/api/v1/*` (análises, registros) | GET | viewer |
 
-Os endpoints de reposição (`/api/v1/replenishment/*`) foram removidos do contrato na
-versão 3.0.0 do `openapi.yaml` (ADR-011).
+Os endpoints de reposição (`/api/v1/replenishment/*`) saíram na versão 3.0.0 do
+`openapi.yaml` (ADR-011); os do treino anterior (`/api/v1/models/*`), o teste de acerto por
+produto e as rotas nunca implementadas (products, forecast, alerts, simulation, reports),
+na 4.0.0 (ADR-017).
 
 ---
 
@@ -374,7 +410,10 @@ Comandos disponíveis (invocar via Skill tool ou como `/speckit-*`):
 | `specs/001-sistema-previsao-vendas/tasks.md` | Tarefas organizadas por fase (TDD) |
 | `.specify/memory/constitution.md` | 6 princípios governantes (v3.1.0) |
 | `docs/prediction/ADR-009-granularidade-diaria-e-reposicao.md` | **Espinha da revisão de escopo mensal→diário** — arquitetura L1/L2/L3, validação, shelf-life (L3 e grão `unidade × categoria` revisados pelo ADR-011) |
-| `docs/prediction/ADR-011-escopo-previsao-sem-reposicao.md` | **Escopo atual**: previsão de demanda sem reposição (L3 fora), 2 unidades, 3 categorias + `Servico e taxa`, L1 por `unidade` (teste de separação §4). Lista o que ainda falta propagar |
+| `docs/prediction/ADR-011-escopo-previsao-sem-reposicao.md` | Escopo: previsão de demanda sem reposição (L3 fora), 2 unidades; o L1 por `unidade` foi revisado pelo ADR-017 |
+| `docs/prediction/ADR-016-categoria-direta-vs-desagregacao.md` | Evidência: SARIMAX direto na categoria vence a desagregação em 7 de 8 pares categoria-loja (aceito pelo ADR-017) |
+| `docs/prediction/ADR-017-previsao-por-categoria-e-grama.md` | **A previsão do sistema**: SARIMAX direto em cada categoria e produto de grama, por loja; treino pelo botão ou script, sem agendador; histórico congelado; conferência da planilha. O que saiu e o que fica pendente (emenda da constituição) |
+| `docs/prediction/07-previsao_14_dias_e_historico.md` | Como o sistema treina, guarda e mostra: ciclo planilha → conferência → treino → telas, receita e walk-forward, previsão de 14 dias, regras do histórico (9 e 20 dias entre treinos), dias faltando na planilha, tabelas e testes |
 | `docs/README.md` | Índice da documentação por área + convenção de ADRs |
 | `docs/prediction/`, `docs/backend/`, `docs/database/`, `docs/frontend/` | ADRs organizados por área (ver `docs/README.md` para a lista completa) |
 | `docs/project/Projeto Tecnico Verde Perto Final...pdf` | Projeto técnico acadêmico original (fonte primária, revisado pelo orientador) |

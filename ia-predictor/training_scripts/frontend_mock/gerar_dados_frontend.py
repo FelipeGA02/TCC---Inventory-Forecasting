@@ -1,4 +1,10 @@
-"""Gera os dados que o frontend (app-react) usa enquanto a API nao esta conectada.
+"""Gera os dados que o frontend (app-react) usava antes de a API estar conectada.
+
+**Registro historico, fora do sistema.** A previsao do sistema e outra desde o ADR-017:
+SARIMAX direto em cada categoria e em cada produto de grama, por loja
+(`backend/services/servico_previsao.py`). Este script fica como a receita do treino
+anterior (loja + desagregacao + produtos regulares), usada nos experimentos e no artigo; o
+backend so importa dele as listas fixas de lojas e categorias (`carga_inicial`).
 
 Nada aqui e inventado: todo numero sai da base real pre-processada (`output/`) e dos
 modelos escolhidos na etapa de testes (branch `feat/desagregacao-l2`, e-mail ao orientador):

@@ -9,17 +9,20 @@ Três grupos de tabelas:
   * Acesso: `users` e `revoked_tokens` (sessões encerradas no logout).
   * Base de vendas: `units`, `categories`, `products`, `sales` (os campos da planilha que
     o sistema usa — a planilha em si não é guardada), `calendar_days` e `processing_log`
-    (cada planilha recebida: nome, hash e resultado da carga).
-  * Previsão: `retrain_history` (cada execução do treino) e o que ela produz —
-    `model_artifacts` (um modelo por loja e por produto regular) e `backtest_points` —, e
-    `forecast_runs` (cada geração da previsão: ao fim de cada treino e quando o calendário
-    muda depois dele) com o seu `forecasts_cache`. O painel mostra os próximos 14 dias da
-    última geração concluída; as anteriores ficam para comparação. `forecast_history`
-    guarda o previsto de cada dia já passado (congelado), para o histórico da previsão.
+    (cada planilha gravada: nome, hash, resultado da carga e o treino que a usou primeiro).
+  * Previsão (ADR-017): `forecast_jobs` (cada treino, disparado pelo botão "Treinar
+    previsões" ou pelo script `treinar_previsoes`), `forecast_job_logs` e, por série — as 4
+    categorias e cada produto de grama, por loja —, `series_models`, `series_forecasts` e
+    `series_backtest_points`. As telas leem o último treino `done`. Cada treino concluído
+    atualiza `forecast_history`, o previsto de cada dia já passado (congelado), para o
+    histórico da previsão.
 
 Resumos por loja, categoria e produto (volume, SKUs, encomendas, venda das últimas 8
-semanas...) não são gravados: saem de `sales` até `retrain_history.data_until`. Produto
-"regular" é o que tem `model_artifacts` de nível `product` na execução.
+semanas...) não são gravados: saem de `sales` até `forecast_jobs.data_until`.
+
+As tabelas do treino anterior (`retrain_history`, `model_artifacts`, `backtest_points`,
+`forecast_runs`, `forecasts_cache`: modelo da loja, desagregação e produtos regulares) saíram
+do ORM. Num banco antigo elas continuam lá, sem uso.
 
 `info={"hint": ...}` documenta os valores aceitos e aparece no diagrama.
 """
@@ -42,6 +45,8 @@ from sqlalchemy import (
     create_engine,
     event,
     func,
+    inspect,
+    text,
 )
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
@@ -50,7 +55,7 @@ from backend.config import settings
 Base = declarative_base()
 
 _RUN_STATUS = {"hint": "pending|running|done|error"}
-_RETRAIN_STATUS = {"hint": "pending|running|done|error|skipped"}
+_JOB_STATUS = {"hint": "pending|running|done|error|skipped"}
 
 
 # --------------------------------------------------------------------------- #
@@ -123,6 +128,9 @@ class ProcessingLog(Base):
 
     A planilha não é guardada: os campos usados vão para `sales` e o resto é descartado.
     `file_sha256` impede carregar o mesmo arquivo duas vezes (só conta carga `done`).
+    `quality` traz o resumo da limpeza, o período da planilha e os dias de loja aberta que
+    ficaram sem venda (avisados na conferência antes de gravar). `forecast_job_id` é o
+    primeiro treino concluído que usou as vendas desta planilha.
     """
 
     __tablename__ = "processing_log"
@@ -143,8 +151,8 @@ class ProcessingLog(Base):
     rows_added = Column(Integer, default=0, nullable=False)
     rows_duplicate = Column(Integer, default=0, nullable=False)
     rows_skipped = Column(Integer, default=0, nullable=False)
-    quality = Column(JSON, nullable=True)  # resumo da limpeza (linhas removidas e por quê)
-    retrain_id = Column(Integer, ForeignKey("retrain_history.id"), nullable=True)
+    quality = Column(JSON, nullable=True)  # limpeza, período, dias faltando e avisos
+    forecast_job_id = Column(Integer, ForeignKey("forecast_jobs.id", ondelete="SET NULL"), nullable=True)
 
 
 class Sale(Base):
@@ -186,10 +194,11 @@ class Sale(Base):
 
 
 class CalendarDay(Base):
-    """Calendário por loja (Etapa 10): exógenas do L1 e marcação de dia fechado.
+    """Calendário por loja (Etapa 10): exógenas do SARIMAX e marcação de dia fechado.
 
-    Precisa cobrir até `forecast_runs.end_date`. `updated_at` diz à conferência diária
-    (03:00) se algum dia mudou depois da última geração da previsão.
+    Precisa cobrir os 14 dias seguintes à última venda (o treino usa o padrão da loja,
+    fechada só no domingo, no dia que faltar, e registra o aviso). `updated_at` entra na
+    impressão digital do treino: mudar o calendário permite treinar de novo.
     """
 
     __tablename__ = "calendar_days"
@@ -204,140 +213,124 @@ class CalendarDay(Base):
 
 
 # --------------------------------------------------------------------------- #
-# Previsão
+# Previsão: treino das categorias e dos produtos de grama, por loja (ADR-017)
 # --------------------------------------------------------------------------- #
-class RetrainHistory(Base):
-    """Uma execução do treino (modelos das lojas e dos produtos regulares). Ao terminar,
-    dispara uma `forecast_runs` com `trigger = retrain`.
+class ForecastJob(Base):
+    """Um disparo do serviço de previsão (`backend/services/servico_previsao.py`): SARIMAX
+    direto nas 4 categorias e em cada produto de grama, por loja.
 
-    O treino agendado (segunda 02:00) é registrado como `skipped`, sem modelos nem
-    previsão, quando não há venda nova desde o último treino `done` (mesmo `data_until`) e
-    `config` é a mesma: ajustaria o mesmo modelo com os mesmos dados.
+    É o treino da previsão do sistema (ADR-017): a previsão de 14 dias, o histórico e os
+    relatórios leem o último disparo `done`. `trigger`: `manual` (botão "Treinar
+    previsões") ou `script` (`backend/scripts/treinar_previsoes.py`, fora da API).
+
+    `data_fingerprint` é a impressão digital das vendas, do calendário e do catálogo quando
+    o treino leu os dados. Um disparo com a mesma impressão do último `done` é registrado
+    como `skipped` (Princípio V) e não treina. `heartbeat_at` é gravado a cada 30 s enquanto o treino roda: `running`
+    sem sinal há mais de 3 min é de um processo que caiu e vira `error`.
     """
 
-    __tablename__ = "retrain_history"
+    __tablename__ = "forecast_jobs"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    trigger = Column(String, nullable=False, info={"hint": "scheduled|manual|upload|import"})
-    status = Column(String, nullable=False, default="pending", info=_RETRAIN_STATUS)
-    started_at = Column(DateTime, default=datetime.now, nullable=False)
-    finished_at = Column(DateTime, nullable=True)
+    trigger = Column(String, nullable=False, default="manual", info={"hint": "manual|script"})
+    status = Column(String, nullable=False, default="pending", info=_JOB_STATUS)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    message = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.now, nullable=False)
+    started_at = Column(DateTime, nullable=True)
+    finished_at = Column(DateTime, nullable=True)
+    heartbeat_at = Column(DateTime, nullable=True)
+    data_fingerprint = Column(String(64), nullable=True, index=True)
     data_until = Column(Date, nullable=True)  # último dia com venda usado no treino
-    config = Column(JSON, nullable=True)  # horizonte, m, limiares, critério de regular...
-    units_trained = Column(Integer, default=0, nullable=False)
-    products_modeled = Column(Integer, default=0, nullable=False)
+    config = Column(JSON, nullable=True)  # m, d, D, janela, origens, horizonte, limiares
+    total_series = Column(Integer, default=0, nullable=False)  # séries com dados para treinar
+    done_series = Column(Integer, default=0, nullable=False)  # delas, quantas já terminaram
+    current_series = Column(String, nullable=True)  # rótulo da série em treino, para o progresso
+    progress_pct = Column(Float, default=0.0, nullable=False)
+    series_trained = Column(Integer, default=0, nullable=False)
+    series_low_confidence = Column(Integer, default=0, nullable=False)
+    series_insufficient = Column(Integer, default=0, nullable=False)
+    series_failed = Column(Integer, default=0, nullable=False)
+    message = Column(String, nullable=True)
 
 
-class ModelArtifact(Base):
-    """Previsor de um treino, em três níveis:
+class ForecastJobLog(Base):
+    """Linha do log de um disparo do serviço de previsão (o que aconteceu em cada série)."""
 
-    * `unit`: SARIMAX da loja;
-    * `category` (`category_id`): desagregação loja → categoria — previsão da loja ×
-      participação da categoria no mesmo dia da semana (últimas 8 semanas). Não tem modelo
-      próprio (`sarimax_order` e `artifact_path` nulos); é testada nas mesmas rodadas da
-      loja e por isso tem `status`, `metrics` e `backtest_points` como os outros;
-    * `product` (`product_code`): SARIMAX do produto regular.
-
-    Só `mase` e `ci95_coverage_pct` são colunas porque definem o `status`; o resto do
-    walk-forward fica em `metrics` e a configuração do ajuste em `params`. Produto regular
-    sem ordem que convirja fica com `sarimax_order` e `artifact_path` nulos e status
-    `insufficient_data`.
-
-    `artifact_path` (joblib, relativo a `MODELS_DIR`) é o modelo ajustado que uma nova
-    geração (`trigger = calendar` ou `manual`) carrega para prever sem reajustar.
-    """
-
-    __tablename__ = "model_artifacts"
+    __tablename__ = "forecast_job_logs"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    retrain_id = Column(Integer, ForeignKey("retrain_history.id", ondelete="CASCADE"), nullable=False, index=True)
+    job_id = Column(Integer, ForeignKey("forecast_jobs.id", ondelete="CASCADE"), nullable=False, index=True)
+    logged_at = Column(DateTime, default=datetime.now, nullable=False)
+    level = Column(String, nullable=False, default="info", info={"hint": "info|warning|error"})
+    series_key = Column(String, nullable=True)
+    message = Column(String, nullable=False)
+
+
+class SeriesModel(Base):
+    """Uma série treinada (ou recusada) num disparo do serviço de previsão.
+
+    `level = category` (`category_id`) ou `product` (`product_code`, sempre de Grama).
+    `series_key` = `loja:nível:id`. Série sem dados suficientes fica registrada com
+    `status = insufficient_data` e o motivo em `message`, sem previsão. `metrics` é o
+    walk-forward nos dias de loja aberta; `params`, o que foi ajustado.
+    """
+
+    __tablename__ = "series_models"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    job_id = Column(Integer, ForeignKey("forecast_jobs.id", ondelete="CASCADE"), nullable=False, index=True)
     unit_id = Column(String, ForeignKey("units.id"), nullable=False)
+    level = Column(String, nullable=False, info={"hint": "category|product"})
     category_id = Column(String, ForeignKey("categories.id"), nullable=True)
     product_code = Column(String, ForeignKey("products.code"), nullable=True)
-    level = Column(String, nullable=False, info={"hint": "unit|category|product"})
-    status = Column(String, nullable=False, info={"hint": "trained|low_confidence|..."})
+    series_key = Column(String, nullable=False)
+    status = Column(String, nullable=False, info={"hint": "trained|low_confidence|insufficient_data|error"})
     sarimax_order = Column(JSON, nullable=True, info={"hint": "[p,d,q]"})
     seasonal_order = Column(JSON, nullable=True, info={"hint": "[P,D,Q,m]"})
-    artifact_path = Column(String, nullable=True)
+    aic = Column(Float, nullable=True)
     mase = Column(Float, nullable=True)
     ci95_coverage_pct = Column(Float, nullable=True)
-    # unit/product: {aic, transformation, window_type, window_days, training_base, exog_features}
-    # category: {share_window_weeks}
-    params = Column(JSON, nullable=True)
-    # {folds, folds_beating_naive, days_evaluated, mae, relative_error_naive, ci95_width,
-    #  mean_daily_sales, forecast_to_actual_pct, total_error_14d_pct}
+    # {origens, dias_avaliados, mae, rmse, mase, erro_relativo_naive, origens_vence_naive(_pct),
+    #  cobertura_ic95_pct, largura_ic95, venda_media_dia, previsto_sobre_real_pct, erro_total_14d_pct,
+    #  origens_com_falha, ljung_box_p, shapiro_p} — os dois últimos, dos resíduos do ajuste final
     metrics = Column(JSON, nullable=True)
+    # {trend, transformation, training_base, window_days, ordens_convergidas, dias_historico,
+    #  dias_com_venda_janela, coeficientes (do ajuste final: termo → valor)}
+    params = Column(JSON, nullable=True)
+    train_start = Column(Date, nullable=True)  # janela da previsão final
+    train_end = Column(Date, nullable=True)
+    message = Column(String, nullable=True)
     trained_at = Column(DateTime, default=datetime.now, nullable=False)
 
-    __table_args__ = (Index("ix_model_retrain_unit", "retrain_id", "unit_id", "product_code"),)
+    __table_args__ = (Index("ix_series_models_job_unit", "job_id", "unit_id"),)
 
 
-class ForecastRun(Base):
-    """Uma geração da previsão com os modelos de `retrain_id`: ao fim de cada treino
-    (`retrain`) e quando `calendar_days` muda depois dela (`calendar`, conferido às 03:00).
+class SeriesForecast(Base):
+    """Previsão diária com faixa de 95% de uma série: os `FORECAST_HORIZON_DAYS` dias
+    seguintes ao último dia com venda."""
 
-    Gerar todo dia repetiria os mesmos números: com o mesmo modelo e os mesmos dados, a
-    previsão de um dia não depende de quando é calculada. Por isso cada geração prevê de
-    uma vez de `start_date` (dia seguinte a `retrain_history.data_until`) até `end_date`
-    (`FORECAST_STORED_DAYS` dias), e a API entrega os `FORECAST_HORIZON_DAYS` dias a partir
-    de hoje — a janela anda com a data sem recalcular. Se hoje + horizonte passa de
-    `end_date`, a base está desatualizada (o painel avisa). `products_served` é a contagem
-    de produtos com previsão (Princípio V).
-    """
-
-    __tablename__ = "forecast_runs"
+    __tablename__ = "series_forecasts"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    retrain_id = Column(Integer, ForeignKey("retrain_history.id", ondelete="CASCADE"), nullable=False, index=True)
-    trigger = Column(String, nullable=False, info={"hint": "retrain|calendar|manual"})
-    status = Column(String, nullable=False, default="pending", info=_RUN_STATUS)
-    started_at = Column(DateTime, default=datetime.now, nullable=False)
-    finished_at = Column(DateTime, nullable=True)
-    message = Column(String, nullable=True)
-    start_date = Column(Date, nullable=False)  # primeiro dia previsto
-    end_date = Column(Date, nullable=False)  # último dia previsto
-    units_served = Column(Integer, default=0, nullable=False)
-    products_served = Column(Integer, default=0, nullable=False)
-
-
-class ForecastCache(Base):
-    """Previsão diária com faixa de 95%. `run_id` dá a geração; `model_id`, o previsor —
-    a loja (total das 4 categorias), uma categoria ou um produto regular. `level` repete o
-    `model_artifacts.level` para filtrar sem junção.
-
-    Loja fechada e evento do dia vêm de `calendar_days`.
-    """
-
-    __tablename__ = "forecasts_cache"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    run_id = Column(Integer, ForeignKey("forecast_runs.id", ondelete="CASCADE"), nullable=False)
-    model_id = Column(Integer, ForeignKey("model_artifacts.id", ondelete="CASCADE"), nullable=False, index=True)
-    level = Column(String, nullable=False, info={"hint": "unit|category|product"})
+    model_id = Column(Integer, ForeignKey("series_models.id", ondelete="CASCADE"), nullable=False, index=True)
     forecast_date = Column(Date, nullable=False)
     predicted = Column(Float, nullable=False)
     lower_95 = Column(Float, nullable=False)
     upper_95 = Column(Float, nullable=False)
 
-    __table_args__ = (Index("ix_forecast_run_level", "run_id", "level"),)
 
+class SeriesBacktestPoint(Base):
+    """Previsto × real × naïve do walk-forward de uma série. A origem anda 1 dia e cada
+    origem prevê os 14 seguintes, então o mesmo dia aparece em várias origens (`horizon`
+    diz a distância até a origem)."""
 
-class BacktestPoint(Base):
-    """Dia do walk-forward de um previsor (loja, categoria ou produto): previsto × real ×
-    naïve. Alimenta o histórico da previsão e o gráfico de acerto de cada nível.
-
-    Rodadas a cada 14 dias com horizonte de 14: cada dia pertence a uma só origem. O erro
-    da rodada é a soma de |predicted − actual| por `origin_date` nos dias de loja aberta.
-    """
-
-    __tablename__ = "backtest_points"
+    __tablename__ = "series_backtest_points"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    model_id = Column(Integer, ForeignKey("model_artifacts.id", ondelete="CASCADE"), nullable=False, index=True)
+    model_id = Column(Integer, ForeignKey("series_models.id", ondelete="CASCADE"), nullable=False, index=True)
     origin_date = Column(Date, nullable=False)
     day = Column(Date, nullable=False)
+    horizon = Column(Integer, nullable=False)
     predicted = Column(Float, nullable=False)
     lower_95 = Column(Float, nullable=False)
     upper_95 = Column(Float, nullable=False)
@@ -346,16 +339,19 @@ class BacktestPoint(Base):
 
 
 class ForecastHistory(Base):
-    """Histórico da previsão de cada categoria e produto regular de uma loja: o previsto de
+    """Histórico da previsão de cada categoria e produto de grama de uma loja: o previsto de
     cada dia, para a tela comparar com o vendido (que sai de `sales`, sem encomendas grandes).
 
-    Ao contrário de `backtest_points` (refeito a cada treino), aqui o dia fica congelado
-    (`domain.historico_previsao`): cada geração da previsão troca os dias de `start_date` em
-    diante e nunca mexe nos anteriores; dia que nenhuma geração cobriu (antes da 1ª, ou
-    vendas com mais de 14 dias de atraso) vem do walk-forward e só preenche dia vazio.
+    Ao contrário de `series_backtest_points` (refeito a cada treino), aqui o dia fica
+    congelado (`domain.historico_previsao`): cada disparo concluído do serviço de previsão
+    troca os dias do início da previsão dele em diante e nunca mexe nos anteriores; dia que
+    nenhuma previsão cobriu (antes do 1º treino, ou treino seguinte com mais de 14 dias de
+    intervalo) vem do 1º dia das janelas do walk-forward e só preenche dia vazio.
 
-    `source`: `forecast` (geração `run_id`) ou `walk_forward` (rodada que começou em
-    `origin_date`). `item`: id da categoria ou código do produto.
+    `source`: `forecast` (previsão do disparo `job_id`) ou `walk_forward`. `origin_date`: 1º
+    dia da janela — o início da previsão, ou o próprio dia no walk-forward. `item`: id da
+    categoria ou código do produto. `store_closed`: se o calendário dava a loja fechada no
+    dia quando ele foi previsto — explica um previsto zero se o calendário mudar depois.
     """
 
     __tablename__ = "forecast_history"
@@ -369,9 +365,9 @@ class ForecastHistory(Base):
     lower_95 = Column(Float, nullable=False)
     upper_95 = Column(Float, nullable=False)
     source = Column(String, nullable=False, info={"hint": "forecast|walk_forward"})
-    origin_date = Column(Date, nullable=False)  # início da geração ou da rodada
-    retrain_id = Column(Integer, ForeignKey("retrain_history.id", ondelete="SET NULL"), nullable=True)
-    run_id = Column(Integer, ForeignKey("forecast_runs.id", ondelete="SET NULL"), nullable=True)
+    origin_date = Column(Date, nullable=False)  # 1º dia da janela que previu o dia
+    job_id = Column(Integer, ForeignKey("forecast_jobs.id", ondelete="SET NULL"), nullable=True)
+    store_closed = Column(Boolean, nullable=True)
 
     __table_args__ = (UniqueConstraint("unit_id", "level", "item", "day", name="uq_forecast_history_dia"),)
 
@@ -416,6 +412,27 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 def create_tables() -> None:
     """Cria todas as tabelas se ainda não existirem (idempotente)."""
     Base.metadata.create_all(bind=engine)
+    completar_colunas(engine)
+
+
+# Colunas acrescentadas a tabelas que já podem existir no banco (`create_all` não altera
+# tabela existente). As removidas do ORM ficam no banco, nulas, sem uso.
+_COLUNAS_NOVAS = {
+    "forecast_history": {"job_id": "INTEGER REFERENCES forecast_jobs(id) ON DELETE SET NULL",
+                         "store_closed": "BOOLEAN"},
+    "processing_log": {"forecast_job_id": "INTEGER REFERENCES forecast_jobs(id) ON DELETE SET NULL"},
+}
+
+
+def completar_colunas(bind) -> None:
+    """Acrescenta as colunas de `_COLUNAS_NOVAS` que faltam nas tabelas do banco."""
+    nomes = inspect(bind)
+    with bind.begin() as conn:
+        for tabela, colunas in _COLUNAS_NOVAS.items():
+            existentes = {c["name"] for c in nomes.get_columns(tabela)}
+            for coluna, tipo in colunas.items():
+                if coluna not in existentes:
+                    conn.execute(text(f"ALTER TABLE {tabela} ADD COLUMN {coluna} {tipo}"))
 
 
 def get_db() -> Session:

@@ -114,6 +114,13 @@ warnings.filterwarnings("ignore")
 
 PASSO = 1                  # a origem anda 1 dia -> janelas dia a dia, sobrepostas
 D_SAZONAL = 0
+
+# Janela de treino: None = expansiva (tudo antes da origem); um inteiro = deslizante desse
+# tamanho. Importa para o teste de `d`: com `d = 0` o modelo leva `trend="c"`, e numa janela
+# expansiva de 2 anos essa constante e a media de 2 anos — a previsao reverte para um nivel
+# velho. Com janela deslizante a constante passa a ser a media recente, que e o conserto
+# correto para media que anda devagar numa serie estacionaria (diferenciar nao e).
+JANELA_TREINO: int | None = None
 N_SKUS_GRAMA = 2
 CATEGORIA_SKUS = "Grama"
 CATEGORIA_NAO_PRODUTO = "Servico e taxa"
@@ -246,6 +253,12 @@ def montar_series(unidade: str) -> tuple[dict[str, pd.Series], pd.DataFrame, dic
 # --------------------------------------------------------------------------- #
 # Modelo
 # --------------------------------------------------------------------------- #
+def _treino(y: pd.Series, origem: pd.Timestamp) -> pd.Series:
+    """Dados de treino de uma origem, honrando `JANELA_TREINO`."""
+    tr = y[y.index < origem]
+    return tr if JANELA_TREINO is None else tr.iloc[-JANELA_TREINO:]
+
+
 def _z(y: pd.Series, log: bool) -> pd.Series:
     return np.log1p(y.clip(lower=0)) if log else y
 
@@ -275,7 +288,7 @@ def _aic_de_uma_ordem(args) -> dict | None:
     nome, var, p, q, P, Q = args
     cfg = VARIANTES[var]
     y = _G["series"][nome]
-    pre = y[y.index < PRIMEIRA_ORIGEM]
+    pre = _treino(y, PRIMEIRA_ORIGEM)          # mesma janela que o walk-forward usara
     order, sorder = (p, cfg["d"], q), (P, D_SAZONAL, Q, M)
     try:
         res = _ajustar(_z(pre, cfg["log"]), _G["X"].loc[pre.index], order, sorder)
@@ -293,7 +306,7 @@ def _rodada(args) -> list[dict]:
     cfg = VARIANTES[var]
     y, X = _G["series"][nome], _G["X"]
     origem = pd.Timestamp(origem)
-    treino = y[y.index < origem]
+    treino = _treino(y, origem)
     futuro = pd.date_range(origem, periods=HORIZONTE, freq="D")
     try:
         res = _ajustar(_z(treino, cfg["log"]), X.loc[treino.index], tuple(order), tuple(sorder))
@@ -611,7 +624,8 @@ def consolidar(slug: str, unidade: str) -> dict:
             "exogenas": list(X.columns),
             "horizonte_dias": HORIZONTE, "passo_origem_dias": PASSO,
             "primeira_origem": str(PRIMEIRA_ORIGEM.date()), "n_origens": len(lista_origens),
-            "janela": "expansiva", "alpha_ic": ALPHA,
+            "janela": "expansiva" if JANELA_TREINO is None else "deslizante",
+            "janela_dias": JANELA_TREINO, "alpha_ic": ALPHA,
             "adi_corte_projeto": ADI_CORTE, "min_span_dias_projeto": MIN_SPAN_DIAS,
             "ajustes_sem_convergencia": falhas,
             "nota_aic": ("AIC compara ordens dentro da mesma serie, mesma escala e mesmo d. "
@@ -641,10 +655,24 @@ def main() -> None:
     ap.add_argument("--listar-series", action="store_true")
     ap.add_argument("--consolidar", action="store_true")
     ap.add_argument("--refazer-aic", action="store_true", help="ignora o cache do grid de AIC")
+    ap.add_argument("--janela", type=int, default=None,
+                    help="janela de treino deslizante em dias (omitido = expansiva)")
+    ap.add_argument("--variantes", default=None,
+                    help="subconjunto de variantes separado por virgula (ex.: 'sem_log|d0')")
     a = ap.parse_args()
     unidade = UNIDADES[a.unidade]
-    # O slug carrega o alvo: o cache de AIC da venda total nao serve para o fluxo.
+    global JANELA_TREINO, VARIANTES
+    JANELA_TREINO = a.janela
+    if a.variantes:
+        escolhidas = [v.strip() for v in a.variantes.split(",")]
+        faltam = [v for v in escolhidas if v not in VARIANTES]
+        if faltam:
+            ap.error(f"variante(s) desconhecida(s): {faltam}")
+        VARIANTES = {v: VARIANTES[v] for v in escolhidas}
+    # O slug carrega o alvo e a janela: cache de AIC de outra janela nao serve.
     slug = f"variantes_log_d_fluxo_{a.unidade.replace('-', '_')}"
+    if JANELA_TREINO is not None:
+        slug += f"_jan{JANELA_TREINO}"
 
     if a.listar_series:
         series, _, meta = montar_series(unidade)

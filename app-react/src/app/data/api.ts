@@ -3,7 +3,7 @@
  * cliente HTTP (`@/lib/http/client`), que renova o acesso sozinho quando expira.
  */
 import { http } from "@/lib/http/client";
-import type { BaseReal, Contexto, DiaHistorico, Perfil } from "@/domain/types";
+import type { BaseReal, Contexto, DiaHistoricoPrevisao, Perfil } from "@/domain/types";
 import type { AnalisesJson } from "./analises";
 
 export interface UsuarioApi {
@@ -26,18 +26,71 @@ export interface ResultadoUpload {
   rows_skipped: number;
   rows_duplicate: number;
   processing_time_seconds: number;
-  retrain_scheduled: boolean;
-  /** início do treino automático após o upload; nulo = fica para o treino semanal */
-  retrain_at: string | null;
+  /** Venda nova: a previsão só a usa depois de "Treinar previsões" (o treino não roda sozinho). */
+  needs_training: boolean;
   errors: string[];
 }
 
-export interface StatusModelos {
-  last_retrain_at: string | null;
-  next_retrain_at: string | null;
-  forecast_until: string | null;
-  is_training: boolean;
-  last_retrain_summary: string | null;
+/** Conferência da planilha antes de gravar (`POST /api/v1/upload/verificacao`): nada é gravado. */
+export interface VerificacaoUpload {
+  filename: string;
+  period_start: string;
+  period_end: string;
+  rows_new: number;
+  rows_duplicate: number;
+  rows_skipped: number;
+  units: { unit_id: string; unit_name: string; first_day: string; last_day: string; rows: number; last_day_loaded: string | null }[];
+  /** Lojas com dia de loja aberta que ficaria sem venda na base; `message` é o aviso pronto. */
+  missing_days: { unit_id: string; unit_name: string; days: number; ranges: { start: string; end: string }[]; message: string }[];
+  /** Avisos da leitura (linhas ignoradas). */
+  warnings: string[];
+}
+
+/** Serviço de previsão (`/api/v1/servico-previsao/*`, só admin). */
+export type StatusTreino = "pending" | "running" | "done" | "error" | "skipped";
+
+export interface TreinoServico {
+  id: number;
+  status: StatusTreino;
+  criado_em: string;
+  iniciado_em: string | null;
+  concluido_em: string | null;
+  dados_ate: string | null;
+  total_series: number;
+  series_concluidas: number;
+  progresso_pct: number;
+  serie_atual: string | null;
+  series_treinadas: number;
+  series_baixa_confianca: number;
+  series_dados_insuficientes: number;
+  series_com_erro: number;
+  mensagem: string | null;
+}
+
+export interface StatusServicoPrevisao {
+  treino_na_api: boolean;
+  em_andamento: TreinoServico | null;
+  ultimo: TreinoServico | null;
+  ultimo_concluido_em: string | null;
+  /** se um disparo agora treinaria; nulo enquanto há treino em andamento */
+  dados_alterados: boolean | null;
+  config: {
+    m: number;
+    d: number;
+    D: number;
+    janela_dias: number;
+    origens: number;
+    passo_dias: number;
+    horizonte_dias: number;
+    base: string;
+    categoria_produtos: string;
+  };
+}
+
+export interface DisparoTreino {
+  iniciado: boolean;
+  mensagem: string;
+  treino: TreinoServico;
 }
 
 /** Filtros, ordem e página da tela Conferir Dados (query de `/api/v1/registros/*`). */
@@ -54,7 +107,7 @@ export const api = {
   contexto: () => http.get<Contexto>("/api/v1/contexto"),
   painel: () => http.get<BaseReal>("/api/v1/painel"),
   historico: (loja: string, nivel: "categoria" | "produto", item: string) =>
-    http.get<DiaHistorico[]>(
+    http.get<DiaHistoricoPrevisao[]>(
       `/api/v1/painel/historico/${encodeURIComponent(loja)}/${nivel}/${encodeURIComponent(item)}`,
     ),
   analises: () => http.get<AnalisesJson>("/api/v1/analises"),
@@ -69,11 +122,17 @@ export const api = {
     http.get<T>("/api/v1/registros/nota", { query: { loja, data, nota } }),
   exportarRegistros: <T>(query: ConsultaRegistros) => http.get<T>("/api/v1/registros/exportar", { query }),
 
+  verificarPlanilha: (arquivo: File) => {
+    const formData = new FormData();
+    formData.append("file", arquivo);
+    return http.post<VerificacaoUpload>("/api/v1/upload/verificacao", undefined, { formData });
+  },
   enviarPlanilha: (arquivo: File) => {
     const formData = new FormData();
     formData.append("file", arquivo);
     return http.post<ResultadoUpload>("/api/v1/upload", undefined, { formData });
   },
-  statusModelos: () => http.get<StatusModelos>("/api/v1/models/status"),
-  atualizarModelos: () => http.post<{ message: string; started_at: string }>("/api/v1/models/retrain"),
+
+  statusServicoPrevisao: () => http.get<StatusServicoPrevisao>("/api/v1/servico-previsao/status"),
+  treinarPrevisoes: () => http.post<DisparoTreino>("/api/v1/servico-previsao/treinos"),
 };

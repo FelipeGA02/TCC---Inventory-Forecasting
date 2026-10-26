@@ -11,7 +11,8 @@ de `DATABASE_URL` (SQLite local ou Postgres no Neon):
   * `sales`: uma linha por produto vendido, só com os campos que o sistema usa;
   * `calendar_days`: calendário por loja (Etapa 10).
 
-As tabelas de previsão ficam vazias: são preenchidas pelo treino.
+As tabelas de previsão ficam vazias: são preenchidas pelo treino ("Treinar previsões" na
+tela, ou `python -m backend.scripts.treinar_previsoes`).
 
 Só roda com o banco vazio. `--recriar` apaga TODAS as tabelas (inclusive usuários e
 previsões) e cria de novo antes da carga.

@@ -124,51 +124,6 @@ export function BarraFiltros({ extra }: { extra?: ReactNode }) {
   );
 }
 
-/** Interruptor simples (sem dependência extra) para "somente produtos regulares". */
-export function Interruptor({ ligado, onChange, rotulo, dica }: { ligado: boolean; onChange: (v: boolean) => void; rotulo: string; dica?: string }) {
-  return (
-    <label className="inline-flex items-center gap-2 cursor-pointer select-none" title={dica}>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={ligado}
-        onClick={() => onChange(!ligado)}
-        className="relative w-9 h-5 rounded-full transition-colors flex-shrink-0"
-        style={{ background: ligado ? "var(--primary)" : "#c4ccc6" }}
-      >
-        <span
-          className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all"
-          style={{ left: ligado ? 18 : 2, boxShadow: "0 1px 2px rgba(0,0,0,.2)" }}
-        />
-      </button>
-      <span className="text-xs" style={{ color: "var(--foreground)", fontWeight: 500 }}>
-        {rotulo}
-      </span>
-    </label>
-  );
-}
-
-/** Selo do tipo de produto: regular (tem previsão própria) ou irregular (só histórico). */
-export function SeloRegular({ regular }: { regular: boolean }) {
-  return regular ? (
-    <span
-      className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] whitespace-nowrap"
-      style={{ background: "#e8f5e0", color: "#1a6b3c", border: "1px solid #b4dbb4", fontWeight: 600 }}
-      title="Vende quase todo dia: tem modelo e previsão diária próprios"
-    >
-      regular
-    </span>
-  ) : (
-    <span
-      className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] whitespace-nowrap"
-      style={{ background: "#f1f3f5", color: "#5a6471", border: "1px solid #d8dce1", fontWeight: 600 }}
-      title="Venda esparsa ou irregular: sem previsão diária, só histórico"
-    >
-      irregular
-    </span>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Peças visuais
 // ---------------------------------------------------------------------------

@@ -6,9 +6,8 @@
 import { Component, Suspense, useEffect, useState, type ErrorInfo, type ReactNode } from "react";
 import { AlertTriangle, Loader2, RefreshCw } from "lucide-react";
 import { ApiError, mensagemDoErro } from "@/lib/http/errors";
-import { useAuth } from "../../auth/AuthContext";
-import { api } from "../../data/api";
 import { useDados } from "../../data/CarregarDados";
+import { useServicoPrevisao } from "../../data/ServicoPrevisao";
 import { estaoProntos, garantir, type Recurso } from "../../data/recursos";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
@@ -25,15 +24,15 @@ export function CarregandoTela({ mensagem }: { mensagem: string }) {
 }
 
 export function ErroTela({ mensagem, onTentar }: { mensagem: string; onTentar: () => void }) {
-  const { usuario } = useAuth();
+  const { disponivel: admin, disparar } = useServicoPrevisao();
   const treinoNaApi = useDados().contexto?.configuracao.treino_na_api !== false;
   const [aviso, setAviso] = useState<string | null>(null);
-  const atualizarModelos = () => {
+  // Sem previsão gravada (409), a gestora treina daqui mesmo; o andamento aparece no sino
+  const treinar = () => {
     setAviso(null);
-    api
-      .atualizarModelos()
-      .then((r) => setAviso(r.message))
-      .catch((e: unknown) => setAviso(mensagemDoErro(e)));
+    disparar()
+      .then((r) => setAviso(r.iniciado ? "Treino iniciado. Acompanhe o andamento no sino de notificações." : r.mensagem))
+      .catch((e: unknown) => setAviso(e instanceof ApiError && e.detail ? e.detail : mensagemDoErro(e)));
   };
   return (
     <div className="h-full min-h-[60vh] flex items-center justify-center p-6">
@@ -56,9 +55,9 @@ export function ErroTela({ mensagem, onTentar }: { mensagem: string; onTentar: (
             </div>
           </div>
           <div className="flex flex-wrap gap-2 justify-end">
-            {usuario?.perfil === "admin" && treinoNaApi && (
-              <Button variant="outline" onClick={atualizarModelos}>
-                Atualizar os modelos
+            {admin && treinoNaApi && (
+              <Button variant="outline" onClick={treinar}>
+                Treinar previsões
               </Button>
             )}
             <Button className="gap-2" style={{ background: "var(--primary)", color: "#fff" }} onClick={onTentar}>

@@ -20,7 +20,7 @@ export interface EstiloStatus {
   borda: string;
 }
 
-/** Status do modelo L1 em linguagem da loja (CLAUDE.md, limiares de qualidade). */
+/** Status da previsão de cada categoria e produto de grama, em linguagem da loja (CLAUDE.md, limiares de qualidade). */
 export const estiloStatus: Record<StatusModelo, EstiloStatus> = {
   trained: {
     label: "Confiável",
@@ -38,10 +38,17 @@ export const estiloStatus: Record<StatusModelo, EstiloStatus> = {
   },
   insufficient_data: {
     label: "Poucos dados",
-    explicacao: "A loja tem menos de 180 dias de vendas: ainda não dá para prever.",
+    explicacao: "Vendeu pouco para prever: menos de 180 dias de histórico ou, no produto, venda em poucos dias do último ano.",
     cor: "#d4183d",
     fundo: "#fff0f3",
     borda: "#f5c2cc",
+  },
+  error: {
+    label: "Sem previsão",
+    explicacao: "O cálculo desta previsão falhou no último treino. Treine de novo; se continuar, avise a equipe do projeto.",
+    cor: "#a12622",
+    fundo: "#fdecea",
+    borda: "#f5c2bf",
   },
   training: {
     label: "Calculando",

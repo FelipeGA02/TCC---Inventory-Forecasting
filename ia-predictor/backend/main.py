@@ -6,12 +6,17 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
-from backend.api import router_auth, router_health, router_models, router_painel, router_upload
+from backend.api import (
+    router_auth,
+    router_health,
+    router_painel,
+    router_servico_previsao,
+    router_upload,
+)
 from backend.auth.dependencies import get_current_user
 from backend.auth.seed_users import seed_initial_users
 from backend.config import settings
 from backend.infrastructure.database import SessionLocal, create_tables
-from backend.infrastructure.scheduler import start_scheduler, stop_scheduler
 
 log = logging.getLogger(__name__)
 
@@ -27,7 +32,7 @@ def _aquecer_cache() -> None:
         with SessionLocal() as db:
             painel_service.analises(db)
         with SessionLocal() as db:
-            painel_service.painel_leve(db)
+            painel_service.painel(db)
     except painel_service.PrevisaoIndisponivel:
         log.info("cache: ainda não há previsão gravada")
     except Exception:
@@ -38,11 +43,8 @@ def _aquecer_cache() -> None:
 async def lifespan(_app: FastAPI):
     create_tables()
     seed_initial_users()
-    if settings.TRAINING_RUNNER == "local":
-        start_scheduler()  # com TRAINING_RUNNER=externo a API não treina (ver disparo_treino)
     threading.Thread(target=_aquecer_cache, daemon=True, name="aquecer-cache").start()
     yield
-    stop_scheduler()
 
 
 app = FastAPI(
@@ -70,11 +72,12 @@ app.include_router(router_health.router, tags=["health"])
 app.include_router(router_auth.router, prefix="/auth", tags=["auth"])
 
 # Endpoints protegidos — exigem Authorization: Bearer <access_token> em todos.
-# Perfis mínimos (admin em upload/retrain) são aplicados dentro de cada router.
-# products, forecast, alerts, simulation e reports (openapi.yaml) ainda não têm
-# implementação (os routers estão vazios): as telas leem tudo de /api/v1/painel.
+# Perfis mínimos (admin no envio de planilha e em todo o serviço de previsão) são aplicados
+# dentro de cada router. O treino roda só quando o admin pede ("Treinar previsões") ou pelo
+# script `treinar_previsoes` (ADR-017): não há agendador.
 _v1_auth = [Depends(get_current_user)]
 
 app.include_router(router_painel.router, prefix="/api/v1", tags=["painel"], dependencies=_v1_auth)
 app.include_router(router_upload.router, prefix="/api/v1", tags=["upload"], dependencies=_v1_auth)
-app.include_router(router_models.router, prefix="/api/v1", tags=["models"], dependencies=_v1_auth)
+app.include_router(router_servico_previsao.router, prefix="/api/v1", tags=["servico-previsao"],
+                   dependencies=_v1_auth)

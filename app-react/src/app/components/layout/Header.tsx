@@ -14,12 +14,13 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import { Notificacoes } from "./Notificacoes";
+import { TreinarPrevisoes } from "./TreinarPrevisoes";
 
 const routeTitles: Record<string, { title: string; subtitle: string }> = {
   "/": { title: "Início", subtitle: "Visão geral das vendas da base: faturamento, mix, clientes e produtos" },
-  "/importar": { title: "Carregar Planilha de Vendas", subtitle: "Envie o relatório mensal de vendas para atualizar as previsões" },
+  "/importar": { title: "Carregar Planilha de Vendas", subtitle: "Envie o relatório de vendas e depois treine as previsões" },
   "/pre-visualizacao": { title: "Conferir Dados", subtitle: "Gerencie os dados importados pelas planilhas" },
-  "/previsao": { title: "Previsão de Vendas", subtitle: "Previsão diária por loja, categoria e produto, e o histórico das previsões" },
+  "/previsao": { title: "Previsão de Vendas", subtitle: "Previsão diária das categorias e dos produtos de grama de cada loja, e o histórico das previsões" },
   "/exportar": { title: "Relatórios", subtitle: "Escolha, confira a prévia e baixe em Excel, CSV ou PDF" },
 };
 
@@ -59,6 +60,7 @@ export function Header() {
           <RefreshCw size={14} className={atualizando ? "animate-spin" : undefined} />
           {atualizando ? "Atualizando..." : "Atualizar"}
         </Button>
+        <TreinarPrevisoes />
         <Notificacoes />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

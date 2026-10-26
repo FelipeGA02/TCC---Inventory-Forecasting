@@ -1,21 +1,22 @@
 """Montagem do painel do frontend (formato `BaseReal` de `app-react/src/domain/types.ts`).
 
 Lógica pura (pandas), sem banco nem HTTP: recebe as vendas, o calendário e os previsores
-de um treino já lidos do banco e devolve o dicionário que a API entrega.
+do último treino concluído já lidos do banco e devolve o dicionário que a API entrega.
 
-A parte descritiva (histórico, produtos, encomendas, contagens) é a de `gerar_unidade` em
-`training_scripts/frontend_mock/gerar_dados_frontend.py`, calculada aqui a partir das
-vendas até `retrain_history.data_until` — os resumos não são gravados no banco. A parte
-de previsão (modelo da loja, desagregação por categoria, produtos regulares) vem pronta
-do treino em `previsores`:
+A parte descritiva (histórico, produtos, encomendas, contagens) é calculada das vendas até
+`forecast_jobs.data_until` — os resumos não são gravados no banco. A parte de previsão vem
+pronta do treino (ADR-017: SARIMAX direto em cada categoria e em cada produto de grama, por
+loja) em `previsores`:
 
     previsores[loja] = {
-        "loja": {"modelo": {...}, "backtest": [...], "previsao": [...]},
-        "categorias": {categoria: {"status", "metricas", "backtest", "previsao"}},
-        "produtos": {codigo: {"modelo": {...} | None, "backtest": [...], "previsao": [...]}},
+        "categorias": {categoria: {"modelo": {...} | None, "previsao": [...], "backtest": [...]}},
+        "produtos": {codigo: {"modelo": {...} | None, "previsao": [...]}},
     }
 
-com cada ponto de `backtest` trazendo `origem` (início da rodada do walk-forward).
+`modelo` = {ordem, ordem_sazonal, aic, status, metricas, mensagem} (sem previsão, só
+`status` e `mensagem`); `backtest` = o 1º dia de cada janela do walk-forward (h = 1). A
+previsão da loja é a soma das 4 categorias, dia a dia — inclusive os limites da faixa, o
+que dá uma faixa conservadora (mais larga que a exata da soma).
 """
 from __future__ import annotations
 
@@ -23,16 +24,28 @@ import pandas as pd
 
 DIA_CURTO = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"]
 JANELA_8_SEMANAS_DIAS = 56
-IRREGULARES_POR_CATEGORIA = 8
 ULTIMAS_ENCOMENDAS = 12
+_FAIXA = ("previsto", "inf", "sup")
 
 
 def r1(v) -> float:
     return round(float(v), 1)
 
 
-def _sem_origem(pontos: list[dict]) -> list[dict]:
-    return [{k: v for k, v in p.items() if k != "origem"} for p in pontos]
+def metricas_da_tela(m: dict | None) -> dict | None:
+    """Métricas do walk-forward (`series_models.metrics`) com os nomes do frontend
+    (`MetricasModelo`): cada origem é uma previsão de 14 dias, a "rodada" da tela. Treino
+    anterior à contagem de origens vencidas a calcula pela porcentagem."""
+    if not m:
+        return None
+    rodadas = m.get("origens")
+    vence = m.get("origens_vence_naive")
+    if vence is None and rodadas and m.get("origens_vence_naive_pct") is not None:
+        vence = round(m["origens_vence_naive_pct"] * rodadas / 100)
+    return {"rodadas": rodadas, "rodadas_vence_naive": vence,
+            **{k: m.get(k) for k in ("dias_avaliados", "mae", "mase", "erro_relativo_naive", "cobertura_ic95_pct",
+                                     "largura_ic95", "venda_media_dia", "previsto_sobre_real_pct",
+                                     "erro_total_14d_pct", "ljung_box_p", "shapiro_p")}}
 
 
 def _evento(dia) -> str | None:
@@ -42,15 +55,24 @@ def _evento(dia) -> str | None:
     return None
 
 
-def rodadas(backtest: list[dict], fechados: set) -> list[dict]:
-    """Erro de cada rodada do walk-forward (modelo e naïve) nos dias de loja aberta."""
-    if not backtest:
-        return []
-    bt = pd.DataFrame(backtest)
-    bt = bt[~pd.to_datetime(bt["data"]).isin(fechados)]
-    return [{"origem": o, "erro_modelo": r1((g["previsto"] - g["real"]).abs().sum()),
-             "erro_naive": r1((g["naive"] - g["real"]).abs().sum())}
-            for o, g in bt.groupby("origem", sort=True)]
+def _previsao_da_loja(prev: dict, cal_u: pd.DataFrame, ids_cat: list[str]) -> list[dict]:
+    """Os dias previstos das categorias, com loja fechada e evento do calendário; o total do
+    dia é a soma das categorias (categoria sem previsão entra com zero)."""
+    por_cat = {k: {d["data"]: d for d in (prev["categorias"].get(k) or {}).get("previsao", [])} for k in ids_cat}
+    datas = sorted({d for dias in por_cat.values() for d in dias})
+    previsao = []
+    for data in datas:
+        dia = pd.Timestamp(data)
+        c = cal_u.loc[dia] if dia in cal_u.index else None
+        cats = {k: {x: por_cat[k].get(data, {}).get(x, 0.0) for x in _FAIXA} for k in ids_cat}
+        previsao.append({
+            "data": data, "dia_semana": DIA_CURTO[dia.weekday()],
+            "loja_fechada": bool(c["loja_fechada"]) if c is not None else dia.weekday() == 6,
+            "evento": _evento(c) if c is not None else None,
+            **{x: round(sum(cats[k][x] for k in ids_cat), 3) for x in _FAIXA},
+            "categorias": cats,
+        })
+    return previsao
 
 
 def montar_unidade(v: pd.DataFrame, cal_u: pd.DataFrame, loja: dict, ids_cat: list[str],
@@ -62,21 +84,6 @@ def montar_unidade(v: pd.DataFrame, cal_u: pd.DataFrame, loja: dict, ids_cat: li
     ini, fim = v["emissao"].min(), v["emissao"].max()
     idx = pd.date_range(ini, fim, freq="D")
     fechados = set(cal_u.index[cal_u["loja_fechada"] == 1])
-
-    # ---- Previsão (loja + categorias), com loja fechada e evento do calendário
-    por_cat = {k: {d["data"]: d for d in prev["categorias"].get(k, {}).get("previsao", [])} for k in ids_cat}
-    previsao = []
-    for d in prev["loja"]["previsao"]:
-        dia = pd.Timestamp(d["data"])
-        c = cal_u.loc[dia] if dia in cal_u.index else None
-        previsao.append({
-            "data": d["data"], "dia_semana": DIA_CURTO[dia.weekday()],
-            "loja_fechada": bool(c["loja_fechada"]) if c is not None else False,
-            "evento": _evento(c) if c is not None else None,
-            "previsto": d["previsto"], "inf": d["inf"], "sup": d["sup"],
-            "categorias": {k: {x: por_cat[k].get(d["data"], {}).get(x, 0.0) for x in ("previsto", "inf", "sup")}
-                           for k in ids_cat},
-        })
 
     # ---- Histórico (venda sem encomendas por categoria + encomendas à parte)
     painel = fluxo[fluxo["cat"].isin(ids_cat)]
@@ -95,35 +102,28 @@ def montar_unidade(v: pd.DataFrame, cal_u: pd.DataFrame, loja: dict, ids_cat: li
          "encomendas": r1(sem_enc.loc[d]), "categorias": {k: r1(row.get(k, 0)) for k in ids_cat}}
         for d, row in sem.iterrows()]
 
-    # ---- Produtos: regulares (com previsor no treino) + principais irregulares
+    # ---- Produtos de grama do treino (com ou sem modelo), na ordem da previsão de 14 dias
     matriz = (fluxo.groupby(["emissao", "produto_cod"])["qtdade"].sum().unstack(fill_value=0.0)
               .reindex(idx, fill_value=0.0))
-    cat_sku = fluxo.groupby("produto_cod")["cat"].agg(lambda x: x.mode().iloc[0])
-    regulares = sorted(s for s in prev["produtos"] if cat_sku.get(s) in ids_cat)
+    cat_sku = v.groupby("produto_cod")["cat"].agg(lambda x: x.mode().iloc[0])
     j8 = painel[painel["emissao"] >= ini8]
     vend8 = j8.groupby("produto_cod")["qtdade"].sum()
-    irregulares = []
-    for k in ids_cat:
-        cand = vend8[[s for s in vend8.index if cat_sku.get(s) == k and s not in prev["produtos"]]]
-        irregulares += list(cand.sort_values(ascending=False).head(IRREGULARES_POR_CATEGORIA).index)
-
     nomes = v.groupby("produto_cod")["produto_nome"].last()
     subcats = v.groupby("produto_cod")["categoria_fina"].agg(lambda x: x.mode().iloc[0])
     vendido_total = fluxo.groupby("produto_cod")["qtdade"].sum()
     vendido_enc = enc.groupby("produto_cod")["qtdade"].sum()
     produtos = []
-    for s in regulares + irregulares:
+    for s, p in prev["produtos"].items():
+        if s not in nomes.index:
+            continue  # produto do treino sem venda na loja até o fim do treino
         d = matriz[s] if s in matriz else pd.Series(0.0, index=idx)
         desde_1a = d[d.index >= d[d > 0].index.min()] if (d > 0).any() else d
         aberto = desde_1a[~desde_1a.index.isin(fechados)]
         sem8 = (desde_1a.reindex(pd.date_range(ini8, fim), fill_value=0)
                 .resample("W-SUN", label="left", closed="left").sum())
-        p = prev["produtos"].get(s)
-        mod = p["modelo"] if p else None
-        previsao_p = p["previsao"] if p and mod else []
+        previsao_p = p["previsao"]  # vazia quando o produto ficou sem modelo neste treino
         produtos.append({
             "codigo": s, "nome": nomes[s], "categoria": cat_sku[s], "subcategoria": subcats[s],
-            "regular": s in prev["produtos"],
             "dias_com_venda": int((desde_1a > 0).sum()),
             "pct_dias_abertos_com_venda": r1((aberto > 0).mean() * 100) if len(aberto) else 0.0,
             "media_dia_aberto": r1(aberto.mean()) if len(aberto) else 0.0,
@@ -133,11 +133,11 @@ def montar_unidade(v: pd.DataFrame, cal_u: pd.DataFrame, loja: dict, ids_cat: li
             "historico_semanal": [r1(x) for x in sem8.values],
             "historico_diario": [{"data": str(dt.date()), "vendido": r1(x)}
                                  for dt, x in d.loc[fim - pd.Timedelta(days=27):fim].items()],
-            "modelo": mod,
+            "modelo": p["modelo"],
             "previsao": previsao_p,
-            "previsao_14d": r1(sum(x["previsto"] for x in previsao_p)) if mod else None,
-            "backtest": _sem_origem(p["backtest"]) if p and mod else [],
+            "previsao_14d": r1(sum(x["previsto"] for x in previsao_p)) if previsao_p else None,
         })
+    produtos.sort(key=lambda x: (x["previsao_14d"] is None, -(x["previsao_14d"] or x["vendido_8_semanas"])))
 
     # ---- Encomendas: resumo e últimas
     if len(enc):
@@ -157,7 +157,6 @@ def montar_unidade(v: pd.DataFrame, cal_u: pd.DataFrame, loja: dict, ids_cat: li
         "ultimas": ultimas,
     }
 
-    modelo = {**prev["loja"]["modelo"], "rodadas": rodadas(prev["loja"]["backtest"], fechados)}
     return {
         **loja,
         "periodo": {"inicio": str(ini.date()), "fim": str(fim.date()), "dias": len(idx)},
@@ -166,21 +165,13 @@ def montar_unidade(v: pd.DataFrame, cal_u: pd.DataFrame, loja: dict, ids_cat: li
         "volume_flores_de_corte": r1(fluxo.loc[fluxo["cat"] == "flores-de-corte", "qtdade"].sum()),
         "volume_por_categoria": {k: r1(painel.loc[painel["cat"] == k, "qtdade"].sum()) for k in ids_cat},
         "skus_por_categoria": {k: int(painel.loc[painel["cat"] == k, "produto_cod"].nunique()) for k in ids_cat},
-        "regulares_por_categoria": {k: sum(1 for s in regulares if cat_sku[s] == k) for k in ids_cat},
-        "volume_regulares_8_semanas_pct": {
-            k: r1(sum(vend8.get(s, 0) for s in regulares if cat_sku[s] == k)
-                  / max(1.0, float(j8.loc[j8["cat"] == k, "qtdade"].sum())) * 100) for k in ids_cat},
-        # Flores de corte é categoria do painel desde a taxonomia de 4 categorias
-        "flores_regulares_fora_do_painel": 0,
         "encomendas": encomendas,
-        "modelo": modelo,
-        "desagregacao": {k: {"metricas": c["metricas"], "status": c["status"], "backtest": _sem_origem(c["backtest"])}
-                         for k in ids_cat if (c := prev["categorias"].get(k))},
-        "previsao": previsao,
+        "categorias_modelo": {k: (prev["categorias"].get(k) or {}).get("modelo") for k in ids_cat},
+        "previsao": _previsao_da_loja(prev, cal_u, ids_cat),
         "historico_diario": historico_diario,
         "historico_semanal": historico_semanal,
         "produtos": produtos,
-        "backtest": _sem_origem(prev["loja"]["backtest"]),
+        "backtest_categorias": {k: (prev["categorias"].get(k) or {}).get("backtest", []) for k in ids_cat},
     }
 
 
@@ -194,23 +185,6 @@ def venda_diaria(v: pd.DataFrame, coluna: str, item: str, fim: pd.Timestamp) -> 
         return None
     ini = (fluxo if coluna == "cat" else do_item)["emissao"].min()
     return do_item.groupby("emissao")["qtdade"].sum().reindex(pd.date_range(ini, fim, freq="D"), fill_value=0.0)
-
-
-def amostra_registros(df: pd.DataFrame, lojas: list[dict]) -> list[dict]:
-    """Últimos 2 dias com venda de cada loja — o cliente vira só o tipo."""
-    linhas = []
-    for u in lojas:
-        v = df[df["unit_id"] == u["id"]]
-        dias = sorted(v["emissao"].unique())[-2:]
-        for r in v[v["emissao"].isin(dias)].sort_values(["emissao", "doc_numero"]).itertuples():
-            linhas.append({
-                "data": str(pd.Timestamp(r.emissao).date()), "documento": r.doc_numero,
-                "codigo": r.produto_cod, "produto": r.produto_nome, "unidade": u["id"],
-                "categoria": r.cat, "quantidade": r1(r.qtdade), "valor": round(float(r.vl_total), 2),
-                "tipo_cliente": "Cadastrado" if r.cadastrado else "Consumidor",
-                "encomenda": bool(r.encomenda),
-            })
-    return linhas
 
 
 def montar_painel(df: pd.DataFrame, cal: pd.DataFrame, lojas: list[dict], categorias: list[dict],
@@ -227,7 +201,7 @@ def montar_painel(df: pd.DataFrame, cal: pd.DataFrame, lojas: list[dict], catego
         unidades.append(montar_unidade(df[df["unit_id"] == u["id"]], cal_u, u, ids_cat, previsores[u["id"]]))
     return {
         "gerado_em": gerado_em,
-        "fonte": "banco de dados (vendas, calendário e o último treino concluído)",
+        "fonte": "banco de dados (vendas, calendário e o último treino concluído da previsão)",
         "base": {
             "inicio": str(df["emissao"].min().date()), "fim": str(df["emissao"].max().date()),
             "linhas": int(len(df)), "skus": int(df["produto_cod"].nunique()),
@@ -236,6 +210,5 @@ def montar_painel(df: pd.DataFrame, cal: pd.DataFrame, lojas: list[dict], catego
         "configuracao": configuracao,
         "categorias": categorias,
         "unidades": unidades,
-        "registros_amostra": amostra_registros(df, lojas),
         "importacao": importacao,
     }

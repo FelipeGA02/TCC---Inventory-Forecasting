@@ -1,16 +1,14 @@
 /**
- * Tipos do frontend. Reproduzem o JSON gerado por
- * `ia-predictor/training_scripts/frontend_mock/gerar_dados_frontend.py`, que por sua vez
- * segue o formato que os endpoints `/api/v1/*` devolverão.
+ * Tipos do frontend, no formato que os endpoints `/api/v1/*` devolvem (`ia-predictor/openapi.yaml`).
  *
- * Metodologia (etapa de testes, e-mail ao orientador):
- *  - encomendas (venda > 2.000 un. na nota) ficam fora da previsão e aparecem à parte;
- *  - loja: SARIMAX na venda sem encomendas, sem log1p, janela deslizante;
- *  - categoria: participação na previsão da loja (filtro de leitura, sem modelo próprio);
- *  - produto regular: SARIMAX no próprio produto; demais produtos só com histórico.
+ * Previsão (ADR-017), treinada pelo botão "Treinar previsões":
+ *  - encomendas grandes (venda > 2.000 un. na nota) ficam fora da previsão e aparecem à parte;
+ *  - cada uma das 4 categorias e cada produto de grama, em cada loja, tem o seu SARIMAX
+ *    (m = 7, d = 0, D = 0, janela deslizante de 365 dias, testado dia a dia em 8 semanas);
+ *  - o total da loja é a soma das 4 categorias.
  */
 
-export type StatusModelo = "trained" | "low_confidence" | "insufficient_data" | "training";
+export type StatusModelo = "trained" | "low_confidence" | "insufficient_data" | "error" | "training";
 
 export type Perfil = "admin" | "viewer";
 
@@ -69,9 +67,10 @@ export interface SemanaHistorico {
   categorias: PorCategoria<number>;
 }
 
+/** Teste de acerto (walk-forward): cada "rodada" é uma previsão de 14 dias, com a origem andando 1 dia. */
 export interface MetricasModelo {
   rodadas: number;
-  rodadas_vence_naive: number;
+  rodadas_vence_naive: number | null;
   dias_avaliados: number;
   mae: number;
   mase: number;
@@ -81,42 +80,28 @@ export interface MetricasModelo {
   venda_media_dia: number;
   previsto_sobre_real_pct: number | null;
   erro_total_14d_pct: number | null;
+  /** Resíduos do ajuste final: p ≤ 0,05 aponta correlação (Ljung-Box) ou fuga da normal (Shapiro-Wilk). */
+  ljung_box_p: number | null;
+  shapiro_p: number | null;
 }
 
-export interface RodadaValidacao {
-  origem: string;
-  erro_modelo: number;
-  erro_naive: number;
-}
-
-export interface ModeloUnidade {
-  ordem: number[];
-  ordem_sazonal: number[];
-  aic: number;
-  transformacao: string;
-  janela: string;
-  janela_dias: number;
-  base: string;
-  exogenas: string[];
+/** SARIMAX de uma categoria ou de um produto de grama numa loja. Sem previsão: só status e motivo. */
+export interface ModeloSerie {
+  ordem: number[] | null;
+  ordem_sazonal: number[] | null;
+  aic: number | null;
   status: StatusModelo;
-  metricas: MetricasModelo;
-  rodadas: RodadaValidacao[];
-}
-
-export interface ModeloProduto {
-  ordem: number[];
-  ordem_sazonal: number[];
   metricas: MetricasModelo | null;
-  status: StatusModelo;
+  /** Por que a série ficou sem previsão (poucos dados, falha no ajuste). */
+  mensagem: string | null;
 }
 
+/** Produto de grama de uma loja, com o seu modelo (sem previsão se vendeu pouco). */
 export interface Produto {
   codigo: string;
   nome: string;
   categoria: CategoriaId;
   subcategoria: string;
-  /** Venda regular (ADI < 1,32) → tem modelo e previsão diária próprios. */
-  regular: boolean;
   dias_com_venda: number;
   pct_dias_abertos_com_venda: number;
   media_dia_aberto: number;
@@ -127,11 +112,10 @@ export interface Produto {
   historico_semanal: number[];
   /** Venda diária (sem encomendas) dos últimos 28 dias. */
   historico_diario?: { data: string; vendido: number }[];
-  modelo: ModeloProduto | null;
+  modelo: ModeloSerie;
+  /** Vazia quando o produto ficou sem modelo neste treino. */
   previsao: (Faixa & { data: string })[];
   previsao_14d: number | null;
-  /** Previsto × vendido em todo o período testado (rodadas de 14 dias). */
-  backtest?: DiaBacktest[];
 }
 
 /** Produto com a loja a que pertence (para o filtro "Todas as lojas"). */
@@ -152,22 +136,21 @@ export interface DiaBacktest extends Faixa {
 }
 
 /**
- * Um dia do histórico da previsão (`/painel/historico/...`): o vendido sem encomendas
- * grandes e o previsto gravado — o da última previsão feita antes do dia. Previsto nulo antes
- * da data fixa de treino.
+ * Um dia do histórico da previsão (`/api/v1/painel/historico/...`): o vendido sem encomendas
+ * grandes e o previsto congelado — o da última previsão feita antes do dia. Nulo antes do 1º treino.
  */
-export interface DiaHistorico {
+export interface DiaHistoricoPrevisao {
   data: string;
   real: number;
   previsto: number | null;
   inf: number | null;
   sup: number | null;
-}
-
-export interface DesagregacaoCategoria {
-  metricas: MetricasModelo;
-  status: StatusModelo;
-  backtest: DiaBacktest[];
+  /** "forecast": a previsão que a loja viu; "walk_forward": dia que nenhuma previsão cobriu. */
+  fonte: "forecast" | "walk_forward" | null;
+  /** A quantos dias do início da previsão o dia estava (1 no walk-forward). */
+  horizonte: number | null;
+  /** Se a previsão contava com a loja fechada no dia (calendário da época). */
+  loja_fechada: boolean | null;
 }
 
 export interface UnidadeDados {
@@ -181,37 +164,24 @@ export interface UnidadeDados {
   volume_flores_de_corte: number;
   volume_por_categoria: PorCategoria<number>;
   skus_por_categoria: PorCategoria<number>;
-  regulares_por_categoria: PorCategoria<number>;
-  /** % da venda (sem encomendas) das últimas 8 semanas que vem dos produtos regulares. */
-  volume_regulares_8_semanas_pct: PorCategoria<number>;
-  flores_regulares_fora_do_painel: number;
   encomendas: Encomendas;
-  modelo: ModeloUnidade;
+  /** O SARIMAX de cada categoria nesta loja (nulo se a categoria não entrou no treino). */
+  categorias_modelo: PorCategoria<ModeloSerie | null>;
+  /** 14 dias a partir do dia seguinte à última venda; o total é a soma das 4 categorias. */
   previsao: DiaPrevisto[];
   historico_diario: DiaHistorico[];
   historico_semanal: SemanaHistorico[];
   produtos: Produto[];
-  backtest: DiaBacktest[];
-  /** Desagregação loja → categoria, testada nas mesmas rodadas da loja. */
-  desagregacao: PorCategoria<DesagregacaoCategoria>;
-}
-
-export interface RegistroVenda {
-  data: string;
-  documento: string;
-  codigo: string;
-  produto: string;
-  unidade: UnidadeId;
-  categoria: CategoriaId | "flores-de-corte";
-  quantidade: number;
-  valor: number;
-  tipo_cliente: "Consumidor" | "Cadastrado";
-  encomenda: boolean;
+  /** Teste de acerto de cada categoria, dia a dia: o 1º dia de cada janela do walk-forward. */
+  backtest_categorias: PorCategoria<DiaBacktest[]>;
 }
 
 export interface ArquivoImportado {
   arquivo: string;
   competencia: string;
+  /** Primeiro e último dia de venda da planilha (nulos nas da carga inicial). */
+  inicio: string | null;
+  fim: string | null;
   registros: number;
   duplicatas: number;
   hash: string;
@@ -228,21 +198,24 @@ export interface BaseReal {
     skus: number;
     skus_por_categoria: PorCategoria<number>;
   };
+  /** O treino que gerou a previsão (`forecast_jobs.config`). */
   configuracao: {
     horizonte_dias: number;
     m: number;
+    d: number;
+    D: number;
     alpha_ic: number;
-    janela_participacao_dias: number;
-    primeira_origem_validacao: string;
+    janela_dias: number;
+    origens: number;
     passo_origem_dias: number;
     limiar_encomenda_un: number;
-    criterio_regular: { adi_corte: number; min_span_dias: number; fonte: string };
-    modelo_loja: string;
-    modelo_produto: string;
+    base: string;
+    categoria_produtos: string;
+    versao_codigo: string | null;
+    dados_ate: string;
   };
   categorias: Categoria[];
   unidades: UnidadeDados[];
-  registros_amostra: RegistroVenda[];
   importacao: {
     arquivos: ArquivoImportado[];
     qualidade: {
@@ -262,14 +235,15 @@ export interface BaseReal {
 export interface Contexto {
   lojas: { id: UnidadeId; nome: string; cidade: string }[];
   categorias: Categoria[];
-  /** treino_na_api: falso quando a API não treina (Render) — o front não oferece "Atualizar os modelos" */
+  /** treino_na_api: falso quando a API não treina (Render) — o front não oferece "Treinar previsões" */
   configuracao: { horizonte_dias: number; limiar_encomenda_un: number; treino_na_api: boolean };
   base: { inicio: string | null; fim: string | null; linhas: number; skus: number };
+  /** O último treino concluído; nulo antes do primeiro. */
   previsao: {
     gerada_em: string;
     dados_ate: string;
-    lojas: { id: UnidadeId; status: StatusModelo }[];
-    produtos: { loja: UnidadeId; codigo: string; nome: string; status: StatusModelo | null }[];
+    categorias: { loja: UnidadeId; categoria: CategoriaId; status: StatusModelo }[];
+    produtos: { loja: UnidadeId; codigo: string; nome: string; status: StatusModelo }[];
   } | null;
   importacao: BaseReal["importacao"];
 }

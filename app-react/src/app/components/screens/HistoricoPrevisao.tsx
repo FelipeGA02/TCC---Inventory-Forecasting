@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "../ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
-import type { CategoriaId, DiaHistorico, MetricasModelo, ProdutoDaLoja, StatusModelo, UnidadeId } from "@/domain/types";
+import type { CategoriaId, DiaHistoricoPrevisao, MetricasModelo, ProdutoDaLoja, StatusModelo, UnidadeId } from "@/domain/types";
 import { CORES_CATEGORIA, categorias, nomeCategoria, produtosDe, unidades } from "../../data/mockData";
 import { api } from "../../data/api";
 import { mensagemDoErro } from "@/lib/http/errors";
@@ -14,10 +14,12 @@ import { eixo, estiloTooltip } from "@/styles/tokens";
 import { formatarData, formatarDiaMes, formatarMesAno, formatarNumero, formatarQtd } from "@/lib/format";
 
 /**
- * Aba "Histórico de previsão": para cada categoria em cada loja (desagregação) e cada produto
- * com previsão própria, o vendido (sem encomendas grandes) desde o começo da base × o previsto
- * gravado de cada dia — o que a previsão mostrava antes dele, congelado depois que o dia passa.
- * Antes da data fixa de treino só há vendido. Os 4 indicadores são os do teste do modelo.
+ * Aba "Histórico de previsão": para cada categoria e cada produto de grama de cada loja (cada
+ * um com o seu modelo), o vendido (sem encomendas grandes) desde o começo da base × o
+ * previsto congelado de cada dia — o que a previsão mostrava antes dele (`fonte = forecast`)
+ * ou, nos dias que nenhuma previsão cobriu, o teste do treino com as vendas até a véspera
+ * (`walk_forward`). Antes do 1º treino só há vendido. Os 4 indicadores são os do teste do
+ * último treino.
  */
 
 type Tipo = "categoria" | "produto";
@@ -27,10 +29,10 @@ type Periodo = string;
 const chave = (p: ProdutoDaLoja) => `${p.unidade}-${p.codigo}`;
 
 // A série de cada item é buscada quando ele é aberto e guardada enquanto a tela existir.
-const historicosBuscados = new Map<string, Promise<DiaHistorico[]>>();
+const historicosBuscados = new Map<string, Promise<DiaHistoricoPrevisao[]>>();
 
 function useHistorico(loja: UnidadeId, nivel: Tipo, item: string | undefined) {
-  const [estado, setEstado] = useState<{ chave: string; serie?: DiaHistorico[]; erro?: string } | null>(null);
+  const [estado, setEstado] = useState<{ chave: string; serie?: DiaHistoricoPrevisao[]; erro?: string } | null>(null);
   const k = item ? `${loja}/${nivel}/${item}` : "";
   useEffect(() => {
     if (!item) return;
@@ -94,13 +96,22 @@ const INDICADORES: { icone: LucideIcon; titulo: string; valor: (m: MetricasModel
   },
 ];
 
+/** Título do tooltip: o dia e de onde veio o previsto dele. */
+function rotuloDoDia(data: string, d: DiaHistoricoPrevisao | undefined): string {
+  const partes = [formatarData(data)];
+  if (d?.fonte === "forecast" && d.horizonte) partes.push(`previsto ${d.horizonte} dia${d.horizonte > 1 ? "s" : ""} antes`);
+  if (d?.fonte === "walk_forward") partes.push("teste do treino, com as vendas até a véspera");
+  if (d?.loja_fechada) partes.push("a previsão contava com a loja fechada");
+  return partes.join(" · ");
+}
+
 // ---------------------------------------------------------------------------
 // Período
 // ---------------------------------------------------------------------------
 
 const longo = (periodo: Periodo) => periodo === "ano" || periodo === "tudo";
 
-function filtrarPeriodo(serie: DiaHistorico[], periodo: Periodo): DiaHistorico[] {
+function filtrarPeriodo(serie: DiaHistoricoPrevisao[], periodo: Periodo): DiaHistoricoPrevisao[] {
   if (periodo === "tudo" || serie.length === 0) return serie;
   if (periodo === "3m" || periodo === "ano") {
     const fim = new Date(`${serie[serie.length - 1]!.data}T12:00:00`);
@@ -135,8 +146,8 @@ export function HistoricoPrevisao({ produtoSelecionado, onSelecionarProduto }: {
   const produtos = useMemo(() => produtosDe(lojaId, "grama", true), [lojaId]);
   const produto = produtos.find((p) => chave(p) === produtoSelecionado) ?? produtos[0];
   const loja = unidades.find((u) => u.id === lojaId)!;
-  const desag = loja.desagregacao?.[cat];
-  const comModelo = tipo === "categoria" ? !!desag : !!produto?.modelo?.metricas;
+  const modeloCat = loja.categorias_modelo[cat];
+  const comModelo = tipo === "categoria" ? !!modeloCat?.metricas : !!produto?.modelo.metricas;
   const historico = useHistorico(lojaId, tipo, !comModelo ? undefined : tipo === "categoria" ? cat : produto?.codigo);
 
   const meses = useMemo(() => [...new Set((historico?.serie ?? []).map((d) => d.data.slice(0, 7)))].reverse(), [historico]);
@@ -202,10 +213,10 @@ export function HistoricoPrevisao({ produtoSelecionado, onSelecionarProduto }: {
           {!comModelo ? (
             <p className="text-xs p-8 text-center" style={{ color: "var(--muted-foreground)" }}>
               {tipo === "categoria"
-                ? "O histórico das categorias ainda não foi gerado."
+                ? (modeloCat?.mensagem ?? "Esta categoria ficou sem previsão no último treino.")
                 : produtos.length
                   ? "Selecione um produto."
-                  : "Esta loja não tem produtos de grama com previsão própria."}
+                  : "Esta loja não tem produtos de grama com previsão no último treino."}
             </p>
           ) : !historico?.serie ? (
             <p className="text-xs p-8 flex items-center justify-center gap-2" style={{ color: historico?.erro ? "var(--destructive)" : "var(--muted-foreground)" }}>
@@ -218,9 +229,9 @@ export function HistoricoPrevisao({ produtoSelecionado, onSelecionarProduto }: {
           ) : tipo === "categoria" ? (
             <PainelHistorico
               titulo={`${nomeCategoria(cat)} · ${loja.nome}`}
-              subtitulo="parte da categoria na previsão da loja, pelo que vendeu nas 8 semanas anteriores em cada dia da semana"
-              status={desag!.status}
-              metricas={desag!.metricas}
+              subtitulo="previsão feita só com a venda da categoria nesta loja"
+              status={modeloCat!.status}
+              metricas={modeloCat!.metricas!}
               serie={historico.serie}
               periodo={periodo}
               cor={CORES_CATEGORIA[cat]}
@@ -229,8 +240,8 @@ export function HistoricoPrevisao({ produtoSelecionado, onSelecionarProduto }: {
           ) : (
             <PainelHistorico
               titulo={`${produto!.nome} · ${produto!.nomeUnidade}`}
-              status={produto!.modelo!.status}
-              metricas={produto!.modelo!.metricas!}
+              status={produto!.modelo.status}
+              metricas={produto!.modelo.metricas!}
               serie={historico.serie}
               periodo={periodo}
               cor={CORES_CATEGORIA[produto!.categoria]}
@@ -296,7 +307,7 @@ function SeletorProduto({
               <CommandGroup>
                 {produtos.map((p) => {
                   const ativo = produto && chave(produto) === chave(p);
-                  const m = p.modelo?.metricas;
+                  const m = p.modelo.metricas;
                   return (
                     <CommandItem
                       key={chave(p)}
@@ -354,13 +365,21 @@ function PainelHistorico({
   subtitulo?: string;
   status: StatusModelo;
   metricas: MetricasModelo;
-  serie: DiaHistorico[];
+  serie: DiaHistoricoPrevisao[];
   periodo: Periodo;
   cor: string;
   fmt: (v: number) => string;
 }) {
+  // O previsto em duas linhas: o que a tela mostrava (congelado) e o teste do treino, nos
+  // dias que nenhuma previsão cobriu (antes do 1º treino, ou intervalo maior que 14 dias)
   const dadosGrafico = useMemo(
-    () => filtrarPeriodo(serie, periodo).map((d) => ({ ...d, faixa: d.inf != null && d.sup != null ? ([d.inf, d.sup] as [number, number]) : null })),
+    () =>
+      filtrarPeriodo(serie, periodo).map((d) => ({
+        ...d,
+        previsto_tela: d.fonte === "forecast" ? d.previsto : null,
+        previsto_teste: d.fonte === "walk_forward" ? d.previsto : null,
+        faixa: d.inf != null && d.sup != null ? ([d.inf, d.sup] as [number, number]) : null,
+      })),
     [serie, periodo],
   );
   // 1º dia com previsto: a data fixa de treino (antes dela, o modelo ainda estava aprendendo)
@@ -377,7 +396,7 @@ function PainelHistorico({
           <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
             {subtitulo ? `${subtitulo}. ` : ""}
             {inicioPrevisto
-              ? `O previsto começa em ${formatarData(inicioPrevisto)}: até ali o modelo aprendia com as vendas. Cada dia mostra o que a previsão dizia antes dele.`
+              ? `O previsto começa em ${formatarData(inicioPrevisto)}: até ali o modelo aprendia com as vendas. Cada dia mostra o que a previsão dizia antes dele; nos dias que nenhuma previsão cobriu, o teste do treino com as vendas até a véspera.`
               : "O previsto ainda não foi gravado: aparece depois do próximo treino."}
           </p>
         </div>
@@ -414,7 +433,10 @@ function PainelHistorico({
               <span className="inline-block w-4 h-0.5" style={{ background: "var(--foreground)" }} /> Vendido (sem encomendas grandes)
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <span className="inline-block w-4 h-0.5" style={{ background: cor }} /> Previsto
+              <span className="inline-block w-4 h-0.5" style={{ background: cor }} /> Previsto (o que a tela mostrava)
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="inline-block w-4 border-t-2 border-dashed" style={{ borderColor: cor }} /> Previsto no teste do treino
             </span>
             <span className="inline-flex items-center gap-1.5">
               <span className="inline-block w-4 h-2.5 rounded-sm" style={{ background: cor, opacity: 0.18 }} /> Faixa prevista
@@ -438,11 +460,11 @@ function PainelHistorico({
               <YAxis tick={eixo} width={56} tickLine={false} axisLine={false} tickFormatter={(v: number) => formatarNumero(v)} />
               <Tooltip
                 contentStyle={estiloTooltip}
-                labelFormatter={(d: string) => formatarData(d)}
+                labelFormatter={(d: string, itens: { payload?: DiaHistoricoPrevisao }[]) => rotuloDoDia(d, itens?.[0]?.payload)}
                 formatter={(v: number | [number, number], nome: string) =>
                   nome === "faixa" && Array.isArray(v)
                     ? [`${fmt(v[0])} a ${fmt(v[1])}`, "Faixa prevista"]
-                    : [fmt(v as number), nome === "real" ? "Vendido" : "Previsto"]
+                    : [fmt(v as number), nome === "real" ? "Vendido" : nome === "previsto_teste" ? "Previsto no teste" : "Previsto"]
                 }
               />
               {marcaInicio && (
@@ -455,7 +477,8 @@ function PainelHistorico({
               )}
               <Area dataKey="faixa" stroke="none" fill={cor} fillOpacity={0.15} isAnimationActive={false} />
               <Line dataKey="real" stroke="var(--foreground)" strokeWidth={1.5} dot={!longo(periodo) ? { r: 2 } : false} isAnimationActive={false} />
-              <Line dataKey="previsto" stroke={cor} strokeWidth={2} dot={false} isAnimationActive={false} />
+              <Line dataKey="previsto_tela" stroke={cor} strokeWidth={2} dot={false} isAnimationActive={false} />
+              <Line dataKey="previsto_teste" stroke={cor} strokeWidth={2} strokeDasharray="5 4" dot={false} isAnimationActive={false} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>

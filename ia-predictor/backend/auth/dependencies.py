@@ -3,7 +3,7 @@
 `get_current_user` é aplicado a nível de router-include em `backend/main.py`
 (`dependencies=[Depends(get_current_user)]`) em todos os routers `/api/v1/*`.
 `require_admin` é usado individualmente nos endpoints que exigem perfil admin
-(`POST /api/v1/upload`, `POST /api/v1/models/retrain`).
+(envio de planilha e todo o `/api/v1/servico-previsao/*`, o treino da previsão).
 """
 from __future__ import annotations
 

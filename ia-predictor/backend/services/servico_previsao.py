@@ -34,7 +34,7 @@ anteriores ainda vazios. `skipped` não muda nada.
 Só treina se os dados mudaram
 -----------------------------
 Cada disparo calcula a impressão digital (SHA-256) das vendas, do calendário e do catálogo
-— contagem, maior id, soma das quantidades, período, marcação de encomenda, última
+— contagem, maior id, soma das quantidades, período, marcação de encomenda grande, última
 alteração do calendário e dos produtos. Se ela é igual à do último treino concluído, o
 disparo é registrado como `skipped` e nada é treinado. Treino que terminou em erro não
 conta: o próximo disparo treina.
@@ -42,8 +42,8 @@ conta: o próximo disparo treina.
 Modelo (fixo, decisão registrada na docstring de `domain/models/trainer.py`)
 ---------------------------------------------------------------------------
 SARIMAX com m = 7, d = 0, D = 0 e constante; ordem (p, q)(P, Q) por AIC; exógenas de
-calendário; série diária do **fluxo** — vendas sem as encomendas acima de 2.000 unidades
-no documento (ADR-013), a mesma base dos experimentos que fixaram a receita. Walk-forward
+calendário; série diária do **fluxo** — vendas sem as encomendas grandes (acima de 2.000
+unidades no documento, ADR-013), a mesma base dos experimentos que fixaram a receita. Walk-forward
 com janela deslizante de `FORECAST_SERVICE_WINDOW_DAYS` dias e origem andando 1 dia por
 `FORECAST_SERVICE_WF_ORIGINS` origens, cada uma prevendo `FORECAST_HORIZON_DAYS` dias.
 Do ajuste final ficam os coeficientes (`series_models.params`) e o diagnóstico dos resíduos
@@ -117,7 +117,7 @@ log = logging.getLogger(__name__)
 D_REGULAR = 0          # séries estacionárias (ADF em 12 de 12): diferenciar seria má especificação
 D_SAZONAL = 0          # o ciclo semanal entra pelas dummies de dia da semana
 CATEGORIA_PRODUTOS = "grama"   # produtos treinados um a um: todos os desta categoria
-BASE_TREINO = "fluxo diário (sem encomendas acima de 2.000 un. no documento, ADR-013)"
+BASE_TREINO = "fluxo diário (sem encomendas grandes: acima de 2.000 un. no documento, ADR-013)"
 
 _EM_CURSO = ("pending", "running")
 # Enquanto o treino roda, uma thread grava `heartbeat_at` a cada `_BATIMENTO_S`. Sem sinal
@@ -155,7 +155,7 @@ def config_treino() -> ConfigTreino:
 
 def impressao_digital(db: Session) -> str:
     """SHA-256 do estado dos dados de que o treino depende. Muda com venda nova, venda
-    apagada ou alterada (soma das quantidades), mudança na marcação de encomenda, no
+    apagada ou alterada (soma das quantidades), mudança na marcação de encomenda grande, no
     calendário ou no catálogo (produto que troca de categoria muda as séries)."""
     vendas = db.execute(select(
         func.count(Sale.id), func.max(Sale.id), func.sum(Sale.quantity),

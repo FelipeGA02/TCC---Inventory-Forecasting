@@ -37,7 +37,7 @@ def num(v: float, casas: int = 2):
 
 
 def main():
-    cols = ["doc_numero", "emissao", "pagamento", "cliente_nome", "produto_cod", "produto_nome",
+    cols = ["doc_tipo", "doc_numero", "emissao", "pagamento", "cliente_nome", "produto_cod", "produto_nome",
             "qtdade", "vl_unit", "vl_desconto", "tot_liq", "unidade", "categoria"]
     df = pd.read_csv(BASE, sep=";", usecols=cols, dtype={"produto_cod": str, "doc_numero": str,
                                                          "cliente_nome": str, "pagamento": str})

@@ -360,7 +360,7 @@ components:
       description: |
         Formato `BaseReal` de `app-react/src/domain/types.ts`: previsão de 14 dias das 4
         categorias e dos produtos de grama de cada loja, com faixa de 95%, histórico,
-        encomendas, teste de acerto e planilhas carregadas. Montado de `sales` até o último
+        encomendas grandes, teste de acerto e planilhas carregadas. Montado de `sales` até o último
         dia com venda do último treino concluído e das tabelas do treino. Sem dados pessoais.
       type: object
       required: [gerado_em, base, configuracao, categorias, unidades, importacao]
@@ -533,7 +533,7 @@ components:
         liq: {type: number}
         pag: {type: string}
         cad: {type: boolean, description: cliente cadastrado (× consumidor)}
-        enc: {type: boolean, description: encomenda (nota com mais de 2.000 un.)}
+        enc: {type: boolean, description: encomenda grande (nota com mais de 2.000 un.)}
 
     PaginaRegistros:
       type: object
@@ -577,7 +577,7 @@ components:
         origens: {type: integer, example: 56, description: Origens do walk-forward}
         passo_dias: {type: integer, example: 1, description: A origem anda este número de dias}
         horizonte_dias: {type: integer, example: 14}
-        base: {type: string, example: "fluxo diário (sem encomendas acima de 2.000 un. no documento, ADR-013)"}
+        base: {type: string, example: "fluxo diário (sem encomendas grandes: acima de 2.000 un. no documento, ADR-013)"}
         categoria_produtos: {type: string, example: grama, description: Categoria cujos produtos são treinados um a um}
 
     TreinoServico:
@@ -905,7 +905,7 @@ paths:
       summary: Painel de previsão (dados das telas Visão Geral, Previsão e Relatórios)
       description: |
         Previsão de 14 dias do último treino concluído (4 categorias e produtos de grama de
-        cada loja; o total da loja é a soma das categorias), histórico, encomendas e teste de
+        cada loja; o total da loja é a soma das categorias), histórico, encomendas grandes e teste de
         acerto de cada categoria, no formato `BaseReal` do frontend. Fica em cache na API até
         as vendas, o calendário ou a previsão mudarem.
       operationId: getPainel

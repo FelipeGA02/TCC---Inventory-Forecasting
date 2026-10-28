@@ -52,9 +52,9 @@ export interface DiaPrevisto extends Faixa {
 export interface DiaHistorico {
   data: string;
   dia_semana: string;
-  /** Venda sem encomendas (soma das 3 categorias). */
+  /** Venda sem encomendas grandes (soma das 3 categorias). */
   total: number;
-  /** Volume vendido em encomendas no dia (fora da previsão). */
+  /** Volume vendido em encomendas grandes no dia (fora da previsão). */
   encomendas: number;
   categorias: PorCategoria<number>;
 }
@@ -110,7 +110,7 @@ export interface Produto {
   vendido_em_encomendas: number;
   /** Venda das últimas 8 semanas, da mais antiga para a mais recente. */
   historico_semanal: number[];
-  /** Venda diária (sem encomendas) dos últimos 28 dias. */
+  /** Venda diária (sem encomendas grandes) dos últimos 28 dias. */
   historico_diario?: { data: string; vendido: number }[];
   modelo: ModeloSerie;
   /** Vazia quando o produto ficou sem modelo neste treino. */

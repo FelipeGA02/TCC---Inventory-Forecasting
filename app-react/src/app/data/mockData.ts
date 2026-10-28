@@ -1,7 +1,7 @@
 /**
  * Painel de previsão vindo da API (`GET /api/v1/painel`, formato `BaseReal`): previsão das
  * 4 categorias e dos produtos de grama de cada loja (o total da loja é a soma das
- * categorias), histórico, encomendas e testes de acerto, montados no backend a partir das
+ * categorias), histórico, encomendas grandes e testes de acerto, montados no backend a partir das
  * vendas do banco e do último treino concluído.
  *
  * Carregado em duas partes, por isso os valores abaixo são `let` (o import do ES module
@@ -59,7 +59,7 @@ export const CORES_CATEGORIA: PorCategoria<string> = {
   "produtos-de-jardim": "#6a5acd",
   "flores-de-corte": "#c97b98",
 };
-/** Encomendas: neutro, para não competir com as categorias. */
+/** Encomendas grandes: neutro, para não competir com as categorias. */
 export const COR_ENCOMENDA = "#9aa4b1";
 export const COR_TOTAL = "#1a6b3c";
 
@@ -128,7 +128,7 @@ export function faixaDoDia(dia: DiaPrevisto, categoria: FiltroCategoria): Faixa 
   return categoria === "todas" ? dia : dia.categorias[categoria];
 }
 
-/** Venda (sem encomendas) de um dia/semana do histórico para o filtro de categoria. */
+/** Venda (sem encomendas grandes) de um dia/semana do histórico para o filtro de categoria. */
 export function vendaDe(item: { total: number; categorias: PorCategoria<number> }, categoria: FiltroCategoria): number {
   return categoria === "todas" ? item.total : item.categorias[categoria];
 }
@@ -222,7 +222,7 @@ export function previsto14d(filtro: FiltroUnidade, categoria: FiltroCategoria = 
 }
 
 // ---------------------------------------------------------------------------
-// Encomendas (fora da previsão)
+// Encomendas grandes (fora da previsão)
 // ---------------------------------------------------------------------------
 
 export function encomendasDe(filtro: FiltroUnidade) {

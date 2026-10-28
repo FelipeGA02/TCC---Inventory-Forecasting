@@ -9,7 +9,7 @@ dentro da própria planilha (o mesmo produto pode vir em duas linhas da mesma no
 
 A planilha não é guardada: sobra a linha de `processing_log` (nome, SHA-256, contagens).
 Produto novo entra em `products` com a categoria da Etapa 3; produto já cadastrado mantém
-a categoria do cadastro. A encomenda (venda > 2.000 un. na nota) é marcada como na carga
+a categoria do cadastro. A encomenda grande (venda > 2.000 un. na nota) é marcada como na carga
 inicial. Com venda nova, a resposta avisa que a previsão precisa ser treinada de novo
 (`needs_training`): o treino é o botão "Treinar previsões" (ADR-017), não roda sozinho.
 
@@ -198,7 +198,7 @@ def processar(db: Session, conteudo: bytes, nome: str, user_id: int | None) -> R
 
 
 def _preparar(db: Session, conteudo: bytes, nome: str, registro: ProcessingLog | None = None) -> _Preparada:
-    """Etapas 1–3, loja, categoria, encomenda, duplicatas e dias faltando — sem gravar."""
+    """Etapas 1–3, loja, categoria, encomenda grande, duplicatas e dias faltando — sem gravar."""
     avisos = []
     with tempfile.TemporaryDirectory(prefix="upload_") as pasta:
         caminho = os.path.join(pasta, "planilha" + os.path.splitext(nome)[1].lower())
@@ -228,7 +228,7 @@ def _preparar(db: Session, conteudo: bytes, nome: str, registro: ProcessingLog |
         avisos.append(f"{int(sem_categoria.sum())} linha(s) de categoria desconhecida foram ignoradas.")
         df = df[~sem_categoria].copy()
 
-    # ---- encomenda (sem as linhas de serviço), como na carga inicial
+    # ---- encomenda grande (sem as linhas de serviço), como na carga inicial
     df["emissao"] = pd.to_datetime(df["emissao"])
     df["encomenda"] = False
     produto = df["categoria"] != SERVICO

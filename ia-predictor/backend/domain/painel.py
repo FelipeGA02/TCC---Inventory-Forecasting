@@ -3,7 +3,7 @@
 Lógica pura (pandas), sem banco nem HTTP: recebe as vendas, o calendário e os previsores
 do último treino concluído já lidos do banco e devolve o dicionário que a API entrega.
 
-A parte descritiva (histórico, produtos, encomendas, contagens) é calculada das vendas até
+A parte descritiva (histórico, produtos, encomendas grandes, contagens) é calculada das vendas até
 `forecast_jobs.data_until` — os resumos não são gravados no banco. A parte de previsão vem
 pronta do treino (ADR-017: SARIMAX direto em cada categoria e em cada produto de grama, por
 loja) em `previsores`:
@@ -85,7 +85,7 @@ def montar_unidade(v: pd.DataFrame, cal_u: pd.DataFrame, loja: dict, ids_cat: li
     idx = pd.date_range(ini, fim, freq="D")
     fechados = set(cal_u.index[cal_u["loja_fechada"] == 1])
 
-    # ---- Histórico (venda sem encomendas por categoria + encomendas à parte)
+    # ---- Histórico (venda sem encomendas grandes por categoria + encomendas grandes à parte)
     painel = fluxo[fluxo["cat"].isin(ids_cat)]
     diario = (painel.groupby(["emissao", "cat"])["qtdade"].sum().unstack(fill_value=0)
               .reindex(index=idx, columns=ids_cat, fill_value=0))
@@ -139,7 +139,7 @@ def montar_unidade(v: pd.DataFrame, cal_u: pd.DataFrame, loja: dict, ids_cat: li
         })
     produtos.sort(key=lambda x: (x["previsao_14d"] is None, -(x["previsao_14d"] or x["vendido_8_semanas"])))
 
-    # ---- Encomendas: resumo e últimas
+    # ---- Encomendas grandes: resumo e últimas
     if len(enc):
         docs = (enc.groupby(["emissao", "doc_numero"])
                 .apply(lambda g: pd.Series({"volume": g["qtdade"].sum(),

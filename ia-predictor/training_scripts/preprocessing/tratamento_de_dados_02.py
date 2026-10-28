@@ -1,7 +1,7 @@
 """Trata o `Base01.csv` (extração crua) e gera o `BaseFormatada02.csv`.
 
 Esta etapa faz só limpeza genérica de dados, sem nenhuma regra de negócio (nada de
-derivar `unidade`/`categoria`, separar encomendas ou remover colunas sem uso analítico
+derivar `unidade`/`categoria`, separar encomendas grandes ou remover colunas sem uso analítico
 — isso é tratamento posterior):
 
   * padroniza texto: remove espaços nas pontas e espaços duplicados no meio dos campos;

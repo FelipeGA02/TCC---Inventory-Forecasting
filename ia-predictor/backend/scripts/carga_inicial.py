@@ -84,7 +84,7 @@ def carregar_base() -> pd.DataFrame:
     for c in ["qtdade", "vl_unit", "vl_total", "vl_desconto", "tot_liq"]:
         df[c] = pd.to_numeric(df[c])
     df["emissao"] = pd.to_datetime(df["emissao"])
-    # Encomenda como no painel: venda > 2.000 un., calculada sem as linhas de serviço.
+    # Encomenda grande como no painel: venda > 2.000 un., calculada sem as linhas de serviço.
     df["encomenda"] = False
     produto = df["categoria"] != SERVICO
     df.loc[produto, "encomenda"] = marcar_encomendas(df[produto], LIMIAR_QTD_VENDA)
@@ -217,7 +217,7 @@ def main() -> None:
     t1 = time.time()
     with engine.begin() as conn:
         gravar_vendas(conn, vendas)
-    log(f"{len(vendas):,} vendas ({vendas['is_bulk_order'].sum():,} linhas de encomenda) "
+    log(f"{len(vendas):,} vendas ({vendas['is_bulk_order'].sum():,} linhas de encomendas grandes) "
         f"em {time.time() - t1:.0f}s")
 
     # ---- calendário

@@ -1,7 +1,7 @@
 """Dados das telas do frontend, montados a partir do banco.
 
   * `painel()`: formato `BaseReal` (previsão de 14 dias das categorias e dos produtos de
-    grama de cada loja, histórico, encomendas, planilhas carregadas);
+    grama de cada loja, histórico, encomendas grandes, planilhas carregadas);
   * `historico()`: vendido × previsto congelado de uma categoria ou produto
     (`forecast_history`), para a tela de histórico da previsão;
   * `analises()`: análises descritivas por loja;

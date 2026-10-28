@@ -1,20 +1,20 @@
 """Separa cada loja em dois fluxos: a venda do dia a dia e as **encomendas grandes**.
 
-Encomenda aqui e um **evento de logistica**: uma venda tao grande que a loja nao atende do
+Encomenda grande aqui e um **evento de logistica**: uma venda tao grande que a loja nao atende do
 estoque de balcao e precisa encomendar do fornecedor. Ela sai do fluxo diario porque nao e
 previsivel pela serie temporal — a loja sabe dela com antecedencia, por fora do historico.
 Nao e descarte: as duas partes sao gravadas, e a previsao final e a soma.
 
 A unidade de decisao e a **venda inteira** (`unidade` x `emissao` x `doc_numero`), nao a
-linha. Uma encomenda chega como um documento com varias linhas (grama, substrato, mudas);
+linha. Uma encomenda grande chega como um documento com varias linhas (grama, substrato, mudas);
 olhar linha a linha quebra o evento em pedacos que individualmente parecem normais, e ao
-mesmo tempo marca como encomenda a linha avulsa de um cliente de balcao que levou um pouco
+mesmo tempo marca como encomenda grande a linha avulsa de um cliente de balcao que levou um pouco
 mais que a mediana da categoria.
 
 Historico das tres versoes deste criterio
 -----------------------------------------
 1. `cliente_cod` (cadastrado x `CONSUMIDOR`) — descartado: a loja confirmou (2026-10-09)
-   que cliente cadastrado nao e sinonimo de encomenda. Quem faz cadastro muitas vezes e
+   que cliente cadastrado nao e sinonimo de encomenda grande. Quem faz cadastro muitas vezes e
    cliente comum, e deve ser previsto junto com o balcao.
 2. z-score modificado de Iglewicz & Hoaglin **por linha** (`marcar_outliers`, mantida
    abaixo para comparacao) — descartado como padrao: classifica pela quantidade da linha,
@@ -62,7 +62,7 @@ from .separa_unidades_05 import UNIDADE_SLUG
 
 REMOVE_REPORT_JSON = os.path.join(OUTPUT_DIR, 'remove_encomendas_resumo.json')
 
-# Quantidade total da VENDA (documento) a partir da qual ela conta como encomenda.
+# Quantidade total da VENDA (documento) a partir da qual ela conta como encomenda grande.
 # Provisorio — a confirmar com a parceira (ver docstring).
 LIMIAR_QTD_VENDA = 2000
 
@@ -95,7 +95,7 @@ def marcar_encomendas(df: pd.DataFrame, limiar: float = LIMIAR_QTD_VENDA,
     linhas saem do fluxo diario juntas — e isso que mantem o evento de logistica inteiro.
     Com `por_categoria`, o limiar de cada linha e o da sua categoria (o documento e
     comparado contra o MENOR limiar entre as categorias que ele contem, para que uma
-    encomenda mista nao escape pelo limiar mais alto).
+    encomenda grande mista nao escape pelo limiar mais alto).
     """
     tam = tamanho_da_venda(df)
     por_categoria = por_categoria or {}
@@ -184,7 +184,7 @@ def remover(
     resumo = {
         'executado_em': datetime.now().isoformat(),
         'input_csv': input_csv,
-        'metodo': 'tamanho da venda (documento): encomenda se a soma de qtdade do '
+        'metodo': 'tamanho da venda (documento): encomenda grande se a soma de qtdade do '
                   f'documento > {limiar} unidades',
         'unidade_de_decisao': CHAVE_VENDA,
         'limiar_qtd_venda': limiar,
@@ -207,7 +207,7 @@ def remover(
         print(f'[remove_encomendas] criterio: venda (documento) > {limiar} unidades')
         for unidade, i in por_unidade.items():
             h = i['comparacao_criterio_anterior_hampel_por_linha']
-            print(f'[remove_encomendas] {unidade}: {i["vendas_encomenda"]} encomenda(s) em '
+            print(f'[remove_encomendas] {unidade}: {i["vendas_encomenda"]} encomenda(s) grande(s) em '
                   f'{i["dias_com_encomenda"]} dia(s) = {i["pct_volume_encomenda"]}% do volume '
                   f'· CV diario {i["cv_diario_total"]} -> {i["cv_diario_fluxo"]} '
                   f'(criterio anterior: {h["pct_volume_removido"]}% / CV {h["cv_diario_fluxo"]})')

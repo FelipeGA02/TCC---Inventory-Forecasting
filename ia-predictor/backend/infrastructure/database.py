@@ -17,7 +17,7 @@ Três grupos de tabelas:
     atualiza `forecast_history`, o previsto de cada dia já passado (congelado), para o
     histórico da previsão.
 
-Resumos por loja, categoria e produto (volume, SKUs, encomendas, venda das últimas 8
+Resumos por loja, categoria e produto (volume, SKUs, encomendas grandes, venda das últimas 8
 semanas...) não são gravados: saem de `sales` até `forecast_jobs.data_until`.
 
 As tabelas do treino anterior (`retrain_history`, `model_artifacts`, `backtest_points`,

@@ -71,8 +71,10 @@ LIMIAR_QTD_VENDA = 2000
 LIMIAR_POR_CATEGORIA: dict[str, float] = {}
 
 # Chave que identifica uma venda. `doc_numero` se repete entre meses/lojas, por isso
-# `unidade` e `emissao` entram na chave.
-CHAVE_VENDA = ['unidade', 'emissao', 'doc_numero']
+# `unidade` e `emissao` entram na chave; e cada tipo de documento (cupom, nota...) tem a
+# propria numeracao — em 12 casos da base o mesmo numero sai no mesmo dia em dois tipos
+# (ex.: C7 e N3), que sao vendas diferentes e nao podem ser somadas.
+CHAVE_VENDA = ['unidade', 'emissao', 'doc_tipo', 'doc_numero']
 
 COLUNAS_SAIDA = ['emissao', 'qtdade']
 

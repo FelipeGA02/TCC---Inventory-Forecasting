@@ -82,18 +82,19 @@ CATEGORIA_REGRAS: list[tuple[re.Pattern, str]] = [
     # Linhas que NAO sao produto fisico — frete, taxa, mao de obra, locacao. Sem
     # perecibilidade nem demanda de reposicao; separadas para nao poluir as series L1.
     # Checadas ANTES de tudo (ex.: "FRETE" nunca deve virar outra coisa).
+    # "CREDITO ICMS" e lancamento fiscal, nao produto.
     (re.compile(r"\b(FRETE|TAXA\s+DE\s+|MAO\s+DE\s+OBRA|LOCA[CÇ][AÃ]O|ALUGUEL|"
                 r"SERVI[CÇ]O\s+DE\s+PLANTIO|PROJETO\s+PAISAG|"
-                r"PRESTA[CÇ][AÃ]O\s+DE\s+SERVI[CÇ]O)\b", re.I),
+                r"PRESTA[CÇ][AÃ]O\s+DE\s+SERVI[CÇ]O|CREDITO\s+ICMS)\b", re.I),
      "Servico e taxa"),
 
     # Flor de corte e arranjos montados — fatia pequena, mas a mais pericivel. Flor de
     # corte e a que compoe arranjos e buques. "MOLIO"/"MOLHO" = venda em maco de hastes
     # (aster, rosa spray) — sempre flor de corte. "COROA" so vale a de flores (funeral):
-    # "COROA DE CRISTO" e planta.
+    # "COROA DE CRISTO" e planta. Flor desidratada e petala sao material de arranjo.
     (re.compile(r"\b(FLOR\s+DE\s+CORTE|ROSA\s+EM\s+CABO|ALSTROEMERIA|ASTROMELIA|"
                 r"BUQU[EÊ]|ARRANJO|COROA\s+DE\s+FLORES|LIRIO\s+CORTE|"
-                r"MOLIO|MOLHO)\b", re.I),
+                r"MOLIO|MOLHO|DESIDRATAD\w*|PETALAS\s+DE\s+ROSA)\b", re.I),
      "Flor de corte e arranjo"),
     # Gerbera, crisantemo e tango soltos so sao flor de corte quando o nome NAO traz sinal
     # de embalagem: "GERBERA PT 15", "CRISANTEMO VB (VASO BARRO)" sao planta envasada e
@@ -108,6 +109,16 @@ CATEGORIA_REGRAS: list[tuple[re.Pattern, str]] = [
                 r"JIL[OÓ]|QUIABO|MEXERICA|PONKAN|INHAME|MANDIOCA|COUVE|ALFACE|"
                 r"CEBOLINHA|SALSINHA|PIMENTA\s+|MORANGO)\b", re.I),
      "Hortalica e erva"),
+
+    # Planta viva cujo nome traz uma palavra das regras de insumo e substrato abaixo:
+    # "JIBOIA ESTACA PT 30" e "BOUGAINVILLE ESTACA" (planta conduzida na estaca),
+    # "SAMAMBAIA MANTA", "SUCULENTA (ROSA DE PEDRA)", "SUCULENTA ... VASO CERAMICA" e
+    # musgo/selaginela vivo em pote ou cuia ("MUSGO VARIADO PT 11"). O nome comeca pela
+    # especie; musgo ensacado, estaca de madeira e manta bidim continuam insumo.
+    (re.compile(r"^\s*(BOUGAINVILLE\w*|BROMELIA|FILODENDRO|JIBOIA|MONSTERA|SAMAMBAIA|SUCULENTA|"
+                r"TOMATE)\b.*\b(ESTACA|MANTA|PEDRA|VASO\s+CERAMICA)\b|"
+                r"^\s*MUSGO\b.*\b(PT\s?\d{1,2}|CUIA|C\s?\d{2})\b", re.I),
+     "Planta em vaso"),
 
     # Substrato, terra, adubo, condicionador de solo, drenagem.
     # `ARGILA` sem sufixo cobre "ARGILA EXPANDIDA FRACIONADA" (o \b apos "EXP" nao casava
@@ -133,10 +144,67 @@ CATEGORIA_REGRAS: list[tuple[re.Pattern, str]] = [
                 r"DEFENSIVO|CUPINICIDA|HERBICIDA|BORAL|OLEO\s+DE\s+NEEM)\b", re.I),
      "Insumo e acessorio"),
 
+    # Curadoria de 2026-10-27: produtos que NAO sao planta e caiam em "Outros" (que vira
+    # Plantas diversas) ou numa regra de planta ("CARRINHO ... 90L" -> Planta em vaso,
+    # "RASTELO PARA GRAMA" -> Grama). Ficam ANTES das regras de planta e da de GRAMA.
+    # Termo que tambem aparece em nome de planta e ancorado no inicio do nome
+    # ("JABUTICABA ... (CAIXA D'AGUA)", "GLICINIA EMBALAGEM MACIA", "SAMAMBAIA ... GANCHO",
+    # "CAQUI CHOCOLATE", "PAU FORMIGA" sao plantas).
+
+    # Substrato, adubo e cobertura de solo pelo nome comercial.
+    (re.compile(r"\b(TROPSTRATO|SUB\s*\.\s*CACTOS|GRANITINA|AREIA|MACADAME|CHIP\s+DE\s+COCO|"
+                r"P[OÓ]\s+DE\s+COCO|CASCA\s+DE\s+ARROZ|SUPER\s*FOSFATO|TORTA\s+MAMONA|"
+                r"GENEBOM)\b|\bFERT\.", re.I),
+     "Substrato e adubo"),
+
+    # Defensivos e armadilhas pelo nome comercial.
+    (re.compile(r"\b(FORMILIX|FORMIACK|DESMAT|CALDA\s+BORDALEZA|AMISTAR|TERMITRINE|CABOL|"
+                r"STIMULUS|FOSWAY|SEMPRA|FUMO|OLEO\s+(DE\s+ANDIROBA|MINERAL)|"
+                r"MATA-?\s*(BARATAS|FORMIGAS)|PORTA\s+ISCA|ISCA\s+GRANULADA|"
+                r"LIMITADOR|MOSCA\s+DE\s+FRUTA)\b", re.I),
+     "Insumo e acessorio"),
+
+    # Ferramentas, irrigacao e hidraulica (MERAX, TRAMONTINA e TRAPP so vendem isso aqui).
+    (re.compile(r"\b(RASTELO|ANCINHO|VASSOURA|TESOURA|ENXAD(A|[AÃ]O)|SACHO|PAZINHA|"
+                r"P[AÁ]\s+(DE\s+)?BICO|CAVADEIRA|CHIBANCA|SERROTE|PODADOR|FAC[AÃ]O|RODO|"
+                r"ESFREG[AÃ]O|CARRINHO|JARDINAGEM|OCULOS\s+SEGURAN[CÇ]A|BOTA\s+7\s+LEGUAS|"
+                r"MERAX|TRAMONTINA|TRAPP|ASPERSOR|ESGUICHO|HIDROPISTOLA|ENGATE|ADAPTADOR|"
+                r"TORNEIRA|DERIVA[CÇ][AÃ]O|CONEX[AÃ]O|TUBO|JOELHO\s+PVC|SOLDAVEL)\b"
+                r"|\bTRAM\.", re.I),
+     "Insumo e acessorio"),
+
+    # Recipientes vazios: nome que COMECA com vaso/pote/cachepo/xaxim e uma linha de vaso
+    # ("VASO CER.", "VASO VIAT.", "VASO IMPERIAL", "POTE COR CERAMICA"); a planta envasada
+    # traz a especie antes ("ALOE VASO QUADRADO", "SINGONIO ROSA VASO PAREDE"). Excecao:
+    # "VASO CONE COM TUMBERGIA" e kit com a planta.
+    (re.compile(r"^\s*(VASOS?\b(?!\s+CONE\s+COM\b)|POTE\s+(COR|CORES|ECO|INCOLOR|HOLAMBRA)\b|"
+                r"CACH\.|JARD\.\s*CER|JARR[OÃ]O?\b|XAXIM\b)", re.I),
+     "Insumo e acessorio"),
+
+    # Decoracao, moveis, suportes, embalagem e material de obra.
+    (re.compile(r"^\s*(\(ITO\)\s*)?(CORRENT(E|[AÃ]O)|CAIXA|EMBALAGEM|GANCHO|PAINEL|PLACA|"
+                r"ANEL\s+PARA\s+GRADE|BALDE|LONA|RAFIA|ARAME|PRESILHA|PINGENTE|MANDALA|"
+                r"ESTATUA|MINIATURA|ENFE?ITES|BANCO|MESA|FONTE|BOMBA|BASE\s+PARA\s+FLORAL|"
+                r"FLORAL|HASTE\s+PLAST|PALHA\s+DECORATIVA|GEL\s+BOLINHA|M[AÃ]O\s+FRANCESA|"
+                r"CORD[AÃ]O|FIO|MARG\.|CURVA|INSERT|KIT\s+LACRE|FAIXA|TAMPA|FERROS|"
+                r"DE\s+CONCRETO|BIANCOGRES|LUMINAS|AVANT|SINO\s+CHINES)(?![A-ZÀ-Ú])", re.I),
+     "Insumo e acessorio"),
+    (re.compile(r"\b(CABO\s+DE\s+(ACO|ARAME)|RODIZIO|CIMENTO|RESINA|ANOES|PELUCIA)\b", re.I),
+     "Insumo e acessorio"),
+
+    # Nao vivos de presente e para animais: sem categoria propria entre as 4 do negocio,
+    # ficam em Produtos de jardim (o que nao e planta). Peixe de lago vai junto.
+    (re.compile(r"\b(BOMBOM|NUTELLA|COOKIES|FERRERO|RAFFAELLO|HERSHEY\w*|"
+                r"BARRA\s+DE\s+CHOCOLATE|CARPA|RA[CÇ][AÃ]O)\b", re.I),
+     "Insumo e acessorio"),
+
     # "Grama preta" / "pelo de urso" e forracao (Ophiopogon) — vendida como muda, NAO e
     # grama de plantio. Checar ANTES da regra de GRAMA.
     (re.compile(r"\b(GRAMA\s+PRETA|PELO\s+D[EO]?\s*URSO)\b", re.I),
      "Muda e forracao"),
+    # "Grama de gato" (clorofila, Chlorophytum) e planta envasada, nao grama de plantio.
+    (re.compile(r"\bGRAMA\s+DE\s+GATO\b", re.I),
+     "Planta em vaso"),
 
     # Grama de plantio (esmeralda, sao carlos, amendoim, batatais, coreana...).
     (re.compile(r"\bGRAMA\b", re.I),

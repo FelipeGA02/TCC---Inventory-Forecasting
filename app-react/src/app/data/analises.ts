@@ -50,7 +50,7 @@ export interface AnaliseUnidade {
 
 export interface AnalisesJson {
   gerado_em: string;
-  limiar_encomenda_un: number;
+  limiares_encomenda_un: Record<UnidadeId, number>;
   unidades: Record<UnidadeId, AnaliseUnidade>;
 }
 

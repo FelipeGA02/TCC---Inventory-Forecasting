@@ -18,8 +18,9 @@ import pandas as pd
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from backend.infrastructure.database import CalendarDay, Category, Product, Sale, Unit
+from backend.infrastructure.database import CalendarDay, Category, ProcessingLog, Product, Sale, Unit
 from training_scripts.frontend_mock.gerar_dados_frontend import UNIDADES
+from training_scripts.preprocessing.remove_encomendas_06 import LIMIAR_QTD_VENDA
 
 _ORDEM_LOJAS = [u["id"] for u in UNIDADES]  # a ordem das telas: Jardim Canadá, Itabirito
 
@@ -107,6 +108,21 @@ def carregar_vendas(db: Session, ate: date | None = None) -> pd.DataFrame:
     df["pagamento"] = df["pagamento"].fillna("")
     df["categoria_fina"] = df["categoria_fina"].fillna("")
     return df
+
+
+def limiares_encomenda_atuais(db: Session) -> dict[str, float]:
+    """O limiar de encomenda grande de cada loja (ADR-018): o da última planilha gravada que o
+    calculou, em `processing_log.quality.limiar_encomenda_un`. Loja sem limiar gravado (banco
+    carregado antes do ADR-018): o limiar fixo de 2.000 un."""
+    lojas = list(db.scalars(select(Unit.id)))
+    limiares: dict[str, float] = {}
+    for quality in db.scalars(select(ProcessingLog.quality).where(ProcessingLog.status == "done")
+                              .order_by(ProcessingLog.id.desc()).limit(200)):
+        for loja, valor in ((quality or {}).get("limiar_encomenda_un") or {}).items():
+            limiares.setdefault(loja, float(valor))
+        if all(loja in limiares for loja in lojas):
+            break
+    return {loja: limiares.get(loja, float(LIMIAR_QTD_VENDA)) for loja in lojas}
 
 
 def carregar_calendario(db: Session) -> pd.DataFrame:

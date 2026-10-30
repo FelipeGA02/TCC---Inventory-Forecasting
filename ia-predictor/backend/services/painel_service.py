@@ -41,7 +41,7 @@ from backend.infrastructure.database import (
 )
 from backend.services import base_vendas, cache
 from training_scripts.frontend_mock.gerar_analises_frontend import analisar_unidade
-from training_scripts.preprocessing.remove_encomendas_06 import LIMIAR_QTD_VENDA
+from training_scripts.preprocessing.remove_encomendas_06 import LIMIAR_QTD_VENDA as LIMIAR_ADR013
 
 
 class PrevisaoIndisponivel(Exception):
@@ -111,12 +111,14 @@ def _previsores(db: Session, job: ForecastJob) -> dict:
     return out
 
 
-def _configuracao(job: ForecastJob) -> dict:
+def _configuracao(job: ForecastJob, lojas: list[dict]) -> dict:
     cfg = job.config or {}
     return {"horizonte_dias": cfg.get("horizonte", settings.FORECAST_HORIZON_DAYS), "m": cfg.get("m"),
             "d": cfg.get("d"), "D": cfg.get("D"), "alpha_ic": cfg.get("alpha"), "janela_dias": cfg.get("janela_dias"),
             "origens": cfg.get("origens"), "passo_origem_dias": cfg.get("passo"),
-            "limiar_encomenda_un": LIMIAR_QTD_VENDA, "base": cfg.get("base"),
+            "limiares_encomenda_un": {u["id"]: (cfg.get("limiares_encomenda_un") or {}).get(u["id"], LIMIAR_ADR013)
+                                      for u in lojas},
+            "base": cfg.get("base"),
             "categoria_produtos": cfg.get("categoria_produtos"), "versao_codigo": cfg.get("versao_codigo"),
             "dados_ate": str(job.data_until)}
 
@@ -155,7 +157,8 @@ def painel(db: Session) -> dict:
         df = _vendas(db, versao)
         df = df[df["emissao"] <= pd.Timestamp(job.data_until)]
         cal = base_vendas.carregar_calendario(db)
-        entradas = (base_vendas.carregar_lojas(db), _categorias(db), _previsores(db, job), _configuracao(job),
+        lojas = base_vendas.carregar_lojas(db)
+        entradas = (lojas, _categorias(db), _previsores(db, job), _configuracao(job, lojas),
                     (job.finished_at or job.created_at).isoformat(timespec="seconds"), importacao(db))
         db.commit()  # solta a conexão antes do cálculo (o Neon derruba transação ociosa)
         return montagem.montar_painel(df, cal, *entradas)
@@ -222,7 +225,7 @@ def contexto(db: Session) -> dict:
         "lojas": base_vendas.carregar_lojas(db),
         "categorias": _categorias(db),
         "configuracao": {"horizonte_dias": config.get("horizonte", settings.FORECAST_HORIZON_DAYS),
-                         "limiar_encomenda_un": LIMIAR_QTD_VENDA,
+                         "limiares_encomenda_un": base_vendas.limiares_encomenda_atuais(db),
                          # falso no Render: o front não oferece "Treinar previsões"
                          "treino_na_api": settings.TRAINING_RUNNER == "local"},
         "base": {"inicio": str(inicio) if inicio else None, "fim": str(fim) if fim else None,
@@ -250,9 +253,10 @@ def analises(db: Session) -> dict:
         df = _base_analise(_vendas(db, versao))
         cal = base_vendas.carregar_calendario(db)
         lojas = base_vendas.carregar_lojas(db)
+        limiares = base_vendas.limiares_encomenda_atuais(db)
         db.commit()  # solta a conexão antes do cálculo
         saida = {"gerado_em": pd.Timestamp.now().isoformat(timespec="seconds"),
-                 "limiar_encomenda_un": LIMIAR_QTD_VENDA, "unidades": {}}
+                 "limiares_encomenda_un": limiares, "unidades": {}}
         for u in lojas:
             v = df[df["unit_id"] == u["id"]]
             if len(v):

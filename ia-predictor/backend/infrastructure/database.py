@@ -162,7 +162,10 @@ class Sale(Base):
     Ficam de fora: nome e código do cliente, vendedor, operador e observação (dados
     pessoais ou sem uso), ICMS retido (sempre zero) e total do documento (só confere a
     integridade na carga). O cliente vira `is_registered_customer`; a empresa emissora vira
-    `unit_id`. `is_bulk_order` marca documentos com mais de 2.000 un. (ADR-013).
+    `unit_id`. `is_bulk_order` marca os documentos acima do limiar de encomenda grande da loja:
+    média + 4 desvios-padrão da quantidade de todos os pedidos dela (ADR-018). Cada planilha
+    recalcula o limiar, gravado em `processing_log.quality.limiar_encomenda_un`, e classifica
+    só as linhas que insere — a marcação gravada não muda depois.
 
     `ix_sales_dedup` cobre a chave que descarta linhas já carregadas por outra planilha
     (`DUPLICATE_KEY_FIELDS` da Etapa 1: número da nota, produto, data, quantidade e valor).

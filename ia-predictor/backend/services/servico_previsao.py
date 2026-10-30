@@ -42,8 +42,9 @@ conta: o próximo disparo treina.
 Modelo (fixo, decisão registrada na docstring de `domain/models/trainer.py`)
 ---------------------------------------------------------------------------
 SARIMAX com m = 7, d = 0, D = 0 e constante; ordem (p, q)(P, Q) por AIC; exógenas de
-calendário; série diária do **fluxo** — vendas sem as encomendas grandes (acima de 2.000
-unidades no documento, ADR-013), a mesma base dos experimentos que fixaram a receita. Walk-forward
+calendário; série diária do **fluxo** — vendas sem as encomendas grandes (pedido acima de
+média + 4 desvios-padrão da quantidade dos pedidos da loja, ADR-018; o limiar de cada loja
+no momento fica na configuração do disparo). Walk-forward
 com janela deslizante de `FORECAST_SERVICE_WINDOW_DAYS` dias e origem andando 1 dia por
 `FORECAST_SERVICE_WF_ORIGINS` origens, cada uma prevendo `FORECAST_HORIZON_DAYS` dias.
 Do ajuste final ficam os coeficientes (`series_models.params`) e o diagnóstico dos resíduos
@@ -117,7 +118,8 @@ log = logging.getLogger(__name__)
 D_REGULAR = 0          # séries estacionárias (ADF em 12 de 12): diferenciar seria má especificação
 D_SAZONAL = 0          # o ciclo semanal entra pelas dummies de dia da semana
 CATEGORIA_PRODUTOS = "grama"   # produtos treinados um a um: todos os desta categoria
-BASE_TREINO = "fluxo diário (sem encomendas grandes: acima de 2.000 un. no documento, ADR-013)"
+BASE_TREINO = ("fluxo diário (sem encomendas grandes: pedido acima de média + 4 desvios-padrão da quantidade "
+               "de todos os pedidos da loja, ADR-018)")
 
 _EM_CURSO = ("pending", "running")
 # Enquanto o treino roda, uma thread grava `heartbeat_at` a cada `_BATIMENTO_S`. Sem sinal
@@ -248,7 +250,8 @@ def _abrir(user_id: int | None, trigger: str, cfg: ConfigTreino) -> tuple[Foreca
             return job, False
 
         job = ForecastJob(user_id=user_id, trigger=trigger, status="pending", heartbeat_at=datetime.now(),
-                          config=_config_registrada(cfg), message="Na fila: o treino começa em instantes.")
+                          config=_config_registrada(cfg, base_vendas.limiares_encomenda_atuais(db)),
+                          message="Na fila: o treino começa em instantes.")
         db.add(job)
         db.commit()
         db.refresh(job)
@@ -312,8 +315,9 @@ def versao_codigo() -> str | None:
     return r.stdout.strip() or None
 
 
-def _config_registrada(cfg: ConfigTreino) -> dict:
-    return {**cfg.como_dict(), "base": BASE_TREINO, "categoria_produtos": CATEGORIA_PRODUTOS,
+def _config_registrada(cfg: ConfigTreino, limiares_encomenda: dict) -> dict:
+    return {**cfg.como_dict(), "base": BASE_TREINO, "limiares_encomenda_un": limiares_encomenda,
+            "categoria_produtos": CATEGORIA_PRODUTOS,
             "workers": max(1, settings.TRAINING_WORKERS), "versao_codigo": versao_codigo()}
 
 

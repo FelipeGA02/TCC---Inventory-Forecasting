@@ -2,7 +2,8 @@
  * Tipos do frontend, no formato que os endpoints `/api/v1/*` devolvem (`ia-predictor/openapi.yaml`).
  *
  * Previsão (ADR-017), treinada pelo botão "Treinar previsões":
- *  - encomendas grandes (venda > 2.000 un. na nota) ficam fora da previsão e aparecem à parte;
+ *  - encomendas grandes (nota acima do limiar da loja: média + 4 desvios-padrão da quantidade
+ *    dos pedidos dela, ADR-018) ficam fora da previsão e aparecem à parte;
  *  - cada uma das 4 categorias e cada produto de grama, em cada loja, tem o seu SARIMAX
  *    (m = 7, d = 0, D = 0, janela deslizante de 365 dias, testado dia a dia em 8 semanas);
  *  - o total da loja é a soma das 4 categorias.
@@ -208,7 +209,7 @@ export interface BaseReal {
     janela_dias: number;
     origens: number;
     passo_origem_dias: number;
-    limiar_encomenda_un: number;
+    limiares_encomenda_un: Record<UnidadeId, number>;
     base: string;
     categoria_produtos: string;
     versao_codigo: string | null;
@@ -236,7 +237,7 @@ export interface Contexto {
   lojas: { id: UnidadeId; nome: string; cidade: string }[];
   categorias: Categoria[];
   /** treino_na_api: falso quando a API não treina (Render) — o front não oferece "Treinar previsões" */
-  configuracao: { horizonte_dias: number; limiar_encomenda_un: number; treino_na_api: boolean };
+  configuracao: { horizonte_dias: number; limiares_encomenda_un: Record<UnidadeId, number>; treino_na_api: boolean };
   base: { inicio: string | null; fim: string | null; linhas: number; skus: number };
   /** O último treino concluído; nulo antes do primeiro. */
   previsao: {

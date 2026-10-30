@@ -47,7 +47,7 @@ from backend.infrastructure.database import (
 )
 from training_scripts.frontend_mock.gerar_dados_frontend import CATEGORIAS, UNIDADES
 from training_scripts.preprocessing.extrair_base_01 import OUTPUT_DIR, RAW_DIR
-from training_scripts.preprocessing.remove_encomendas_06 import LIMIAR_QTD_VENDA, marcar_encomendas
+from training_scripts.preprocessing.remove_encomendas_06 import calcular_limiares, marcar_encomendas_por_unidade
 
 BASE_CSV = os.path.join(OUTPUT_DIR, "BaseClassificada03.csv")
 CALENDARIO_CSV = os.path.join(OUTPUT_DIR, "calendario_diario.csv")
@@ -76,7 +76,7 @@ def sha256_arquivo(caminho: str) -> str:
     return h.hexdigest()
 
 
-def carregar_base() -> pd.DataFrame:
+def carregar_base() -> tuple[pd.DataFrame, dict]:
     cols = ["doc_tipo", "doc_numero", "pagamento", "emissao", "cliente_nome", "produto_cod",
             "produto_nome", "qtdade", "vl_unit", "vl_total", "vl_desconto", "tot_liq",
             "arquivo_origem", "unidade", "categoria", "categoria_fina"]
@@ -84,11 +84,13 @@ def carregar_base() -> pd.DataFrame:
     for c in ["qtdade", "vl_unit", "vl_total", "vl_desconto", "tot_liq"]:
         df[c] = pd.to_numeric(df[c])
     df["emissao"] = pd.to_datetime(df["emissao"])
-    # Encomenda grande como no painel: venda > 2.000 un., calculada sem as linhas de serviço.
+    # Encomenda grande: pedido acima de média + 4 desvios da quantidade de todos os pedidos
+    # da loja (ADR-018), calculada sem as linhas de serviço — a mesma regra do envio de planilha.
     df["encomenda"] = False
     produto = df["categoria"] != SERVICO
-    df.loc[produto, "encomenda"] = marcar_encomendas(df[produto], LIMIAR_QTD_VENDA)
-    return df
+    limiares = calcular_limiares(df[produto])
+    df.loc[produto, "encomenda"] = marcar_encomendas_por_unidade(df[produto], limiares)
+    return df, limiares
 
 
 def gravar_em_lotes(conn, tabela, registros: list[dict]) -> None:
@@ -137,7 +139,7 @@ def main() -> None:
         if db.scalar(select(func.count()).select_from(Sale)):
             sys.exit("A tabela sales já tem dados. Use --recriar para apagar tudo e carregar de novo.")
 
-    df = carregar_base()
+    df, limiares = carregar_base()
     log(f"base: {len(df):,} linhas · {df['emissao'].min():%d/%m/%Y} a {df['emissao'].max():%d/%m/%Y}")
 
     # ---- unidades, categorias e usuários
@@ -177,7 +179,8 @@ def main() -> None:
                 rows_read=extraidas + info.get("duplicatas_encontradas", 0) + info.get("registros_pulados", 0),
                 rows_added=len(linhas), rows_duplicate=info.get("duplicatas_encontradas", 0),
                 rows_skipped=info.get("registros_pulados", 0) + removidas,
-                quality={"removidas_na_limpeza": removidas},
+                quality={"removidas_na_limpeza": removidas,
+                         "limiar_encomenda_un": {unidade_por_nome[u]: round(v, 1) for u, v in limiares.items()}},
             )
             db.add(registro)
             db.flush()
@@ -217,7 +220,8 @@ def main() -> None:
     t1 = time.time()
     with engine.begin() as conn:
         gravar_vendas(conn, vendas)
-    log(f"{len(vendas):,} vendas ({vendas['is_bulk_order'].sum():,} linhas de encomendas grandes) "
+    log(f"{len(vendas):,} vendas ({vendas['is_bulk_order'].sum():,} linhas de encomendas grandes; pedido acima de "
+        + ", ".join(f"{u} {v:,.0f} un." for u, v in limiares.items()) + ") "
         f"em {time.time() - t1:.0f}s")
 
     # ---- calendário

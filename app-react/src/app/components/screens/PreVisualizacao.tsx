@@ -64,7 +64,7 @@ import { formatarMesAno, formatarMoeda, formatarNumero, formatarQtd } from "@/li
 interface Indice {
   lojas: UnidadeId[];
   pagamentos: string[];
-  limiar_encomenda_un: number;
+  limiares_encomenda_un: Record<UnidadeId, number>;
   total_registros: number;
   meses: { mes: string; registros: number }[];
 }

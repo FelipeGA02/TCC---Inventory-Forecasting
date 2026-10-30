@@ -11,8 +11,8 @@ olhar linha a linha quebra o evento em pedacos que individualmente parecem norma
 mesmo tempo marca como encomenda grande a linha avulsa de um cliente de balcao que levou um pouco
 mais que a mediana da categoria.
 
-Historico das tres versoes deste criterio
------------------------------------------
+Historico das versoes deste criterio
+------------------------------------
 1. `cliente_cod` (cadastrado x `CONSUMIDOR`) — descartado: a loja confirmou (2026-10-09)
    que cliente cadastrado nao e sinonimo de encomenda grande. Quem faz cadastro muitas vezes e
    cliente comum, e deve ser previsto junto com o balcao.
@@ -21,29 +21,20 @@ Historico das tres versoes deste criterio
    sem saber a que venda ela pertence. Medido nos dados de 2026, tirava **21,6%** (Itabirito)
    e **22,2%** (Jardim Canada) do volume de `CONSUMIDOR` do fluxo diario, e ainda deixava a
    serie mais irregular que a regra por venda.
-3. **tamanho da venda** (esta versao) — a regra atual.
+3. **tamanho da venda > 2.000 un.** (ADR-013) — limiar fixo, escolhido por sensibilidade.
+4. **tamanho da venda > media + 4 desvios-padrao** (ADR-018, esta versao) — cada loja tem o
+   seu limiar, tirado da distribuicao da quantidade de todos os pedidos dela (sem servico),
+   em unidades: `calcular_limiares`. A planilha nova recalcula o limiar com a base mais os
+   pedidos dela e classifica so as vendas inseridas; o que ja estava classificado fica.
 
-Evidencia (base de 2026, as duas lojas). "cons. tirado" = quanto do volume de `CONSUMIDOR`
-sai do fluxo diario, ou seja, contaminacao do que se quer prever:
+Evidencia do criterio por venda (ADR-013): em todos os limiares testados (500 a 5.000 un.)
+a regra por venda deixa o fluxo diario com CV menor **e** contamina menos o balcao que o
+Hampel por linha. A evidencia do limiar por desvios esta no ADR-018 e em
+`training_scripts/eda/eda_limiar_encomendas.py`.
 
-    Itabirito (total: CV 2,35)        vendas  vol.enc.  CV fluxo  cons. tirado
-      venda > 2.000 un                    93    52,1%      0,78          2,7%
-      Hampel por linha (anterior)          -    61,2%      1,04         21,6%
-
-    Jardim Canada (total: CV 1,18)
-      venda > 2.000 un                   131    22,5%      0,69          3,7%
-      Hampel por linha (anterior)          -    34,8%      0,87         22,2%
-
-Em todos os limiares testados (500, 1.000, 2.000, 3.000, 5.000) a regra por venda deixa o
-fluxo diario com CV menor **e** contamina menos o balcao. Ver
-`docs/prediction/ADR-013-encomendas-por-tamanho-da-venda.md`.
-
-O limiar e **fixo em unidades**, nao estimado dos dados — por isso nao precisa ser
-recalculado a cada rodada do walk-forward e nao ha risco de vazamento. Em compensacao ele
-e uma hipotese operacional, ainda **a confirmar com a parceira**: a partir de quantas
-unidades a loja precisa encomendar do fornecedor? O numero provavelmente varia por
-categoria (2.000 mudas de grama e 2.000 flores de corte nao sao o mesmo problema
-logistico), e `LIMIAR_POR_CATEGORIA` ja existe para acomodar isso quando houver resposta.
+O limiar e estimado da base inteira da loja, inclusive dos dias que o walk-forward testa: e
+o "tamanho de pedido fora do comum" da loja, nao um parametro do modelo. Com 60-75 mil
+pedidos por loja, uma semana nova quase nao o move (ver ADR-018).
 
 Uso (a partir de `ia-predictor/`):
     python -m training_scripts.preprocessing.remove_encomendas_06
@@ -62,8 +53,12 @@ from .separa_unidades_05 import UNIDADE_SLUG
 
 REMOVE_REPORT_JSON = os.path.join(OUTPUT_DIR, 'remove_encomendas_resumo.json')
 
-# Quantidade total da VENDA (documento) a partir da qual ela conta como encomenda grande.
-# Provisorio — a confirmar com a parceira (ver docstring).
+# Desvios-padrao acima da media da quantidade dos pedidos da loja a partir dos quais o
+# pedido e encomenda grande (ADR-018).
+K_DESVIOS = 4.0
+
+# Limiar fixo do ADR-013. Hoje so vale para a loja que ainda nao tem pedidos para calcular o
+# limiar (`calcular_limiares`) e como comparacao no resumo.
 LIMIAR_QTD_VENDA = 2000
 
 # Excecao por categoria, quando a loja informar limiares diferentes. Vazio = todos usam
@@ -85,6 +80,33 @@ LIMIAR_Z_MODIFICADO = 3.5
 def tamanho_da_venda(df: pd.DataFrame) -> pd.Series:
     """Quantidade total do documento a que cada linha pertence."""
     return df.groupby(CHAVE_VENDA)['qtdade'].transform('sum')
+
+
+def tamanho_dos_pedidos(df: pd.DataFrame) -> pd.Series:
+    """Quantidade total de cada pedido (documento), uma posicao por `CHAVE_VENDA`."""
+    return df.groupby(CHAVE_VENDA)['qtdade'].sum()
+
+
+def limiar_por_desvios(tamanhos: pd.Series, k: float = K_DESVIOS) -> float:
+    """Media + `k` desvios-padrao da quantidade dos pedidos, em unidades. So pedidos com
+    quantidade positiva entram (devolucao nao e tamanho de pedido); sem pedidos, o limiar
+    fixo do ADR-013."""
+    t = tamanhos[tamanhos > 0].astype(float)
+    if len(t) < 2:
+        return float(LIMIAR_QTD_VENDA)
+    return float(t.mean() + k * t.std())
+
+
+def calcular_limiares(df: pd.DataFrame, k: float = K_DESVIOS) -> dict:
+    """Limiar de encomenda grande de cada loja (`unidade`): distribuicao da quantidade de
+    todos os pedidos dela em `df` (sem as linhas de servico, que o chamador tira)."""
+    return {u: limiar_por_desvios(t, k) for u, t in tamanho_dos_pedidos(df).groupby(level='unidade')}
+
+
+def marcar_encomendas_por_unidade(df: pd.DataFrame, limiares: dict) -> pd.Series:
+    """`True` nas linhas dos pedidos acima do limiar da sua loja (loja sem limiar: o fixo)."""
+    limiar = df['unidade'].map(limiares).astype(float).fillna(float(LIMIAR_QTD_VENDA))
+    return tamanho_da_venda(df) > limiar
 
 
 def marcar_encomendas(df: pd.DataFrame, limiar: float = LIMIAR_QTD_VENDA,
@@ -123,6 +145,15 @@ def marcar_outliers(qtdade: pd.Series, grupo: pd.Series,
     return z_modificado.abs() > limiar
 
 
+def _distribuicao(tamanhos: pd.Series) -> dict:
+    """Resumo da distribuicao da quantidade dos pedidos (so os positivos)."""
+    t = tamanhos[tamanhos > 0]
+    return {'pedidos': int(len(t)), 'media_un': round(float(t.mean()), 2),
+            'desvio_padrao_un': round(float(t.std()), 2),
+            'quantis_un': {f'p{q * 100:g}': float(t.quantile(q)) for q in (0.5, 0.9, 0.99, 0.999)},
+            'max_un': float(t.max())}
+
+
 def _cv_diario(parte: pd.DataFrame, calendario: pd.DatetimeIndex) -> float:
     """CV da serie diaria de um fluxo, no calendario cheio (dia sem venda = 0)."""
     s = parte.groupby('emissao')['qtdade'].sum().reindex(calendario, fill_value=0.0)
@@ -133,7 +164,7 @@ def remover(
     input_csv: str = CLASSIFIED_CSV,
     output_dir: str = OUTPUT_DIR,
     report_json: str = REMOVE_REPORT_JSON,
-    limiar: float = LIMIAR_QTD_VENDA,
+    k: float = K_DESVIOS,
     verbose: bool = True,
 ) -> dict:
     df = pd.read_csv(input_csv, sep=';', encoding='utf-8', dtype=str, keep_default_na=False)
@@ -146,8 +177,11 @@ def remover(
     sem_data = df['emissao'].isna()
     df = df.loc[~servico & ~fora_unidade & ~sem_data].copy()
 
-    df['encomenda'] = marcar_encomendas(df, limiar, LIMIAR_POR_CATEGORIA)
-    # Comparacao com o criterio anterior, so para o resumo.
+    tamanhos = tamanho_dos_pedidos(df)
+    limiares = calcular_limiares(df, k)
+    df['encomenda'] = marcar_encomendas_por_unidade(df, limiares)
+    # Comparacao com os criterios anteriores, so para o resumo.
+    fixo = marcar_encomendas(df, LIMIAR_QTD_VENDA, LIMIAR_POR_CATEGORIA)
     hampel = marcar_outliers(df['qtdade'], df['unidade'] + ' | ' + df['categoria'])
 
     arquivos, por_unidade = {}, {}
@@ -179,17 +213,25 @@ def remover(
                     100 * base.loc[hampel.loc[base.index], 'qtdade'].sum() / vol, 1) if vol else None,
                 'cv_diario_fluxo': round(_cv_diario(base.loc[~hampel.loc[base.index]], cal), 2),
             },
+            'comparacao_limiar_fixo_2000_adr013': {
+                'vendas_encomenda': int(base.loc[fixo.loc[base.index]].groupby(CHAVE_VENDA).ngroups),
+                'pct_volume_removido': round(
+                    100 * base.loc[fixo.loc[base.index], 'qtdade'].sum() / vol, 1) if vol else None,
+                'cv_diario_fluxo': round(_cv_diario(base.loc[~fixo.loc[base.index]], cal), 2),
+            },
         }
 
     resumo = {
         'executado_em': datetime.now().isoformat(),
         'input_csv': input_csv,
-        'metodo': 'tamanho da venda (documento): encomenda grande se a soma de qtdade do '
-                  f'documento > {limiar} unidades',
+        'metodo': f'tamanho da venda (documento): encomenda grande se a soma de qtdade do '
+                  f'documento > media + {k:g} desvios-padrao da quantidade de todos os pedidos '
+                  f'da loja (ADR-018)',
         'unidade_de_decisao': CHAVE_VENDA,
-        'limiar_qtd_venda': limiar,
+        'limiar_qtd_venda_por_unidade': {u: round(v, 1) for u, v in limiares.items()},
+        'k_desvios': k,
+        'distribuicao_dos_pedidos_por_unidade': {u: _distribuicao(t) for u, t in tamanhos.groupby(level='unidade')},
         'limiar_por_categoria': LIMIAR_POR_CATEGORIA or None,
-        'limiar_e_fixo_sem_vazamento': True,
         'criterio_anterior': 'z-score modificado por linha (Iglewicz & Hoaglin, 1993) — '
                              'ver ADR-013 e docstring do modulo',
         'linhas_lidas': linhas_lidas,
@@ -204,13 +246,15 @@ def remover(
 
     if verbose:
         print(f'[remove_encomendas] {linhas_lidas} linhas lidas de {input_csv}')
-        print(f'[remove_encomendas] criterio: venda (documento) > {limiar} unidades')
+        print(f'[remove_encomendas] criterio: venda (documento) > media + {k:g} desvios dos pedidos da loja: '
+              + ', '.join(f'{u} {v:.0f} un.' for u, v in limiares.items()))
         for unidade, i in por_unidade.items():
-            h = i['comparacao_criterio_anterior_hampel_por_linha']
+            f = i['comparacao_limiar_fixo_2000_adr013']
             print(f'[remove_encomendas] {unidade}: {i["vendas_encomenda"]} encomenda(s) grande(s) em '
                   f'{i["dias_com_encomenda"]} dia(s) = {i["pct_volume_encomenda"]}% do volume '
                   f'· CV diario {i["cv_diario_total"]} -> {i["cv_diario_fluxo"]} '
-                  f'(criterio anterior: {h["pct_volume_removido"]}% / CV {h["cv_diario_fluxo"]})')
+                  f'(limiar fixo de 2.000: {f["vendas_encomenda"]} encomendas, {f["pct_volume_removido"]}% / '
+                  f'CV {f["cv_diario_fluxo"]})')
         for unidade, a in arquivos.items():
             print(f'[remove_encomendas] {unidade}: {a["fluxo_diario_csv"]} · {a["encomendas_csv"]}')
         print(f'[remove_encomendas] resumo em {report_json}')

@@ -1,6 +1,6 @@
 # ADR-013 — Encomenda é tamanho da venda, não tipo de cliente nem outlier de linha
 
-**Status:** aceito · **Data:** 2026-10-13 · **Revisa:** ADR-012 (encomendas grandes fora do L1)
+**Status:** aceito; o limiar de 2.000 un. foi revisado pelo ADR-018 (média + 4 desvios-padrão) · **Data:** 2026-10-13 · **Revisa:** ADR-012 (encomendas grandes fora do L1)
 **Afeta:** `training_scripts/preprocessing/remove_encomendas_06.py`, Etapa 6 do pré-processamento
 
 ---

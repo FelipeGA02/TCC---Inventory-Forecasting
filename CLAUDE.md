@@ -76,11 +76,12 @@ TCC---Inventory-Forecasting/
 │   ├── models/                  ← registro dos modelos dos experimentos (o sistema não salva joblib)
 │   ├── training_scripts/        ← experimentação pré-produção (fora do backend)
 │   │   ├── preprocessing/       ← XLSX bruto → base limpa → encomendas → calendário por loja → séries diárias (L1 e desagregação); `run_all.py` roda as 7 etapas (docs/prediction/01-pre_processing.md)
-│   │   ├── eda/                 ← análise exploratória (base transacional, séries do L1, granularidade das categorias, classificação de demanda)
+│   │   ├── eda/                 ← análise exploratória (base transacional, séries do L1, granularidade das categorias, classificação de demanda, distribuição da quantidade dos pedidos e limiar de encomenda grande — ADR-018)
 │   │   ├── baseline/            ← L1: série crua (doc 02) e treino por loja `sarimax_l1_por_loja.py` (doc 04: A0, A1, A1 d=1, Holt-Winters)
 │   │   ├── enriched/            ← L1 na série crua + calendário e clima (doc 03)
 │   │   ├── alternative_models/  ← Croston/TSB/SBA por SKU, ETS, XGBoost, rede neural global
 │   │   ├── disaggregation/      ← categoria direta × desagregação (ADR-016), estacionariedade por categoria e SKU
+│   │   ├── encomendas/          ← treino de produção com cada limiar de encomenda grande (fixo 2.000 × 4 × 3 desvios por loja, ADR-018)
 │   │   ├── validation/          ← walk-forward CV (origem móvel, h=14d), MASE/RMSSE, resíduos (compartilhado)
 │   │   ├── frontend_mock/       ← receita do treino anterior (loja + desagregação), registro histórico
 │   │   ├── output/               ← CSV/JSON gerados pelo preprocessing/ (gitignored)
@@ -236,7 +237,7 @@ diagrama em `docs/database/modelo_dados.drawio`, gerado por `docs/database/gerar
 | `units` | As 2 lojas (`jardim-canada`, `itabirito`) |
 | `categories` | As 4 categorias do negócio (coluna `categoria` da Etapa 3: Grama, Plantas diversas, Produtos de jardim, Flores de corte) + Serviço e taxa, com `show_on_dashboard` falso |
 | `products` | Catálogo: código, nome mais recente, categoria, subcategoria (`categoria_fina`) |
-| `sales` | Uma linha de produto por nota, só com os campos da planilha que o sistema usa (sem cliente, vendedor, operador); `is_bulk_order` = encomenda (ADR-013). Índice da deduplicação entre planilhas |
+| `sales` | Uma linha de produto por nota, só com os campos da planilha que o sistema usa (sem cliente, vendedor, operador); `is_bulk_order` = encomenda grande: pedido acima de média + 4 desvios-padrão da quantidade de todos os pedidos da loja (ADR-018); cada planilha recalcula o limiar da loja e classifica só as linhas que insere (a base gravada não é remarcada); o limiar de cada carga fica em `processing_log.quality.limiar_encomenda_un`. Índice da deduplicação entre planilhas |
 | `calendar_days` | Calendário por loja (loja fechada, abertura excepcional, feriado, data comemorativa); precisa cobrir os 14 dias seguintes à última venda (dia que faltar usa o padrão: fechada só no domingo) |
 | `processing_log` | Cada planilha gravada (nome, SHA-256, linhas lidas/novas/duplicadas, qualidade); em `quality`, o período da planilha e os dias de loja aberta que ficaram sem venda, avisados na conferência antes de gravar; `forecast_job_id`, o primeiro treino que a usou. A planilha não é guardada |
 | `forecast_jobs` | Cada treino da previsão (botão "Treinar previsões" ou script): status, andamento (série atual, %), impressão digital dos dados (`skipped` se não mudaram desde o último `done`), `data_until`, configuração com a versão do código, contagens por status. As telas leem o último `done` |
@@ -264,8 +265,8 @@ e `backend/domain/models/trainer.py`.
 
 | Decisão | Valor | Motivo |
 | --- | --- | --- |
-| Séries | em cada loja, as 4 categorias e cada produto de grama (com ≥ 180 dias antes da 1ª origem; produto, venda em ≥ 28 dias da última janela) | categoria direta vence a desagregação em 7 de 8 pares (ADR-016); a loja compra grama produto a produto. Total da loja = soma das categorias (faixa conservadora). Outras categorias não têm previsão por produto |
-| Alvo | fluxo diário: sem as notas acima de 2.000 un. (ADR-013), sem `Servico e taxa` | a mesma base dos experimentos que fixaram a receita |
+| Séries | em cada loja, as 4 categorias e cada produto de grama (com ≥ 180 dias antes da 1ª origem; produto, venda em ≥ 28 dias da última janela). Até 28/02/2026: 9 produtos de grama → 25 séries (8 categorias + 17 grama × loja), 17 com previsão (8 + 9) — lista no doc 07 §2 | categoria direta vence a desagregação em 7 de 8 pares (ADR-016); a loja compra grama produto a produto. Total da loja = soma das categorias (faixa conservadora). Outras categorias não têm previsão por produto |
+| Alvo | fluxo diário: sem as encomendas grandes — pedido acima de média + 4 desvios-padrão da quantidade de todos os pedidos da loja, hoje 1.343 un. em Jardim Canadá e 1.960 em Itabirito (ADR-018; antes, 2.000 fixo, ADR-013) —, sem `Servico e taxa` | no treino de produção (17 séries, ADR-018 §4.1), 4 desvios erra menos que o 2.000 fixo em 5 séries de Jardim Canadá, mais em 2 e igual em 10, com 9 séries `trained` contra 8; 3 desvios derruba 3 séries para `low_confidence` (IC < 90% ou MASE > 1) |
 | Modelo | SARIMAX m = 7, **d = 0**, D = 0, com constante; ordem por AIC (p, q ∈ 0..2; P, Q ∈ 0..1) só com a janela antes da 1ª origem | as 12 séries rejeitam raiz unitária no ADF e `d = 1` sobrediferencia (lag 1 da diferença −0,42 a −0,53); custo medido: `d = 1` erra 1–7% menos na família Grama |
 | Exógenas | 6 dummies de dia da semana, `loja_fechada`, `abertura_excepcional` (calendário de cada loja) | as do L1 (docs 03 e 04) |
 | Janela | deslizante de 365 dias | |
@@ -335,7 +336,7 @@ diária" — relatório em `docs/`.
 | --- | --- | --- |
 | MASE (categoria e produto de grama) | < 1.0 (bate a naïve sazonal semanal) | `low_confidence` |
 | Cobertura empírica do IC 95% | ∈ [90%, 98%] | `low_confidence` |
-| Histórico antes da 1ª origem do walk-forward | ≥ 180 dias | `insufficient_data` (sem previsão) |
+| Histórico antes da 1ª origem do walk-forward | ≥ 180 dias (= 249 dias de calendário da 1ª à última venda: 180 + 56 origens + 13 do complemento; doc 07 §2) | `insufficient_data` (sem previsão) |
 | Produto de grama: dias com venda na última janela de 365 | ≥ 28 | `insufficient_data` (sem previsão) |
 | Ljung-Box (p-value, resíduos do ajuste final) | > 0.05 | citado no log; não bloqueia |
 | Shapiro-Wilk (p-value, resíduos do ajuste final) | > 0.05 | citado no log; não bloqueia |
@@ -412,6 +413,7 @@ Comandos disponíveis (invocar via Skill tool ou como `/speckit-*`):
 | `docs/prediction/ADR-009-granularidade-diaria-e-reposicao.md` | **Espinha da revisão de escopo mensal→diário** — arquitetura L1/L2/L3, validação, shelf-life (L3 e grão `unidade × categoria` revisados pelo ADR-011) |
 | `docs/prediction/ADR-011-escopo-previsao-sem-reposicao.md` | Escopo: previsão de demanda sem reposição (L3 fora), 2 unidades; o L1 por `unidade` foi revisado pelo ADR-017 |
 | `docs/prediction/ADR-016-categoria-direta-vs-desagregacao.md` | Evidência: SARIMAX direto na categoria vence a desagregação em 7 de 8 pares categoria-loja (aceito pelo ADR-017) |
+| `docs/prediction/ADR-018-limiar-de-encomenda-por-desvios.md` | Encomenda grande = pedido acima de média + 4 desvios-padrão da quantidade de todos os pedidos da loja, em unidades; a planilha nova recalcula o limiar e classifica só as linhas inseridas: distribuição, comparação com o limiar fixo de 2.000 e o treino de produção das 17 séries com fixo × 4 × 3 desvios (§4.1) |
 | `docs/prediction/ADR-017-previsao-por-categoria-e-grama.md` | **A previsão do sistema**: SARIMAX direto em cada categoria e produto de grama, por loja; treino pelo botão ou script, sem agendador; histórico congelado; conferência da planilha. O que saiu e o que fica pendente (emenda da constituição) |
 | `docs/prediction/07-previsao_14_dias_e_historico.md` | Como o sistema treina, guarda e mostra: ciclo planilha → conferência → treino → telas, receita e walk-forward, previsão de 14 dias, regras do histórico (9 e 20 dias entre treinos), dias faltando na planilha, tabelas e testes |
 | `docs/README.md` | Índice da documentação por área + convenção de ADRs |

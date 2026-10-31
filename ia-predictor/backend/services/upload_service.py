@@ -48,7 +48,7 @@ from backend.domain.etl.cobertura import DiasFaltando, dias_faltando
 from backend.infrastructure.database import CalendarDay, Category, ProcessingLog, Product, Sale, Unit
 from training_scripts.preprocessing.classificacao_03 import classificar
 from training_scripts.preprocessing.extrair_base_01 import FIELDS, parse_xlsx
-from training_scripts.preprocessing.remove_encomendas_06 import CHAVE_VENDA, LIMIAR_QTD_VENDA, limiar_por_desvios
+from training_scripts.preprocessing.remove_encomendas_06 import CHAVE_VENDA, K_DESVIOS, LIMIAR_QTD_VENDA, limiar_por_desvios
 from training_scripts.preprocessing.tratamento_de_dados_02 import tratar_dados
 
 EXTENSOES = (".xlsx", ".xlsm")
@@ -405,7 +405,11 @@ def _gravar(db: Session, registro: ProcessingLog, p: _Preparada) -> ResultadoUpl
                         "dias_faltando": {f.unit_id: [str(d) for d in f.dias] for f in p.faltando},
                         "limiar_encomenda_un": {loja: round(v, 1) for loja, v in p.limiares_encomenda.items()},
                         "linhas_de_encomenda_grande": int(novas["is_bulk_order"].sum())}
+    limiares = ", ".join(f"{p.nomes_lojas.get(loja, loja)} {v:,.0f} un.".replace(",", ".")
+                         for loja, v in p.limiares_encomenda.items())
     registro.message = (f"{resultado.rows_added} vendas novas, {resultado.rows_duplicate} já estavam "
-                        f"carregadas")
+                        f"carregadas; {int(novas['is_bulk_order'].sum())} linha(s) nova(s) de encomenda grande. "
+                        f"Limiar de encomenda grande recalculado (média + {K_DESVIOS:g} desvios-padrão dos pedidos "
+                        f"de cada loja): {limiares}")[:500]
     db.commit()
     return resultado

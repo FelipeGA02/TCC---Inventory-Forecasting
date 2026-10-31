@@ -112,6 +112,7 @@ from backend.infrastructure.database import (
     SessionLocal,
 )
 from backend.services import base_vendas
+from training_scripts.preprocessing.remove_encomendas_06 import K_DESVIOS, LIMIAR_QTD_VENDA
 
 log = logging.getLogger(__name__)
 
@@ -335,6 +336,7 @@ class _Serie:
     y: pd.Series
     X: pd.DataFrame
     aberta: pd.Series
+    encomendas: dict | None = None  # limiar da loja e o que saiu da série na janela (`_encomendas_da_serie`)
 
 
 def _registrar(job_id: int, mensagem: str, nivel: str = "info", serie: str | None = None,
@@ -359,9 +361,39 @@ def _atualizar_job(job_id: int, **campos) -> None:
         db.commit()
 
 
+def _un(valor: float) -> str:
+    return f"{valor:,.0f}".replace(",", ".")
+
+
+def _encomendas_da_serie(vendas: pd.DataFrame, data_until: pd.Timestamp, janela_dias: int, limiar: float) -> dict:
+    """O que saiu da série como encomenda grande na janela de treino: pedidos (nota no dia) e
+    quanto da venda da série, com o limiar da loja (ADR-018)."""
+    janela = vendas[vendas["emissao"] > data_until - pd.Timedelta(days=janela_dias)]
+    enc = janela[janela["encomenda"]]
+    total = float(janela["qtdade"].sum())
+    return {"limiar_un": round(limiar, 1), "janela_dias": janela_dias,
+            "pedidos": int(enc[["emissao", "doc_numero"]].drop_duplicates().shape[0]),
+            "quantidade_un": round(float(enc["qtdade"].sum()), 1),
+            "pct_venda": round(100 * float(enc["qtdade"].sum()) / total, 1) if total > 0 else 0.0}
+
+
+def _texto_encomendas(e: dict | None, loja: str) -> str:
+    """Frase do log de cada série sobre as encomendas grandes que ficaram fora dela."""
+    if not e:
+        return ""
+    regra = (f"pedido acima de {_un(e['limiar_un'])} un., média + {K_DESVIOS:g} desvios-padrão dos pedidos "
+             f"de {loja}")
+    if not e["pedidos"]:
+        return f" Encomendas grandes ({regra}): nenhuma nos últimos {e['janela_dias']} dias."
+    return (f" Encomendas grandes ({regra}): {e['pedidos']} pedido(s) nos últimos {e['janela_dias']} dias, "
+            f"{_un(e['quantidade_un'])} un. ({str(e['pct_venda']).replace('.', ',')}% da venda da série), "
+            "fora da série.")
+
+
 def _montar_series(db: Session, cfg: ConfigTreino, job_id: int) -> tuple[list[_Serie], date]:
     """As séries de cada loja: as 4 categorias e cada produto de grama que vendeu nela."""
     df = base_vendas.carregar_vendas(db)
+    limiares = base_vendas.limiares_encomenda_atuais(db)
     if df.empty:
         raise ValueError("Não há vendas na base para treinar.")
     cal = base_vendas.carregar_calendario(db)
@@ -387,10 +419,13 @@ def _montar_series(db: Session, cfg: ConfigTreino, job_id: int) -> tuple[list[_S
                                "(fechada no domingo, sem abertura excepcional).", "warning")
         aberta = X["loja_fechada"] == 0
 
+        limiar = limiares.get(loja["id"], float(LIMIAR_QTD_VENDA))
         for cat_id, cat_nome in categorias:
             y = serie_diaria(fluxo[fluxo["cat"] == cat_id], data_until, inicio=inicio)
             series.append(_Serie(f"{loja['id']}:{NIVEL_CATEGORIA}:{cat_id}", f"{loja['nome']} · {cat_nome}",
-                                 loja["id"], NIVEL_CATEGORIA, cat_id, None, y, X, aberta))
+                                 loja["id"], NIVEL_CATEGORIA, cat_id, None, y, X, aberta,
+                                 _encomendas_da_serie(vendas[vendas["cat"] == cat_id], data_until,
+                                                      cfg.janela_dias, limiar)))
 
         grama = vendas[vendas["cat"] == CATEGORIA_PRODUTOS]
         ordem = grama.groupby("produto_cod")["qtdade"].sum().sort_values(ascending=False).index
@@ -400,7 +435,9 @@ def _montar_series(db: Session, cfg: ConfigTreino, job_id: int) -> tuple[list[_S
             y = serie_diaria(fluxo[fluxo["produto_cod"] == cod], data_until, inicio=ini_prod)
             series.append(_Serie(f"{loja['id']}:{NIVEL_PRODUTO}:{cod}", f"{loja['nome']} · {nomes[cod]}",
                                  loja["id"], NIVEL_PRODUTO, CATEGORIA_PRODUTOS, str(cod), y,
-                                 X.loc[ini_prod:], aberta.loc[ini_prod:]))
+                                 X.loc[ini_prod:], aberta.loc[ini_prod:],
+                                 _encomendas_da_serie(vendas[vendas["produto_cod"] == cod], data_until,
+                                                      cfg.janela_dias, limiar)))
     return series, data_until.date()
 
 
@@ -448,6 +485,8 @@ def _gravar_serie(job_id: int, s: _Serie, r: ResultadoSerie, cfg: ConfigTreino, 
         contadores["concluidas"] += 1
     contadores[r.status] = contadores.get(r.status, 0) + 1
     nivel_log, texto = _texto_resultado(r)
+    if r.status != evaluator.STATUS_DADOS_INSUFICIENTES:
+        texto += _texto_encomendas(s.encomendas, s.rotulo.split(" · ")[0])
     with SessionLocal() as db:
         modelo = SeriesModel(
             job_id=job_id, unit_id=s.unit_id, level=s.nivel, category_id=s.category_id,
@@ -460,7 +499,7 @@ def _gravar_serie(job_id: int, s: _Serie, r: ResultadoSerie, cfg: ConfigTreino, 
             params={"trend": "c" if cfg.d == 0 else "n", "transformation": "nenhuma", "training_base": BASE_TREINO,
                     "window_days": cfg.janela_dias, "ordens_convergidas": r.ordens_convergidas,
                     "dias_historico": r.dias_historico, "dias_com_venda_janela": r.dias_com_venda_janela,
-                    "coeficientes": r.coeficientes},
+                    "encomendas_grandes": s.encomendas, "coeficientes": r.coeficientes},
             train_start=r.treino_inicio.date() if r.treino_inicio is not None else None,
             train_end=r.treino_fim.date() if r.treino_fim is not None else None,
             message=r.motivo)
@@ -564,7 +603,10 @@ def _executar(job_id: int, cfg: ConfigTreino) -> None:
             f"Treino iniciado com vendas até {data_until:%d/%m/%Y}: {n_cat} séries de categoria e {n_prod} "
             f"produtos de grama, {len(treinaveis)} com dados suficientes. SARIMAX m={cfg.m}, d={cfg.d}, D={cfg.D} "
             f"com constante; janela deslizante de {cfg.janela_dias} dias; walk-forward com {cfg.origens} origens "
-            f"de 1 em 1 dia, prevendo {cfg.horizonte} dias. Base: {BASE_TREINO}."))
+            f"de 1 em 1 dia, prevendo {cfg.horizonte} dias. Base: {BASE_TREINO}. Limiar de encomenda grande de "
+            f"cada loja (média + {K_DESVIOS:g} desvios-padrão dos pedidos dela): "
+            + ", ".join(f"{s.rotulo.split(' · ')[0]} {_un(s.encomendas['limiar_un'])} un."
+                        for s in {s.unit_id: s for s in series if s.encomendas}.values()) + "."))
 
         contadores, total = {"concluidas": 0}, len(treinaveis)
         for s, motivo in inelegiveis:

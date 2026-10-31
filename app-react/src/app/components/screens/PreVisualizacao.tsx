@@ -33,7 +33,7 @@ import {
 } from "../ui/dropdown-menu";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "../ui/sheet";
 import type { UnidadeId } from "@/domain/types";
-import { CORES_CATEGORIA, categorias, nomeUnidade } from "../../data/mockData";
+import { CORES_CATEGORIA, categorias, nomeUnidade, textoLimiarEncomenda } from "../../data/mockData";
 import { COR_FLORES, type CategoriaAnalise } from "../../data/analises";
 import { api, type ConsultaRegistros } from "../../data/api";
 import { mensagemDoErro } from "@/lib/http/errors";
@@ -651,6 +651,12 @@ export function PreVisualizacao() {
             );
           })}
         </div>
+        {visao === "encomendas" && (
+          <p className="px-5 pt-3 text-xs" style={{ color: "var(--muted-foreground)" }}>
+            Encomenda grande é a nota bem acima do tamanho habitual da loja: hoje, acima de {textoLimiarEncomenda("todas")}. Esse limite é
+            recalculado a cada planilha enviada, e cada nota mantém a classificação que recebeu quando entrou. Essas notas ficam fora da previsão.
+          </p>
+        )}
 
         {/* Barra de ferramentas */}
         <div className="px-5 py-3 flex items-center gap-2 flex-wrap">

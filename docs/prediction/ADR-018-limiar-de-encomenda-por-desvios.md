@@ -165,9 +165,13 @@ T = `trained`, LC = `low_confidence`.
 - **O treino muda.** A marcação muda (sobretudo em Jardim Canadá), e com ela o fluxo diário
   e a impressão digital do treino: o próximo "Treinar previsões" treina de novo. O efeito
   medido está no §4.1.
-- **Banco existente.** A base gravada foi classificada com 2.000 e não é remarcada. As
-  telas mostram 2.000 por loja até a próxima planilha. Para a base inteira seguir o limiar
-  novo, refaça a carga (`run_all` + `carga_inicial --recriar`).
+- **Banco existente.** A base carregada antes deste ADR foi classificada com 2.000, e o
+  envio de planilha não a remarca. `python -m backend.scripts.reclassificar_encomendas
+  [--aplicar]` reclassifica a base inteira com o limiar de cada loja, sem apagar usuários,
+  treinos nem histórico. Ele grava os limiares numa linha de `processing_log`
+  (`kind = "reclassification"`, fora da lista de arquivos das telas). Rodado no Neon em
+  31/10/2026: 81 pedidos passaram a encomenda grande (Itabirito 93 → 96, Jardim Canadá
+  131 → 209), nenhum deixou de ser.
 - **Custo no envio.** A gravação soma a quantidade de todos os pedidos da base numa
   consulta agregada, ~130 mil linhas de volta.
 

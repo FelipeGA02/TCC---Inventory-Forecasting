@@ -110,6 +110,11 @@ def carregar_vendas(db: Session, ate: date | None = None) -> pd.DataFrame:
     return df
 
 
+# `processing_log.kind` da reclassificação da base (`scripts/reclassificar_encomendas.py`): não
+# é planilha, fica fora da lista de arquivos carregados, mas guarda os limiares que valem.
+KIND_RECLASSIFICACAO = "reclassification"
+
+
 def limiares_encomenda_atuais(db: Session) -> dict[str, float]:
     """O limiar de encomenda grande de cada loja (ADR-018): o da última planilha gravada que o
     calculou, em `processing_log.quality.limiar_encomenda_un`. Loja sem limiar gravado (banco

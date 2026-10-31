@@ -40,6 +40,7 @@ from backend.infrastructure.database import (
     SeriesModel,
 )
 from backend.services import base_vendas, cache
+from backend.services.base_vendas import KIND_RECLASSIFICACAO
 from training_scripts.frontend_mock.gerar_analises_frontend import analisar_unidade
 from training_scripts.preprocessing.remove_encomendas_06 import LIMIAR_QTD_VENDA as LIMIAR_ADR013
 
@@ -125,7 +126,8 @@ def _configuracao(job: ForecastJob, lojas: list[dict]) -> dict:
 
 def importacao(db: Session) -> dict:
     """Planilhas carregadas (`processing_log` concluído) e o resumo da qualidade."""
-    logs = list(db.scalars(select(ProcessingLog).where(ProcessingLog.status == "done")
+    logs = list(db.scalars(select(ProcessingLog).where(ProcessingLog.status == "done",
+                                                       ProcessingLog.kind != KIND_RECLASSIFICACAO)
                            .order_by(ProcessingLog.reference_month, ProcessingLog.id)))
 
     def periodo(p: ProcessingLog) -> list:

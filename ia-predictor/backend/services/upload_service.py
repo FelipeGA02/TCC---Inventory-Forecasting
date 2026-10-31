@@ -40,7 +40,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 
 import pandas as pd
-from sqlalchemy import func, insert, select, update
+from sqlalchemy import case, func, insert, select, update
 from sqlalchemy.orm import Session
 
 from backend.config import settings
@@ -279,10 +279,26 @@ def _preparar(db: Session, conteudo: bytes, nome: str, registro: ProcessingLog |
                       nomes_lojas={u.id: u.name for u in unidades})
 
 
-def _produtos_de_servico():
+def produtos_de_servico():
     """Códigos de Serviço e taxa: ficam fora do tamanho do pedido e nunca são encomenda grande."""
     return select(Product.code).join(Category, Category.id == Product.category_id) \
         .where(Category.source_category == SERVICO)
+
+
+def pedidos_da_base(db: Session) -> pd.DataFrame:
+    """Os pedidos gravados (sem Serviço e taxa): as colunas de `CHAVE_VENDA` (`unidade` é o id
+    da loja), a quantidade (`tam`) e se o pedido está marcado como encomenda grande (`marcado`)."""
+    pedidos = pd.read_sql(
+        select(Sale.unit_id.label("unidade"), Sale.sale_date.label("emissao"),
+               Sale.document_type.label("doc_tipo"), Sale.document_number.label("doc_numero"),
+               func.sum(Sale.quantity).label("tam"),
+               func.max(case((Sale.is_bulk_order, 1), else_=0)).label("marcado"))
+        .where(Sale.product_code.not_in(produtos_de_servico()))
+        .group_by(Sale.unit_id, Sale.sale_date, Sale.document_type, Sale.document_number),
+        db.connection())
+    pedidos["emissao"] = pd.to_datetime(pedidos["emissao"])
+    pedidos["marcado"] = pedidos["marcado"].astype(bool)
+    return pedidos
 
 
 def _marcar_encomendas(db: Session, registro: ProcessingLog, p: _Preparada) -> None:
@@ -290,14 +306,7 @@ def _marcar_encomendas(db: Session, registro: ProcessingLog, p: _Preparada) -> N
     (ADR-018) e a marcação só das vendas novas — as já gravadas não mudam."""
     registro.stage = "Marcando encomendas grandes"
     db.flush()
-    gravados = pd.read_sql(
-        select(Sale.unit_id.label("unidade"), Sale.sale_date.label("emissao"),
-               Sale.document_type.label("doc_tipo"), Sale.document_number.label("doc_numero"),
-               func.sum(Sale.quantity).label("tam"))
-        .where(Sale.product_code.not_in(_produtos_de_servico()))
-        .group_by(Sale.unit_id, Sale.sale_date, Sale.document_type, Sale.document_number),
-        db.connection())
-    gravados["emissao"] = pd.to_datetime(gravados["emissao"])
+    gravados = pedidos_da_base(db)
 
     ids_servico = {c.id for c in db.scalars(select(Category).where(Category.source_category == SERVICO))}
     linhas = pd.DataFrame({"unidade": p.vendas["unit_id"], "emissao": pd.to_datetime(p.vendas["sale_date"]),
@@ -305,7 +314,7 @@ def _marcar_encomendas(db: Session, registro: ProcessingLog, p: _Preparada) -> N
                            "tam": p.vendas["quantity"]})
     novos = linhas[~p.repetida & ~p.df["category_id"].isin(ids_servico)]
 
-    pedidos = pd.concat([gravados, novos], ignore_index=True).groupby(CHAVE_VENDA)["tam"].sum()
+    pedidos = pd.concat([gravados[CHAVE_VENDA + ["tam"]], novos], ignore_index=True).groupby(CHAVE_VENDA)["tam"].sum()
     p.limiares_encomenda = {loja: limiar_por_desvios(t) for loja, t in pedidos.groupby(level="unidade")}
     limiar = pedidos.index.get_level_values("unidade").map(p.limiares_encomenda).astype(float)
     grandes = pedidos.index[pedidos.values > limiar.fillna(float(LIMIAR_QTD_VENDA)).values]

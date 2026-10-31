@@ -131,12 +131,17 @@ class ProcessingLog(Base):
     `quality` traz o resumo da limpeza, o período da planilha e os dias de loja aberta que
     ficaram sem venda (avisados na conferência antes de gravar). `forecast_job_id` é o
     primeiro treino concluído que usou as vendas desta planilha.
+
+    `kind = "reclassification"` não é planilha: registra a reclassificação das encomendas
+    grandes da base inteira (`scripts/reclassificar_encomendas.py`, ADR-018), com os limiares
+    de cada loja em `quality.limiar_encomenda_un`. Fica fora da lista de arquivos das telas.
     """
 
     __tablename__ = "processing_log"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    kind = Column(String, nullable=False, default="upload", info={"hint": "upload|initial_load"})
+    kind = Column(String, nullable=False, default="upload",
+                  info={"hint": "upload|initial_load|reclassification"})
     filename = Column(String, nullable=False)
     file_sha256 = Column(String, nullable=False, index=True)
     file_size_bytes = Column(Integer, nullable=False)

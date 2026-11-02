@@ -615,7 +615,7 @@ def _executar(job_id: int, cfg: ConfigTreino) -> None:
             f"de 1 em 1 dia, prevendo {cfg.horizonte} dias. Base: {BASE_TREINO}. Limiar de encomenda grande de "
             f"cada loja (média + {K_DESVIOS:g} desvios-padrão dos pedidos dela): "
             + ", ".join(f"{s.rotulo.split(' · ')[0]} {_un(s.encomendas['limiar_un'])} un."
-                        for s in {s.unit_id: s for s in series if s.encomendas}.values()) + "."))
+                        for s in {s.unit_id: s for s in series if s.encomendas}.values())))
 
         contadores, total = {"concluidas": 0}, len(treinaveis)
         for s, motivo in inelegiveis:
@@ -703,7 +703,8 @@ def _ligar_planilhas(db: Session, job_id: int, ultima_planilha: int | None) -> s
         ProcessingLog.status == "done", ProcessingLog.forecast_job_id.is_(None), ProcessingLog.id <= ultima_planilha)
         .order_by(ProcessingLog.id)))
     if not novas:
-        return "Nenhuma planilha nova desde o último treino (mudou o calendário ou o catálogo)."
+        return ("Nenhuma planilha nova desde o último treino (mudou o calendário ou o catálogo, ou o treino "
+                "foi forçado).")
     db.execute(update(ProcessingLog).where(ProcessingLog.id.in_([p.id for p in novas])).values(forecast_job_id=job_id))
     nomes = ", ".join(p.filename for p in novas[:5]) + (f" e mais {len(novas) - 5}" if len(novas) > 5 else "")
     return f"{len(novas)} planilha(s) nova(s) neste treino: {nomes}."

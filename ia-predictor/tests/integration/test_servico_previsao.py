@@ -125,6 +125,7 @@ def test_treino_completo_em_segundo_plano(client, admin, config_rapida, monkeypa
     logs = client.get(f"{BASE}/treinos/{treino_id}/logs", headers=admin).json()
     assert logs[0]["mensagem"].startswith("Treino iniciado com vendas até 28/02/2026")
     assert "Limiar de encomenda grande de cada loja (média + 4 desvios-padrão dos pedidos dela)" in logs[0]["mensagem"]
+    assert logs[0]["mensagem"].endswith("Jardim Canadá 2.000 un., Itabirito 2.000 un.")  # sem ponto duplo
     # cada série treinada diz o limiar da sua loja e o que saiu dela (ADR-018)
     treinadas = [l for l in logs if l["serie"] and "SARIMAX" in l["mensagem"]]
     assert treinadas and all("Encomendas grandes (pedido acima de " in l["mensagem"] for l in treinadas)

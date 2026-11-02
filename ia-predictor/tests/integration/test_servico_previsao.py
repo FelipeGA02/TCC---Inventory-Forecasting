@@ -458,3 +458,14 @@ def test_script_treina_fora_da_api_e_pula_sem_dados_novos(client, monkeypatch, c
     with SessionLocal() as db:
         job = servico_previsao.ultimo(db)
     assert (job.trigger, job.status) == ("script", "skipped")
+
+    # --forcar treina mesmo com os mesmos dados, e o log do disparo registra isso
+    monkeypatch.setattr("sys.argv", ["treinar_previsoes", "--workers", "1", "--forcar"])
+    assert treinar_previsoes.main() == 0
+    saida = capsys.readouterr().out
+    assert "treinando assim mesmo (--forcar)" in saida and ": done em" in saida
+    with SessionLocal() as db:
+        job = servico_previsao.ultimo(db)
+        logs = list(db.scalars(select(ForecastJobLog.message).where(ForecastJobLog.job_id == job.id)))
+    assert (job.trigger, job.status) == ("script", "done")
+    assert any("pelo script com --forcar" in m for m in logs)

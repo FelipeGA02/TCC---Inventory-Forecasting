@@ -227,16 +227,19 @@ def na_api() -> bool:
 # --------------------------------------------------------------------------- #
 # Disparo
 # --------------------------------------------------------------------------- #
-def _abrir(user_id: int | None, trigger: str, cfg: ConfigTreino) -> tuple[ForecastJob, bool]:
+def _abrir(user_id: int | None, trigger: str, cfg: ConfigTreino,
+           forcar: bool = False) -> tuple[ForecastJob, bool]:
     """Registra o disparo (com a trava já adquirida). Devolve (disparo, vai treinar): sem
-    dados novos desde o último treino concluído, o disparo fica `skipped`."""
+    dados novos desde o último treino concluído, o disparo fica `skipped` — a não ser que
+    `forcar` (só o script: código novo de treino com a mesma base), registrado no log."""
     with SessionLocal() as db:
         _marcar_parados(db, trava_e_minha=True)
         if em_andamento(db) is not None:
             raise TreinoEmAndamento()
         digital = impressao_digital(db)
         concluido = ultimo_concluido(db)
-        if concluido is not None and concluido.data_fingerprint == digital:
+        mesmos_dados = concluido is not None and concluido.data_fingerprint == digital
+        if mesmos_dados and not forcar:
             agora = datetime.now()
             job = ForecastJob(user_id=user_id, trigger=trigger, status="skipped", created_at=agora,
                               finished_at=agora, data_fingerprint=digital, data_until=concluido.data_until,
@@ -254,6 +257,11 @@ def _abrir(user_id: int | None, trigger: str, cfg: ConfigTreino) -> tuple[Foreca
                           config=_config_registrada(cfg, base_vendas.limiares_encomenda_atuais(db)),
                           message="Na fila: o treino começa em instantes.")
         db.add(job)
+        db.flush()
+        if mesmos_dados:
+            db.add(ForecastJobLog(job_id=job.id, message=(
+                "Treino pedido mesmo sem dados novos desde o último treino concluído "
+                f"({concluido.finished_at:%d/%m/%Y %H:%M}), pelo script com --forcar.")))
         db.commit()
         db.refresh(job)
         return job, True
@@ -280,16 +288,17 @@ def iniciar(user_id: int | None) -> tuple[ForecastJob, bool]:
             _TRAVA.release()
 
 
-def treinar_agora(user_id: int | None = None, trigger: str = "script", cfg: ConfigTreino | None = None) -> ForecastJob:
+def treinar_agora(user_id: int | None = None, trigger: str = "script", cfg: ConfigTreino | None = None,
+                  forcar: bool = False) -> ForecastJob:
     """Treina neste processo e só volta no fim — o script `treinar_previsoes` (API que não
     treina, `TRAINING_RUNNER=externo`). Devolve o disparo como terminou (`done`, `error` ou
-    `skipped`)."""
+    `skipped`). `forcar` treina mesmo sem dados novos."""
     if not _TRAVA.acquire(blocking=False):
         raise TreinoEmAndamento()
     executou = False
     try:
         cfg = cfg or config_treino()
-        job, treinar = _abrir(user_id, trigger, cfg)
+        job, treinar = _abrir(user_id, trigger, cfg, forcar=forcar)
         if treinar:
             executou = True
             _executar(job.id, cfg)  # libera a trava ao terminar

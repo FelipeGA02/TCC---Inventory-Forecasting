@@ -8,7 +8,10 @@ disparo fica em `forecast_jobs` com `trigger = script`, com o log de cada série
 treino em andamento.
 
 Uso (a partir de `ia-predictor/`):
-    python -m backend.scripts.treinar_previsoes [--workers N]
+    python -m backend.scripts.treinar_previsoes [--workers N] [--forcar]
+
+`--forcar` treina mesmo sem dados novos (por exemplo, para o código novo do treino valer sobre
+a mesma base); o log do disparo registra que foi forçado.
 """
 from __future__ import annotations
 
@@ -27,6 +30,8 @@ def main() -> int:
     parser.add_argument("--workers", type=int, default=settings.TRAINING_WORKERS,
                         help=f"processos no treino (padrão TRAINING_WORKERS = {settings.TRAINING_WORKERS}; "
                              "proot/Termux: 1)")
+    parser.add_argument("--forcar", action="store_true",
+                        help="treina mesmo que os dados não tenham mudado desde o último treino concluído")
     args = parser.parse_args()
     settings.TRAINING_WORKERS = max(1, args.workers)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s", datefmt="%H:%M:%S")
@@ -35,10 +40,11 @@ def main() -> int:
     create_tables()
     with SessionLocal() as db:
         if not servico_previsao.dados_alterados(db):
-            print("[treinar_previsoes] os dados não mudaram desde o último treino: nada a treinar", flush=True)
+            print("[treinar_previsoes] os dados não mudaram desde o último treino: "
+                  + ("treinando assim mesmo (--forcar)" if args.forcar else "nada a treinar"), flush=True)
     t0 = time.time()
     try:
-        job = servico_previsao.treinar_agora(trigger="script")
+        job = servico_previsao.treinar_agora(trigger="script", forcar=args.forcar)
     except servico_previsao.TreinoEmAndamento:
         print("[treinar_previsoes] já existe um treino em andamento", flush=True)
         return 1

@@ -91,9 +91,9 @@ anterior: produto com menos de 28 dias de venda recebia rateio uniforme da categ
 (EDA, `00-eda_report.md` §2.5; gráfico em `03_esparsidade_dias_ativos_sku.png`). Com uns
 300 dias de loja aberta por ano, 28 dias equivalem a vender cerca de uma vez a cada duas
 semanas. Não foi testado se 28 é o melhor corte para o SARIMAX. Na base até 28/02/2026, a
-separação é clara mesmo assim: os produtos que ficam de fora venderam em no máximo 7 dias no
-ano (Zeon, Itabirito), e o mais fraco que entra vendeu em 31 (Esmeralda, Itabirito). Qualquer
-corte entre 8 e 31 dias daria as mesmas listas.
+separação é clara mesmo assim: os produtos que ficam de fora pela venda venderam em no máximo
+23 dias no ano (capim dos Texas roxo, Itabirito), e o mais fraco que entra vendeu em 31
+(Esmeralda, Itabirito). Qualquer corte entre 24 e 31 dias daria as mesmas listas.
 
 *O que não é usado.* A EDA classifica a demanda pelo critério de Syntetos-Boylan
 (`training_scripts/eda/eda_classificacao_sku.py`). Esse critério usa o intervalo médio entre
@@ -102,12 +102,16 @@ intermitente e irregular. O sistema não usa essa classificação para decidir o
 serve de comparação para a trilha Croston/TSB/SBA por SKU.
 
 **Quantas séries.** As séries são as 4 categorias e todos os produtos de grama, separados
-pelas 2 lojas. A base tem 9 produtos de grama: 8 venderam nas 2 lojas, e a Bermudas vendeu
-só em Jardim Canadá. As duas listas abaixo usam dados até 28/02/2026. "Dias de série" são
+pelas 2 lojas. Desde a revisão SKU a SKU de 04/11/2026 (§1), Grama inclui também a grama preta
+/ pelo de urso, o capim dos Texas, a semente de braquiária e o `GRAMADOS PREMIUM 20 KG
+BIOPLANT`. A base tem 19 produtos de grama: 16 venderam nas 2 lojas, a Bermudas só em Jardim
+Canadá e as 2 sementes de braquiária só em Itabirito. São 43 séries: 8 de categoria e 35 de
+produto (17 em Jardim Canadá e 18 em Itabirito). Antes da revisão eram 9 produtos e 25
+séries, 17 com previsão. As duas listas abaixo usam dados até 28/02/2026. "Dias de série" são
 os dias de calendário da primeira venda até 28/02/2026, e o mínimo é 249. Os dias com venda
 contam só o fluxo diário (sem encomendas grandes), e o mínimo é 28 nos últimos 365.
 
-*Séries com previsão (17).*
+*Séries com previsão (23).*
 
 | # | Loja | Série | 1ª venda | Dias de série | Dias com venda (365) |
 | --- | --- | --- | --- | --- | --- |
@@ -115,38 +119,59 @@ contam só o fluxo diário (sem encomendas grandes), e o mínimo é 28 nos últi
 | 2 | Jardim Canadá | Categoria Plantas diversas | 02/01/2024 | 789 | 299 |
 | 3 | Jardim Canadá | Categoria Produtos de jardim | 02/01/2024 | 789 | 299 |
 | 4 | Jardim Canadá | Categoria Flores de corte | 02/01/2024 | 789 | 299 |
-| 5 | Jardim Canadá | 147 GRAMA AMENDOIM UNID. BDJA | 02/01/2024 | 789 | 262 |
-| 6 | Jardim Canadá | 3 GRAMA ESMERALDA | 02/01/2024 | 789 | 297 |
+| 5 | Jardim Canadá | 3 GRAMA ESMERALDA | 02/01/2024 | 789 | 297 |
+| 6 | Jardim Canadá | 147 GRAMA AMENDOIM UNID. BDJA | 02/01/2024 | 789 | 262 |
 | 7 | Jardim Canadá | 710 GRAMA SAO CARLOS | 02/01/2024 | 789 | 255 |
-| 8 | Jardim Canadá | 1739 GRAMA ZEON | 01/02/2024 | 759 | 35 |
-| 9 | Jardim Canadá | 00013475 GRAMA ESMERALDA ( ITO) | 07/02/2024 | 753 | 33 |
-| 10 | Itabirito | Categoria Grama | 02/01/2024 | 789 | 295 |
-| 11 | Itabirito | Categoria Plantas diversas | 02/01/2024 | 789 | 301 |
-| 12 | Itabirito | Categoria Produtos de jardim | 02/01/2024 | 789 | 301 |
-| 13 | Itabirito | Categoria Flores de corte | 02/01/2024 | 789 | 301 |
-| 14 | Itabirito | 147 GRAMA AMENDOIM UNID. BDJA | 03/01/2024 | 788 | 79 |
-| 15 | Itabirito | 00013475 GRAMA ESMERALDA ( ITO) | 02/01/2024 | 789 | 291 |
-| 16 | Itabirito | 710 GRAMA SAO CARLOS | 03/01/2024 | 788 | 64 |
-| 17 | Itabirito | 3 GRAMA ESMERALDA | 03/01/2024 | 788 | 31 |
+| 8 | Jardim Canadá | 1293 CAPIM DOS TEXAS ROXO | 03/01/2024 | 788 | 59 |
+| 9 | Jardim Canadá | 00020227 CAPIM DOS TEXAS ROXO | 18/01/2024 | 773 | 51 |
+| 10 | Jardim Canadá | 1294 CAPIM DOS TEXAS VERDE | 10/01/2024 | 781 | 39 |
+| 11 | Jardim Canadá | 166 GRAMA PRETA PELO DE URSO BDJA (UNID) | 02/01/2024 | 789 | 39 |
+| 12 | Jardim Canadá | 00150005 GRAMA PRETA PELO URSO SAQ | 29/01/2024 | 762 | 37 |
+| 13 | Jardim Canadá | 1739 GRAMA ZEON | 01/02/2024 | 759 | 35 |
+| 14 | Jardim Canadá | 167 GRAMA PRETA ANA | 16/01/2024 | 775 | 34 |
+| 15 | Jardim Canadá | 00013475 GRAMA ESMERALDA ( ITO) | 07/02/2024 | 753 | 33 |
+| 16 | Itabirito | Categoria Grama | 02/01/2024 | 789 | 295 |
+| 17 | Itabirito | Categoria Plantas diversas | 02/01/2024 | 789 | 301 |
+| 18 | Itabirito | Categoria Produtos de jardim | 02/01/2024 | 789 | 301 |
+| 19 | Itabirito | Categoria Flores de corte | 02/01/2024 | 789 | 301 |
+| 20 | Itabirito | 00013475 GRAMA ESMERALDA ( ITO) | 02/01/2024 | 789 | 291 |
+| 21 | Itabirito | 147 GRAMA AMENDOIM UNID. BDJA | 03/01/2024 | 788 | 79 |
+| 22 | Itabirito | 710 GRAMA SAO CARLOS | 03/01/2024 | 788 | 64 |
+| 23 | Itabirito | 3 GRAMA ESMERALDA | 03/01/2024 | 788 | 31 |
 
-Esmeralda em Itabirito (31), Esmeralda ITO em Jardim Canadá (33) e Zeon em Jardim Canadá (35)
-estão perto do mínimo de 28.
+Esmeralda em Itabirito (31), Esmeralda ITO em Jardim Canadá (33), grama preta Ana (34) e Zeon
+(35) em Jardim Canadá estão perto do mínimo de 28.
 
-*Séries sem previsão (8): venda irregular.* Todas têm histórico de sobra, então o motivo é
-sempre a venda em menos de 28 dias. São produtos de venda esporádica: poucos dias no ano,
-às vezes uma única compra grande, e com tantos zeros a série não sustenta um SARIMAX. Ficam
-no log e no painel como `insufficient_data`, com o motivo, sem previsão.
+*Séries sem previsão (20).* Em 17 o motivo é a venda em menos de 28 dias: produtos de venda
+esporádica, com poucos dias no ano e às vezes uma única compra grande. Com tantos zeros, a
+série não sustenta um SARIMAX. Nas outras 3, o produto estreou há pouco e não tem os 249 dias
+de série: o `GRAMADOS PREMIUM` nas 2 lojas, desde o fim de outubro de 2025, e a semente de
+braquiária de 10 kg em Itabirito. O `GRAMADOS PREMIUM` em Jardim Canadá já vende em 36 dias e
+deve ganhar previsão quando completar o histórico, por volta de julho de 2026. Todas ficam no
+log e no painel como `insufficient_data`, com o motivo, sem previsão.
 
-| # | Loja | Produto | 1ª venda | Última venda | Dias com venda (365) | Dias com venda (histórico) | Quantidade total (fluxo) |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Jardim Canadá | 134 GRAMA AZUL SAQ | 08/03/2024 | 15/01/2026 | 3 | 4 | 1.436 (36) |
-| 2 | Jardim Canadá | 00013479 GRAMA AMENDOIM | 10/01/2024 | 08/10/2025 | 2 | 5 | 1.255 (1.255) |
-| 3 | Jardim Canadá | 1832 GRAMA BERMUDAS | 20/03/2024 | 30/09/2025 | 2 | 6 | 428 (428) |
-| 4 | Jardim Canadá | 2372 GRAMA ESMERALDA MAXI ROLO | 06/03/2024 | 31/05/2024 | 0 | 6 | 64 (64) |
-| 5 | Itabirito | 00013479 GRAMA AMENDOIM | 26/03/2024 | 18/11/2025 | 1 | 2 | 2.221 (908) |
-| 6 | Itabirito | 2372 GRAMA ESMERALDA MAXI ROLO | 23/10/2024 | 13/11/2025 | 4 | 12 | 1.080 (160) |
-| 7 | Itabirito | 1739 GRAMA ZEON | 20/02/2024 | 27/02/2026 | 7 | 12 | 905 (455) |
-| 8 | Itabirito | 134 GRAMA AZUL SAQ | 30/03/2024 | 30/01/2025 | 0 | 3 | 34 (34) |
+| # | Loja | Produto | 1ª venda | Última venda | Dias com venda (365) | Dias com venda (histórico) | Quantidade total (fluxo) | Motivo |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | Jardim Canadá | 00030458 GRAMADOS PREMIUM 20 KG BIOPLANT | 28/10/2025 | 26/02/2026 | 36 | 36 | 257 (257) | histórico (124 dias) |
+| 2 | Jardim Canadá | 00150149 CAPIM DOS TEXAS VERDE | 26/01/2024 | 10/02/2026 | 8 | 25 | 742 (542) | venda |
+| 3 | Jardim Canadá | 134 GRAMA AZUL SAQ | 08/03/2024 | 15/01/2026 | 3 | 6 | 1.436 (36) | venda |
+| 4 | Jardim Canadá | 00013479 GRAMA AMENDOIM | 10/01/2024 | 08/10/2025 | 2 | 5 | 1.255 (1.255) | venda |
+| 5 | Jardim Canadá | 1832 GRAMA BERMUDAS | 20/03/2024 | 30/09/2025 | 2 | 6 | 428 (428) | venda |
+| 6 | Jardim Canadá | 2372 GRAMA ESMERALDA MAXI ROLO | 06/03/2024 | 31/05/2024 | 0 | 6 | 64 (64) | venda |
+| 7 | Itabirito | 1293 CAPIM DOS TEXAS ROXO | 16/02/2024 | 06/02/2026 | 23 | 55 | 11.332 (3.947) | venda |
+| 8 | Itabirito | 00020227 CAPIM DOS TEXAS ROXO | 01/04/2024 | 17/11/2025 | 10 | 13 | 318 (318) | venda |
+| 9 | Itabirito | 00150149 CAPIM DOS TEXAS VERDE | 08/02/2025 | 07/01/2026 | 10 | 11 | 188 (188) | venda |
+| 10 | Itabirito | 00030458 GRAMADOS PREMIUM 20 KG BIOPLANT | 02/11/2025 | 10/02/2026 | 8 | 8 | 25 (25) | histórico (119 dias) |
+| 11 | Itabirito | 1294 CAPIM DOS TEXAS VERDE | 15/04/2024 | 15/01/2026 | 8 | 21 | 733 (633) | venda |
+| 12 | Itabirito | 167 GRAMA PRETA ANA | 22/01/2024 | 18/02/2026 | 8 | 22 | 9.826 (442) | venda |
+| 13 | Itabirito | 1739 GRAMA ZEON | 20/02/2024 | 27/02/2026 | 7 | 13 | 905 (455) | venda |
+| 14 | Itabirito | 166 GRAMA PRETA PELO DE URSO BDJA (UNID) | 29/02/2024 | 03/12/2025 | 5 | 14 | 2.675 (1.375) | venda |
+| 15 | Itabirito | 2372 GRAMA ESMERALDA MAXI ROLO | 23/10/2024 | 13/11/2025 | 4 | 12 | 1.080 (160) | venda |
+| 16 | Itabirito | 00013479 GRAMA AMENDOIM | 26/03/2024 | 18/11/2025 | 1 | 12 | 2.221 (908) | venda |
+| 17 | Itabirito | 00021675 SEMENTE BRACHIARA 10KG | 24/11/2025 | 24/11/2025 | 1 | 1 | 1 (1) | histórico (97 dias) |
+| 18 | Itabirito | 00150005 GRAMA PRETA PELO URSO SAQ | 08/02/2024 | 17/10/2025 | 1 | 19 | 337 (337) | venda |
+| 19 | Itabirito | 00021306 SEMENTE BRACHIARIA 1KG | 23/02/2024 | 29/10/2024 | 0 | 2 | 150 (150) | venda |
+| 20 | Itabirito | 134 GRAMA AZUL SAQ | 30/03/2024 | 30/01/2025 | 0 | 3 | 34 (34) | venda |
 
 A última venda conta todas as notas, inclusive as encomendas grandes. Os dias com venda e o
 fluxo (entre parênteses) não contam as encomendas. A Esmeralda Maxi Rolo de Jardim Canadá não

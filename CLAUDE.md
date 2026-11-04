@@ -173,6 +173,11 @@ python -m backend.scripts.treinar_previsoes --workers 8
 # sem apagar nada; sem --aplicar só mostra o que mudaria. Rodado no Neon em 31/10/2026
 python -m backend.scripts.reclassificar_encomendas [--aplicar]
 
+# Reaplicar as regras de categoria (taxonomy/categorias.py) ao catálogo do banco: a planilha
+# só classifica produto novo. Sem --aplicar só mostra o que mudaria; depois, conferir as
+# encomendas com reclassificar_encomendas (produto que entra/sai de Serviço e taxa)
+python -m backend.scripts.reclassificar_produtos [--aplicar]
+
 # Preencher o histórico da previsão de um banco antigo a partir do último treino
 python -m backend.scripts.semear_historico [--recriar]
 
@@ -243,7 +248,7 @@ diagrama em `docs/database/modelo_dados.drawio`, gerado por `docs/database/gerar
 | `products` | Catálogo: código, nome mais recente, categoria, subcategoria (`categoria_fina`) |
 | `sales` | Uma linha de produto por nota, só com os campos da planilha que o sistema usa (sem cliente, vendedor, operador); `is_bulk_order` = encomenda grande: pedido acima de média + 4 desvios-padrão da quantidade de todos os pedidos da loja (ADR-018); cada planilha recalcula o limiar da loja e classifica só as linhas que insere (a base gravada não é remarcada); o limiar de cada carga fica em `processing_log.quality.limiar_encomenda_un`. Índice da deduplicação entre planilhas |
 | `calendar_days` | Calendário por loja (loja fechada, abertura excepcional, feriado, data comemorativa); precisa cobrir os 14 dias seguintes à última venda (dia que faltar usa o padrão: fechada só no domingo) |
-| `processing_log` | Cada planilha gravada (nome, SHA-256, linhas lidas/novas/duplicadas, qualidade); em `quality`, o período da planilha e os dias de loja aberta que ficaram sem venda, avisados na conferência antes de gravar; `forecast_job_id`, o primeiro treino que a usou. A planilha não é guardada. `kind = "reclassification"`: a reclassificação das encomendas grandes da base (`reclassificar_encomendas`), com os limiares de cada loja — fora da lista de arquivos |
+| `processing_log` | Cada planilha gravada (nome, SHA-256, linhas lidas/novas/duplicadas, qualidade); em `quality`, o período da planilha e os dias de loja aberta que ficaram sem venda, avisados na conferência antes de gravar; `forecast_job_id`, o primeiro treino que a usou. A planilha não é guardada. `kind = "reclassification"`: a reclassificação das encomendas grandes da base (`reclassificar_encomendas`), com os limiares de cada loja, ou das categorias do catálogo (`reclassificar_produtos`), com cada produto que mudou — fora da lista de arquivos |
 | `forecast_jobs` | Cada treino da previsão (botão "Treinar previsões" ou script): status, andamento (série atual, %), impressão digital dos dados (`skipped` se não mudaram desde o último `done`), `data_until`, configuração com a versão do código, contagens por status. As telas leem o último `done` |
 | `forecast_job_logs` | Log do treino, uma linha por série (ordem, AIC, métricas, resíduos, status ou motivo da recusa) e as do treino (planilhas novas, histórico gravado, limpeza do walk-forward) |
 | `series_models` | Cada série (4 categorias + cada produto de grama, por loja): status, ordem, AIC, MASE, cobertura, métricas do walk-forward e diagnóstico dos resíduos (`metrics`), coeficientes do ajuste final (`params`); `insufficient_data`/`error` com o motivo |

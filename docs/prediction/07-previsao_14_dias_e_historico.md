@@ -31,6 +31,16 @@ Não há treino agendado. Na API publicada no Render, que não treina
 `python -m backend.scripts.treinar_previsoes`, rodado pela equipe de outra máquina sobre o
 mesmo banco. É o mesmo código.
 
+**Quando as regras de categoria mudam.** A planilha só classifica produto novo: o produto já
+cadastrado mantém a categoria do cadastro. Depois de mudar
+`training_scripts/preprocessing/taxonomy/categorias.py`, roda-se
+`python -m backend.scripts.reclassificar_produtos` (sem `--aplicar`, só mostra o que muda;
+com ele, atualiza `products` e registra em `processing_log`). O catálogo entra na impressão
+digital, então o treino seguinte treina de novo. Produto que entra em `Servico e taxa` ou sai
+dela muda o tamanho do pedido: em seguida, `reclassificar_encomendas` confere as encomendas
+grandes. A revisão SKU a SKU de 04/11/2026 mudou 127 produtos de categoria; entre eles, grama
+preta / pelo de urso e capim dos Texas passaram de Plantas diversas a Grama.
+
 ## 2. O treino
 
 `backend/services/servico_previsao.py` monta as séries e chama
@@ -321,6 +331,7 @@ calendário real, o aviso não dispara nenhuma vez.
 | --- | --- |
 | `python -m backend.scripts.treinar_previsoes [--workers N]` | treinar fora da API (Render) |
 | `python -m backend.scripts.semear_historico [--recriar]` | preencher o histórico de um banco antigo |
+| `python -m backend.scripts.reclassificar_produtos [--aplicar]` | aplicar ao catálogo do banco as regras de categoria de hoje |
 
 | Teste | O que garante |
 | --- | --- |

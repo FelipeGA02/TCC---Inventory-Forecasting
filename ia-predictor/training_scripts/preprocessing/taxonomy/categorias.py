@@ -75,6 +75,40 @@ CATEGORIA_POR_SKU: dict[str, str] = {
     "00030040": "Insumo e acessorio",        # OLEO DE ANDIROBA 50ML (repelente)
     # Comestiveis.
     "00140066": "Hortalica e erva",          # PIMENTAO
+    # Curadoria de 2026-11-04: classificacao SKU a SKU (4 categorias + servico) que as
+    # regras pelo nome nao reproduzem — item isolado, sem padrao no nome.
+    "00020918":   "Insumo e acessorio",       # BAMBU VARA DE PESCAR
+    "1812":       "Insumo e acessorio",       # EVIDENCE
+    "00030458":   "Grama",                    # GRAMADOS PREMIUM 20 KG BIOPLANT
+    "00020187":   "Insumo e acessorio",       # PETALAS DE ROSA
+    "2261NL":     "Flor de corte e arranjo",  # TRIGO ORNAMENTAL
+    "00200578":   "Servico e taxa",           # MONTAGEM BUQUE
+    "00020019":   "Insumo e acessorio",       # AVELOZ EMBALAGEN 5 LITROS
+    "404":        "Arbusto e planta formada", # LARANJA DA TERRA PEQ
+    "00040247":   "Insumo e acessorio",       # CEREJA FRUTA (COLOCAR EM BOLO)
+    "00200580":   "Insumo e acessorio",       # CESTA NAMORADOS
+    "492":        "Outros",                   # CORRENTAO 64CM
+    "00021340":   "Planta em vaso",           # BAMBU DA SORTE POTE BRANCO
+    "1992":       "Insumo e acessorio",       # CAJA MIRIM
+    "00021273":   "Planta em vaso",           # ORQUIDEA VANDA DA TERRA
+    "876":        "Outros",                   # MACADAME PEQ
+    "00020895":   "Flor de corte e arranjo",  # CAPIM DOS PAMPAS EM CABO
+    "00020254":   "Planta em vaso",           # PLANTA CARNIVORA NA JARDINEIRA
+    "00021255":   "Planta em vaso",           # BAMBU DA SORTE TRANCADO POTE PRETO
+    "655":        "Insumo e acessorio",       # VASO CONE COM TUMBERGIA MAIS INSUMOS
+    "00021657":   "Insumo e acessorio",       # FLORES COMESTIVEIS MIX
+    "995":        "Insumo e acessorio",       # FARINHA SECA PEQ.
+    "3123":       "Insumo e acessorio",       # RAPHIS EXCELSASEMENTE
+    "00040234":   "Insumo e acessorio",       # ABACATE SEMENTE
+    "00180384":   "Insumo e acessorio",       # JUNCO
+    "00040302":   "Arbusto e planta formada", # LARANJA DA TERRA SACOLAO
+    "24771":      "Flor de corte e arranjo",  # SEMPRA 200GR
+    "808":        "Insumo e acessorio",       # CONCHA FIBRA COCO
+    "00060134":   "Insumo e acessorio",       # ENFETES FERRO GUARDA CHUVA PEQ.
+    "00180275":   "Insumo e acessorio",       # PET GOTA
+    "VO20797152": "Insumo e acessorio",       # JUNTA
+    "1107":       "Insumo e acessorio",       # ARRRANJO PASSAROS G
+    "2677":       "Planta em vaso",           # NOLINA (PATA ELEFANTE) NA BACIA POLIETILENO
 }
 
 # 2. Regras por palavra-chave sobre produto_nome. ORDEM IMPORTA (primeira que casar vence).
@@ -102,6 +136,29 @@ CATEGORIA_REGRAS: list[tuple[re.Pattern, str]] = [
     (re.compile(r"^(?!.*\b(PT\s?\d{1,2}|VB|POTE|SAQ\w*|SQ|CUIA|VASO|CACHEP\w*)\b)"
                 r".*\b(GERBERA|CRISANTEMO|TANGO)\b", re.I),
      "Flor de corte e arranjo"),
+
+    # Curadoria de 2026-11-04 (classificacao SKU a SKU, ver docstring do modulo): produtos
+    # nao vivos cujo nome casava uma regra de planta — recipiente vazio com "CUIA" (regra de
+    # muda pelo formato), adubo/semente com "HORTALICA", "QUIABO", "ORQUIDEA". Checadas
+    # antes das regras de planta.
+    # Semente de pastagem (braquiaria) e semente de gramado: Grama.
+    (re.compile(r"^\s*SEMENTES?\s+BRACHIAR\w*", re.I),
+     "Grama"),
+    # Pacote de semente (hortalica, flor, fruta): insumo, nao planta.
+    (re.compile(r"^\s*SEMENTES?\b", re.I),
+     "Insumo e acessorio"),
+    # Adubo e substrato de linha (Forth, preparo para orquidea).
+    (re.compile(r"\bFORTH\b|\bPREPAR\w*\s+(PARA\s+)?ORQU", re.I),
+     "Substrato e adubo"),
+    # Recipientes vazios e embalagem: cuia plastica/trancada/de fibra de coco, pote de
+    # orquidea, bandeja de celulas ou de cafe da manha, saco plastico, papel kraft.
+    (re.compile(r"^\s*(KIT\s+)?CUIA\s+(PLAST|TRANCADO|NUTRICOCO)|^\s*POTE\s+ORQU|"
+                r"^\s*BANDEJA\s+(\d|CAFE|TRANCADO)|\bSACO\s+PLAST|\bPAPEL\s+KRAFT|"
+                r"\bROUNDUP\b|^\s*JARR(O|[AÃ]O)\b", re.I),
+     "Insumo e acessorio"),
+    # Capim-do-texas (Pennisetum) e vendido junto com a grama: Grama.
+    (re.compile(r"\bCAPIM\s+DOS?\s+TEXAS\b", re.I),
+     "Grama"),
 
     # Hortalicas, ervas e produce (mudas comestiveis / horta). `HORTALIC\w*` cobre o
     # plural "HORTALICAS" (o \b apos "...ICA" nao casava "...ICAS").
@@ -198,10 +255,10 @@ CATEGORIA_REGRAS: list[tuple[re.Pattern, str]] = [
                 r"BARRA\s+DE\s+CHOCOLATE|CARPA|RA[CÇ][AÃ]O)\b", re.I),
      "Insumo e acessorio"),
 
-    # "Grama preta" / "pelo de urso" e forracao (Ophiopogon) — vendida como muda, NAO e
-    # grama de plantio. Checar ANTES da regra de GRAMA.
+    # "Grama preta" / "pelo de urso" (Ophiopogon): ate 2026-11-03 era forracao (Plantas
+    # diversas); a classificacao SKU a SKU de 2026-11-04 a poe em Grama.
     (re.compile(r"\b(GRAMA\s+PRETA|PELO\s+D[EO]?\s*URSO)\b", re.I),
-     "Muda e forracao"),
+     "Grama"),
     # "Grama de gato" (clorofila, Chlorophytum) e planta envasada, nao grama de plantio.
     (re.compile(r"\bGRAMA\s+DE\s+GATO\b", re.I),
      "Planta em vaso"),

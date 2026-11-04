@@ -303,7 +303,9 @@ class SeriesModel(Base):
     #  origens_com_falha, ljung_box_p, shapiro_p} — os dois últimos, dos resíduos do ajuste final
     metrics = Column(JSON, nullable=True)
     # {trend, transformation, training_base, window_days, ordens_convergidas, dias_historico,
-    #  dias_com_venda_janela, coeficientes (do ajuste final: termo → valor)}
+    #  dias_com_venda_janela, encomendas_grandes, coeficientes (do ajuste final: termo → valor),
+    #  fator_datas (a série leva o fator das datas comemorativas, ADR-019), ajustes_datas (os da
+    #  previsão: evento, data, fator, multiplicador, anos, dias)}
     params = Column(JSON, nullable=True)
     train_start = Column(Date, nullable=True)  # janela da previsão final
     train_end = Column(Date, nullable=True)
@@ -315,7 +317,9 @@ class SeriesModel(Base):
 
 class SeriesForecast(Base):
     """Previsão diária com faixa de 95% de uma série: os `FORECAST_HORIZON_DAYS` dias
-    seguintes ao último dia com venda."""
+    seguintes ao último dia com venda. `event_factor`: o multiplicador da data comemorativa
+    que entrou no previsto e na faixa (ADR-019); nulo sem ajuste — o previsto do modelo é
+    `predicted / event_factor`."""
 
     __tablename__ = "series_forecasts"
 
@@ -325,6 +329,7 @@ class SeriesForecast(Base):
     predicted = Column(Float, nullable=False)
     lower_95 = Column(Float, nullable=False)
     upper_95 = Column(Float, nullable=False)
+    event_factor = Column(Float, nullable=True)
 
 
 class SeriesBacktestPoint(Base):
@@ -360,6 +365,9 @@ class ForecastHistory(Base):
     dia da janela — o início da previsão, ou o próprio dia no walk-forward. `item`: id da
     categoria ou código do produto. `store_closed`: se o calendário dava a loja fechada no
     dia quando ele foi previsto — explica um previsto zero se o calendário mudar depois.
+    `event_factor`: o multiplicador da data comemorativa que entrou no previsto (ADR-019) —
+    com ele, o previsto do modelo sem o ajuste (`predicted / event_factor`) fica guardado
+    para medir, depois da data, se o ajuste ajudou.
     """
 
     __tablename__ = "forecast_history"
@@ -376,6 +384,7 @@ class ForecastHistory(Base):
     origin_date = Column(Date, nullable=False)  # 1º dia da janela que previu o dia
     job_id = Column(Integer, ForeignKey("forecast_jobs.id", ondelete="SET NULL"), nullable=True)
     store_closed = Column(Boolean, nullable=True)
+    event_factor = Column(Float, nullable=True)  # multiplicador da data comemorativa (ADR-019); nulo sem ajuste
 
     __table_args__ = (UniqueConstraint("unit_id", "level", "item", "day", name="uq_forecast_history_dia"),)
 
@@ -427,8 +436,9 @@ def create_tables() -> None:
 # tabela existente). As removidas do ORM ficam no banco, nulas, sem uso.
 _COLUNAS_NOVAS = {
     "forecast_history": {"job_id": "INTEGER REFERENCES forecast_jobs(id) ON DELETE SET NULL",
-                         "store_closed": "BOOLEAN"},
+                         "store_closed": "BOOLEAN", "event_factor": "FLOAT"},
     "processing_log": {"forecast_job_id": "INTEGER REFERENCES forecast_jobs(id) ON DELETE SET NULL"},
+    "series_forecasts": {"event_factor": "FLOAT"},
 }
 
 

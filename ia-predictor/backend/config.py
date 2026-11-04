@@ -44,6 +44,7 @@ class Settings(BaseSettings):
     FORECAST_SERVICE_WF_ORIGINS: int = 56       # origens do walk-forward, andando 1 dia (8 semanas)
     FORECAST_SERVICE_MIN_SALE_DAYS: int = 28    # produto: dias com venda na última janela para treinar
     FORECAST_SERVICE_KEEP_BACKTEST_JOBS: int = 4  # treinos concluídos que guardam o walk-forward inteiro
+    FORECAST_SERVICE_EVENT_FACTOR: bool = True  # fator das datas comemorativas em Flores de corte (ADR-019)
     TRAINING_WORKERS: int = 8             # processos no treino (no servidor: o nº de CPUs)
     # onde o treino roda: "local" (thread da API, pelo botão "Treinar previsões") ou "externo"
     # (a API não treina: script treinar_previsoes em outra máquina; API no Render, ADR-015)

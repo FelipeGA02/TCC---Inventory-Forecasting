@@ -97,6 +97,17 @@ def test_ponto_guarda_a_loja_fechada_que_o_treino_viu():
     assert next(p for p in wf if p["day"] == date(2026, 2, 22))["store_closed"] is True
 
 
+def test_ponto_guarda_o_fator_da_data_comemorativa():
+    """ADR-019: o multiplicador que entrou no previsto vai para `event_factor`; 1 vira nulo."""
+    fim = pd.Timestamp("2026-02-28")
+    backtest, complemento, previsao = _saida_do_treino(fim)
+    previsao["fator"] = [2.0] * 7 + [1.0] * 7
+    backtest["fator"] = 1.0
+    wf, prev = pontos_da_serie("category", "flores-de-corte", backtest, complemento, previsao)
+    assert [p["event_factor"] for p in prev] == [2.0] * 7 + [None] * 7
+    assert {p["event_factor"] for p in wf} == {None}  # o complemento sem a coluna também
+
+
 def _treinar(gravado: dict, inicio: date, walk_forward: list[dict], previsao: list[dict]) -> None:
     """O que `servico_previsao.gravar_historico` faz no banco, num dict (chave → ponto)."""
     for k in [k for k in gravado if k[2] >= inicio]:

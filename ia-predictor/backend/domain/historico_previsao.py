@@ -36,10 +36,13 @@ def chave(p: dict) -> Chave:
 
 
 def _ponto(level: str, item: str, linha, source: str, origem, fechada: pd.Series | None) -> dict:
+    fator = getattr(linha, "fator", 1.0)
+    fator = 1.0 if pd.isna(fator) else float(fator)
     return {"level": level, "item": item, "day": linha.data.date(), "predicted": round(float(linha.previsto), 3),
             "lower_95": round(float(linha.ic_inf), 3), "upper_95": round(float(linha.ic_sup), 3),
             "source": source, "origin_date": origem.date(),
-            "store_closed": None if fechada is None or linha.data not in fechada.index else bool(fechada[linha.data])}
+            "store_closed": None if fechada is None or linha.data not in fechada.index else bool(fechada[linha.data]),
+            "event_factor": None if fator == 1.0 else round(fator, 4)}
 
 
 def pontos_da_serie(level: str, item: str, backtest: pd.DataFrame, complemento: pd.DataFrame | None,
@@ -47,10 +50,12 @@ def pontos_da_serie(level: str, item: str, backtest: pd.DataFrame, complemento: 
     """(walk-forward, previsão) de uma série treinada (`ResultadoSerie` do trainer), no
     formato de `pontos_a_gravar`. Do walk-forward, o 1º dia de cada janela: o das origens
     completas (`backtest`, h = 1) e o do complemento, que vai até a véspera da previsão.
-    `fechada`: loja fechada por dia (bool, índice diário), como o treino a viu."""
-    janelas = [backtest.loc[backtest["horizonte"] == 1, _COLUNAS]]
+    `fechada`: loja fechada por dia (bool, índice diário), como o treino a viu. A coluna
+    `fator` (datas comemorativas, ADR-019), quando existe, vira `event_factor`."""
+    colunas = _COLUNAS + (["fator"] if "fator" in backtest.columns else [])
+    janelas = [backtest.loc[backtest["horizonte"] == 1, colunas]]
     if complemento is not None and len(complemento):
-        janelas.append(complemento[_COLUNAS])
+        janelas.append(complemento[[c for c in colunas if c in complemento.columns]])
     walk_forward = [_ponto(level, item, p, "walk_forward", p.origem, fechada)
                     for p in pd.concat(janelas).sort_values("data").itertuples()]
     inicio = previsao["data"].min()

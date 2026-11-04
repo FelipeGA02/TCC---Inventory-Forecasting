@@ -416,6 +416,13 @@ Essa inversão de sinal entre categorias é a razão pela qual o efeito de cada 
 precisa ser calculado separadamente por categoria — um único ajuste "geral" para todas as
 categorias erraria o sentido do efeito em pelo menos uma delas.
 
+> **Revisão (2026-10-31, doc 08):** com o fluxo sem encomendas grandes e a comparação com o
+> mesmo dia da semana (em vez da média geral), só a alta de Flores de corte nas 4 datas de
+> presente (Mulher, Mães, Namorados, Natal) e a de Finados em Itabirito saem da faixa de uma
+> semana comum. As quedas de Grama da tabela acima (ex.: 0,2 no Dia dos Pais) quase todas
+> somem. Ver `08-fator_datas_comemorativas.md` §2, que também testa um fator multiplicativo no
+> SARIMAX de produção.
+
 Ao longo do ano, com apenas dois ciclos completos, só dois picos mensais se repetem nos dois
 anos (o índice mensal das 6 séries, com maio e novembro marcados, está em
 `12_perfil_mensal_l1.png`): as flores de corte em Itabirito sobem em dezembro (2,0 vezes a

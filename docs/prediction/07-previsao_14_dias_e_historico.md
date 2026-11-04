@@ -37,13 +37,124 @@ mesmo banco. É o mesmo código.
 `backend/domain/models/trainer.py` para cada uma.
 
 **Séries.** Em cada loja, as 4 categorias e cada produto de grama que vendeu nela. A série é
-o fluxo diário: soma da quantidade por dia, sem as notas acima de 2.000 unidades (ADR-013) e
+o fluxo diário: soma da quantidade por dia, sem as encomendas grandes (pedido acima de média +
+4 desvios-padrão da quantidade dos pedidos da loja, ADR-018; antes, 2.000 unidades, ADR-013) e
 sem `Servico e taxa`. Dia sem venda é zero, e todas as séries terminam no último dia com
 venda da base (`data_until`).
 
 **Quem treina.** Fica `insufficient_data`, sem previsão e com o motivo no log:
 - a série com menos de 180 dias antes da 1ª origem do walk-forward;
 - o produto que vendeu em menos de 28 dias da última janela de 365.
+
+**A partir de quando uma série tem previsão.** Os 180 dias contam antes da 1ª origem do
+walk-forward, e não até a última venda. A 1ª origem fica 68 dias antes da última venda: são
+56 origens andando 1 dia, e a última delas fica 13 dias antes da última venda, para ter 14
+dias à frente. Então a série precisa de **249 dias de calendário** (180 + 69), contados da
+primeira venda até a última, o que dá pouco mais de 8 meses. Os dias contados são de
+calendário, inclusive os zeros (domingo, feriado, dia sem venda). A série de categoria
+começa na primeira venda da loja, e a de produto, na primeira venda do produto naquela loja.
+O produto de grama precisa ainda de venda em pelo menos 28 desses dias, dentro da última
+janela de 365. Com os parâmetros padrão (`MIN_OBSERVATIONS_DAYS=180`,
+`FORECAST_SERVICE_WF_ORIGINS=56`, `FORECAST_HORIZON_DAYS=14`), um produto que estreia hoje
+ganha previsão no primeiro treino depois de 249 dias e 28 dias com venda. Com dados até
+28/02/2026, isso vale para quem vendeu pela primeira vez até 25/06/2025.
+
+**Como se decide se um produto de grama é regular e se vai ser previsto.** O sistema não
+classifica o produto como "regular" ou "irregular". Ele confere duas contagens, nesta ordem,
+em cada loja e a cada treino (`motivo_inelegivel` em `backend/domain/models/trainer.py`):
+
+1. **Histórico:** 180 dias antes da 1ª origem do walk-forward, ou seja, 249 dias de
+   calendário desde a primeira venda do produto na loja (`MIN_OBSERVATIONS_DAYS`).
+2. **Frequência de venda:** venda em pelo menos 28 dias da última janela de 365
+   (`FORECAST_SERVICE_MIN_SALE_DAYS`). Conta dias com venda, não quantidade, e as encomendas
+   grandes ficam de fora. Esta é a regra que separa o produto regular do irregular.
+
+O produto que falha em qualquer uma vira `insufficient_data`: fica sem previsão, e o motivo
+vai para o log e para o painel. O que passa nas duas é treinado, e quem decide a qualidade da
+previsão é o walk-forward. A série fica `trained` se o modelo errar menos que repetir a
+semana anterior (MASE < 1) e se a faixa de 95% acertar entre 90% e 98% dos dias. Se não,
+fica `low_confidence`, e a previsão sai com aviso. Ou seja, as duas contagens dizem se o
+produto *pode* ser previsto, e o walk-forward diz se a previsão é *confiável*.
+
+*De onde vem o 28.* O número foi herdado do corte do rateio por produto na desagregação
+anterior: produto com menos de 28 dias de venda recebia rateio uniforme da categoria
+(EDA, `00-eda_report.md` §2.5; gráfico em `03_esparsidade_dias_ativos_sku.png`). Com uns
+300 dias de loja aberta por ano, 28 dias equivalem a vender cerca de uma vez a cada duas
+semanas. Não foi testado se 28 é o melhor corte para o SARIMAX. Na base até 28/02/2026, a
+separação é clara mesmo assim: os produtos que ficam de fora venderam em no máximo 7 dias no
+ano (Zeon, Itabirito), e o mais fraco que entra vendeu em 31 (Esmeralda, Itabirito). Qualquer
+corte entre 8 e 31 dias daria as mesmas listas.
+
+*O que não é usado.* A EDA classifica a demanda pelo critério de Syntetos-Boylan
+(`training_scripts/eda/eda_classificacao_sku.py`). Esse critério usa o intervalo médio entre
+vendas (ADI) e a variação do tamanho delas (CV²) para separar demanda suave, errática,
+intermitente e irregular. O sistema não usa essa classificação para decidir o treino. Ela
+serve de comparação para a trilha Croston/TSB/SBA por SKU.
+
+**Quantas séries.** As séries são as 4 categorias e todos os produtos de grama, separados
+pelas 2 lojas. A base tem 9 produtos de grama: 8 venderam nas 2 lojas, e a Bermudas vendeu
+só em Jardim Canadá. As duas listas abaixo usam dados até 28/02/2026. "Dias de série" são
+os dias de calendário da primeira venda até 28/02/2026, e o mínimo é 249. Os dias com venda
+contam só o fluxo diário (sem encomendas grandes), e o mínimo é 28 nos últimos 365.
+
+*Séries com previsão (17).*
+
+| # | Loja | Série | 1ª venda | Dias de série | Dias com venda (365) |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Jardim Canadá | Categoria Grama | 02/01/2024 | 789 | 299 |
+| 2 | Jardim Canadá | Categoria Plantas diversas | 02/01/2024 | 789 | 299 |
+| 3 | Jardim Canadá | Categoria Produtos de jardim | 02/01/2024 | 789 | 299 |
+| 4 | Jardim Canadá | Categoria Flores de corte | 02/01/2024 | 789 | 299 |
+| 5 | Jardim Canadá | 147 GRAMA AMENDOIM UNID. BDJA | 02/01/2024 | 789 | 262 |
+| 6 | Jardim Canadá | 3 GRAMA ESMERALDA | 02/01/2024 | 789 | 297 |
+| 7 | Jardim Canadá | 710 GRAMA SAO CARLOS | 02/01/2024 | 789 | 255 |
+| 8 | Jardim Canadá | 1739 GRAMA ZEON | 01/02/2024 | 759 | 35 |
+| 9 | Jardim Canadá | 00013475 GRAMA ESMERALDA ( ITO) | 07/02/2024 | 753 | 33 |
+| 10 | Itabirito | Categoria Grama | 02/01/2024 | 789 | 295 |
+| 11 | Itabirito | Categoria Plantas diversas | 02/01/2024 | 789 | 301 |
+| 12 | Itabirito | Categoria Produtos de jardim | 02/01/2024 | 789 | 301 |
+| 13 | Itabirito | Categoria Flores de corte | 02/01/2024 | 789 | 301 |
+| 14 | Itabirito | 147 GRAMA AMENDOIM UNID. BDJA | 03/01/2024 | 788 | 79 |
+| 15 | Itabirito | 00013475 GRAMA ESMERALDA ( ITO) | 02/01/2024 | 789 | 291 |
+| 16 | Itabirito | 710 GRAMA SAO CARLOS | 03/01/2024 | 788 | 64 |
+| 17 | Itabirito | 3 GRAMA ESMERALDA | 03/01/2024 | 788 | 31 |
+
+Esmeralda em Itabirito (31), Esmeralda ITO em Jardim Canadá (33) e Zeon em Jardim Canadá (35)
+estão perto do mínimo de 28.
+
+*Séries sem previsão (8): venda irregular.* Todas têm histórico de sobra, então o motivo é
+sempre a venda em menos de 28 dias. São produtos de venda esporádica: poucos dias no ano,
+às vezes uma única compra grande, e com tantos zeros a série não sustenta um SARIMAX. Ficam
+no log e no painel como `insufficient_data`, com o motivo, sem previsão.
+
+| # | Loja | Produto | 1ª venda | Última venda | Dias com venda (365) | Dias com venda (histórico) | Quantidade total (fluxo) |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | Jardim Canadá | 134 GRAMA AZUL SAQ | 08/03/2024 | 15/01/2026 | 3 | 4 | 1.436 (36) |
+| 2 | Jardim Canadá | 00013479 GRAMA AMENDOIM | 10/01/2024 | 08/10/2025 | 2 | 5 | 1.255 (1.255) |
+| 3 | Jardim Canadá | 1832 GRAMA BERMUDAS | 20/03/2024 | 30/09/2025 | 2 | 6 | 428 (428) |
+| 4 | Jardim Canadá | 2372 GRAMA ESMERALDA MAXI ROLO | 06/03/2024 | 31/05/2024 | 0 | 6 | 64 (64) |
+| 5 | Itabirito | 00013479 GRAMA AMENDOIM | 26/03/2024 | 18/11/2025 | 1 | 2 | 2.221 (908) |
+| 6 | Itabirito | 2372 GRAMA ESMERALDA MAXI ROLO | 23/10/2024 | 13/11/2025 | 4 | 12 | 1.080 (160) |
+| 7 | Itabirito | 1739 GRAMA ZEON | 20/02/2024 | 27/02/2026 | 7 | 12 | 905 (455) |
+| 8 | Itabirito | 134 GRAMA AZUL SAQ | 30/03/2024 | 30/01/2025 | 0 | 3 | 34 (34) |
+
+A última venda conta todas as notas, inclusive as encomendas grandes. Os dias com venda e o
+fluxo (entre parênteses) não contam as encomendas. A Esmeralda Maxi Rolo de Jardim Canadá não
+vende desde 31/05/2024, e a Azul em saco de Itabirito, desde 30/01/2025. A Bermudas não tem
+série em Itabirito, porque nunca vendeu lá.
+
+| | Jardim Canadá | Itabirito | Total |
+| --- | --- | --- | --- |
+| Categorias | 4 | 4 | 8 |
+| Produtos de grama | 9 | 8 | 17 |
+| **Séries montadas** | **13** | **12** | **25** |
+| Com previsão (categorias + grama treinável) | 4 + 5 | 4 + 4 | **17** |
+| `insufficient_data` (grama com < 28 dias de venda) | 4 | 4 | 8 |
+
+Todas cumprem os 180 dias antes da 1ª origem (22/12/2025): o produto mais novo começou em
+23/10/2024. Na Amendoim em bandeja de Itabirito, 91% do volume é encomenda grande (482 mil
+un. no total, 42 mil no fluxo), e por isso ela tem só 79 dias com venda. A contagem é refeita
+a cada treino: com planilhas novas, um produto pode passar dos 28 dias ou cair abaixo deles.
 
 **Para cada série treinável:**
 

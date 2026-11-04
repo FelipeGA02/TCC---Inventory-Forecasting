@@ -42,8 +42,9 @@ conta: o próximo disparo treina.
 Modelo (fixo, decisão registrada na docstring de `domain/models/trainer.py`)
 ---------------------------------------------------------------------------
 SARIMAX com m = 7, d = 0, D = 0 e constante; ordem (p, q)(P, Q) por AIC; exógenas de
-calendário; série diária do **fluxo** — vendas sem as encomendas grandes (acima de 2.000
-unidades no documento, ADR-013), a mesma base dos experimentos que fixaram a receita. Walk-forward
+calendário; série diária do **fluxo** — vendas sem as encomendas grandes (pedido acima de
+média + 4 desvios-padrão da quantidade dos pedidos da loja, ADR-018; o limiar de cada loja
+no momento fica na configuração do disparo). Walk-forward
 com janela deslizante de `FORECAST_SERVICE_WINDOW_DAYS` dias e origem andando 1 dia por
 `FORECAST_SERVICE_WF_ORIGINS` origens, cada uma prevendo `FORECAST_HORIZON_DAYS` dias.
 Do ajuste final ficam os coeficientes (`series_models.params`) e o diagnóstico dos resíduos
@@ -111,13 +112,15 @@ from backend.infrastructure.database import (
     SessionLocal,
 )
 from backend.services import base_vendas
+from training_scripts.preprocessing.remove_encomendas_06 import K_DESVIOS, LIMIAR_QTD_VENDA
 
 log = logging.getLogger(__name__)
 
 D_REGULAR = 0          # séries estacionárias (ADF em 12 de 12): diferenciar seria má especificação
 D_SAZONAL = 0          # o ciclo semanal entra pelas dummies de dia da semana
 CATEGORIA_PRODUTOS = "grama"   # produtos treinados um a um: todos os desta categoria
-BASE_TREINO = "fluxo diário (sem encomendas grandes: acima de 2.000 un. no documento, ADR-013)"
+BASE_TREINO = ("fluxo diário (sem encomendas grandes: pedido acima de média + 4 desvios-padrão da quantidade "
+               "de todos os pedidos da loja, ADR-018)")
 
 _EM_CURSO = ("pending", "running")
 # Enquanto o treino roda, uma thread grava `heartbeat_at` a cada `_BATIMENTO_S`. Sem sinal
@@ -224,16 +227,19 @@ def na_api() -> bool:
 # --------------------------------------------------------------------------- #
 # Disparo
 # --------------------------------------------------------------------------- #
-def _abrir(user_id: int | None, trigger: str, cfg: ConfigTreino) -> tuple[ForecastJob, bool]:
+def _abrir(user_id: int | None, trigger: str, cfg: ConfigTreino,
+           forcar: bool = False) -> tuple[ForecastJob, bool]:
     """Registra o disparo (com a trava já adquirida). Devolve (disparo, vai treinar): sem
-    dados novos desde o último treino concluído, o disparo fica `skipped`."""
+    dados novos desde o último treino concluído, o disparo fica `skipped` — a não ser que
+    `forcar` (só o script: código novo de treino com a mesma base), registrado no log."""
     with SessionLocal() as db:
         _marcar_parados(db, trava_e_minha=True)
         if em_andamento(db) is not None:
             raise TreinoEmAndamento()
         digital = impressao_digital(db)
         concluido = ultimo_concluido(db)
-        if concluido is not None and concluido.data_fingerprint == digital:
+        mesmos_dados = concluido is not None and concluido.data_fingerprint == digital
+        if mesmos_dados and not forcar:
             agora = datetime.now()
             job = ForecastJob(user_id=user_id, trigger=trigger, status="skipped", created_at=agora,
                               finished_at=agora, data_fingerprint=digital, data_until=concluido.data_until,
@@ -248,8 +254,14 @@ def _abrir(user_id: int | None, trigger: str, cfg: ConfigTreino) -> tuple[Foreca
             return job, False
 
         job = ForecastJob(user_id=user_id, trigger=trigger, status="pending", heartbeat_at=datetime.now(),
-                          config=_config_registrada(cfg), message="Na fila: o treino começa em instantes.")
+                          config=_config_registrada(cfg, base_vendas.limiares_encomenda_atuais(db)),
+                          message="Na fila: o treino começa em instantes.")
         db.add(job)
+        db.flush()
+        if mesmos_dados:
+            db.add(ForecastJobLog(job_id=job.id, message=(
+                "Treino pedido mesmo sem dados novos desde o último treino concluído "
+                f"({concluido.finished_at:%d/%m/%Y %H:%M}), pelo script com --forcar.")))
         db.commit()
         db.refresh(job)
         return job, True
@@ -276,16 +288,17 @@ def iniciar(user_id: int | None) -> tuple[ForecastJob, bool]:
             _TRAVA.release()
 
 
-def treinar_agora(user_id: int | None = None, trigger: str = "script", cfg: ConfigTreino | None = None) -> ForecastJob:
+def treinar_agora(user_id: int | None = None, trigger: str = "script", cfg: ConfigTreino | None = None,
+                  forcar: bool = False) -> ForecastJob:
     """Treina neste processo e só volta no fim — o script `treinar_previsoes` (API que não
     treina, `TRAINING_RUNNER=externo`). Devolve o disparo como terminou (`done`, `error` ou
-    `skipped`)."""
+    `skipped`). `forcar` treina mesmo sem dados novos."""
     if not _TRAVA.acquire(blocking=False):
         raise TreinoEmAndamento()
     executou = False
     try:
         cfg = cfg or config_treino()
-        job, treinar = _abrir(user_id, trigger, cfg)
+        job, treinar = _abrir(user_id, trigger, cfg, forcar=forcar)
         if treinar:
             executou = True
             _executar(job.id, cfg)  # libera a trava ao terminar
@@ -312,8 +325,9 @@ def versao_codigo() -> str | None:
     return r.stdout.strip() or None
 
 
-def _config_registrada(cfg: ConfigTreino) -> dict:
-    return {**cfg.como_dict(), "base": BASE_TREINO, "categoria_produtos": CATEGORIA_PRODUTOS,
+def _config_registrada(cfg: ConfigTreino, limiares_encomenda: dict) -> dict:
+    return {**cfg.como_dict(), "base": BASE_TREINO, "limiares_encomenda_un": limiares_encomenda,
+            "categoria_produtos": CATEGORIA_PRODUTOS,
             "workers": max(1, settings.TRAINING_WORKERS), "versao_codigo": versao_codigo()}
 
 
@@ -331,6 +345,7 @@ class _Serie:
     y: pd.Series
     X: pd.DataFrame
     aberta: pd.Series
+    encomendas: dict | None = None  # limiar da loja e o que saiu da série na janela (`_encomendas_da_serie`)
 
 
 def _registrar(job_id: int, mensagem: str, nivel: str = "info", serie: str | None = None,
@@ -355,9 +370,39 @@ def _atualizar_job(job_id: int, **campos) -> None:
         db.commit()
 
 
+def _un(valor: float) -> str:
+    return f"{valor:,.0f}".replace(",", ".")
+
+
+def _encomendas_da_serie(vendas: pd.DataFrame, data_until: pd.Timestamp, janela_dias: int, limiar: float) -> dict:
+    """O que saiu da série como encomenda grande na janela de treino: pedidos (nota no dia) e
+    quanto da venda da série, com o limiar da loja (ADR-018)."""
+    janela = vendas[vendas["emissao"] > data_until - pd.Timedelta(days=janela_dias)]
+    enc = janela[janela["encomenda"]]
+    total = float(janela["qtdade"].sum())
+    return {"limiar_un": round(limiar, 1), "janela_dias": janela_dias,
+            "pedidos": int(enc[["emissao", "doc_numero"]].drop_duplicates().shape[0]),
+            "quantidade_un": round(float(enc["qtdade"].sum()), 1),
+            "pct_venda": round(100 * float(enc["qtdade"].sum()) / total, 1) if total > 0 else 0.0}
+
+
+def _texto_encomendas(e: dict | None, loja: str) -> str:
+    """Frase do log de cada série sobre as encomendas grandes que ficaram fora dela."""
+    if not e:
+        return ""
+    regra = (f"pedido acima de {_un(e['limiar_un'])} un., média + {K_DESVIOS:g} desvios-padrão dos pedidos "
+             f"de {loja}")
+    if not e["pedidos"]:
+        return f" Encomendas grandes ({regra}): nenhuma nos últimos {e['janela_dias']} dias."
+    return (f" Encomendas grandes ({regra}): {e['pedidos']} pedido(s) nos últimos {e['janela_dias']} dias, "
+            f"{_un(e['quantidade_un'])} un. ({str(e['pct_venda']).replace('.', ',')}% da venda da série), "
+            "fora da série.")
+
+
 def _montar_series(db: Session, cfg: ConfigTreino, job_id: int) -> tuple[list[_Serie], date]:
     """As séries de cada loja: as 4 categorias e cada produto de grama que vendeu nela."""
     df = base_vendas.carregar_vendas(db)
+    limiares = base_vendas.limiares_encomenda_atuais(db)
     if df.empty:
         raise ValueError("Não há vendas na base para treinar.")
     cal = base_vendas.carregar_calendario(db)
@@ -383,10 +428,13 @@ def _montar_series(db: Session, cfg: ConfigTreino, job_id: int) -> tuple[list[_S
                                "(fechada no domingo, sem abertura excepcional).", "warning")
         aberta = X["loja_fechada"] == 0
 
+        limiar = limiares.get(loja["id"], float(LIMIAR_QTD_VENDA))
         for cat_id, cat_nome in categorias:
             y = serie_diaria(fluxo[fluxo["cat"] == cat_id], data_until, inicio=inicio)
             series.append(_Serie(f"{loja['id']}:{NIVEL_CATEGORIA}:{cat_id}", f"{loja['nome']} · {cat_nome}",
-                                 loja["id"], NIVEL_CATEGORIA, cat_id, None, y, X, aberta))
+                                 loja["id"], NIVEL_CATEGORIA, cat_id, None, y, X, aberta,
+                                 _encomendas_da_serie(vendas[vendas["cat"] == cat_id], data_until,
+                                                      cfg.janela_dias, limiar)))
 
         grama = vendas[vendas["cat"] == CATEGORIA_PRODUTOS]
         ordem = grama.groupby("produto_cod")["qtdade"].sum().sort_values(ascending=False).index
@@ -396,7 +444,9 @@ def _montar_series(db: Session, cfg: ConfigTreino, job_id: int) -> tuple[list[_S
             y = serie_diaria(fluxo[fluxo["produto_cod"] == cod], data_until, inicio=ini_prod)
             series.append(_Serie(f"{loja['id']}:{NIVEL_PRODUTO}:{cod}", f"{loja['nome']} · {nomes[cod]}",
                                  loja["id"], NIVEL_PRODUTO, CATEGORIA_PRODUTOS, str(cod), y,
-                                 X.loc[ini_prod:], aberta.loc[ini_prod:]))
+                                 X.loc[ini_prod:], aberta.loc[ini_prod:],
+                                 _encomendas_da_serie(vendas[vendas["produto_cod"] == cod], data_until,
+                                                      cfg.janela_dias, limiar)))
     return series, data_until.date()
 
 
@@ -444,6 +494,8 @@ def _gravar_serie(job_id: int, s: _Serie, r: ResultadoSerie, cfg: ConfigTreino, 
         contadores["concluidas"] += 1
     contadores[r.status] = contadores.get(r.status, 0) + 1
     nivel_log, texto = _texto_resultado(r)
+    if r.status != evaluator.STATUS_DADOS_INSUFICIENTES:
+        texto += _texto_encomendas(s.encomendas, s.rotulo.split(" · ")[0])
     with SessionLocal() as db:
         modelo = SeriesModel(
             job_id=job_id, unit_id=s.unit_id, level=s.nivel, category_id=s.category_id,
@@ -456,7 +508,7 @@ def _gravar_serie(job_id: int, s: _Serie, r: ResultadoSerie, cfg: ConfigTreino, 
             params={"trend": "c" if cfg.d == 0 else "n", "transformation": "nenhuma", "training_base": BASE_TREINO,
                     "window_days": cfg.janela_dias, "ordens_convergidas": r.ordens_convergidas,
                     "dias_historico": r.dias_historico, "dias_com_venda_janela": r.dias_com_venda_janela,
-                    "coeficientes": r.coeficientes},
+                    "encomendas_grandes": s.encomendas, "coeficientes": r.coeficientes},
             train_start=r.treino_inicio.date() if r.treino_inicio is not None else None,
             train_end=r.treino_fim.date() if r.treino_fim is not None else None,
             message=r.motivo)
@@ -560,7 +612,10 @@ def _executar(job_id: int, cfg: ConfigTreino) -> None:
             f"Treino iniciado com vendas até {data_until:%d/%m/%Y}: {n_cat} séries de categoria e {n_prod} "
             f"produtos de grama, {len(treinaveis)} com dados suficientes. SARIMAX m={cfg.m}, d={cfg.d}, D={cfg.D} "
             f"com constante; janela deslizante de {cfg.janela_dias} dias; walk-forward com {cfg.origens} origens "
-            f"de 1 em 1 dia, prevendo {cfg.horizonte} dias. Base: {BASE_TREINO}."))
+            f"de 1 em 1 dia, prevendo {cfg.horizonte} dias. Base: {BASE_TREINO}. Limiar de encomenda grande de "
+            f"cada loja (média + {K_DESVIOS:g} desvios-padrão dos pedidos dela): "
+            + ", ".join(f"{s.rotulo.split(' · ')[0]} {_un(s.encomendas['limiar_un'])} un."
+                        for s in {s.unit_id: s for s in series if s.encomendas}.values())))
 
         contadores, total = {"concluidas": 0}, len(treinaveis)
         for s, motivo in inelegiveis:
@@ -648,7 +703,8 @@ def _ligar_planilhas(db: Session, job_id: int, ultima_planilha: int | None) -> s
         ProcessingLog.status == "done", ProcessingLog.forecast_job_id.is_(None), ProcessingLog.id <= ultima_planilha)
         .order_by(ProcessingLog.id)))
     if not novas:
-        return "Nenhuma planilha nova desde o último treino (mudou o calendário ou o catálogo)."
+        return ("Nenhuma planilha nova desde o último treino (mudou o calendário ou o catálogo, ou o treino "
+                "foi forçado).")
     db.execute(update(ProcessingLog).where(ProcessingLog.id.in_([p.id for p in novas])).values(forecast_job_id=job_id))
     nomes = ", ".join(p.filename for p in novas[:5]) + (f" e mais {len(novas) - 5}" if len(novas) > 5 else "")
     return f"{len(novas)} planilha(s) nova(s) neste treino: {nomes}."

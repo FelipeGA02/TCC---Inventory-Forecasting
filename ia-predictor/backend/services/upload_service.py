@@ -9,8 +9,7 @@ dentro da própria planilha (o mesmo produto pode vir em duas linhas da mesma no
 
 A planilha não é guardada: sobra a linha de `processing_log` (nome, SHA-256, contagens).
 Produto novo entra em `products` com a categoria da Etapa 3; produto já cadastrado mantém
-a categoria do cadastro. A encomenda grande (venda > 2.000 un. na nota) é marcada como na carga
-inicial. Com venda nova, a resposta avisa que a previsão precisa ser treinada de novo
+a categoria do cadastro. Com venda nova, a resposta avisa que a previsão precisa ser treinada de novo
 (`needs_training`): o treino é o botão "Treinar previsões" (ADR-017), não roda sozinho.
 
 Conferência antes de gravar
@@ -20,6 +19,15 @@ de cada loja, vendas novas, já carregadas e ignoradas — e os dias de loja abe
 ficariam sem venda na base (`domain.etl.cobertura`), sem gravar nada. A tela mostra isso e
 a gestora confirma; a confirmação envia a planilha de novo para `processar()`, que confere
 outra vez (a base pode ter mudado no meio) e grava os mesmos avisos em `processing_log`.
+
+Encomenda grande (ADR-018)
+--------------------------
+Marcada só na gravação, com a regra da carga inicial: pedido (documento) com quantidade
+acima de média + 4 desvios-padrão da quantidade de todos os pedidos da loja. O limiar de
+cada loja é recalculado com os pedidos já gravados mais os da planilha e classifica só as
+vendas inseridas: o que já estava na base mantém a classificação que recebeu. O limiar usado
+fica em `processing_log.quality.limiar_encomenda_un` (por loja) — é o que as telas e o
+treino mostram.
 """
 from __future__ import annotations
 
@@ -32,7 +40,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 
 import pandas as pd
-from sqlalchemy import func, insert, select, update
+from sqlalchemy import case, func, insert, select, update
 from sqlalchemy.orm import Session
 
 from backend.config import settings
@@ -40,7 +48,7 @@ from backend.domain.etl.cobertura import DiasFaltando, dias_faltando
 from backend.infrastructure.database import CalendarDay, Category, ProcessingLog, Product, Sale, Unit
 from training_scripts.preprocessing.classificacao_03 import classificar
 from training_scripts.preprocessing.extrair_base_01 import FIELDS, parse_xlsx
-from training_scripts.preprocessing.remove_encomendas_06 import LIMIAR_QTD_VENDA, marcar_encomendas
+from training_scripts.preprocessing.remove_encomendas_06 import CHAVE_VENDA, K_DESVIOS, LIMIAR_QTD_VENDA, limiar_por_desvios
 from training_scripts.preprocessing.tratamento_de_dados_02 import tratar_dados
 
 EXTENSOES = (".xlsx", ".xlsm")
@@ -101,6 +109,7 @@ class _Preparada:
     faltando: list[DiasFaltando]
     ultimas_na_base: dict     # loja → última venda já carregada
     nomes_lojas: dict
+    limiares_encomenda: dict = field(default_factory=dict)  # loja → limiar (`_marcar_encomendas`)
 
     @property
     def rows_skipped(self) -> int:
@@ -184,7 +193,9 @@ def processar(db: Session, conteudo: bytes, nome: str, user_id: int | None) -> R
     db.add(registro)
     db.commit()
     try:
-        resultado = _gravar(db, registro, _preparar(db, conteudo, nome, registro))
+        preparada = _preparar(db, conteudo, nome, registro)
+        _marcar_encomendas(db, registro, preparada)
+        resultado = _gravar(db, registro, preparada)
     except Exception as erro:
         db.rollback()
         registro.status, registro.finished_at = "error", datetime.now()
@@ -198,7 +209,8 @@ def processar(db: Session, conteudo: bytes, nome: str, user_id: int | None) -> R
 
 
 def _preparar(db: Session, conteudo: bytes, nome: str, registro: ProcessingLog | None = None) -> _Preparada:
-    """Etapas 1–3, loja, categoria, encomenda grande, duplicatas e dias faltando — sem gravar."""
+    """Etapas 1–3, loja, categoria, duplicatas e dias faltando — sem gravar. A encomenda
+    grande fica para `_marcar_encomendas`, que só a gravação chama."""
     avisos = []
     with tempfile.TemporaryDirectory(prefix="upload_") as pasta:
         caminho = os.path.join(pasta, "planilha" + os.path.splitext(nome)[1].lower())
@@ -228,12 +240,7 @@ def _preparar(db: Session, conteudo: bytes, nome: str, registro: ProcessingLog |
         avisos.append(f"{int(sem_categoria.sum())} linha(s) de categoria desconhecida foram ignoradas.")
         df = df[~sem_categoria].copy()
 
-    # ---- encomenda grande (sem as linhas de serviço), como na carga inicial
     df["emissao"] = pd.to_datetime(df["emissao"])
-    df["encomenda"] = False
-    produto = df["categoria"] != SERVICO
-    df.loc[produto, "encomenda"] = marcar_encomendas(df[produto], LIMIAR_QTD_VENDA)
-
     vendas = pd.DataFrame({
         "sale_date": df["emissao"].dt.date,
         "unit_id": df["unidade"].map(lojas),
@@ -247,7 +254,7 @@ def _preparar(db: Session, conteudo: bytes, nome: str, registro: ProcessingLog |
         "net_amount": df["tot_liq"],
         "payment_method": df["pagamento"],
         "is_registered_customer": df["cliente_nome"].str.strip().str.upper() != "CONSUMIDOR",
-        "is_bulk_order": df["encomenda"].astype(bool),
+        "is_bulk_order": False,  # `_marcar_encomendas`
     })
 
     # ---- duplicatas: só contra o que já estava gravado (mesmo período da planilha)
@@ -270,6 +277,50 @@ def _preparar(db: Session, conteudo: bytes, nome: str, registro: ProcessingLog |
                       ignoradas=int(sem_loja.sum()) + int(sem_categoria.sum()), limpeza=limpeza,
                       avisos=avisos, faltando=_dias_faltando(db, vendas, ultimas), ultimas_na_base=ultimas,
                       nomes_lojas={u.id: u.name for u in unidades})
+
+
+def produtos_de_servico():
+    """Códigos de Serviço e taxa: ficam fora do tamanho do pedido e nunca são encomenda grande."""
+    return select(Product.code).join(Category, Category.id == Product.category_id) \
+        .where(Category.source_category == SERVICO)
+
+
+def pedidos_da_base(db: Session) -> pd.DataFrame:
+    """Os pedidos gravados (sem Serviço e taxa): as colunas de `CHAVE_VENDA` (`unidade` é o id
+    da loja), a quantidade (`tam`) e se o pedido está marcado como encomenda grande (`marcado`)."""
+    pedidos = pd.read_sql(
+        select(Sale.unit_id.label("unidade"), Sale.sale_date.label("emissao"),
+               Sale.document_type.label("doc_tipo"), Sale.document_number.label("doc_numero"),
+               func.sum(Sale.quantity).label("tam"),
+               func.max(case((Sale.is_bulk_order, 1), else_=0)).label("marcado"))
+        .where(Sale.product_code.not_in(produtos_de_servico()))
+        .group_by(Sale.unit_id, Sale.sale_date, Sale.document_type, Sale.document_number),
+        db.connection())
+    pedidos["emissao"] = pd.to_datetime(pedidos["emissao"])
+    pedidos["marcado"] = pedidos["marcado"].astype(bool)
+    return pedidos
+
+
+def _marcar_encomendas(db: Session, registro: ProcessingLog, p: _Preparada) -> None:
+    """Limiar de encomenda grande de cada loja com os pedidos da base mais os da planilha
+    (ADR-018) e a marcação só das vendas novas — as já gravadas não mudam."""
+    registro.stage = "Marcando encomendas grandes"
+    db.flush()
+    gravados = pedidos_da_base(db)
+
+    ids_servico = {c.id for c in db.scalars(select(Category).where(Category.source_category == SERVICO))}
+    linhas = pd.DataFrame({"unidade": p.vendas["unit_id"], "emissao": pd.to_datetime(p.vendas["sale_date"]),
+                           "doc_tipo": p.vendas["document_type"], "doc_numero": p.vendas["document_number"],
+                           "tam": p.vendas["quantity"]})
+    novos = linhas[~p.repetida & ~p.df["category_id"].isin(ids_servico)]
+
+    pedidos = pd.concat([gravados[CHAVE_VENDA + ["tam"]], novos], ignore_index=True).groupby(CHAVE_VENDA)["tam"].sum()
+    p.limiares_encomenda = {loja: limiar_por_desvios(t) for loja, t in pedidos.groupby(level="unidade")}
+    limiar = pedidos.index.get_level_values("unidade").map(p.limiares_encomenda).astype(float)
+    grandes = pedidos.index[pedidos.values > limiar.fillna(float(LIMIAR_QTD_VENDA)).values]
+
+    p.vendas["is_bulk_order"] = False
+    p.vendas.loc[novos.index, "is_bulk_order"] = pd.MultiIndex.from_frame(novos[CHAVE_VENDA]).isin(grandes)
 
 
 def _dias_faltando(db: Session, vendas: pd.DataFrame, ultimas: dict) -> list[DiasFaltando]:
@@ -351,8 +402,14 @@ def _gravar(db: Session, registro: ProcessingLog, p: _Preparada) -> ResultadoUpl
                         "clientes_sem_nome_corrigidos": p.limpeza["clientes_sem_nome_corrigidos"],
                         "puladas_na_leitura": p.pulados_leitura, "avisos": resultado.errors,
                         "periodo": [str(vendas["sale_date"].min()), str(vendas["sale_date"].max())],
-                        "dias_faltando": {f.unit_id: [str(d) for d in f.dias] for f in p.faltando}}
+                        "dias_faltando": {f.unit_id: [str(d) for d in f.dias] for f in p.faltando},
+                        "limiar_encomenda_un": {loja: round(v, 1) for loja, v in p.limiares_encomenda.items()},
+                        "linhas_de_encomenda_grande": int(novas["is_bulk_order"].sum())}
+    limiares = ", ".join(f"{p.nomes_lojas.get(loja, loja)} {v:,.0f} un.".replace(",", ".")
+                         for loja, v in p.limiares_encomenda.items())
     registro.message = (f"{resultado.rows_added} vendas novas, {resultado.rows_duplicate} já estavam "
-                        f"carregadas")
+                        f"carregadas; {int(novas['is_bulk_order'].sum())} linha(s) nova(s) de encomenda grande. "
+                        f"Limiar de encomenda grande recalculado (média + {K_DESVIOS:g} desvios-padrão dos pedidos "
+                        f"de cada loja): {limiares}")[:500]
     db.commit()
     return resultado

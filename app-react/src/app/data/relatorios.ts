@@ -9,7 +9,6 @@ import { tabelaHtml, type Celula, type Tabela, type TipoColuna } from "@/lib/exp
 import {
   HORIZONTE_DIAS,
   IDS_CATEGORIA,
-  LIMIAR_ENCOMENDA,
   categorias,
   dados,
   encomendasDe,
@@ -19,6 +18,7 @@ import {
   previsaoDe,
   produtosDe,
   somar,
+  textoLimiarEncomenda,
   unidadesDoFiltro,
 } from "./mockData";
 
@@ -185,7 +185,7 @@ export const relatorios: Relatorio[] = [
     id: "encomendas",
     grupo: "Histórico de vendas",
     titulo: "Encomendas grandes por semana",
-    descricao: `Volume vendido em notas com mais de ${formatarNumero(LIMIAR_ENCOMENDA)} unidades, que fica fora da previsão.`,
+    descricao: `Volume vendido em notas acima do limiar de cada loja (${textoLimiarEncomenda("todas")}), que fica fora da previsão.`,
     uso: "Acompanhar quando as vendas grandes acontecem e quanto pesam.",
     filtros: ["unidade"],
     formatos: ["xlsx", "csv"],
@@ -460,7 +460,7 @@ export function relatorioGerencialHtml(f: FiltrosRelatorio): string {
     `Previsão de vendas · ${nomeUnidade(f.unidade)} · ${nomeCategoria(f.categoria)}`,
     `Próximos ${HORIZONTE_DIAS} dias: ${formatarData(ini)} a ${formatarData(fim)} · vendas registradas até ${formatarData(dados.base.fim)}`,
     `${kpis}<h2>Confiança da previsão</h2>${confianca}${f.categoria === "todas" ? `<h2>Por categoria</h2>${porCategoria}` : ""}<h2>Dia a dia</h2>${diaria}<h2>Produtos de grama</h2>${top}
-     <p class="nota">A previsão é da venda do dia a dia; as encomendas grandes (notas com mais de ${formatarNumero(LIMIAR_ENCOMENDA)} unidades) ficam fora.
+     <p class="nota">A previsão é da venda do dia a dia; as encomendas grandes (notas acima de ${textoLimiarEncomenda(f.unidade)}) ficam fora.
      Cada categoria e cada produto de grama tem a sua previsão, feita só com a própria venda em cada loja; o total da loja é a soma das 4 categorias.
      Faixa provável = intervalo de 95%.</p>`,
   );

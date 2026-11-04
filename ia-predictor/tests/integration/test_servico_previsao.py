@@ -116,12 +116,23 @@ def test_treino_completo_em_segundo_plano(client, admin, config_rapida, monkeypa
         for m in db.scalars(select(SeriesModel).where(SeriesModel.job_id == treino_id)):
             assert "intercept" in m.params["coeficientes"] and "loja_fechada" in m.params["coeficientes"]
             assert {"ljung_box_p", "shapiro_p", "erro_total_14d_pct", "origens_vence_naive"} <= set(m.metrics)
+            # o que saiu da série como encomenda grande, com o limiar da loja (ADR-018)
+            assert {"limiar_un", "pedidos", "pct_venda"} <= set(m.params["encomendas_grandes"])
         # a planilha que ainda não tinha entrado em treino fica ligada a este
         planilha = db.scalar(select(ProcessingLog).where(ProcessingLog.filename == "semana.xlsx"))
         assert planilha.forecast_job_id == treino_id
 
     logs = client.get(f"{BASE}/treinos/{treino_id}/logs", headers=admin).json()
     assert logs[0]["mensagem"].startswith("Treino iniciado com vendas até 28/02/2026")
+    assert "Limiar de encomenda grande de cada loja (média + 4 desvios-padrão dos pedidos dela)" in logs[0]["mensagem"]
+    assert logs[0]["mensagem"].endswith("Jardim Canadá 2.000 un., Itabirito 2.000 un.")  # sem ponto duplo
+    # cada série treinada diz o limiar da sua loja e o que saiu dela (ADR-018)
+    treinadas = [l for l in logs if l["serie"] and "SARIMAX" in l["mensagem"]]
+    assert treinadas and all("Encomendas grandes (pedido acima de " in l["mensagem"] for l in treinadas)
+    # base de teste sem limiar gravado: vale o fixo de 2.000; nos últimos 30 dias não há venda acima dele
+    grama = next(l["mensagem"] for l in treinadas if l["serie"] == "jardim-canada:category:grama")
+    assert ("Encomendas grandes (pedido acima de 2.000 un., média + 4 desvios-padrão dos pedidos de Jardim Canadá): "
+            "nenhuma nos últimos 30 dias.") in grama
     assert any(l["mensagem"] == "1 planilha(s) nova(s) neste treino: semana.xlsx." for l in logs)
     assert logs[-1]["mensagem"].startswith("Treino concluído")
     assert sum(1 for l in logs if l["serie"]) == 10  # uma linha por série
@@ -448,3 +459,14 @@ def test_script_treina_fora_da_api_e_pula_sem_dados_novos(client, monkeypatch, c
     with SessionLocal() as db:
         job = servico_previsao.ultimo(db)
     assert (job.trigger, job.status) == ("script", "skipped")
+
+    # --forcar treina mesmo com os mesmos dados, e o log do disparo registra isso
+    monkeypatch.setattr("sys.argv", ["treinar_previsoes", "--workers", "1", "--forcar"])
+    assert treinar_previsoes.main() == 0
+    saida = capsys.readouterr().out
+    assert "treinando assim mesmo (--forcar)" in saida and ": done em" in saida
+    with SessionLocal() as db:
+        job = servico_previsao.ultimo(db)
+        logs = list(db.scalars(select(ForecastJobLog.message).where(ForecastJobLog.job_id == job.id)))
+    assert (job.trigger, job.status) == ("script", "done")
+    assert any("pelo script com --forcar" in m for m in logs)

@@ -26,13 +26,15 @@ import type {
   ProdutoDaLoja,
   SemanaHistorico,
   UnidadeDados,
+  UnidadeId,
 } from "@/domain/types";
+import { formatarNumero } from "@/lib/format";
 
 export let contexto: Contexto;
 export let lojas: Contexto["lojas"];
 export let categorias: Categoria[];
 export let HORIZONTE_DIAS: number;
-export let LIMIAR_ENCOMENDA: number;
+export let LIMIARES_ENCOMENDA: Record<UnidadeId, number>;
 export let IDS_CATEGORIA: CategoriaId[];
 
 export let dados: BaseReal;
@@ -43,8 +45,14 @@ export function definirContexto(c: Contexto): void {
   lojas = c.lojas;
   categorias = c.categorias;
   HORIZONTE_DIAS = c.configuracao.horizonte_dias;
-  LIMIAR_ENCOMENDA = c.configuracao.limiar_encomenda_un;
+  LIMIARES_ENCOMENDA = c.configuracao.limiares_encomenda_un;
   IDS_CATEGORIA = c.categorias.map((x) => x.id);
+}
+
+/** Limiar de encomenda grande para o texto das telas: o da loja, ou o de cada loja em "todas". */
+export function textoLimiarEncomenda(unidade: FiltroUnidade): string {
+  if (unidade !== "todas") return `${formatarNumero(LIMIARES_ENCOMENDA[unidade])} un.`;
+  return lojas.map((l) => `${formatarNumero(LIMIARES_ENCOMENDA[l.id])} un. em ${l.nome}`).join(" e ");
 }
 
 export function definirPainel(painel: BaseReal): void {

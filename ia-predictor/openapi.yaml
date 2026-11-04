@@ -27,12 +27,18 @@ info:
     `/api/v1/painel/historico/*` ao abrir cada item, e Conferir Dados consulta a base
     **paginada** em `/api/v1/registros/*`.
 
+    ## 5.0.0
+    `limiar_encomenda_un` (2.000 un. fixo) virou `limiares_encomenda_un`, um por loja: média
+    + 4 desvios-padrão da quantidade de todos os pedidos da loja, recalculado a cada planilha
+    (ADR-018). No painel, é o do treino que gerou a previsão; no contexto, nas análises e nos
+    registros, o atual.
+
     ## 4.0.0
     Saíram as rotas do treino anterior (`/api/v1/models/*`: modelo da loja, desagregação e
     produtos regulares), o teste de acerto por produto (`/painel/produtos/.../backtest`) e as
     rotas nunca implementadas (products, forecast, alerts, simulation, reports). O painel lê
     o último treino do serviço de previsão; o upload não agenda treino (`needs_training`).
-  version: "4.0.0"
+  version: "5.0.0"
   contact:
     name: Daniel Nunes da Silva & Felipe Gurgel Araújo
     email: felipegurgel5@gmail.com
@@ -393,7 +399,7 @@ components:
             janela_dias: {type: integer, example: 365}
             origens: {type: integer, example: 56}
             passo_origem_dias: {type: integer, example: 1}
-            limiar_encomenda_un: {type: number, example: 2000}
+            limiares_encomenda_un: {type: object, additionalProperties: {type: number}, example: {jardim-canada: 1342.6, itabirito: 1959.7}, description: "Por loja: pedido acima disto é encomenda grande — média + 4 desvios-padrão da quantidade dos pedidos da loja (ADR-018)"}
             base: {type: string}
             categoria_produtos: {type: string, example: grama}
             versao_codigo: {type: string, nullable: true, description: commit do código que treinou}
@@ -423,7 +429,7 @@ components:
       type: object
       properties:
         gerado_em: {type: string, format: date-time}
-        limiar_encomenda_un: {type: number, example: 2000}
+        limiares_encomenda_un: {type: object, additionalProperties: {type: number}, example: {jardim-canada: 1342.6, itabirito: 1959.7}, description: "Por loja: pedido acima disto é encomenda grande — média + 4 desvios-padrão da quantidade dos pedidos da loja (ADR-018)"}
         unidades:
           type: object
           additionalProperties:
@@ -451,7 +457,7 @@ components:
           type: object
           properties:
             horizonte_dias: {type: integer, example: 14}
-            limiar_encomenda_un: {type: number, example: 2000}
+            limiares_encomenda_un: {type: object, additionalProperties: {type: number}, example: {jardim-canada: 1342.6, itabirito: 1959.7}, description: "Por loja: pedido acima disto é encomenda grande — média + 4 desvios-padrão da quantidade dos pedidos da loja (ADR-018)"}
             treino_na_api:
               type: boolean
               description: Falso quando a API não treina (Render); o front não oferece "Treinar previsões"
@@ -503,7 +509,7 @@ components:
           type: array
           description: "Formas de pagamento como a tela mostra (ex.: Pix); é o valor aceito no filtro `pagamentos`"
           items: {type: string}
-        limiar_encomenda_un: {type: number}
+        limiares_encomenda_un: {type: object, additionalProperties: {type: number}, description: "Limiar de encomenda grande atual de cada loja (ADR-018)"}
         total_registros: {type: integer}
         meses:
           type: array
@@ -533,7 +539,7 @@ components:
         liq: {type: number}
         pag: {type: string}
         cad: {type: boolean, description: cliente cadastrado (× consumidor)}
-        enc: {type: boolean, description: encomenda grande (nota com mais de 2.000 un.)}
+        enc: {type: boolean, description: "encomenda grande: nota acima do limiar da loja quando foi gravada (ADR-018)"}
 
     PaginaRegistros:
       type: object
@@ -577,7 +583,7 @@ components:
         origens: {type: integer, example: 56, description: Origens do walk-forward}
         passo_dias: {type: integer, example: 1, description: A origem anda este número de dias}
         horizonte_dias: {type: integer, example: 14}
-        base: {type: string, example: "fluxo diário (sem encomendas grandes: acima de 2.000 un. no documento, ADR-013)"}
+        base: {type: string, example: "fluxo diário (sem encomendas grandes: pedido acima de média + 4 desvios-padrão da quantidade de todos os pedidos da loja, ADR-018)"}
         categoria_produtos: {type: string, example: grama, description: Categoria cujos produtos são treinados um a um}
 
     TreinoServico:

@@ -109,7 +109,9 @@ carga não agenda treino: responde `needs_training` quando há venda nova.
   `insufficient_data` (venda em menos de 28 dias). Com a classificação SKU a SKU de
   04/11/2026, que pôs a grama preta, o capim dos Texas e a semente de braquiária em Grama,
   são 19 produtos e 43 séries (8 de categoria e 35 de produto), 23 com previsão (8 de
-  categoria e 15 de grama: 11 em Jardim Canadá e 4 em Itabirito). A lista está no doc 07 §2. Com `TRAINING_WORKERS`
+  categoria e 15 de grama: 11 em Jardim Canadá e 4 em Itabirito). No treino de 05/11/2026,
+  9 ficaram `trained` e 14 `low_confidence` (antes, 9 e 8); as 6 séries novas, de capim dos
+  Texas e grama preta, ficaram todas `low_confidence`. A lista e o resultado estão no doc 07 §2. Com `TRAINING_WORKERS`
   processos, o treino cai na mesma proporção.
 - **Rastreabilidade:**
   - `forecast_jobs` guarda o disparo, a configuração e a versão do código;

@@ -179,8 +179,9 @@ Ficam de fora:
     (`ajuste`, de `forecast_history.event_factor`; a data sai da regra, por
     `evento_do_dia`).
   - **No relatório gerencial,** uma tabela "Datas comemorativas".
-- **Constituição, Princípio III:** a validação de cada ajuste é a do doc 08 (fora do
-  walk-forward do treino), registrada aqui.
+- **Constituição, Princípio III (v4.0.0):** o ajuste que o walk-forward do treino quase
+  nunca atravessa é validado em experimento próprio (doc 08), com a receita de produção, e
+  revisto a cada ano de vendas. O Princípio II permite o ajuste como estatística.
 
 ## 6. Referências
 

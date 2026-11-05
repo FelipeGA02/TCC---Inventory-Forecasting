@@ -8,8 +8,8 @@ seção L2), `backend/domain/disaggregation/`
 > ADR propõe, mas o sistema foi além do §3: saíram também o L1 por unidade (o total da loja
 > é a soma das categorias) e a desagregação para SKU — os produtos de grama têm modelo
 > próprio, e os de outras categorias não são previstos. A receita é `d = 0` com janela de
-> 365 dias (§5, pendência resolvida no `trainer.py`). A emenda do Princípio II continua
-> pendente (`/speckit-constitution`).
+> 365 dias (§5, pendência resolvida no `trainer.py`). O Princípio II foi emendado na
+> constituição v4.0.0 (2026-11-05).
 
 ---
 

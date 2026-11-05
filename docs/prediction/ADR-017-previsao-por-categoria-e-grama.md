@@ -3,7 +3,7 @@
 **Status:** aceito · **Data:** 2026-10-26 · **Autores:** Daniel Nunes da Silva, Felipe Gurgel Araújo
 **Aceita:** ADR-016 (categoria por modelo próprio) · **Revisa:** ADR-009 e ADR-011 (hierarquia
 L1 por unidade + desagregação), ADR-006 (treino agendado), ADR-015 (script do treino fora da API)
-**Pendente:** emenda dos Princípios II e V da constituição (`/speckit-constitution`)
+**Constituição:** Princípios II e V emendados na v4.0.0 (2026-11-05)
 
 ---
 
@@ -122,9 +122,9 @@ carga não agenda treino: responde `needs_training` quando há venda nova.
   O walk-forward completo (`series_backtest_points`) fica só nos últimos
   `FORECAST_SERVICE_KEEP_BACKTEST_JOBS` treinos (padrão 4), porque cresce ~13 mil linhas
   por treino.
-- **Constituição desatualizada.** O Princípio II ainda manda obter a categoria por
-  desagregação. O Princípio V cita `retrain_history` e `forecast_runs` como registro
-  obrigatório. As duas emendas ficam para `/speckit-constitution`.
+- **Constituição emendada (v4.0.0, 2026-11-05).** O Princípio II passou a exigir o SARIMAX
+  direto em cada categoria e produto de grama, e o Princípio V, o registro em
+  `forecast_jobs`, `forecast_job_logs`, `series_models` e `forecast_history`.
 - **Experimentos preservados:** `training_scripts/frontend_mock/gerar_dados_frontend.py`
   guarda a receita anterior, para o artigo e para comparação.
 

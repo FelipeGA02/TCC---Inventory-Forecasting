@@ -142,6 +142,24 @@ contam só o fluxo diário (sem encomendas grandes), e o mínimo é 28 nos últi
 Esmeralda em Itabirito (31), Esmeralda ITO em Jardim Canadá (33), grama preta Ana (34) e Zeon
 (35) em Jardim Canadá estão perto do mínimo de 28.
 
+*Resultado do treino (treino 10, 05/11/2026).* 9 séries `trained` e 14 `low_confidence`.
+Antes da revisão (treino 6, 02/11/2026) eram 9 e 8. As 17 séries que já existiam mantêm o
+status; nas categorias, a mudança de composição mexe pouco no MASE (Jardim Canadá: Grama 0,924
+→ 0,945, Plantas diversas 0,937 → 0,971, Produtos de jardim 0,906 → 0,876; Itabirito: até
+0,02). As 6 séries novas ficam todas `low_confidence`:
+
+| Loja | Série | MASE | Faixa de 95% acertou | Por que não é `trained` |
+| --- | --- | --- | --- | --- |
+| Jardim Canadá | 1293 CAPIM DOS TEXAS ROXO | 2,285 | 91,1% | MASE ≥ 1 |
+| Jardim Canadá | 00020227 CAPIM DOS TEXAS ROXO | 0,764 | 100,0% | faixa larga demais |
+| Jardim Canadá | 1294 CAPIM DOS TEXAS VERDE | 0,739 | 99,1% | faixa larga demais |
+| Jardim Canadá | 166 GRAMA PRETA PELO DE URSO BDJA (UNID) | 0,676 | 100,0% | faixa larga demais |
+| Jardim Canadá | 00150005 GRAMA PRETA PELO URSO SAQ | 1,080 | 97,8% | MASE ≥ 1 |
+| Jardim Canadá | 167 GRAMA PRETA ANA | 1,007 | 97,8% | MASE ≥ 1 |
+
+São produtos de venda esporádica (34 a 59 dias com venda no ano): a faixa cobre os muitos dias
+de venda zero e fica larga, ou o modelo não bate a repetição da semana anterior.
+
 *Séries sem previsão (20).* Em 17 o motivo é a venda em menos de 28 dias: produtos de venda
 esporádica, com poucos dias no ano e às vezes uma única compra grande. Com tantos zeros, a
 série não sustenta um SARIMAX. Nas outras 3, o produto estreou há pouco e não tem os 249 dias

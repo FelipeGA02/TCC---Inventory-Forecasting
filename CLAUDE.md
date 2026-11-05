@@ -187,6 +187,11 @@ pytest ia-predictor/tests/unit/ -v
 # Rodar testes de integração
 pytest ia-predictor/tests/integration/ -v
 
+# Testes de ponta a ponta (Playwright): front + API real num SQLite com base sintética
+# (nunca o Neon), fotos de cada fluxo em app-react/e2e/fotos/ — ver app-react/e2e/README.md
+cd app-react && npm run e2e:instalar   # uma vez: Chromium do Playwright
+cd app-react && npm run e2e            # 1ª vez monta e treina a base (~5 min, cache em ia-predictor/tests/e2e/.cache/)
+
 # Regenerar cliente TypeScript após mudar openapi.yaml
 cd app-react && npm run generate:api
 

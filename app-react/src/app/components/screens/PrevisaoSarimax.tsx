@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import * as DicaPrimitive from "@radix-ui/react-tooltip";
-import { CalendarDays, History, Search } from "lucide-react";
+import { CalendarDays, History, Search, TrendingDown, TrendingUp } from "lucide-react";
 import { Area, CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Input } from "../ui/input";
@@ -8,12 +8,15 @@ import type { CategoriaId, DiaPrevisto, FiltroUnidade, ProdutoDaLoja, UnidadeDad
 import {
   CORES_CATEGORIA,
   HORIZONTE_DIAS,
+  ajustesDe,
   categorias,
   historicoDiarioDe,
   nomeCategoria,
+  nomeDoAjuste,
   previsaoDe,
   produtosDe,
   somar,
+  textoAjuste,
   unidades,
   unidadesDoFiltro,
 } from "../../data/mockData";
@@ -100,6 +103,7 @@ function PainelPrevisao({ selecionado, onSelecionar, onVerHistorico }: { selecio
   const lojaFoco = lojas.find((l) => l.id === unidadeFoco) ?? lojas[0]!;
   const previsao = useMemo(() => previsaoDe("todas"), []);
   const eventos = previsao.filter((d) => d.evento);
+  const ajustes = useMemo(() => ajustesDe("todas"), []);
 
   // Só os produtos de grama com previsão neste treino: o gráfico mostra os da loja escolhida,
   // a tabela dia a dia os das lojas do filtro dela
@@ -124,6 +128,26 @@ function PainelPrevisao({ selecionado, onSelecionar, onVerHistorico }: { selecio
               </span>
             ))}
           </span>
+        </div>
+      )}
+
+      {ajustes.length > 0 && (
+        <div className="rounded-lg px-4 py-2.5 flex flex-col gap-1 text-sm" style={{ background: "#fff8e1", border: "1px solid #ffe0a0", color: "#8a5a00" }}>
+          <span className="flex items-center gap-2" style={{ fontWeight: 600 }}>
+            <CalendarDays size={16} />
+            Previsão ajustada por data comemorativa
+          </span>
+          {ajustes.map((a) => {
+            const Icone = a.multiplicador < 1 ? TrendingDown : TrendingUp;
+            return (
+              <span key={`${a.unidade}-${a.nivel}-${a.item}-${a.evento}`} className="flex items-start gap-2 text-xs">
+                <Icone size={14} className="flex-shrink-0 mt-0.5" aria-label={a.multiplicador < 1 ? "menor" : "maior"} />
+                <span>
+                  <strong>{nomeDoAjuste(a)}</strong> em {a.nomeUnidade}: {textoAjuste(a)}.
+                </span>
+              </span>
+            );
+          })}
         </div>
       )}
 

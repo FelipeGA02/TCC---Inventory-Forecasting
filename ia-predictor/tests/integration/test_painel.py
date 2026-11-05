@@ -10,7 +10,7 @@ CHAVES_BASE_REAL = {"gerado_em", "fonte", "base", "configuracao", "categorias", 
 CHAVES_UNIDADE = {"id", "nome", "cidade", "periodo", "linhas", "skus_vendidos", "volume_total",
                   "volume_flores_de_corte", "volume_por_categoria", "skus_por_categoria", "encomendas",
                   "categorias_modelo", "previsao", "historico_diario", "historico_semanal", "produtos",
-                  "backtest_categorias"}
+                  "backtest_categorias", "ajustes_datas"}
 CHAVES_METRICAS = {"rodadas", "rodadas_vence_naive", "dias_avaliados", "mae", "mase", "erro_relativo_naive",
                    "cobertura_ic95_pct", "largura_ic95", "venda_media_dia", "previsto_sobre_real_pct",
                    "erro_total_14d_pct", "ljung_box_p", "shapiro_p"}
@@ -59,6 +59,12 @@ def test_painel_no_formato_base_real(client, viewer, com_previsao):
     assert prod["modelo"]["status"] in ("trained", "low_confidence")
     assert u["encomendas"]["vendas"] > 0  # notas de 3.000 un. no dia 15
     assert len(u["historico_diario"]) == 56
+    # datas comemorativas da previsão (ADR-019): cada ajuste é de uma série da loja, nos 14 dias
+    previstos = {d["data"] for d in u["previsao"]}
+    for a in u["ajustes_datas"]:
+        assert (a["nivel"], a["item"]) in {("categoria", c) for c in IDS_CAT} | {("produto", "100")}
+        assert set(a["dias"]) <= previstos and a["multiplicador"] != 1
+    assert all("fator" in d for d in prod["previsao"])
 
 
 def test_planilhas_carregadas_no_painel(client, viewer, com_previsao):

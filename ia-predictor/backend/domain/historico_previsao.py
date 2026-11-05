@@ -27,6 +27,8 @@ from datetime import date
 
 import pandas as pd
 
+from backend.domain.models import datas_comemorativas
+
 Chave = tuple[str, str, date]  # (nível, item, dia)
 _COLUNAS = ["origem", "data", "previsto", "ic_inf", "ic_sup"]
 
@@ -80,19 +82,24 @@ def pontos_a_gravar(gravados_antes: set[Chave], walk_forward: list[dict], previs
 
 
 def serie_com_previsto(real: pd.Series,
-                       previstos: dict[date, tuple[float, float, float, str, date, bool | None]]) -> list[dict]:
+                       previstos: dict[date, tuple[float, float, float, str, date, bool | None, float | None]]
+                       ) -> list[dict]:
     """Vendido de cada dia de `real` (índice diário) com o previsto gravado: valor, faixa,
     de onde veio (`fonte`: "forecast" | "walk_forward"), a quantos dias do início da
-    previsão ele estava (`horizonte`, 1 no walk-forward) e se a previsão contava com a loja
-    fechada (`loja_fechada`). `None` nos dias sem previsão."""
+    previsão ele estava (`horizonte`, 1 no walk-forward), se a previsão contava com a loja
+    fechada (`loja_fechada`) e o ajuste da data comemorativa que entrou nele (`ajuste`:
+    evento e multiplicador, ADR-019). `None` nos dias sem previsão."""
     serie = []
     for dia, vendido in real.items():
         p = previstos.get(dia.date())
+        fator = p[6] if p is not None and len(p) > 6 else None
         serie.append({"data": str(dia.date()), "real": round(float(vendido), 1),
                       "previsto": None if p is None else p[0],
                       "inf": None if p is None else p[1],
                       "sup": None if p is None else p[2],
                       "fonte": None if p is None else p[3],
                       "horizonte": None if p is None else (dia.date() - p[4]).days + 1,
-                      "loja_fechada": None if p is None else p[5]})
+                      "loja_fechada": None if p is None else p[5],
+                      "ajuste": None if fator is None else {"evento": datas_comemorativas.evento_do_dia(dia),
+                                                            "multiplicador": round(float(fator), 3)}})
     return serie

@@ -419,8 +419,9 @@ categorias erraria o sentido do efeito em pelo menos uma delas.
 > **Revisão (2026-10-31, doc 08):** com o fluxo sem encomendas grandes e a comparação com o
 > mesmo dia da semana (em vez da média geral), só a alta de Flores de corte nas 4 datas de
 > presente (Mulher, Mães, Namorados, Natal) e a de Finados em Itabirito saem da faixa de uma
-> semana comum. As quedas de Grama da tabela acima (ex.: 0,2 no Dia dos Pais) quase todas
-> somem. Ver `08-fator_datas_comemorativas.md` §2, que também testa um fator multiplicativo no
+> semana comum. A flor de Finados é a em vaso (crisântemo e kalanchoe, em Plantas diversas),
+> só em Itabirito: a flor de corte não sobe. As quedas de Grama da tabela acima (ex.: 0,2 no
+> Dia dos Pais) quase todas somem. Ver `08-fator_datas_comemorativas.md` §2, que também testa um fator multiplicativo no
 > SARIMAX de produção.
 
 Ao longo do ano, com apenas dois ciclos completos, só dois picos mensais se repetem nos dois
@@ -511,7 +512,8 @@ aberto.
 | Jardim Canadá · Flores de corte | Atenção | comporta-se como sinal aleatório no curto prazo; pico de até 86× a média — depende quase só do calendário |
 
 "Atenção" não significa que a previsão falha — ela continua sendo gerada normalmente, mas
-acompanhada de um aviso de menor confiança no painel. Nenhuma das 6 combinações ficou abaixo
+acompanhada de um aviso de menor confiança no painel (recomendação não adotada: desde
+2026-11-05 a tela mostra todas as previsões do mesmo jeito). Nenhuma das 6 combinações ficou abaixo
 do mínimo de histórico necessário para gerar previsão.
 
 Os gráficos completos das 6 séries `unidade × categoria` citados nesta seção 3 estão em:
@@ -703,7 +705,7 @@ desagregação para o SKU (seção 2.5).
 | 5 | Incorporar um ajuste de tendência nas combinações com crescimento ou queda mais acentuados (Grama e Produtos de jardim em Itabirito; Produtos de jardim em Jardim Canadá) | Média |
 | 6 | Incluir, na comparação de modelos, uma abordagem baseada só em regras de calendário — para as combinações onde o histórico recente de vendas não ajuda a prever o próximo dia | Média |
 | 7 | Ampliar a janela de tempo usada para distribuir a previsão da categoria entre os produtos, e tratar o rateio pela média da categoria como o caminho padrão (não uma exceção) para a maioria dos produtos | Média |
-| 8 | Sinalizar as combinações de variação mais extrema (Grama em Itabirito, Flores de corte em Jardim Canadá) com aviso de menor confiança | Média |
+| 8 | ~~Sinalizar as combinações de variação mais extrema (Grama em Itabirito, Flores de corte em Jardim Canadá) com aviso de menor confiança~~ — não adotado: a tela não mostra selo nem aviso de confiança (2026-11-05) | Média |
 | 9 | Apresentar Plantas diversas e Insumos e acessórios como grupos do painel (não como série própria), somando a previsão dos produtos de cada um; reavaliar Insumos e acessórios com mais histórico | Média |
 | 10 | **Decidido**: o L1 ajusta 2 séries (por unidade), não 6 — a separação por categoria não melhora a acurácia (seção 3.11), a por unidade é apoiada; `categoria` passa a nível de desagregação (seção 3.0) | Alta |
 | 11 | Definir com a floricultura a regra de tratamento das vendas com quantidade negativa (devoluções) | Baixa |

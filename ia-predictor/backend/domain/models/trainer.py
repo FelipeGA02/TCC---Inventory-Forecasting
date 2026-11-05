@@ -20,10 +20,11 @@ Protocolo
   4. **Previsão final**: o mesmo modelo ajustado nos últimos `janela_dias` dias com venda
      conhecida prevê os `horizonte` dias seguintes. Desse ajuste saem os coeficientes e o
      diagnóstico dos resíduos (Ljung-Box e Shapiro-Wilk), registrados sem mudar o status.
-  5. **Datas comemorativas** (só com `com_fator`, ADR-019): em cada previsão — do walk-forward,
-     do complemento e a final —, o previsto e a faixa dos dias da semana de uma data de
-     `fator_datas` são multiplicados pelo fator dela (`domain.models.datas_comemorativas`),
-     calculado só com a venda anterior ao primeiro dia previsto. As métricas do walk-forward
+  5. **Datas comemorativas** (ADR-019): em cada previsão — do walk-forward, do complemento e a
+     final —, o previsto e a faixa dos dias da semana de uma data são multiplicados pelo fator
+     dela (`domain.models.datas_comemorativas`), calculado só com a venda anterior ao primeiro
+     dia previsto: com `com_fator`, a alta das datas de `fator_datas` (Flores de corte); com
+     `com_queda`, a queda das datas de `queda_datas` (as outras séries). As métricas do walk-forward
      já saem com o ajuste: medem o que a loja veria. A coluna `fator` (1 = sem ajuste) fica
      no walk-forward, no complemento e na previsão.
 
@@ -73,11 +74,12 @@ class ConfigTreino:
     cobertura_min: float = 90.0
     cobertura_max: float = 98.0
     max_origens_com_falha_pct: float = 50.0
-    # fator das datas comemorativas (ADR-019): só nas séries treinadas com `com_fator`
-    fator_datas: tuple[str, ...] = datas_comemorativas.DATAS_DE_PRESENTE
-    fator_fracao: float = 0.5       # parte do aumento que entra na previsão
-    fator_teto: float = 3.0         # multiplicador máximo
-    fator_ocorrencias: int = 3      # ocorrências passadas da data que entram no fator
+    # datas comemorativas (ADR-019): a alta nas séries treinadas com `com_fator`, a queda nas
+    # treinadas com `com_queda`
+    fator_datas: tuple[str, ...] = datas_comemorativas.DATAS_FLORES_DE_CORTE
+    fator_regra: datas_comemorativas.Regra = datas_comemorativas.REGRA_ALTA
+    queda_datas: tuple[str, ...] = datas_comemorativas.DATAS_DE_QUEDA
+    queda_regra: datas_comemorativas.Regra = datas_comemorativas.REGRA_QUEDA
 
     def como_dict(self) -> dict:
         return {k: list(v) if isinstance(v, tuple) else v for k, v in asdict(self).items()}
@@ -142,24 +144,25 @@ def motivo_inelegivel(y: pd.Series, config: ConfigTreino, nivel: str) -> str | N
 
 
 def _ajustes_datas(y: pd.Series, X: pd.DataFrame, antes_de: pd.Timestamp, dias: pd.DatetimeIndex,
-                   config: ConfigTreino, com_fator: bool) -> tuple[np.ndarray, list]:
+                   config: ConfigTreino, com_fator: bool, com_queda: bool = False) -> tuple[np.ndarray, list]:
     """(multiplicador de cada dia de `dias`, ajustes) das datas comemorativas, com a venda
-    anterior a `antes_de`. Sem `com_fator`, tudo 1."""
-    if not com_fator:
+    anterior a `antes_de`. Sem `com_fator` nem `com_queda`, tudo 1."""
+    regras = [(config.fator_datas, config.fator_regra)] * com_fator + [(config.queda_datas, config.queda_regra)] * com_queda
+    if not regras:
         return np.ones(len(dias)), []
-    lista = datas_comemorativas.ajustes(y[y.index < antes_de], X, dias, config.fator_datas,
-                                        fracao=config.fator_fracao, teto=config.fator_teto,
-                                        ocorrencias=config.fator_ocorrencias)
+    passado = y[y.index < antes_de]
+    lista = [a for datas, regra in regras for a in datas_comemorativas.ajustes(passado, X, dias, datas, regra)]
     return datas_comemorativas.multiplicadores(dias, lista), lista
 
 
 def treinar_serie(y: pd.Series, X: pd.DataFrame, aberta: pd.Series, config: ConfigTreino, nivel: str,
-                  ao_progredir=None, com_fator: bool = False) -> ResultadoSerie:
+                  ao_progredir=None, com_fator: bool = False, com_queda: bool = False) -> ResultadoSerie:
     """Treina uma série. Nunca levanta exceção: falha vira `status = "error"` com o motivo.
 
     `X` e `aberta` (bool: loja aberta no dia) cobrem o índice de `y` e os `horizonte` dias
-    depois dele. `ao_progredir(feitos, total)` é chamado a cada ajuste. `com_fator`: aplica o
-    fator das datas comemorativas de `config.fator_datas` (passo 5 do protocolo).
+    depois dele. `ao_progredir(feitos, total)` é chamado a cada ajuste. `com_fator`: aplica a
+    alta das datas de `config.fator_datas`; `com_queda`, a queda das de `config.queda_datas`
+    (passo 5 do protocolo).
     """
     fim = y.index.max() if len(y) else None
     janela_final = y.iloc[-config.janela_dias:]
@@ -207,7 +210,7 @@ def treinar_serie(y: pd.Series, X: pd.DataFrame, aberta: pd.Series, config: Conf
                 falhas += 1
                 tick()
                 continue
-            fator, _ = _ajustes_datas(y, X, origem, futuro, config, com_fator)
+            fator, _ = _ajustes_datas(y, X, origem, futuro, config, com_fator, com_queda)
             ultima_semana = treino.values[-config.m:]
             escala = float(np.mean(np.abs(treino.values[config.m:] - treino.values[:-config.m])))
             for h, dia in enumerate(futuro):
@@ -237,7 +240,7 @@ def treinar_serie(y: pd.Series, X: pd.DataFrame, aberta: pd.Series, config: Conf
             except Exception:  # noqa: BLE001 — o dia fica sem previsto, como antes da 1ª origem
                 tick()
                 continue
-            f = _ajustes_datas(y, X, origem, pd.DatetimeIndex([origem]), config, com_fator)[0][0]
+            f = _ajustes_datas(y, X, origem, pd.DatetimeIndex([origem]), config, com_fator, com_queda)[0][0]
             linhas.append({"origem": origem, "data": origem, "previsto": float(prev[0] * f),
                            "ic_inf": float(inf[0] * f), "ic_sup": float(sup[0] * f), "fator": float(f)})
             tick()
@@ -250,7 +253,7 @@ def treinar_serie(y: pd.Series, X: pd.DataFrame, aberta: pd.Series, config: Conf
         prev, inf, sup = prever(res, X.loc[futuro], config.alpha)
         tick()
         # 5. Datas comemorativas da previsão final (no walk-forward e no complemento, já aplicadas).
-        fator, lista = _ajustes_datas(y, X, futuro[0], futuro, config, com_fator)
+        fator, lista = _ajustes_datas(y, X, futuro[0], futuro, config, com_fator, com_queda)
         base.previsao = pd.DataFrame({"data": futuro, "previsto": prev * fator, "ic_inf": inf * fator,
                                       "ic_sup": sup * fator, "fator": fator})
         base.ajustes = [a.como_dict() for a in lista]
@@ -269,6 +272,6 @@ def treinar_serie(y: pd.Series, X: pd.DataFrame, aberta: pd.Series, config: Conf
 
 def treinar_serie_tarefa(args: tuple) -> tuple[str, ResultadoSerie]:
     """Ponto de entrada para um processo separado (`ProcessPoolExecutor`): sem callback de
-    progresso, que não atravessa processos. `args` = (chave, y, X, aberta, config, nivel, com_fator)."""
-    chave, y, X, aberta, config, nivel, com_fator = args
-    return chave, treinar_serie(y, X, aberta, config, nivel, com_fator=com_fator)
+    progresso, que não atravessa processos. `args` = (chave, y, X, aberta, config, nivel, com_fator, com_queda)."""
+    chave, y, X, aberta, config, nivel, com_fator, com_queda = args
+    return chave, treinar_serie(y, X, aberta, config, nivel, com_fator=com_fator, com_queda=com_queda)

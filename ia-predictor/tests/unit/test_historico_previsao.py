@@ -4,6 +4,7 @@ from datetime import date, timedelta
 import pandas as pd
 
 from backend.domain.historico_previsao import pontos_a_gravar, pontos_da_serie, serie_com_previsto
+from backend.domain.models.datas_comemorativas import evento_do_dia
 
 INICIO = date(2026, 3, 1)
 
@@ -54,7 +55,7 @@ def test_serie_sem_previsto_antes_do_primeiro_treino():
     serie = serie_com_previsto(real, {date(2025, 3, 2): (5.0, 1.0, 9.0, "walk_forward", date(2025, 3, 2), True),
                                       date(2025, 3, 3): (7.0, 2.0, 12.0, "forecast", date(2025, 2, 25), False)})
     assert serie[0] == {"data": "2025-03-01", "real": 3.0, "previsto": None, "inf": None, "sup": None,
-                        "fonte": None, "horizonte": None, "loja_fechada": None}
+                        "fonte": None, "horizonte": None, "loja_fechada": None, "ajuste": None}
     assert serie[1]["previsto"] == 5.0 and serie[1]["sup"] == 9.0
     assert (serie[1]["fonte"], serie[1]["horizonte"], serie[1]["loja_fechada"]) == ("walk_forward", 1, True)
     assert (serie[2]["fonte"], serie[2]["horizonte"]) == ("forecast", 7)  # previsto 7 dias antes
@@ -126,3 +127,21 @@ def test_treino_semanal_congela_os_dias_ate_o_inicio_seguinte():
     assert [valores[d] for d in _dias(t1, 9)] == [10] * 9  # congelados
     assert [valores[d] for d in _dias(t2, 14)] == [20] * 14
     assert min(valores) == t2 - timedelta(days=69) and valores[t1 - timedelta(days=1)] == 99
+
+
+def test_serie_diz_a_data_comemorativa_que_mudou_o_previsto():
+    """ADR-019: o `event_factor` gravado volta na tela com a data de onde veio."""
+    real = pd.Series([30.0, 4.0], index=pd.date_range("2025-12-29", periods=2))
+    serie = serie_com_previsto(real, {
+        date(2025, 12, 29): (12.0, 4.0, 20.0, "forecast", date(2025, 12, 20), False, 0.35),
+        date(2025, 12, 30): (5.0, 1.0, 9.0, "forecast", date(2025, 12, 20), False, None)})
+    assert serie[0]["ajuste"] == {"evento": "Ano Novo", "multiplicador": 0.35}
+    assert serie[1]["ajuste"] is None
+
+
+def test_evento_do_dia_pela_semana_da_data():
+    assert evento_do_dia(date(2026, 5, 5)) == "Dia das Mães"     # 2º domingo de maio: 10/05
+    assert evento_do_dia(date(2026, 4, 28)) == "Dia do Trabalho"
+    assert evento_do_dia(date(2025, 12, 31)) == "Ano Novo"       # o 1º/01 do ano seguinte
+    assert evento_do_dia(date(2025, 12, 24)) == "Natal"
+    assert evento_do_dia(date(2026, 2, 10)) is None

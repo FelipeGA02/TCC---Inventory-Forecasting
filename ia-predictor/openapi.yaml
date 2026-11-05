@@ -27,6 +27,11 @@ info:
     `/api/v1/painel/historico/*` ao abrir cada item, e Conferir Dados consulta a base
     **paginada** em `/api/v1/registros/*`.
 
+    ## 5.1.0
+    As datas comemorativas que mudaram a previsão (ADR-019) chegam à tela: `ajustes_datas` em
+    cada loja do painel, `fator` em cada dia previsto de produto e `ajuste` em cada dia do
+    histórico da previsão. Só campos novos.
+
     ## 5.0.0
     `limiar_encomenda_un` (2.000 un. fixo) virou `limiares_encomenda_un`, um por loja: média
     + 4 desvios-padrão da quantidade de todos os pedidos da loja, recalculado a cada planilha
@@ -38,7 +43,7 @@ info:
     produtos regulares), o teste de acerto por produto (`/painel/produtos/.../backtest`) e as
     rotas nunca implementadas (products, forecast, alerts, simulation, reports). O painel lê
     o último treino do serviço de previsão; o upload não agenda treino (`needs_training`).
-  version: "5.0.0"
+  version: "5.1.0"
   contact:
     name: Daniel Nunes da Silva & Felipe Gurgel Araújo
     email: felipegurgel5@gmail.com
@@ -257,7 +262,8 @@ components:
       enum: [trained, low_confidence, insufficient_data, error]
       description: |
         `trained`: passou nos testes (MASE < 1 e faixa de 95% entre 90% e 98%);
-        `low_confidence`: previsão gerada, com aviso; `insufficient_data`: vendeu pouco para
+        `low_confidence`: previsão gerada, sem passar num dos dois limiares (a tela mostra igual);
+        `insufficient_data`: vendeu pouco para
         prever (sem previsão); `error`: o ajuste falhou neste treino (sem previsão).
 
     MetricasModelo:
@@ -301,6 +307,26 @@ components:
         inf: {type: number, description: limite inferior da faixa de 95%}
         sup: {type: number, description: limite superior da faixa de 95%}
 
+    AjusteData:
+      type: object
+      description: |
+        Uma data comemorativa que mudou a previsão de uma série nos 14 dias (ADR-019): a alta
+        de Flores de corte (Dia da Mulher, das Mães, dos Namorados, Natal, Ano Novo) ou a queda
+        das outras séries (26 a 31/12, semana do Dia do Trabalho).
+      required: [nivel, item, evento, data, multiplicador, fator, anos, dias]
+      properties:
+        nivel: {type: string, enum: [categoria, produto]}
+        item: {type: string, description: id da categoria ou código do produto de grama}
+        nome: {type: string, nullable: true, description: nome do produto (nulo na categoria)}
+        evento: {type: string, example: Ano Novo}
+        data: {type: string, format: date}
+        multiplicador:
+          type: number
+          description: o que multiplicou o previsto e a faixa desses dias (> 1 alta, < 1 queda)
+        fator: {type: number, description: venda ÷ semana comum nas ocorrências passadas}
+        anos: {type: array, items: {type: integer}, description: anos das ocorrências usadas}
+        dias: {type: array, items: {type: string, format: date}, description: dias ajustados}
+
     UnidadePainel:
       type: object
       description: |
@@ -332,6 +358,10 @@ components:
                   categorias:
                     type: object
                     additionalProperties: {$ref: "#/components/schemas/Faixa"}
+        ajustes_datas:
+          type: array
+          description: As datas comemorativas que mudaram a previsão das séries da loja (ADR-019)
+          items: {$ref: "#/components/schemas/AjusteData"}
         produtos:
           type: array
           description: Produtos de grama do treino (com previsão primeiro)
@@ -346,7 +376,12 @@ components:
                 type: array
                 description: vazia quando o produto ficou sem modelo
                 items:
-                  allOf: [{$ref: "#/components/schemas/Faixa"}, {type: object, properties: {data: {type: string, format: date}}}]
+                  allOf:
+                    - $ref: "#/components/schemas/Faixa"
+                    - type: object
+                      properties:
+                        data: {type: string, format: date}
+                        fator: {type: number, nullable: true, description: multiplicador da data comemorativa (ADR-019); nulo sem ajuste}
               previsao_14d: {type: number, nullable: true}
         backtest_categorias:
           type: object
@@ -714,6 +749,16 @@ components:
           type: boolean
           nullable: true
           description: se a previsão contava com a loja fechada no dia (o calendário da época)
+        ajuste:
+          type: object
+          nullable: true
+          description: |
+            A data comemorativa que mudou o previsto do dia (ADR-019; `forecast_history.event_factor`):
+            o previsto do modelo sem ela é `previsto / multiplicador`. Nulo sem ajuste.
+          required: [multiplicador]
+          properties:
+            evento: {type: string, nullable: true, example: Dia das Mães}
+            multiplicador: {type: number, description: "> 1 alta, < 1 queda"}
 
     ValidationError:
       type: object

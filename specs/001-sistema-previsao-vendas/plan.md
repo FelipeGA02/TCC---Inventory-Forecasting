@@ -359,7 +359,7 @@ residual_tests()                                  # Ljung-Box + Shapiro-Wilk (lo
 MASE < 1.0  E  cobertura ∈ [90,98]  E  simulação melhor que ingênua?
     → status = "trained"   ; salva artefato joblib + metadados
 else
-    → status = "low_confidence" ; salva com aviso
+    → status = "low_confidence" ; salva (a tela mostra igual, sem aviso)
 
 generate_daily_forecast(model, exog_future, horizon=14) → ForecastResult (por categoria)
 

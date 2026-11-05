@@ -1,10 +1,12 @@
-"""Fator multiplicativo das datas comemorativas (ADR-019). Lógica pura.
+"""Fator multiplicativo das datas comemorativas e da queda de fim de ano (ADR-019). Lógica pura.
 
-O SARIMAX só conhece o dia da semana, a loja fechada e a abertura excepcional: na semana do
-Dia da Mulher, do Dia das Mães, do Dia dos Namorados e do Natal ele prevê uma semana comum,
-e Flores de corte vende de 1,5 a 5,7 vezes isso (`docs/prediction/08-fator_datas_comemorativas.md`).
-Este módulo calcula, das vendas, quanto a semana de cada data vendeu a mais e devolve o
-multiplicador da previsão de cada dia.
+O SARIMAX só conhece o dia da semana, a loja fechada e a abertura excepcional. Na semana do
+Dia da Mulher, do Dia das Mães, do Dia dos Namorados, do Natal e do Ano Novo ele prevê uma
+semana comum, e Flores de corte vende de 1,6 a 5,8 vezes isso. De 26 a 31/12 e na semana do
+Dia do Trabalho, a Grama, as Plantas diversas e os Produtos de jardim vendem de 0,3 a 0,7 de
+uma semana comum, e o modelo prevê de 2 a 5 vezes o vendido
+(`docs/prediction/08-fator_datas_comemorativas.md`). Este módulo calcula, das vendas, quanto
+a semana de cada data vendeu a mais ou a menos e devolve o multiplicador da previsão de cada dia.
 
 Fator de uma ocorrência (loja, série, data)
 -------------------------------------------
@@ -18,15 +20,22 @@ então `loja_fechada` e `abertura_excepcional` bastam para achar os dias normais
 Multiplicador
 -------------
 O fator junta as últimas `ocorrencias` da data com as 4 semanas seguintes já vendidas (soma
-da venda ÷ soma da base) e entra pela metade (`fracao`), entre 1 e `teto`:
+da venda ÷ soma da base) e entra com a `fracao`, entre `piso` e `teto`:
 
-    multiplicador = mín(teto, máx(1, 1 + fracao · (fator − 1)))
+    multiplicador = mín(teto, máx(piso, 1 + fracao · (fator − 1)))
 
-Pela metade porque, com uma ocorrência por ano, o fator muda até 2× de um ano para o outro:
-no teste, o fator cheio errou para cima de 91% a 151% em Itabirito, e a metade melhorou o
-total da semana nas 10 ocorrências. Nunca abaixo de 1: o teste não avaliou reduzir a
-previsão. As datas vêm da regra (2º domingo de maio...), não do calendário gravado, que pode
-não estar estendido para o ano do treino.
+Duas regras (`Regra`), uma para cada sentido:
+  * **alta** (`REGRA_ALTA`, Flores de corte): metade do aumento, entre 1 e 3. Pela metade
+    porque, com uma ocorrência por ano, o fator muda até 2× de um ano para o outro: no teste,
+    o fator cheio errou para cima de 87% a 159% em Itabirito, e a metade melhorou o total da
+    semana nas 10 ocorrências.
+  * **queda** (`REGRA_QUEDA`, as outras séries): a queda inteira, entre 0,2 e 1, só com pelo
+    menos `min_ocorrencias` (2) ocorrências passadas e cada uma das usadas (até 3) em até
+    `limite` (0,8) de uma semana comum — o critério do EDA (doc 08 §9.3). Inteira porque o
+    fator da queda muda pouco de um ano para o outro, e no teste a inteira venceu a metade em
+    todas as ocorrências do Ano Novo. Série que caiu num ano e não no outro fica sem ajuste.
+As datas vêm da regra (2º domingo de maio...), não do calendário gravado, que pode não estar
+estendido para o ano do treino.
 
 Quem chama passa só a venda conhecida antes do primeiro dia previsto: no walk-forward, a de
 antes da origem — o fator não olha o período avaliado.
@@ -52,8 +61,28 @@ REGRAS = {
     "Dia dos Pais": lambda ano: _segundo_domingo(ano, 8),
     "Finados": lambda ano: date(ano, 11, 2),
     "Natal": lambda ano: date(ano, 12, 25),
+    # 1º de janeiro (loja fechada): a janela fica de 26 a 31/12
+    "Ano Novo": lambda ano: date(ano, 1, 1),
+    "Dia do Trabalho": lambda ano: date(ano, 5, 1),
 }
 DATAS_DE_PRESENTE = ("Dia da Mulher", "Dia das Mães", "Dia dos Namorados", "Natal")
+DATAS_FLORES_DE_CORTE = DATAS_DE_PRESENTE + ("Ano Novo",)  # a alta (doc 08 §5 e §9.2)
+DATAS_DE_QUEDA = ("Ano Novo", "Dia do Trabalho")          # a queda (doc 08 §9.3)
+
+
+@dataclass(frozen=True)
+class Regra:
+    """Como o fator das ocorrências passadas vira multiplicador."""
+    fracao: float                 # parte do aumento (ou da queda) que entra na previsão
+    piso: float                   # multiplicador mínimo
+    teto: float                   # multiplicador máximo
+    ocorrencias: int = 3          # últimas ocorrências da data que entram no fator
+    min_ocorrencias: int = 1      # com menos ocorrências passadas completas, sem ajuste
+    limite: float | None = None   # cada ocorrência tem de ficar em até isso (só a queda)
+
+
+REGRA_ALTA = Regra(fracao=0.5, piso=1.0, teto=3.0)
+REGRA_QUEDA = Regra(fracao=1.0, piso=0.2, teto=1.0, min_ocorrencias=2, limite=0.8)
 
 DIAS_ANTES = 6        # semana da data: 6 dias antes até o dia
 SEMANAS_BASE = 4      # base: mesmo dia da semana, 4 semanas antes e 4 depois
@@ -66,7 +95,7 @@ class Ajuste:
     evento: str
     data: pd.Timestamp
     fator: float                 # venda ÷ base nas ocorrências passadas
-    multiplicador: float         # o que multiplica a previsão (fração, piso 1 e teto)
+    multiplicador: float         # o que multiplica a previsão (fração, piso e teto da regra)
     anos: tuple[int, ...]        # anos das ocorrências usadas
     dias: tuple[pd.Timestamp, ...]
 
@@ -122,19 +151,21 @@ def _venda_e_base(y: pd.Series, X: pd.DataFrame, base: pd.Series, data: pd.Times
     return float(y.reindex(b.index).sum()), float(b.sum())
 
 
-def ajustes(y: pd.Series, X: pd.DataFrame, dias: pd.DatetimeIndex, eventos: tuple[str, ...], *,
-            fracao: float, teto: float, ocorrencias: int) -> list[Ajuste]:
+def ajustes(y: pd.Series, X: pd.DataFrame, dias: pd.DatetimeIndex, eventos: tuple[str, ...],
+            regra: Regra) -> list[Ajuste]:
     """Os ajustes das datas de `eventos` cuja semana cai em `dias` (os dias previstos).
 
     `y`: venda diária conhecida antes de `dias` (no walk-forward, antes da origem); `X`: as
-    exógenas do treino, cobrindo `y` e `dias`. Data sem ocorrência passada completa, ou cujo
-    multiplicador dá 1, não entra.
+    exógenas do treino, cobrindo `y` e `dias`. Data com menos de `regra.min_ocorrencias`
+    ocorrências passadas completas, com uma acima de `regra.limite` ou cujo multiplicador dá 1
+    não entra.
     """
     if not eventos or len(dias) == 0 or y.empty:
         return []
     alvos = []
     for evento in eventos:
-        for ano in range(dias.min().year, dias.max().year + 1):
+        # + 1: a semana do Ano Novo do ano seguinte cai no fim de dezembro
+        for ano in range(dias.min().year, dias.max().year + 2):
             d = data_do_evento(evento, ano)
             semana = dias_da_janela(X, d).intersection(dias)
             if len(semana):
@@ -149,15 +180,31 @@ def ajustes(y: pd.Series, X: pd.DataFrame, dias: pd.DatetimeIndex, eventos: tupl
             vb = _venda_e_base(y, X, base, data_do_evento(evento, ano))
             if vb is not None:
                 passadas.append((ano, *vb))
-            if len(passadas) == ocorrencias:
+            if len(passadas) == regra.ocorrencias:
                 break
-        if not passadas:
+        if not passadas or len(passadas) < regra.min_ocorrencias:
+            continue
+        if regra.limite is not None and any(v > regra.limite * b for _, v, b in passadas):
             continue
         fator = sum(v for _, v, _ in passadas) / sum(b for _, _, b in passadas)
-        mult = min(teto, max(1.0, 1 + fracao * (fator - 1)))
-        if mult > 1.0:
+        mult = min(regra.teto, max(regra.piso, 1 + regra.fracao * (fator - 1)))
+        if mult != 1.0:
             saida.append(Ajuste(evento, d, fator, mult, tuple(sorted(a for a, _, _ in passadas)), tuple(semana)))
     return saida
+
+
+def evento_do_dia(dia: date | pd.Timestamp,
+                  eventos: tuple[str, ...] = DATAS_FLORES_DE_CORTE + DATAS_DE_QUEDA) -> str | None:
+    """A data de `eventos` cuja semana (de `DIAS_ANTES` antes até ela) contém `dia`, ou None —
+    para dizer na tela de qual data veio um ajuste gravado (`forecast_history.event_factor`).
+    As semanas das datas de `DATAS_FLORES_DE_CORTE` e `DATAS_DE_QUEDA` não se cruzam."""
+    dia = pd.Timestamp(dia).normalize()
+    for evento in dict.fromkeys(eventos):
+        for ano in (dia.year, dia.year + 1):
+            d = data_do_evento(evento, ano)
+            if d - pd.Timedelta(days=DIAS_ANTES) <= dia <= d:
+                return evento
+    return None
 
 
 def multiplicadores(dias: pd.DatetimeIndex, lista: list[Ajuste]) -> np.ndarray:

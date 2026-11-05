@@ -48,7 +48,7 @@ conservadora, mais larga que a exata. Não há mais modelo da loja, desagregaç�
 | Exógenas | 6 dummies de dia da semana, `loja_fechada` e `abertura_excepcional` (calendário de cada loja) |
 | Janela | deslizante, 365 dias (`FORECAST_SERVICE_WINDOW_DAYS`) |
 | Validação | walk-forward com 56 origens andando 1 dia (8 semanas), cada uma prevendo 14 dias; métricas nos dias de loja aberta |
-| Status | `trained` se MASE < 1 e cobertura da faixa de 95% em [90%, 98%]; senão `low_confidence` (a previsão sai, com aviso) |
+| Status | `trained` se MASE < 1 e cobertura da faixa de 95% em [90%, 98%]; senão `low_confidence` (a previsão sai e a tela a mostra igual; desde 2026-11-05, sem selo nem aviso de confiança) |
 | Sem dados | `insufficient_data`, sem previsão: menos de 180 dias antes da 1ª origem; no produto, venda em menos de 28 dias da última janela (o critério e a origem do 28 estão no doc 07 §2) |
 | Previsão | os 14 dias seguintes à última venda, com faixa de 95% |
 | Diagnóstico | Ljung-Box (14 dias) e Shapiro-Wilk dos resíduos do ajuste final, gravados e citados no log quando p ≤ 0,05; não mudam o status |

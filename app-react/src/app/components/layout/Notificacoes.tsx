@@ -1,13 +1,11 @@
 import { useNavigate } from "react-router";
-import { AlertTriangle, Bell, BrainCircuit, CheckCircle2, Database, Info, RefreshCw, XCircle, type LucideIcon } from "lucide-react";
+import { Bell, BrainCircuit, CheckCircle2, Database, Info, RefreshCw, XCircle, type LucideIcon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Progress } from "../ui/progress";
 import { AGENDA } from "@/config/agenda";
 import { useDados } from "../../data/CarregarDados";
 import type { StatusServicoPrevisao } from "../../data/api";
 import { useServicoPrevisao } from "../../data/ServicoPrevisao";
-import { nomeCategoria, nomeUnidade } from "../../data/mockData";
-import { useFiltroLoja } from "../shared";
 import { formatarData, formatarNumero } from "@/lib/format";
 
 type Tom = "alerta" | "andamento" | "sucesso" | "erro" | "info";
@@ -73,12 +71,10 @@ function notificacaoDoTreino(status: StatusServicoPrevisao | null, agora: Date):
 }
 
 /**
- * O que pede ação — base desatualizada, vendas carregadas que a previsão ainda não usa e
- * previsões que não passaram nos testes — e, para o admin, o andamento do treino das
- * previsões (primeiro da lista).
+ * O que pede ação — base desatualizada e vendas carregadas que a previsão ainda não usa — e,
+ * para o admin, o andamento do treino das previsões (primeiro da lista).
  */
 function useNotificacoes(): Notificacao[] {
-  const { unidade } = useFiltroLoja();
   const { contexto } = useDados();
   const { status: servico } = useServicoPrevisao();
   const agora = new Date();
@@ -111,25 +107,6 @@ function useNotificacoes(): Notificacao[] {
     });
   }
 
-  const daLoja = <T extends { loja: string }>(itens: T[]) => (unidade === "todas" ? itens : itens.filter((x) => x.loja === unidade));
-  const categoriasCautela = daLoja(previsao?.categorias ?? []).filter((c) => c.status !== "trained");
-  const produtos = daLoja(previsao?.produtos ?? []);
-  const produtosCautela = produtos.filter((p) => p.status === "low_confidence");
-  if (categoriasCautela.length || produtosCautela.length) {
-    const partes = [
-      categoriasCautela.length
-        ? categoriasCautela.map((c) => `${nomeCategoria(c.categoria)} (${nomeUnidade(c.loja)})`).join(", ")
-        : "",
-      produtosCautela.length ? `${produtosCautela.length} de ${produtos.length} produtos de grama` : "",
-    ].filter(Boolean);
-    lista.push({
-      id: "confianca",
-      icone: AlertTriangle,
-      titulo: `Previsão para usar com cautela: ${partes.join(" · ")}`,
-      texto: `Não passaram em todos os testes de acerto${produtosCautela.length ? ` (ex.: ${produtosCautela.slice(0, 3).map((p) => p.nome).join(", ")})` : ""}. Confira a faixa antes de decidir.`,
-      acao: { rotulo: "Ver previsão", destino: "/previsao" },
-    });
-  }
   return lista;
 }
 
@@ -166,7 +143,7 @@ export function Notificacoes() {
         <div className="p-3 flex flex-col gap-2">
           {n === 0 ? (
             <div className="flex items-center gap-2 text-xs px-1 py-2" style={{ color: "#1a6b3c" }}>
-              <CheckCircle2 size={16} /> Nada pendente: base atualizada e previsões confiáveis.
+              <CheckCircle2 size={16} /> Nada pendente: base e previsão atualizadas.
             </div>
           ) : (
             notificacoes.map((a) => {

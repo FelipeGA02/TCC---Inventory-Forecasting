@@ -23,6 +23,8 @@ pip-wheel-metadata/
 *.db
 *.sqlite
 *.sqlite3
+*.db-shm
+*.db-wal
 
 # ─── Artefatos ML (joblib) ────────────────────────────────────────────────────
 ia-predictor/models/*.joblib
@@ -91,3 +93,9 @@ desktop.ini
 # ─── Alembic ──────────────────────────────────────────────────────────────────
 # Manter migrations/ commitado; ignorar apenas o env gerado
 ia-predictor/backend/alembic.ini
+
+# ─── Testes de ponta a ponta (Playwright) ─────────────────────────────────────
+ia-predictor/tests/e2e/.cache/
+app-react/e2e/.saida/
+app-react/test-results/
+app-react/playwright-report/

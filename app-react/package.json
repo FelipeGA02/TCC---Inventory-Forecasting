@@ -7,7 +7,11 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "generate:api": "openapi --input ../ia-predictor/openapi.yaml --output ./src/services/api --client fetch --useOptions"
+    "generate:api": "openapi --input ../ia-predictor/openapi.yaml --output ./src/services/api --client fetch --useOptions",
+    "e2e": "playwright test",
+    "e2e:ui": "playwright test --ui",
+    "e2e:relatorio": "playwright show-report",
+    "e2e:instalar": "playwright install chromium"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
@@ -69,6 +73,7 @@
     "vaul": "1.1.2"
   },
   "devDependencies": {
+    "@playwright/test": "1.64.1",
     "@tailwindcss/vite": "4.1.12",
     "@types/node": "22.10.2",
     "@types/react": "18.3.12",

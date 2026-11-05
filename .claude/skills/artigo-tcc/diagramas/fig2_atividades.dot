@@ -1,32 +1,40 @@
 digraph ACT {
-  rankdir=TB; nodesep=0.6; ranksep=0.42; pad=0.2;
-  node [fontname="Arial", fontsize=13, shape=box, style="rounded,filled", fillcolor="#e8f0fb", color="#2e75b6", width=3.3, height=0.55];
+  rankdir=TB; nodesep=0.55; ranksep=0.36; pad=0.2;
+  node [fontname="Arial", fontsize=13, shape=box, style="rounded,filled", fillcolor="#e8f0fb", color="#2e75b6", width=3.5, height=0.55];
   edge [color="#555555", arrowsize=0.9, penwidth=1.2, fontname="Arial", fontsize=11];
   ini [shape=circle, label="", width=0.3, height=0.3, fixedsize=true, style=filled, fillcolor="#000000", color="#2e75b6"];
   env [label="Enviar planilha de vendas (XLSX)"];
-  val [label="Validar e normalizar dados\n(deduplicação, padronização)"];
-  ok  [shape=diamond, label="Dados\nconsistentes?", style=filled, fillcolor="#fff6dd", color="#c9a227", width=2.2, height=1.1];
-  log [label="Registrar log e sinalizar\nanomalia ao usuário", fillcolor="#fbeee8", color="#b6662e"];
-  cls [label="Classificar produtos e marcar\nencomendas de grande porte"];
-  ser [label="Construir séries diárias de balcão\ne calendário por unidade"];
-  fit [label="Ajustar modelos SARIMAX por unidade\n(seleção via AIC, semanal)"];
-  wf  [label="Validar desempenho (walk-forward:\nMASE, cobertura do IC 95%)"];
-  cr  [shape=diamond, label="Critérios de\naceitação\natendidos?", style=filled, fillcolor="#fff6dd", color="#c9a227", width=2.2, height=1.2];
-  tr  [label="Registrar modelo\ncomo treinado", width=2.4];
-  lc  [label="Registrar modelo com baixa\nconfiança (aviso no painel)", fillcolor="#fbeee8", color="#b6662e", width=2.6];
-  gp  [label="Gerar previsão diária (14 dias) e\ndesagregar por categoria e produto"];
-  db  [label="Atualizar dashboard\ne emitir alertas de demanda"];
-  ex  [label="Exportar relatórios (PDF / Excel)"];
+  cnf [label="Conferir sem gravar: período por loja,\nvendas novas e já carregadas,\ndias de loja aberta sem venda"];
+  ok  [shape=diamond, label="Gestora\nconfirma?", style=filled, fillcolor="#fff6dd", color="#c9a227", width=2.0, height=1.0];
+  cnc [label="Cancelar envio", fillcolor="#fbeee8", color="#b6662e", width=2.0];
+  grv [label="Gravar vendas novas, marcar encomendas\ngrandes e registrar a planilha"];
+  trn [label="Solicitar treino das previsões"];
+  mud [shape=diamond, label="Dados mudaram\ndesde o último\ntreino?", style=filled, fillcolor="#fff6dd", color="#c9a227", width=2.2, height=1.2];
+  skp [label="Registrar treino\ncomo dispensado", fillcolor="#fbeee8", color="#b6662e", width=2.2];
+  ser [label="Montar séries diárias por loja: 4 categorias\ne produtos de grama (sem encomendas grandes)"];
+  suf [shape=diamond, label="Histórico\nsuficiente?", style=filled, fillcolor="#fff6dd", color="#c9a227", width=2.0, height=1.0];
+  ins [label="Registrar série sem\nprevisão e o motivo", fillcolor="#fbeee8", color="#b6662e", width=2.2];
+  aic [label="Selecionar a ordem do SARIMAX pelo AIC"];
+  wf  [label="Validar em walk-forward\n(56 origens, horizonte de 14 dias)"];
+  met [label="Calcular as métricas: MASE, erro relativo,
+cobertura e largura do intervalo de 95%"];
+  fin [label="Ajustar nos últimos 365 dias e prever\nos 14 dias seguintes (intervalo de 95%)"];
+  gh  [label="Gravar previsões, histórico congelado\ne registro do treino"];
+  tel [label="Exibir previsão, histórico e relatórios"];
   fim [shape=doublecircle, label="", width=0.26, height=0.26, fixedsize=true, style=filled, fillcolor="#000000", color="#000000"];
-  ini -> env -> val -> ok;
-  ok -> cls [label=" sim"];
-  ok -> log [label=" não"];
-  log -> env [constraint=false];
-  cls -> ser -> fit -> wf -> cr;
-  cr -> tr [label=" sim"];
-  cr -> lc [label=" não"];
-  tr -> gp; lc -> gp;
-  gp -> db -> ex -> fim;
-  {rank=same; cls; log;}
-  {rank=same; tr; lc;}
+  ini -> env -> cnf -> ok;
+  ok -> grv [label=" sim"];
+  ok -> cnc [label=" não"];
+  grv -> trn -> mud;
+  mud -> ser [label=" sim"];
+  mud -> skp [label=" não"];
+  ser -> suf;
+  suf -> aic [label=" sim"];
+  suf -> ins [label=" não"];
+  aic -> wf -> met -> fin;
+  fin -> gh; ins -> gh [constraint=false];
+  gh -> tel -> fim;
+  {rank=same; grv; cnc;}
+  {rank=same; ser; skp;}
+  {rank=same; aic; ins;}
 }

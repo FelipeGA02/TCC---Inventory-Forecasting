@@ -1,0 +1,18 @@
+digraph ETAPAS {
+  rankdir=TB; nodesep=0.55; ranksep=0.7; pad=0.15; newrank=true;
+  node [shape=box, fontname="Times New Roman,", fontsize=20, penwidth=2.4, width=2.75, height=1.2, fixedsize=true, color="#000000"];
+  edge [penwidth=2.4, arrowsize=1.1, color="#000000"];
+  a [label="Desenvolvimento\nde software"];
+  b [label="Levantamento\ne análise de\nrequisitos"];
+  c [label="Decisão sobre\ntecnologias e\nprocessos utilizados"];
+  d [label="Preparação\ndos dados"];
+  e [label="Modelo\npreditivo"];
+  f [label="Delineamento\nexperimental"];
+  g [label="Testes e\nvalidação"];
+  {rank=same; a; b; c; d;}
+  {rank=same; g; f; e;}
+  a -> b; b -> c; c -> d;
+  d -> e;
+  g -> f [dir=back]; f -> e [dir=back];
+  b -> g [style=invis]; c -> f [style=invis];
+}

@@ -20,22 +20,20 @@ export interface EstiloStatus {
   borda: string;
 }
 
-/** Status da previsão de cada categoria e produto de grama, em linguagem da loja (CLAUDE.md, limiares de qualidade). */
+/** Previsão gerada (status `trained` ou `low_confidence`): a tela não separa as duas; o acerto
+ *  no teste do treino aparece nos indicadores e nos relatórios. */
+const comPrevisao: EstiloStatus = {
+  label: "Com previsão",
+  explicacao: "A previsão foi gerada. O acerto no teste do treino está nos indicadores.",
+  cor: "#1a6b3c",
+  fundo: "#e8f5e0",
+  borda: "#b4dbb4",
+};
+
+/** Status da previsão de cada categoria e produto de grama, em linguagem da loja. */
 export const estiloStatus: Record<StatusModelo, EstiloStatus> = {
-  trained: {
-    label: "Confiável",
-    explicacao: "Passou nos testes de acerto: erra menos que repetir a semana passada e a faixa acerta ~95% dos dias.",
-    cor: "#1a6b3c",
-    fundo: "#e8f5e0",
-    borda: "#b4dbb4",
-  },
-  low_confidence: {
-    label: "Use com cautela",
-    explicacao: "A previsão é gerada, mas não passou em todos os testes de acerto. Confira a faixa antes de decidir.",
-    cor: "#8a5a00",
-    fundo: "#fff8e1",
-    borda: "#ffe0a0",
-  },
+  trained: comPrevisao,
+  low_confidence: comPrevisao,
   insufficient_data: {
     label: "Poucos dados",
     explicacao: "Vendeu pouco para prever: menos de 180 dias de histórico ou, no produto, venda em poucos dias do último ano.",

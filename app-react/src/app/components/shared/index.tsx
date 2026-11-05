@@ -128,7 +128,9 @@ export function BarraFiltros({ extra }: { extra?: ReactNode }) {
 // Peças visuais
 // ---------------------------------------------------------------------------
 
+/** Selo só quando a série não tem previsão (poucos dados, falha, calculando): com previsão, nada. */
 export function StatusBadge({ status, compacto = false }: { status: StatusModelo; compacto?: boolean }) {
+  if (status === "trained" || status === "low_confidence") return null;
   const e = estiloStatus[status];
   return (
     <span
@@ -136,7 +138,7 @@ export function StatusBadge({ status, compacto = false }: { status: StatusModelo
       style={{ ...badgeStatus(status), fontWeight: 600 }}
       title={compacto ? e.explicacao : undefined}
     >
-      <span aria-hidden>{status === "trained" ? "✓" : status === "low_confidence" ? "!" : "•"}</span>
+      <span aria-hidden>•</span>
       {e.label}
     </span>
   );

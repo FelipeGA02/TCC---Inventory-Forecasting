@@ -27,12 +27,23 @@ info:
     `/api/v1/painel/historico/*` ao abrir cada item, e Conferir Dados consulta a base
     **paginada** em `/api/v1/registros/*`.
 
+    ## 5.1.0
+    As datas comemorativas que mudaram a previsão (ADR-019) chegam à tela: `ajustes_datas` em
+    cada loja do painel, `fator` em cada dia previsto de produto e `ajuste` em cada dia do
+    histórico da previsão. Só campos novos.
+
+    ## 5.0.0
+    `limiar_encomenda_un` (2.000 un. fixo) virou `limiares_encomenda_un`, um por loja: média
+    + 4 desvios-padrão da quantidade de todos os pedidos da loja, recalculado a cada planilha
+    (ADR-018). No painel, é o do treino que gerou a previsão; no contexto, nas análises e nos
+    registros, o atual.
+
     ## 4.0.0
     Saíram as rotas do treino anterior (`/api/v1/models/*`: modelo da loja, desagregação e
     produtos regulares), o teste de acerto por produto (`/painel/produtos/.../backtest`) e as
     rotas nunca implementadas (products, forecast, alerts, simulation, reports). O painel lê
     o último treino do serviço de previsão; o upload não agenda treino (`needs_training`).
-  version: "4.0.0"
+  version: "5.1.0"
   contact:
     name: Daniel Nunes da Silva & Felipe Gurgel Araújo
     email: felipegurgel5@gmail.com
@@ -251,7 +262,8 @@ components:
       enum: [trained, low_confidence, insufficient_data, error]
       description: |
         `trained`: passou nos testes (MASE < 1 e faixa de 95% entre 90% e 98%);
-        `low_confidence`: previsão gerada, com aviso; `insufficient_data`: vendeu pouco para
+        `low_confidence`: previsão gerada, sem passar num dos dois limiares (a tela mostra igual);
+        `insufficient_data`: vendeu pouco para
         prever (sem previsão); `error`: o ajuste falhou neste treino (sem previsão).
 
     MetricasModelo:
@@ -295,6 +307,26 @@ components:
         inf: {type: number, description: limite inferior da faixa de 95%}
         sup: {type: number, description: limite superior da faixa de 95%}
 
+    AjusteData:
+      type: object
+      description: |
+        Uma data comemorativa que mudou a previsão de uma série nos 14 dias (ADR-019): a alta
+        de Flores de corte (Dia da Mulher, das Mães, dos Namorados, Natal, Ano Novo) ou a queda
+        das outras séries (26 a 31/12, semana do Dia do Trabalho).
+      required: [nivel, item, evento, data, multiplicador, fator, anos, dias]
+      properties:
+        nivel: {type: string, enum: [categoria, produto]}
+        item: {type: string, description: id da categoria ou código do produto de grama}
+        nome: {type: string, nullable: true, description: nome do produto (nulo na categoria)}
+        evento: {type: string, example: Ano Novo}
+        data: {type: string, format: date}
+        multiplicador:
+          type: number
+          description: o que multiplicou o previsto e a faixa desses dias (> 1 alta, < 1 queda)
+        fator: {type: number, description: venda ÷ semana comum nas ocorrências passadas}
+        anos: {type: array, items: {type: integer}, description: anos das ocorrências usadas}
+        dias: {type: array, items: {type: string, format: date}, description: dias ajustados}
+
     UnidadePainel:
       type: object
       description: |
@@ -326,6 +358,10 @@ components:
                   categorias:
                     type: object
                     additionalProperties: {$ref: "#/components/schemas/Faixa"}
+        ajustes_datas:
+          type: array
+          description: As datas comemorativas que mudaram a previsão das séries da loja (ADR-019)
+          items: {$ref: "#/components/schemas/AjusteData"}
         produtos:
           type: array
           description: Produtos de grama do treino (com previsão primeiro)
@@ -340,7 +376,12 @@ components:
                 type: array
                 description: vazia quando o produto ficou sem modelo
                 items:
-                  allOf: [{$ref: "#/components/schemas/Faixa"}, {type: object, properties: {data: {type: string, format: date}}}]
+                  allOf:
+                    - $ref: "#/components/schemas/Faixa"
+                    - type: object
+                      properties:
+                        data: {type: string, format: date}
+                        fator: {type: number, nullable: true, description: multiplicador da data comemorativa (ADR-019); nulo sem ajuste}
               previsao_14d: {type: number, nullable: true}
         backtest_categorias:
           type: object
@@ -360,7 +401,7 @@ components:
       description: |
         Formato `BaseReal` de `app-react/src/domain/types.ts`: previsão de 14 dias das 4
         categorias e dos produtos de grama de cada loja, com faixa de 95%, histórico,
-        encomendas, teste de acerto e planilhas carregadas. Montado de `sales` até o último
+        encomendas grandes, teste de acerto e planilhas carregadas. Montado de `sales` até o último
         dia com venda do último treino concluído e das tabelas do treino. Sem dados pessoais.
       type: object
       required: [gerado_em, base, configuracao, categorias, unidades, importacao]
@@ -393,7 +434,7 @@ components:
             janela_dias: {type: integer, example: 365}
             origens: {type: integer, example: 56}
             passo_origem_dias: {type: integer, example: 1}
-            limiar_encomenda_un: {type: number, example: 2000}
+            limiares_encomenda_un: {type: object, additionalProperties: {type: number}, example: {jardim-canada: 1342.6, itabirito: 1959.7}, description: "Por loja: pedido acima disto é encomenda grande — média + 4 desvios-padrão da quantidade dos pedidos da loja (ADR-018)"}
             base: {type: string}
             categoria_produtos: {type: string, example: grama}
             versao_codigo: {type: string, nullable: true, description: commit do código que treinou}
@@ -423,7 +464,7 @@ components:
       type: object
       properties:
         gerado_em: {type: string, format: date-time}
-        limiar_encomenda_un: {type: number, example: 2000}
+        limiares_encomenda_un: {type: object, additionalProperties: {type: number}, example: {jardim-canada: 1342.6, itabirito: 1959.7}, description: "Por loja: pedido acima disto é encomenda grande — média + 4 desvios-padrão da quantidade dos pedidos da loja (ADR-018)"}
         unidades:
           type: object
           additionalProperties:
@@ -451,7 +492,7 @@ components:
           type: object
           properties:
             horizonte_dias: {type: integer, example: 14}
-            limiar_encomenda_un: {type: number, example: 2000}
+            limiares_encomenda_un: {type: object, additionalProperties: {type: number}, example: {jardim-canada: 1342.6, itabirito: 1959.7}, description: "Por loja: pedido acima disto é encomenda grande — média + 4 desvios-padrão da quantidade dos pedidos da loja (ADR-018)"}
             treino_na_api:
               type: boolean
               description: Falso quando a API não treina (Render); o front não oferece "Treinar previsões"
@@ -503,7 +544,7 @@ components:
           type: array
           description: "Formas de pagamento como a tela mostra (ex.: Pix); é o valor aceito no filtro `pagamentos`"
           items: {type: string}
-        limiar_encomenda_un: {type: number}
+        limiares_encomenda_un: {type: object, additionalProperties: {type: number}, description: "Limiar de encomenda grande atual de cada loja (ADR-018)"}
         total_registros: {type: integer}
         meses:
           type: array
@@ -533,7 +574,7 @@ components:
         liq: {type: number}
         pag: {type: string}
         cad: {type: boolean, description: cliente cadastrado (× consumidor)}
-        enc: {type: boolean, description: encomenda (nota com mais de 2.000 un.)}
+        enc: {type: boolean, description: "encomenda grande: nota acima do limiar da loja quando foi gravada (ADR-018)"}
 
     PaginaRegistros:
       type: object
@@ -577,7 +618,7 @@ components:
         origens: {type: integer, example: 56, description: Origens do walk-forward}
         passo_dias: {type: integer, example: 1, description: A origem anda este número de dias}
         horizonte_dias: {type: integer, example: 14}
-        base: {type: string, example: "fluxo diário (sem encomendas acima de 2.000 un. no documento, ADR-013)"}
+        base: {type: string, example: "fluxo diário (sem encomendas grandes: pedido acima de média + 4 desvios-padrão da quantidade de todos os pedidos da loja, ADR-018)"}
         categoria_produtos: {type: string, example: grama, description: Categoria cujos produtos são treinados um a um}
 
     TreinoServico:
@@ -708,6 +749,16 @@ components:
           type: boolean
           nullable: true
           description: se a previsão contava com a loja fechada no dia (o calendário da época)
+        ajuste:
+          type: object
+          nullable: true
+          description: |
+            A data comemorativa que mudou o previsto do dia (ADR-019; `forecast_history.event_factor`):
+            o previsto do modelo sem ela é `previsto / multiplicador`. Nulo sem ajuste.
+          required: [multiplicador]
+          properties:
+            evento: {type: string, nullable: true, example: Dia das Mães}
+            multiplicador: {type: number, description: "> 1 alta, < 1 queda"}
 
     ValidationError:
       type: object
@@ -905,7 +956,7 @@ paths:
       summary: Painel de previsão (dados das telas Visão Geral, Previsão e Relatórios)
       description: |
         Previsão de 14 dias do último treino concluído (4 categorias e produtos de grama de
-        cada loja; o total da loja é a soma das categorias), histórico, encomendas e teste de
+        cada loja; o total da loja é a soma das categorias), histórico, encomendas grandes e teste de
         acerto de cada categoria, no formato `BaseReal` do frontend. Fica em cache na API até
         as vendas, o calendário ou a previsão mudarem.
       operationId: getPainel

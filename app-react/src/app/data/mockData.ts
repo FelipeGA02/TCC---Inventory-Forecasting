@@ -1,7 +1,7 @@
 /**
  * Painel de previsão vindo da API (`GET /api/v1/painel`, formato `BaseReal`): previsão das
  * 4 categorias e dos produtos de grama de cada loja (o total da loja é a soma das
- * categorias), histórico, encomendas e testes de acerto, montados no backend a partir das
+ * categorias), histórico, encomendas grandes e testes de acerto, montados no backend a partir das
  * vendas do banco e do último treino concluído.
  *
  * Carregado em duas partes, por isso os valores abaixo são `let` (o import do ES module
@@ -13,6 +13,7 @@
  * Este módulo oferece os seletores para os filtros de loja e categoria.
  */
 import type {
+  AjusteData,
   BaseReal,
   Categoria,
   CategoriaId,
@@ -26,13 +27,15 @@ import type {
   ProdutoDaLoja,
   SemanaHistorico,
   UnidadeDados,
+  UnidadeId,
 } from "@/domain/types";
+import { formatarDecimal, formatarDiaMes, formatarNumero } from "@/lib/format";
 
 export let contexto: Contexto;
 export let lojas: Contexto["lojas"];
 export let categorias: Categoria[];
 export let HORIZONTE_DIAS: number;
-export let LIMIAR_ENCOMENDA: number;
+export let LIMIARES_ENCOMENDA: Record<UnidadeId, number>;
 export let IDS_CATEGORIA: CategoriaId[];
 
 export let dados: BaseReal;
@@ -43,8 +46,14 @@ export function definirContexto(c: Contexto): void {
   lojas = c.lojas;
   categorias = c.categorias;
   HORIZONTE_DIAS = c.configuracao.horizonte_dias;
-  LIMIAR_ENCOMENDA = c.configuracao.limiar_encomenda_un;
+  LIMIARES_ENCOMENDA = c.configuracao.limiares_encomenda_un;
   IDS_CATEGORIA = c.categorias.map((x) => x.id);
+}
+
+/** Limiar de encomenda grande para o texto das telas: o da loja, ou o de cada loja em "todas". */
+export function textoLimiarEncomenda(unidade: FiltroUnidade): string {
+  if (unidade !== "todas") return `${formatarNumero(LIMIARES_ENCOMENDA[unidade])} un.`;
+  return lojas.map((l) => `${formatarNumero(LIMIARES_ENCOMENDA[l.id])} un. em ${l.nome}`).join(" e ");
 }
 
 export function definirPainel(painel: BaseReal): void {
@@ -59,7 +68,7 @@ export const CORES_CATEGORIA: PorCategoria<string> = {
   "produtos-de-jardim": "#6a5acd",
   "flores-de-corte": "#c97b98",
 };
-/** Encomendas: neutro, para não competir com as categorias. */
+/** Encomendas grandes: neutro, para não competir com as categorias. */
 export const COR_ENCOMENDA = "#9aa4b1";
 export const COR_TOTAL = "#1a6b3c";
 
@@ -93,6 +102,34 @@ function somaCategorias<T>(itens: T[], pegar: (item: T, c: CategoriaId) => numbe
 // ---------------------------------------------------------------------------
 // Previsão e histórico (loja → categoria)
 // ---------------------------------------------------------------------------
+
+/** Ajuste de data comemorativa com a loja a que pertence. */
+export type AjusteDaLoja = AjusteData & { unidade: UnidadeId; nomeUnidade: string };
+
+/** As datas comemorativas que mudaram a previsão dos 14 dias nas lojas do filtro (ADR-019). */
+export function ajustesDe(filtro: FiltroUnidade): AjusteDaLoja[] {
+  return unidadesDoFiltro(filtro)
+    .flatMap((u) => (u.ajustes_datas ?? []).map((a) => ({ ...a, unidade: u.id, nomeUnidade: u.nome })))
+    .sort((a, b) => a.data.localeCompare(b.data) || a.nivel.localeCompare(b.nivel));
+}
+
+/** Nome da série de um ajuste: a categoria ou o produto de grama. */
+export function nomeDoAjuste(a: AjusteData): string {
+  return a.nivel === "categoria" ? nomeCategoria(a.item as CategoriaId) : (a.nome ?? a.item);
+}
+
+/**
+ * Frase do ajuste para a tela, sem jargão: "previsão de 26/12 a 31/12 reduzida a 35% pelo
+ * Ano Novo — nessa semana, em 2025 e 2026, a loja vendeu 35% de uma semana comum".
+ */
+export function textoAjuste(a: AjusteData): string {
+  const dias = a.dias.length ? `de ${formatarDiaMes(a.dias[0]!)} a ${formatarDiaMes(a.dias[a.dias.length - 1]!)}` : "";
+  const anos = a.anos.join(" e ");
+  if (a.multiplicador < 1) {
+    return `previsão ${dias} reduzida a ${Math.round(a.multiplicador * 100)}% pelo ${a.evento} — nessa semana, em ${anos}, a loja vendeu ${Math.round(a.fator * 100)}% de uma semana comum`;
+  }
+  return `previsão ${dias} multiplicada por ${formatarDecimal(a.multiplicador)} pelo ${a.evento} — nessa semana, em ${anos}, a loja vendeu ${formatarDecimal(a.fator, 1)} vezes uma semana comum`;
+}
 
 /**
  * Previsão diária do filtro de loja. Em "Todas", soma as lojas dia a dia — inclusive os
@@ -128,7 +165,7 @@ export function faixaDoDia(dia: DiaPrevisto, categoria: FiltroCategoria): Faixa 
   return categoria === "todas" ? dia : dia.categorias[categoria];
 }
 
-/** Venda (sem encomendas) de um dia/semana do histórico para o filtro de categoria. */
+/** Venda (sem encomendas grandes) de um dia/semana do histórico para o filtro de categoria. */
 export function vendaDe(item: { total: number; categorias: PorCategoria<number> }, categoria: FiltroCategoria): number {
   return categoria === "todas" ? item.total : item.categorias[categoria];
 }
@@ -222,7 +259,7 @@ export function previsto14d(filtro: FiltroUnidade, categoria: FiltroCategoria = 
 }
 
 // ---------------------------------------------------------------------------
-// Encomendas (fora da previsão)
+// Encomendas grandes (fora da previsão)
 // ---------------------------------------------------------------------------
 
 export function encomendasDe(filtro: FiltroUnidade) {

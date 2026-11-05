@@ -115,6 +115,7 @@ partes forem implementadas, confira se o texto continua correto e só então det
 | Séries por unidade com venda | ~82% dos dias | EDA §3.0 |
 | 20 maiores produtos | 61,7% do volume | EDA §2.6 |
 | Datas comemorativas (Flores de corte) | 1,7 a 5,0 × a média (Mulher, Mães, Namorados) | EDA §3.4 |
+| Fator das datas no SARIMAX (ADR-019) | alta em Flores de corte (metade): −40 a −45% no erro da semana; queda de 26–31/12 nas outras séries (inteira): Grama de Itabirito 268% → 27% | doc 08 §5 e §9.3 |
 | Separação por unidade | Itabirito −17% de MASE com modelo próprio; nenhuma categoria ganha ≥ 5% | EDA §3.11, ADR-011 §4 |
 | Calendário (série total) | feriados ~4 mil → ~0; IC 79 mil → 13 mil; −9% de erro; janelas vencidas 19 → 22 | doc 03 |
 | Importância RF | dia da semana 83,2%, feriado 15,2%, clima 1,4% | doc 03 (ficha) |

@@ -17,7 +17,7 @@ Três grupos de tabelas:
     atualiza `forecast_history`, o previsto de cada dia já passado (congelado), para o
     histórico da previsão.
 
-Resumos por loja, categoria e produto (volume, SKUs, encomendas, venda das últimas 8
+Resumos por loja, categoria e produto (volume, SKUs, encomendas grandes, venda das últimas 8
 semanas...) não são gravados: saem de `sales` até `forecast_jobs.data_until`.
 
 As tabelas do treino anterior (`retrain_history`, `model_artifacts`, `backtest_points`,
@@ -131,12 +131,19 @@ class ProcessingLog(Base):
     `quality` traz o resumo da limpeza, o período da planilha e os dias de loja aberta que
     ficaram sem venda (avisados na conferência antes de gravar). `forecast_job_id` é o
     primeiro treino concluído que usou as vendas desta planilha.
+
+    `kind = "reclassification"` não é planilha: registra a reclassificação das encomendas
+    grandes da base inteira (`scripts/reclassificar_encomendas.py`, ADR-018), com os limiares
+    de cada loja em `quality.limiar_encomenda_un`, ou a das categorias do catálogo
+    (`scripts/reclassificar_produtos.py`), com cada produto em `quality.produtos_reclassificados`.
+    Fica fora da lista de arquivos das telas.
     """
 
     __tablename__ = "processing_log"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    kind = Column(String, nullable=False, default="upload", info={"hint": "upload|initial_load"})
+    kind = Column(String, nullable=False, default="upload",
+                  info={"hint": "upload|initial_load|reclassification"})
     filename = Column(String, nullable=False)
     file_sha256 = Column(String, nullable=False, index=True)
     file_size_bytes = Column(Integer, nullable=False)
@@ -162,7 +169,10 @@ class Sale(Base):
     Ficam de fora: nome e código do cliente, vendedor, operador e observação (dados
     pessoais ou sem uso), ICMS retido (sempre zero) e total do documento (só confere a
     integridade na carga). O cliente vira `is_registered_customer`; a empresa emissora vira
-    `unit_id`. `is_bulk_order` marca documentos com mais de 2.000 un. (ADR-013).
+    `unit_id`. `is_bulk_order` marca os documentos acima do limiar de encomenda grande da loja:
+    média + 4 desvios-padrão da quantidade de todos os pedidos dela (ADR-018). Cada planilha
+    recalcula o limiar, gravado em `processing_log.quality.limiar_encomenda_un`, e classifica
+    só as linhas que insere — a marcação gravada não muda depois.
 
     `ix_sales_dedup` cobre a chave que descarta linhas já carregadas por outra planilha
     (`DUPLICATE_KEY_FIELDS` da Etapa 1: número da nota, produto, data, quantidade e valor).
@@ -295,7 +305,9 @@ class SeriesModel(Base):
     #  origens_com_falha, ljung_box_p, shapiro_p} — os dois últimos, dos resíduos do ajuste final
     metrics = Column(JSON, nullable=True)
     # {trend, transformation, training_base, window_days, ordens_convergidas, dias_historico,
-    #  dias_com_venda_janela, coeficientes (do ajuste final: termo → valor)}
+    #  dias_com_venda_janela, encomendas_grandes, coeficientes (do ajuste final: termo → valor),
+    #  fator_datas (a série leva o fator das datas comemorativas, ADR-019), ajustes_datas (os da
+    #  previsão: evento, data, fator, multiplicador, anos, dias)}
     params = Column(JSON, nullable=True)
     train_start = Column(Date, nullable=True)  # janela da previsão final
     train_end = Column(Date, nullable=True)
@@ -307,7 +319,9 @@ class SeriesModel(Base):
 
 class SeriesForecast(Base):
     """Previsão diária com faixa de 95% de uma série: os `FORECAST_HORIZON_DAYS` dias
-    seguintes ao último dia com venda."""
+    seguintes ao último dia com venda. `event_factor`: o multiplicador da data comemorativa
+    que entrou no previsto e na faixa (ADR-019); nulo sem ajuste — o previsto do modelo é
+    `predicted / event_factor`."""
 
     __tablename__ = "series_forecasts"
 
@@ -317,6 +331,7 @@ class SeriesForecast(Base):
     predicted = Column(Float, nullable=False)
     lower_95 = Column(Float, nullable=False)
     upper_95 = Column(Float, nullable=False)
+    event_factor = Column(Float, nullable=True)
 
 
 class SeriesBacktestPoint(Base):
@@ -352,6 +367,9 @@ class ForecastHistory(Base):
     dia da janela — o início da previsão, ou o próprio dia no walk-forward. `item`: id da
     categoria ou código do produto. `store_closed`: se o calendário dava a loja fechada no
     dia quando ele foi previsto — explica um previsto zero se o calendário mudar depois.
+    `event_factor`: o multiplicador da data comemorativa que entrou no previsto (ADR-019) —
+    com ele, o previsto do modelo sem o ajuste (`predicted / event_factor`) fica guardado
+    para medir, depois da data, se o ajuste ajudou.
     """
 
     __tablename__ = "forecast_history"
@@ -368,6 +386,7 @@ class ForecastHistory(Base):
     origin_date = Column(Date, nullable=False)  # 1º dia da janela que previu o dia
     job_id = Column(Integer, ForeignKey("forecast_jobs.id", ondelete="SET NULL"), nullable=True)
     store_closed = Column(Boolean, nullable=True)
+    event_factor = Column(Float, nullable=True)  # multiplicador da data comemorativa (ADR-019); nulo sem ajuste
 
     __table_args__ = (UniqueConstraint("unit_id", "level", "item", "day", name="uq_forecast_history_dia"),)
 
@@ -419,8 +438,9 @@ def create_tables() -> None:
 # tabela existente). As removidas do ORM ficam no banco, nulas, sem uso.
 _COLUNAS_NOVAS = {
     "forecast_history": {"job_id": "INTEGER REFERENCES forecast_jobs(id) ON DELETE SET NULL",
-                         "store_closed": "BOOLEAN"},
+                         "store_closed": "BOOLEAN", "event_factor": "FLOAT"},
     "processing_log": {"forecast_job_id": "INTEGER REFERENCES forecast_jobs(id) ON DELETE SET NULL"},
+    "series_forecasts": {"event_factor": "FLOAT"},
 }
 
 

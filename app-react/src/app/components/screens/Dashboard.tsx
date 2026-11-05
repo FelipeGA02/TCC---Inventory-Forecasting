@@ -3,7 +3,7 @@ import { Boxes, Receipt, ShoppingBag, Truck } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
-import { COR_ENCOMENDA, CORES_CATEGORIA, COR_TOTAL, LIMIAR_ENCOMENDA, categorias, contexto } from "../../data/mockData";
+import { COR_ENCOMENDA, CORES_CATEGORIA, COR_TOTAL, categorias, contexto, textoLimiarEncomenda } from "../../data/mockData";
 import { CATEGORIAS_ANALISE, COR_FLORES, analiseDe, type CategoriaAnalise } from "../../data/analises";
 import { FiltroLoja, Kpi, Segmentado, useFiltroLoja } from "../shared";
 import { eixo, estiloTooltip } from "@/styles/tokens";
@@ -88,7 +88,7 @@ export function Dashboard() {
           icone={Truck}
           rotulo="Encomendas grandes"
           valor={`${formatarNumero(r.encomendas.notas)} notas`}
-          detalhe={`Acima de ${formatarNumero(LIMIAR_ENCOMENDA)} un. · ${formatarPercentual(r.encomendas.volume / r.volume)} da quantidade e ${formatarPercentual(r.encomendas.faturamento / r.faturamento)} do faturamento`}
+          detalhe={`Acima de ${textoLimiarEncomenda(unidade)} · ${formatarPercentual(r.encomendas.volume / r.volume)} da quantidade e ${formatarPercentual(r.encomendas.faturamento / r.faturamento)} do faturamento`}
         />
       </div>
 

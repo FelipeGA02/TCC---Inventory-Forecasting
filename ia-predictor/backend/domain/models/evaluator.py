@@ -80,7 +80,8 @@ def diagnostico_residuos(residuos: pd.Series, descartar: int) -> dict:
 def status_do_modelo(metricas: dict, *, mase_max: float = 1.0,
                      cobertura_min: float = 90.0, cobertura_max: float = 98.0) -> str:
     """`trained` se bate a naïve sazonal (MASE < `mase_max`) e a faixa de 95% acerta entre
-    `cobertura_min` e `cobertura_max`; senão `low_confidence` — a previsão sai, com aviso."""
+    `cobertura_min` e `cobertura_max`; senão `low_confidence`. Nos dois casos a previsão sai e a
+    tela a mostra do mesmo jeito; o status fica no registro do treino."""
     mase, cob = metricas.get("mase"), metricas.get("cobertura_ic95_pct")
     if mase is None or cob is None:
         return STATUS_BAIXA_CONFIANCA

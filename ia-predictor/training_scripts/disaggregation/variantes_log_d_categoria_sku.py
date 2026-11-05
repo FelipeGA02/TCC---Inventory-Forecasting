@@ -143,7 +143,7 @@ def carregar_linhas(unidade: str) -> tuple[pd.DataFrame, dict[str, str], dict]:
     modulo). A encomenda e marcada por documento (`marcar_encomendas`, limiar de 2.000
     unidades na venda inteira) e sai com todas as suas linhas juntas.
     """
-    cols = ["unidade", "emissao", "doc_numero", "produto_cod", "produto_nome", "qtdade",
+    cols = ["unidade", "emissao", "doc_tipo", "doc_numero", "produto_cod", "produto_nome", "qtdade",
             "categoria_fina"]
     df = pd.read_csv(CLASSIFIED_CSV, sep=";", usecols=cols, dtype=str, keep_default_na=False)
     df["qtdade"] = pd.to_numeric(df["qtdade"], errors="coerce").fillna(0.0)

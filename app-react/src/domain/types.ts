@@ -2,7 +2,8 @@
  * Tipos do frontend, no formato que os endpoints `/api/v1/*` devolvem (`ia-predictor/openapi.yaml`).
  *
  * Previsão (ADR-017), treinada pelo botão "Treinar previsões":
- *  - encomendas grandes (venda > 2.000 un. na nota) ficam fora da previsão e aparecem à parte;
+ *  - encomendas grandes (nota acima do limiar da loja: média + 4 desvios-padrão da quantidade
+ *    dos pedidos dela, ADR-018) ficam fora da previsão e aparecem à parte;
  *  - cada uma das 4 categorias e cada produto de grama, em cada loja, tem o seu SARIMAX
  *    (m = 7, d = 0, D = 0, janela deslizante de 365 dias, testado dia a dia em 8 semanas);
  *  - o total da loja é a soma das 4 categorias.
@@ -49,12 +50,33 @@ export interface DiaPrevisto extends Faixa {
   categorias: PorCategoria<Faixa>;
 }
 
+/**
+ * Uma data comemorativa que mudou a previsão de uma série nos 14 dias (ADR-019): a alta de
+ * Flores de corte (multiplicador > 1) ou a queda das outras séries no fim de ano e no Dia do
+ * Trabalho (multiplicador < 1).
+ */
+export interface AjusteData {
+  nivel: "categoria" | "produto";
+  /** Id da categoria ou código do produto de grama. */
+  item: string;
+  /** Nome do produto (nulo na categoria). */
+  nome: string | null;
+  evento: string;
+  data: string;
+  /** O que multiplicou o previsto e a faixa desses dias. */
+  multiplicador: number;
+  /** Venda ÷ semana comum nas ocorrências passadas. */
+  fator: number;
+  anos: number[];
+  dias: string[];
+}
+
 export interface DiaHistorico {
   data: string;
   dia_semana: string;
-  /** Venda sem encomendas (soma das 3 categorias). */
+  /** Venda sem encomendas grandes (soma das 3 categorias). */
   total: number;
-  /** Volume vendido em encomendas no dia (fora da previsão). */
+  /** Volume vendido em encomendas grandes no dia (fora da previsão). */
   encomendas: number;
   categorias: PorCategoria<number>;
 }
@@ -110,11 +132,11 @@ export interface Produto {
   vendido_em_encomendas: number;
   /** Venda das últimas 8 semanas, da mais antiga para a mais recente. */
   historico_semanal: number[];
-  /** Venda diária (sem encomendas) dos últimos 28 dias. */
+  /** Venda diária (sem encomendas grandes) dos últimos 28 dias. */
   historico_diario?: { data: string; vendido: number }[];
   modelo: ModeloSerie;
-  /** Vazia quando o produto ficou sem modelo neste treino. */
-  previsao: (Faixa & { data: string })[];
+  /** Vazia quando o produto ficou sem modelo neste treino. `fator`: multiplicador da data comemorativa. */
+  previsao: (Faixa & { data: string; fator?: number | null })[];
   previsao_14d: number | null;
 }
 
@@ -151,6 +173,8 @@ export interface DiaHistoricoPrevisao {
   horizonte: number | null;
   /** Se a previsão contava com a loja fechada no dia (calendário da época). */
   loja_fechada: boolean | null;
+  /** A data comemorativa que mudou o previsto do dia; o do modelo sem ela é previsto ÷ multiplicador. */
+  ajuste?: { evento: string | null; multiplicador: number } | null;
 }
 
 export interface UnidadeDados {
@@ -169,6 +193,8 @@ export interface UnidadeDados {
   categorias_modelo: PorCategoria<ModeloSerie | null>;
   /** 14 dias a partir do dia seguinte à última venda; o total é a soma das 4 categorias. */
   previsao: DiaPrevisto[];
+  /** As datas comemorativas que mudaram a previsão das séries da loja (ADR-019). */
+  ajustes_datas?: AjusteData[];
   historico_diario: DiaHistorico[];
   historico_semanal: SemanaHistorico[];
   produtos: Produto[];
@@ -208,7 +234,7 @@ export interface BaseReal {
     janela_dias: number;
     origens: number;
     passo_origem_dias: number;
-    limiar_encomenda_un: number;
+    limiares_encomenda_un: Record<UnidadeId, number>;
     base: string;
     categoria_produtos: string;
     versao_codigo: string | null;
@@ -236,7 +262,7 @@ export interface Contexto {
   lojas: { id: UnidadeId; nome: string; cidade: string }[];
   categorias: Categoria[];
   /** treino_na_api: falso quando a API não treina (Render) — o front não oferece "Treinar previsões" */
-  configuracao: { horizonte_dias: number; limiar_encomenda_un: number; treino_na_api: boolean };
+  configuracao: { horizonte_dias: number; limiares_encomenda_un: Record<UnidadeId, number>; treino_na_api: boolean };
   base: { inicio: string | null; fim: string | null; linhas: number; skus: number };
   /** O último treino concluído; nulo antes do primeiro. */
   previsao: {

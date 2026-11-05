@@ -105,7 +105,7 @@ METODOS = ["sarimax_sku", "desag_8sem", "desag_hist"]
 # --------------------------------------------------------------------------- #
 def carregar_fluxo(unidade: str) -> tuple[pd.DataFrame, dict[str, str]]:
     """Linhas do fluxo diario da unidade (sem servico e sem encomendas) + nomes dos SKUs."""
-    cols = ["unidade", "emissao", "doc_numero", "produto_cod", "produto_nome", "qtdade",
+    cols = ["unidade", "emissao", "doc_tipo", "doc_numero", "produto_cod", "produto_nome", "qtdade",
             "categoria"]
     df = pd.read_csv(CLASSIFIED_CSV, sep=";", usecols=cols, dtype=str, keep_default_na=False)
     df["qtdade"] = pd.to_numeric(df["qtdade"], errors="coerce").fillna(0.0)

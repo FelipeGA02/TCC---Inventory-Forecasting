@@ -76,11 +76,13 @@ TCC---Inventory-Forecasting/
 │   ├── models/                  ← registro dos modelos dos experimentos (o sistema não salva joblib)
 │   ├── training_scripts/        ← experimentação pré-produção (fora do backend)
 │   │   ├── preprocessing/       ← XLSX bruto → base limpa → encomendas → calendário por loja → séries diárias (L1 e desagregação); `run_all.py` roda as 7 etapas (docs/prediction/01-pre_processing.md)
-│   │   ├── eda/                 ← análise exploratória (base transacional, séries do L1, granularidade das categorias, classificação de demanda)
+│   │   ├── eda/                 ← análise exploratória (base transacional, séries do L1, granularidade das categorias, classificação de demanda, distribuição da quantidade dos pedidos e limiar de encomenda grande — ADR-018)
 │   │   ├── baseline/            ← L1: série crua (doc 02) e treino por loja `sarimax_l1_por_loja.py` (doc 04: A0, A1, A1 d=1, Holt-Winters)
 │   │   ├── enriched/            ← L1 na série crua + calendário e clima (doc 03)
 │   │   ├── alternative_models/  ← Croston/TSB/SBA por SKU, ETS, XGBoost, rede neural global
 │   │   ├── disaggregation/      ← categoria direta × desagregação (ADR-016), estacionariedade por categoria e SKU
+│   │   ├── encomendas/          ← treino de produção com cada limiar de encomenda grande (fixo 2.000 × 4 × 3 desvios por loja, ADR-018)
+│   │   ├── datas_comemorativas/ ← EDA das datas e treino de produção com e sem fator multiplicativo (doc 08)
 │   │   ├── validation/          ← walk-forward CV (origem móvel, h=14d), MASE/RMSSE, resíduos (compartilhado)
 │   │   ├── frontend_mock/       ← receita do treino anterior (loja + desagregação), registro histórico
 │   │   ├── output/               ← CSV/JSON gerados pelo preprocessing/ (gitignored)
@@ -131,6 +133,8 @@ Consulte `.specify/memory/constitution.md` para o texto completo. Resumo:
    antes de `status = "trained"`.
    A simulação de perda/ruptura caiu junto com a L3 (ADR-011); a constituição ainda a
    exige (Princípio III e Quality Gates) e precisa de emenda via `/speckit-constitution`.
+   A constituição também manda `low_confidence` "exibir aviso" no dashboard; desde
+   2026-11-05 a tela não mostra selo nem aviso de confiança (emenda pendente).
 4. **Linguagem do usuário**: mensagens de erro e alertas em PT-BR sem jargão técnico.
 5. **Rastreabilidade**: todo upload e treino gravados em `processing_log` e `forecast_jobs`
    (treino sem dados novos fica como `skipped`). Cada treino registra a configuração com a
@@ -167,6 +171,15 @@ python -m backend.scripts.carga_inicial
 # Treinar a previsão fora da API (o mesmo treino do botão "Treinar previsões"), a partir de
 # ia-predictor/ — para a API no Render (TRAINING_RUNNER=externo); proot/Termux: --workers 1
 python -m backend.scripts.treinar_previsoes --workers 8
+
+# Reclassificar as encomendas grandes da base inteira com o limiar de cada loja (ADR-018),
+# sem apagar nada; sem --aplicar só mostra o que mudaria. Rodado no Neon em 31/10/2026
+python -m backend.scripts.reclassificar_encomendas [--aplicar]
+
+# Reaplicar as regras de categoria (taxonomy/categorias.py) ao catálogo do banco: a planilha
+# só classifica produto novo. Sem --aplicar só mostra o que mudaria; depois, conferir as
+# encomendas com reclassificar_encomendas (produto que entra/sai de Serviço e taxa)
+python -m backend.scripts.reclassificar_produtos [--aplicar]
 
 # Preencher o histórico da previsão de um banco antigo a partir do último treino
 python -m backend.scripts.semear_historico [--recriar]
@@ -218,6 +231,7 @@ FORECAST_SERVICE_WINDOW_DAYS=365   # janela deslizante de treino
 FORECAST_SERVICE_WF_ORIGINS=56     # origens do walk-forward, andando 1 dia (8 semanas)
 FORECAST_SERVICE_MIN_SALE_DAYS=28  # produto de grama: dias com venda na última janela para treinar
 FORECAST_SERVICE_KEEP_BACKTEST_JOBS=4  # treinos concluídos que guardam o walk-forward inteiro
+FORECAST_SERVICE_EVENT_FACTOR=true # fator das datas comemorativas: alta em Flores de corte, queda de fim de ano e Dia do Trabalho nas outras (ADR-019)
 TRAINING_WORKERS=8                 # processos no treino (proot/Termux de desenvolvimento: use 1)
 TRAINING_RUNNER=local              # local: botão "Treinar previsões" (thread da API) · externo: a API não treina (Render, script treinar_previsoes)
 ```
@@ -236,15 +250,15 @@ diagrama em `docs/database/modelo_dados.drawio`, gerado por `docs/database/gerar
 | `units` | As 2 lojas (`jardim-canada`, `itabirito`) |
 | `categories` | As 4 categorias do negócio (coluna `categoria` da Etapa 3: Grama, Plantas diversas, Produtos de jardim, Flores de corte) + Serviço e taxa, com `show_on_dashboard` falso |
 | `products` | Catálogo: código, nome mais recente, categoria, subcategoria (`categoria_fina`) |
-| `sales` | Uma linha de produto por nota, só com os campos da planilha que o sistema usa (sem cliente, vendedor, operador); `is_bulk_order` = encomenda (ADR-013). Índice da deduplicação entre planilhas |
+| `sales` | Uma linha de produto por nota, só com os campos da planilha que o sistema usa (sem cliente, vendedor, operador); `is_bulk_order` = encomenda grande: pedido acima de média + 4 desvios-padrão da quantidade de todos os pedidos da loja (ADR-018); cada planilha recalcula o limiar da loja e classifica só as linhas que insere (a base gravada não é remarcada); o limiar de cada carga fica em `processing_log.quality.limiar_encomenda_un`. Índice da deduplicação entre planilhas |
 | `calendar_days` | Calendário por loja (loja fechada, abertura excepcional, feriado, data comemorativa); precisa cobrir os 14 dias seguintes à última venda (dia que faltar usa o padrão: fechada só no domingo) |
-| `processing_log` | Cada planilha gravada (nome, SHA-256, linhas lidas/novas/duplicadas, qualidade); em `quality`, o período da planilha e os dias de loja aberta que ficaram sem venda, avisados na conferência antes de gravar; `forecast_job_id`, o primeiro treino que a usou. A planilha não é guardada |
+| `processing_log` | Cada planilha gravada (nome, SHA-256, linhas lidas/novas/duplicadas, qualidade); em `quality`, o período da planilha e os dias de loja aberta que ficaram sem venda, avisados na conferência antes de gravar; `forecast_job_id`, o primeiro treino que a usou. A planilha não é guardada. `kind = "reclassification"`: a reclassificação das encomendas grandes da base (`reclassificar_encomendas`), com os limiares de cada loja, ou das categorias do catálogo (`reclassificar_produtos`), com cada produto que mudou — fora da lista de arquivos |
 | `forecast_jobs` | Cada treino da previsão (botão "Treinar previsões" ou script): status, andamento (série atual, %), impressão digital dos dados (`skipped` se não mudaram desde o último `done`), `data_until`, configuração com a versão do código, contagens por status. As telas leem o último `done` |
 | `forecast_job_logs` | Log do treino, uma linha por série (ordem, AIC, métricas, resíduos, status ou motivo da recusa) e as do treino (planilhas novas, histórico gravado, limpeza do walk-forward) |
 | `series_models` | Cada série (4 categorias + cada produto de grama, por loja): status, ordem, AIC, MASE, cobertura, métricas do walk-forward e diagnóstico dos resíduos (`metrics`), coeficientes do ajuste final (`params`); `insufficient_data`/`error` com o motivo |
-| `series_forecasts` | Previsão dos 14 dias seguintes à última venda, com IC 95%, por série |
+| `series_forecasts` | Previsão dos 14 dias seguintes à última venda, com IC 95%, por série; `event_factor`: multiplicador da data comemorativa que entrou no dia (ADR-019), nulo sem ajuste |
 | `series_backtest_points` | Previsto × real × naïve de cada origem e horizonte do walk-forward (origem andando 1 dia), por série — só nos últimos `FORECAST_SERVICE_KEEP_BACKTEST_JOBS` treinos concluídos |
-| `forecast_history` | Histórico da previsão por categoria e produto de grama, gravado por cada treino `done` do serviço de previsão (`job_id`): o previsto de cada dia é o da última previsão feita antes dele, congelado depois que o dia passa — treino seguinte 9 dias depois congela 9 dias; mais de 14, congela os 14 e o 1º dia das janelas do walk-forward do treino seguinte (h = 1, com o complemento até a última venda) preenche o que sobra, como antes do 1º treino. Horizonte continua 14 dias. `store_closed`: se o calendário dava a loja fechada quando o dia foi previsto. A tela compara com o vendido de `sales` (sem encomendas grandes). `semear_historico [--recriar]` preenche a partir do último treino |
+| `forecast_history` | Histórico da previsão por categoria e produto de grama, gravado por cada treino `done` do serviço de previsão (`job_id`): o previsto de cada dia é o da última previsão feita antes dele, congelado depois que o dia passa — treino seguinte 9 dias depois congela 9 dias; mais de 14, congela os 14 e o 1º dia das janelas do walk-forward do treino seguinte (h = 1, com o complemento até a última venda) preenche o que sobra, como antes do 1º treino. Horizonte continua 14 dias. `store_closed`: se o calendário dava a loja fechada quando o dia foi previsto. `event_factor`: o multiplicador da data comemorativa (ADR-019) — o previsto do modelo sem ele é `predicted / event_factor`. A tela compara com o vendido de `sales` (sem encomendas grandes). `semear_historico [--recriar]` preenche a partir do último treino |
 
 Resumos (volume por loja/categoria, histórico, encomendas, venda das últimas 8 semanas)
 não são gravados: saem de `sales`. A previsão não é recalculada todo dia: com o mesmo
@@ -264,10 +278,11 @@ e `backend/domain/models/trainer.py`.
 
 | Decisão | Valor | Motivo |
 | --- | --- | --- |
-| Séries | em cada loja, as 4 categorias e cada produto de grama (com ≥ 180 dias antes da 1ª origem; produto, venda em ≥ 28 dias da última janela) | categoria direta vence a desagregação em 7 de 8 pares (ADR-016); a loja compra grama produto a produto. Total da loja = soma das categorias (faixa conservadora). Outras categorias não têm previsão por produto |
-| Alvo | fluxo diário: sem as notas acima de 2.000 un. (ADR-013), sem `Servico e taxa` | a mesma base dos experimentos que fixaram a receita |
+| Séries | em cada loja, as 4 categorias e cada produto de grama (com ≥ 180 dias antes da 1ª origem; produto, venda em ≥ 28 dias da última janela). Até 28/02/2026, com a classificação SKU a SKU de 04/11/2026 (grama preta, capim dos Texas e semente de braquiária em Grama): 19 produtos de grama → 43 séries (8 categorias + 35 grama × loja), 23 com previsão (8 + 15: 9 `trained`, 14 `low_confidence` — as 6 novas, de capim dos Texas e grama preta, todas `low_confidence`); antes, 9 produtos → 25 séries, 17 com previsão (9 + 8) — lista e resultado no doc 07 §2 | categoria direta vence a desagregação em 7 de 8 pares (ADR-016); a loja compra grama produto a produto. Total da loja = soma das categorias (faixa conservadora). Outras categorias não têm previsão por produto |
+| Alvo | fluxo diário: sem as encomendas grandes — pedido acima de média + 4 desvios-padrão da quantidade de todos os pedidos da loja, hoje 1.343 un. em Jardim Canadá e 1.960 em Itabirito (ADR-018; antes, 2.000 fixo, ADR-013) —, sem `Servico e taxa` | no treino de produção (17 séries, ADR-018 §4.1), 4 desvios erra menos que o 2.000 fixo em 5 séries de Jardim Canadá, mais em 2 e igual em 10, com 9 séries `trained` contra 8; 3 desvios derruba 3 séries para `low_confidence` (IC < 90% ou MASE > 1) |
 | Modelo | SARIMAX m = 7, **d = 0**, D = 0, com constante; ordem por AIC (p, q ∈ 0..2; P, Q ∈ 0..1) só com a janela antes da 1ª origem | as 12 séries rejeitam raiz unitária no ADF e `d = 1` sobrediferencia (lag 1 da diferença −0,42 a −0,53); custo medido: `d = 1` erra 1–7% menos na família Grama |
 | Exógenas | 6 dummies de dia da semana, `loja_fechada`, `abertura_excepcional` (calendário de cada loja) | as do L1 (docs 03 e 04) |
+| Datas comemorativas | ADR-019. **Alta**, só Flores de corte: previsto e faixa dos dias abertos de 6 dias antes até o Dia da Mulher, das Mães, dos Namorados, o Natal e o Ano Novo (26–31/12) × mín(3, máx(1, 1 + 0,5 · (fator − 1))). **Queda**, nas outras séries (categorias e produtos de grama): de 26 a 31/12 e na semana do Dia do Trabalho × máx(0,2, fator), só se cada uma das últimas ocorrências (≥ 2) ficou em até 0,8 de uma semana comum. Fator = venda ÷ base (mesmo dia da semana, 4 semanas antes e depois) nas últimas 3 ocorrências, recalculado a cada treino, só com venda anterior ao 1º dia previsto; datas pela regra, não pelo calendário gravado | alta: sem o ajuste o modelo prevê uma semana comum (40–46% do vendido); com ele, −40% a −45% no erro do total da semana nas 10 ocorrências (doc 08), sem melhorar o erro de cada dia. Queda: o modelo prevê 2 a 5× o vendido de 26 a 31/12; a queda inteira corta o erro da semana em todas as ocorrências testadas (Grama de Itabirito 268% → 27%) e o de cada dia (doc 08 §9.3). Finados, Sexta-feira Santa e Corpus Christi ficam fora |
 | Janela | deslizante de 365 dias | |
 | Walk-forward | 56 origens andando 1 dia (8 semanas), h = 14; métricas nos dias de loja aberta; + 13 origens parciais (complemento, h = 1, fora das métricas) até a última venda | o 1º dia de cada janela alimenta o histórico até a véspera da previsão |
 | Previsão | os 14 dias seguintes à última venda, faixa de 95% (sem `log1p`) | |
@@ -335,7 +350,7 @@ diária" — relatório em `docs/`.
 | --- | --- | --- |
 | MASE (categoria e produto de grama) | < 1.0 (bate a naïve sazonal semanal) | `low_confidence` |
 | Cobertura empírica do IC 95% | ∈ [90%, 98%] | `low_confidence` |
-| Histórico antes da 1ª origem do walk-forward | ≥ 180 dias | `insufficient_data` (sem previsão) |
+| Histórico antes da 1ª origem do walk-forward | ≥ 180 dias (= 249 dias de calendário da 1ª à última venda: 180 + 56 origens + 13 do complemento; doc 07 §2) | `insufficient_data` (sem previsão) |
 | Produto de grama: dias com venda na última janela de 365 | ≥ 28 | `insufficient_data` (sem previsão) |
 | Ljung-Box (p-value, resíduos do ajuste final) | > 0.05 | citado no log; não bloqueia |
 | Shapiro-Wilk (p-value, resíduos do ajuste final) | > 0.05 | citado no log; não bloqueia |
@@ -348,7 +363,8 @@ treino e fica otimista quando o treino tem picos: no A0-crua, MASE 0,40 correspo
 ganho de só 18% sobre a naïve, e a própria naïve tirava MASE 0,49
 (`docs/prediction/02-baseline_serie_crua_pre_eda.md` §4.4).
 
-`low_confidence` ≠ falha: a previsão ainda é gerada, mas com aviso visual no dashboard.
+`low_confidence` ≠ falha: a previsão é gerada e a tela a mostra do mesmo jeito, sem selo nem
+aviso de confiança; o status fica no log do treino, no serviço de previsão e na API.
 MAPE e SMAPE continuam calculados e reportados, mas são **informativos** (instáveis com
 contagem baixa) — não classificam. Ljung-Box e Shapiro-Wilk compõem a dimensão de
 "diagnóstico de resíduos" (seção 6.5 do artigo) — não bloqueiam o deploy, mas MUST ser
@@ -370,8 +386,8 @@ e no log do treino.
 | `/api/v1/upload` | POST | **admin** — grava, depois da confirmação; `needs_training` quando há venda nova |
 | `/api/v1/servico-previsao/*` | GET/POST | **admin** — treino da previsão: status, disparo (`POST /treinos`: 202 treina em segundo plano, 200 `skipped` sem dados novos, 503 se a API não treina), log e resultado por série |
 | `/api/v1/contexto` | GET | viewer — layout: lojas, categorias, última venda, status das séries do último treino |
-| `/api/v1/painel` | GET | viewer — previsão de 14 dias (categorias e grama por loja), histórico de vendas, encomendas, teste de acerto |
-| `/api/v1/painel/historico/{loja}/{categoria\|produto}/{item}` | GET | viewer — vendido × previsto congelado |
+| `/api/v1/painel` | GET | viewer — previsão de 14 dias (categorias e grama por loja), datas comemorativas que mudaram a previsão (`ajustes_datas`, ADR-019), histórico de vendas, encomendas, teste de acerto |
+| `/api/v1/painel/historico/{loja}/{categoria\|produto}/{item}` | GET | viewer — vendido × previsto congelado, com o ajuste da data comemorativa de cada dia (`ajuste`) |
 | Demais `/api/v1/*` (análises, registros) | GET | viewer |
 
 Os endpoints de reposição (`/api/v1/replenishment/*`) saíram na versão 3.0.0 do
@@ -412,8 +428,11 @@ Comandos disponíveis (invocar via Skill tool ou como `/speckit-*`):
 | `docs/prediction/ADR-009-granularidade-diaria-e-reposicao.md` | **Espinha da revisão de escopo mensal→diário** — arquitetura L1/L2/L3, validação, shelf-life (L3 e grão `unidade × categoria` revisados pelo ADR-011) |
 | `docs/prediction/ADR-011-escopo-previsao-sem-reposicao.md` | Escopo: previsão de demanda sem reposição (L3 fora), 2 unidades; o L1 por `unidade` foi revisado pelo ADR-017 |
 | `docs/prediction/ADR-016-categoria-direta-vs-desagregacao.md` | Evidência: SARIMAX direto na categoria vence a desagregação em 7 de 8 pares categoria-loja (aceito pelo ADR-017) |
+| `docs/prediction/ADR-018-limiar-de-encomenda-por-desvios.md` | Encomenda grande = pedido acima de média + 4 desvios-padrão da quantidade de todos os pedidos da loja, em unidades; a planilha nova recalcula o limiar e classifica só as linhas inseridas: distribuição, comparação com o limiar fixo de 2.000 e o treino de produção das 17 séries com fixo × 4 × 3 desvios (§4.1) |
 | `docs/prediction/ADR-017-previsao-por-categoria-e-grama.md` | **A previsão do sistema**: SARIMAX direto em cada categoria e produto de grama, por loja; treino pelo botão ou script, sem agendador; histórico congelado; conferência da planilha. O que saiu e o que fica pendente (emenda da constituição) |
 | `docs/prediction/07-previsao_14_dias_e_historico.md` | Como o sistema treina, guarda e mostra: ciclo planilha → conferência → treino → telas, receita e walk-forward, previsão de 14 dias, regras do histórico (9 e 20 dias entre treinos), dias faltando na planilha, tabelas e testes |
+| `docs/prediction/08-fator_datas_comemorativas.md` | Datas comemorativas no fluxo (sem encomendas): só Flores de corte sobe (1,6–5,8× em Mulher, Mães, Namorados, Natal; Ano Novo em §9.2); a flor de Finados é a em vaso (crisântemo e kalanchoe, em Plantas diversas), só em Itabirito; fator multiplicativo pela metade no SARIMAX de produção corta 40–45% do erro do total da semana de Flores de corte (10 ocorrências), não o erro de cada dia; em Finados não serve (Grama: nível baixo do modelo; Produtos piora; Plantas diversas melhora uma ocorrência e piora a outra). Refeito em 2026-11-05 com a classificação SKU a SKU. §9: EDA de todos os feriados e datas em todas as séries; §9.3: a queda é de 26 a 31/12 (não da temporada) e, na Grama de Itabirito, do Dia do Trabalho, e a queda inteira vence no SARIMAX de produção. Adotado pelo ADR-019 |
+| `docs/prediction/ADR-019-fator-das-datas-comemorativas.md` | *Proposto* — previsão de Flores de corte × fator da data na semana do Dia da Mulher, das Mães, dos Namorados, do Natal e do Ano Novo (metade do aumento, entre 1 e 3); nas outras séries, a queda de 26 a 31/12 e do Dia do Trabalho (inteira, piso 0,2, só se caiu nas 2 últimas ocorrências, §2.1). Recalculado das vendas a cada treino (últimas 3 ocorrências), gravado em `event_factor`; desligável por `FORECAST_SERVICE_EVENT_FACTOR` |
 | `docs/README.md` | Índice da documentação por área + convenção de ADRs |
 | `docs/prediction/`, `docs/backend/`, `docs/database/`, `docs/frontend/` | ADRs organizados por área (ver `docs/README.md` para a lista completa) |
 | `docs/project/Projeto Tecnico Verde Perto Final...pdf` | Projeto técnico acadêmico original (fonte primária, revisado pelo orientador) |

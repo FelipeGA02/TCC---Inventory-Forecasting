@@ -131,7 +131,8 @@ maioria dos produtos.
 | Itabirito · Grama | Atenção (pico de 79× a média, tendência muito forte) |
 | Jardim Canadá · Flores de corte | Atenção (pico de 86× a média, depende só do calendário) |
 
-"Atenção" não bloqueia a previsão. Ela é gerada com um aviso de menor confiança.
+"Atenção" não bloqueia a previsão: ela é gerada normalmente. A ideia de mostrar um aviso de
+menor confiança não foi adotada; a tela mostra todas as previsões do mesmo jeito.
 
 ## 5. O que foi decidido e em que se baseou
 
@@ -142,7 +143,7 @@ maioria dos produtos.
 | Calcular o efeito de cada data comemorativa **por categoria** | Sinal oposto entre flores e grama |
 | Suavizar os picos (`log1p`) em todas as séries | Variação diária alta em todas |
 | Incluir na comparação uma abordagem só de regras de calendário | Séries sem "memória" |
-| Sinalizar séries extremas com aviso de menor confiança | Picos de 79× e 86× a média |
+| ~~Sinalizar séries extremas com aviso de menor confiança~~ (não adotado) | Picos de 79× e 86× a média |
 | Ampliar a janela de repartição entre produtos | Instabilidade da participação mensal |
 
 ## 6. Perguntas que ficaram abertas

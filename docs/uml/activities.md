@@ -71,7 +71,7 @@ flowchart TD
     L --> M[residual_tests<br/>Ljung-Box + Shapiro-Wilk]
     M --> M1{MASE < 1.0 E cobertura ∈ [90,98]<br/>E simulação de reposição<br/>melhor que regra ingênua 7d?}
     M1 -- sim --> M2[status = trained]
-    M1 -- não --> M3[status = low_confidence<br/>previsão ainda gerada, com aviso]
+    M1 -- não --> M3[status = low_confidence<br/>previsão ainda gerada]
     M2 --> N[model_registry.save_artifact<br/>joblib: modelo + importâncias]
     M3 --> N
     N --> O{Mais categorias?}

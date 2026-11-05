@@ -9,16 +9,19 @@ import { tabelaHtml, type Celula, type Tabela, type TipoColuna } from "@/lib/exp
 import {
   HORIZONTE_DIAS,
   IDS_CATEGORIA,
-  LIMIAR_ENCOMENDA,
+  ajustesDe,
   categorias,
   dados,
   encomendasDe,
   faixaDoDia,
   nomeCategoria,
+  nomeDoAjuste,
   nomeUnidade,
   previsaoDe,
   produtosDe,
   somar,
+  textoAjuste,
+  textoLimiarEncomenda,
   unidadesDoFiltro,
 } from "./mockData";
 
@@ -108,7 +111,6 @@ export const relatorios: Relatorio[] = [
           { titulo: "Loja", tipo: "texto" },
           { titulo: "Código", tipo: "texto" },
           { titulo: "Produto", tipo: "texto" },
-          { titulo: "Confiança", tipo: "texto" },
           { titulo: "Vendido 8 semanas", tipo: "numero" },
           { titulo: `Previsto ${HORIZONTE_DIAS} dias`, tipo: "numero" },
           ...dias.map((d) => ({ titulo: formatarDiaMes(d), tipo: "numero" as const })),
@@ -117,7 +119,6 @@ export const relatorios: Relatorio[] = [
           p.nomeUnidade,
           p.codigo,
           p.nome,
-          situacao(p.modelo),
           p.vendido_8_semanas,
           p.previsao_14d,
           ...p.previsao.map((d) => d.previsto),
@@ -185,7 +186,7 @@ export const relatorios: Relatorio[] = [
     id: "encomendas",
     grupo: "Histórico de vendas",
     titulo: "Encomendas grandes por semana",
-    descricao: `Volume vendido em notas com mais de ${formatarNumero(LIMIAR_ENCOMENDA)} unidades, que fica fora da previsão.`,
+    descricao: `Volume vendido em notas acima do limiar de cada loja (${textoLimiarEncomenda("todas")}), que fica fora da previsão.`,
     uso: "Acompanhar quando as vendas grandes acontecem e quanto pesam.",
     filtros: ["unidade"],
     formatos: ["xlsx", "csv"],
@@ -250,7 +251,7 @@ export const relatorios: Relatorio[] = [
     grupo: "Qualidade da previsão",
     titulo: "Acerto de cada produto de grama",
     descricao: "Como a previsão de cada produto de grama se saiu no teste de acerto do último treino.",
-    uso: "Saber em quais gramas a previsão diária é confiável.",
+    uso: "Ver quanto a previsão diária de cada grama errou no teste do treino.",
     filtros: ["unidade"],
     formatos: ["xlsx", "csv", "pdf"],
     gerar: (f) => ({
@@ -391,7 +392,7 @@ export function relatorioGerencialHtml(f: FiltrosRelatorio): string {
     <div class="kpi"><span>Encomendas grandes (fora da previsão)</span><b>${formatarNumero(enc.vendas)}</b><span>${formatarPercentual(enc.pctVolume / 100)} do volume histórico</span></div>
   </div>`;
 
-  const confianca = tabelaHtml(
+  const acerto = tabelaHtml(
     {
       colunas: [
         { titulo: "Loja", tipo: "texto" },
@@ -443,15 +444,31 @@ export function relatorioGerencialHtml(f: FiltrosRelatorio): string {
     formatarCelula,
   );
 
+  // datas comemorativas que mudaram a previsão (ADR-019): as categorias do filtro e os produtos de grama
+  const ajustes = ajustesDe(f.unidade).filter((a) =>
+    a.nivel === "produto" ? f.categoria === "todas" || f.categoria === "grama" : f.categoria === "todas" || a.item === f.categoria);
+  const datas = ajustes.length
+    ? `<h2>Datas comemorativas</h2>${tabelaHtml(
+        {
+          colunas: [
+            { titulo: "Loja", tipo: "texto" },
+            { titulo: "Série", tipo: "texto" },
+            { titulo: "Ajuste", tipo: "texto" },
+          ],
+          linhas: ajustes.map((a) => [a.nomeUnidade, nomeDoAjuste(a), textoAjuste(a)]),
+        },
+        formatarCelula,
+      )}`
+    : "";
+
   const top = tabelaHtml(
     {
       colunas: [
         { titulo: "Produto", tipo: "texto" },
         { titulo: "Loja", tipo: "texto" },
-        { titulo: "Confiança", tipo: "texto" },
         { titulo: `Previsto ${HORIZONTE_DIAS} dias`, tipo: "numero" },
       ],
-      linhas: gramas.slice(0, 15).map((p) => [p.nome, p.nomeUnidade, situacao(p.modelo), p.previsao_14d]),
+      linhas: gramas.slice(0, 15).map((p) => [p.nome, p.nomeUnidade, p.previsao_14d]),
     },
     formatarCelula,
   );
@@ -459,8 +476,8 @@ export function relatorioGerencialHtml(f: FiltrosRelatorio): string {
   return documentoImpressao(
     `Previsão de vendas · ${nomeUnidade(f.unidade)} · ${nomeCategoria(f.categoria)}`,
     `Próximos ${HORIZONTE_DIAS} dias: ${formatarData(ini)} a ${formatarData(fim)} · vendas registradas até ${formatarData(dados.base.fim)}`,
-    `${kpis}<h2>Confiança da previsão</h2>${confianca}${f.categoria === "todas" ? `<h2>Por categoria</h2>${porCategoria}` : ""}<h2>Dia a dia</h2>${diaria}<h2>Produtos de grama</h2>${top}
-     <p class="nota">A previsão é da venda do dia a dia; as encomendas grandes (notas com mais de ${formatarNumero(LIMIAR_ENCOMENDA)} unidades) ficam fora.
+    `${kpis}<h2>Acerto no teste do treino</h2>${acerto}${f.categoria === "todas" ? `<h2>Por categoria</h2>${porCategoria}` : ""}${datas}<h2>Dia a dia</h2>${diaria}<h2>Produtos de grama</h2>${top}
+     <p class="nota">A previsão é da venda do dia a dia; as encomendas grandes (notas acima de ${textoLimiarEncomenda(f.unidade)}) ficam fora.
      Cada categoria e cada produto de grama tem a sua previsão, feita só com a própria venda em cada loja; o total da loja é a soma das 4 categorias.
      Faixa provável = intervalo de 95%.</p>`,
   );
@@ -469,6 +486,6 @@ export function relatorioGerencialHtml(f: FiltrosRelatorio): string {
 export const relatorioGerencial = {
   id: "gerencial",
   titulo: "Relatório gerencial",
-  descricao: "Resumo para a gestão: previsão dos próximos 14 dias, por categoria e dia, por produto de grama, encomendas grandes e confiança da previsão.",
+  descricao: "Resumo para a gestão: previsão dos próximos 14 dias, por categoria e dia, por produto de grama, encomendas grandes e o acerto da previsão no teste do treino.",
   uso: "Levar para a reunião semanal ou enviar para os gerentes das lojas.",
 };

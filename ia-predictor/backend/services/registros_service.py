@@ -22,7 +22,6 @@ from sqlalchemy.orm import Session
 
 from backend.infrastructure.database import Category, Product, Sale, Unit
 from backend.services import base_vendas
-from training_scripts.preprocessing.remove_encomendas_06 import LIMIAR_QTD_VENDA
 
 TAMANHO_MAXIMO = 200
 _LOTE_EXPORTACAO = 5000  # linhas lidas do banco e enviadas por vez na exportação
@@ -184,7 +183,7 @@ def indice(db: Session) -> dict:
         item["por_loja"][loja] = n
     pagamentos = sorted({nome_pagamento(p) for p in db.scalars(select(distinct(Sale.payment_method)))})
     lista = [meses[k] for k in sorted(meses)]
-    return {"lojas": lojas, "pagamentos": pagamentos, "limiar_encomenda_un": LIMIAR_QTD_VENDA,
+    return {"lojas": lojas, "pagamentos": pagamentos, "limiares_encomenda_un": base_vendas.limiares_encomenda_atuais(db),
             "total_registros": sum(m["registros"] for m in lista), "meses": lista}
 
 

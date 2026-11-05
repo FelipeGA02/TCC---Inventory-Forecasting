@@ -177,6 +177,26 @@ def test_status_segue_os_limiares(mase, cobertura, esperado):
     assert evaluator.status_do_modelo({"mase": mase, "cobertura_ic95_pct": cobertura}) == esperado
 
 
+def test_fator_das_datas_multiplica_so_a_semana_da_data():
+    """ADR-019: a semana do Dia da Mulher de 2025 vendeu 3× o normal; a previsão de 01 a
+    14/03/2026 sai multiplicada de segunda a sábado antes do dia 08 (domingo, loja fechada)."""
+    y, X, aberta = _serie(dias=430)
+    y[pd.date_range("2025-03-03", "2025-03-08")] *= 3.0
+    sem = treinar_serie(y, X, aberta, RAPIDA, NIVEL_CATEGORIA)
+    com = treinar_serie(y, X, aberta, RAPIDA, NIVEL_CATEGORIA, com_fator=True)
+    assert set(sem.previsao["fator"]) == {1.0} and sem.ajustes == []
+
+    semana = com.previsao["data"].between("2026-03-02", "2026-03-07")
+    assert com.previsao.loc[semana, "fator"].between(1.8, 2.1).all()  # 1 + (≈3 − 1) / 2
+    assert set(com.previsao.loc[~semana, "fator"]) == {1.0}
+    for c in ("previsto", "ic_inf", "ic_sup"):
+        assert np.allclose(com.previsao[c], sem.previsao[c] * com.previsao["fator"])
+    assert [(a["evento"], a["data"], a["anos"]) for a in com.ajustes] == [("Dia da Mulher", "2026-03-08", [2025])]
+    # o walk-forward e o complemento (fevereiro) não pegam a semana da data
+    assert set(com.backtest["fator"]) == {1.0} and set(com.complemento["fator"]) == {1.0}
+    assert com.metricas == sem.metricas
+
+
 def test_dia_fora_do_calendario_usa_o_padrao_da_loja():
     dias = pd.date_range("2026-03-01", "2026-03-10", freq="D")  # 01/03/2026 é domingo
     X, faltando = matriz_exogena(dias, _calendario(dias[0], pd.Timestamp("2026-03-04")))
@@ -196,3 +216,29 @@ def test_dominio_nao_importa_framework_nem_banco():
                      else [no.module or ""] if isinstance(no, ast.ImportFrom) else [])
             for nome in nomes:
                 assert nome.split(".")[0] not in proibidos, f"{arquivo.name} importa {nome}"
+
+
+def test_gravacao_do_treino_tenta_de_novo_quando_o_banco_cai(monkeypatch):
+    """Queda curta da conexão (DNS) não derruba o treino: a gravação espera e repete."""
+    from sqlalchemy.exc import OperationalError
+
+    from backend.services import servico_previsao
+
+    monkeypatch.setattr(servico_previsao.time, "sleep", lambda _s: None)
+    chamadas = []
+
+    def grava():
+        chamadas.append(1)
+        if len(chamadas) < 3:
+            raise OperationalError("SELECT 1", {}, Exception("failed to resolve host"))
+        return "ok"
+
+    assert servico_previsao._com_retentativa(grava) == "ok"
+    assert len(chamadas) == 3
+
+    # fora do ar além das tentativas: o erro sobe e o treino fica `error`
+    chamadas.clear()
+    monkeypatch.setattr(servico_previsao, "_ESPERAS_RETENTATIVA_S", (1,))
+    with pytest.raises(OperationalError):
+        servico_previsao._com_retentativa(grava)
+    assert len(chamadas) == 2

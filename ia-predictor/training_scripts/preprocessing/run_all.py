@@ -8,7 +8,8 @@
   5. separa_unidades05       BaseTreino.csv → BaseTreino_<unidade>.csv (1 série por loja)
   6. remove_encomendas06     BaseClassificada03.csv → BaseTreino_<unidade>_sem_encomendas.csv
                               + BaseTreino_<unidade>_encomendas.csv. Separa os dois fluxos
-                              pelo tamanho da VENDA (documento > 2.000 un = encomenda, um
+                              pelo tamanho da VENDA (documento acima de média + 4 desvios-padrão
+                              da quantidade dos pedidos da loja = encomenda grande, ADR-018, um
                               evento de logística que a loja atende encomendando do
                               fornecedor). Não é descarte: a previsão final é a soma dos
                               dois. Ver ADR-013

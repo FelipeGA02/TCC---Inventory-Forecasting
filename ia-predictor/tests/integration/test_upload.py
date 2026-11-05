@@ -145,3 +145,69 @@ def test_confirmar_grava_e_registra_o_aviso(client, admin, planilha_marco):
             db.execute(delete(Sale).where(Sale.import_id == log.id))
             db.delete(log)
             db.commit()
+
+
+# --------------------------------------------------------------------------- #
+# Encomenda grande: média + 4 desvios da quantidade dos pedidos da loja (ADR-018)
+# --------------------------------------------------------------------------- #
+# Na base sintética os pedidos têm de 5 a 15 un., mais um de 3.000 m² de grama por loja no
+# dia 15 de cada mês (marcados como encomenda grande no conftest).
+
+
+def _enviar(client, admin, monkeypatch, df: pd.DataFrame, nome: str):
+    monkeypatch.setattr(upload_service, "_etapas_1_a_3",
+                        lambda *a: (df.copy(), 0, {"linhas_removidas": {}, "clientes_sem_nome_corrigidos": 0}))
+    r = client.post("/api/v1/upload", headers=admin, files={"file": (nome, nome.encode())})
+    assert r.status_code == 200, r.text
+    with SessionLocal() as db:
+        log = db.scalar(select(ProcessingLog).where(ProcessingLog.filename == nome))
+        marcadas = dict(db.execute(select(Sale.document_number, Sale.is_bulk_order)
+                                   .where(Sale.import_id == log.id)).all())
+        return log, marcadas
+
+
+def _apagar(*nomes: str) -> None:
+    with SessionLocal() as db:
+        for nome in nomes:
+            log = db.scalar(select(ProcessingLog).where(ProcessingLog.filename == nome))
+            if log is not None:
+                db.execute(delete(Sale).where(Sale.import_id == log.id))
+                db.delete(log)
+        db.commit()
+
+
+def test_pedido_acima_de_4_desvios_da_loja_e_encomenda_grande(client, admin, monkeypatch):
+    df = _planilha_classificada([date(2026, 3, 2)], lojas=("Itabirito",))
+    obra = df.iloc[[0]].assign(doc_numero="OBRA1", qtdade=5000.0, vl_total=10000.0, tot_liq=10000.0)
+    try:
+        log, marcadas = _enviar(client, admin, monkeypatch, pd.concat([df, obra], ignore_index=True), "obra.xlsx")
+        assert marcadas == {"T03020": False, "OBRA1": True}
+        assert set(log.quality["limiar_encomenda_un"]) == {"jardim-canada", "itabirito"}
+        assert log.quality["limiar_encomenda_un"]["itabirito"] < 5000
+        assert log.quality["linhas_de_encomenda_grande"] == 1
+        contexto = client.get("/api/v1/contexto", headers=admin).json()
+        assert contexto["configuracao"]["limiares_encomenda_un"] == log.quality["limiar_encomenda_un"]
+    finally:
+        _apagar("obra.xlsx")
+
+
+def test_planilha_nova_recalcula_o_limiar_e_nao_remarca_a_base(client, admin, monkeypatch):
+    """Um pedido de 100 mil un. sobe o limiar de Itabirito para mais de 3.000: os pedidos de
+    3.000 m² já gravados continuam encomenda grande, e um de 3.000 que chega depois não é."""
+    tres_mil_gravados = (Sale.quantity == 3000.0) & Sale.import_id.is_(None)
+    with SessionLocal() as db:
+        antes = list(db.scalars(select(Sale.is_bulk_order).where(tres_mil_gravados)))
+    assert antes and all(antes)
+    try:
+        enorme = _planilha_classificada([date(2026, 3, 2)], lojas=("Itabirito",)).assign(qtdade=100_000.0)
+        log, marcadas = _enviar(client, admin, monkeypatch, enorme, "enorme.xlsx")
+        assert list(marcadas.values()) == [True]
+        assert log.quality["limiar_encomenda_un"]["itabirito"] > 3000
+
+        depois = _planilha_classificada([date(2026, 3, 3)], lojas=("Itabirito",)).assign(qtdade=3000.0)
+        _, marcadas = _enviar(client, admin, monkeypatch, depois, "depois.xlsx")
+        assert list(marcadas.values()) == [False]
+        with SessionLocal() as db:
+            assert list(db.scalars(select(Sale.is_bulk_order).where(tres_mil_gravados))) == antes
+    finally:
+        _apagar("enorme.xlsx", "depois.xlsx")

@@ -113,7 +113,7 @@ def r1(v) -> float:
 # Dados
 # --------------------------------------------------------------------------- #
 def carregar_base() -> pd.DataFrame:
-    cols = ["doc_numero", "emissao", "cliente_nome", "produto_cod", "produto_nome", "qtdade",
+    cols = ["doc_tipo", "doc_numero", "emissao", "cliente_nome", "produto_cod", "produto_nome", "qtdade",
             "vl_total", "unidade", "categoria", "categoria_fina"]
     df = pd.read_csv(BASE, sep=";", usecols=cols, dtype={"produto_cod": str, "doc_numero": str,
                                                          "cliente_nome": str})

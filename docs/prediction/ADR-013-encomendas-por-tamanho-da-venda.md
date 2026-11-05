@@ -1,6 +1,6 @@
 # ADR-013 — Encomenda é tamanho da venda, não tipo de cliente nem outlier de linha
 
-**Status:** aceito · **Data:** 2026-10-13 · **Revisa:** ADR-012 (encomendas grandes fora do L1)
+**Status:** aceito; o limiar de 2.000 un. foi revisado pelo ADR-018 (média + 4 desvios-padrão) · **Data:** 2026-10-13 · **Revisa:** ADR-012 (encomendas grandes fora do L1)
 **Afeta:** `training_scripts/preprocessing/remove_encomendas_06.py`, Etapa 6 do pré-processamento
 
 ---
@@ -32,9 +32,13 @@ série que anuncie em que dia uma obra vai fechar um pedido.
 Separar cada loja em **dois fluxos**, pelo tamanho da **venda inteira** (documento):
 
 ```
-venda (unidade × emissao × doc_numero) com soma de qtdade > 2.000 un  →  encomenda
+venda (unidade × emissao × doc_tipo × doc_numero) com soma de qtdade > 2.000 un  →  encomenda
 caso contrário                                                        →  fluxo diário
 ```
+
+O tipo do documento entra na chave desde 2026-10-27: cada tipo (cupom, nota…) tem a própria
+numeração, e em 12 casos da base o mesmo número sai no mesmo dia em dois tipos — vendas
+diferentes que a chave sem o tipo somava (nenhuma marcação mudou na base de 2026-02).
 
 Os dois são gravados. **Não é descarte**: o fluxo diário vai para o SARIMAX, as encomendas
 viram um fluxo próprio, e a previsão entregue é a soma.

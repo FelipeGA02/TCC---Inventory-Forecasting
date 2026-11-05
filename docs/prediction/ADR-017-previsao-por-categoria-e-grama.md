@@ -43,13 +43,13 @@ conservadora, mais larga que a exata. Não há mais modelo da loja, desagregaç�
 
 | Item | Valor |
 | --- | --- |
-| Série | fluxo diário: venda sem as notas acima de 2.000 un. (ADR-013), sem `Servico e taxa` |
+| Série | fluxo diário: venda sem as notas acima de 2.000 un. (ADR-013; desde o ADR-018, acima de média + 4 desvios-padrão da quantidade dos pedidos da loja), sem `Servico e taxa` |
 | Modelo | SARIMAX com m = 7, d = 0, D = 0 e constante; ordem (p, q)(P, Q) por AIC no grid p, q ∈ 0..2 e P, Q ∈ 0..1, só com a janela antes da 1ª origem |
 | Exógenas | 6 dummies de dia da semana, `loja_fechada` e `abertura_excepcional` (calendário de cada loja) |
 | Janela | deslizante, 365 dias (`FORECAST_SERVICE_WINDOW_DAYS`) |
 | Validação | walk-forward com 56 origens andando 1 dia (8 semanas), cada uma prevendo 14 dias; métricas nos dias de loja aberta |
-| Status | `trained` se MASE < 1 e cobertura da faixa de 95% em [90%, 98%]; senão `low_confidence` (a previsão sai, com aviso) |
-| Sem dados | `insufficient_data`, sem previsão: menos de 180 dias antes da 1ª origem; no produto, venda em menos de 28 dias da última janela |
+| Status | `trained` se MASE < 1 e cobertura da faixa de 95% em [90%, 98%]; senão `low_confidence` (a previsão sai e a tela a mostra igual; desde 2026-11-05, sem selo nem aviso de confiança) |
+| Sem dados | `insufficient_data`, sem previsão: menos de 180 dias antes da 1ª origem; no produto, venda em menos de 28 dias da última janela (o critério e a origem do 28 estão no doc 07 §2) |
 | Previsão | os 14 dias seguintes à última venda, com faixa de 95% |
 | Diagnóstico | Ljung-Box (14 dias) e Shapiro-Wilk dos resíduos do ajuste final, gravados e citados no log quando p ≤ 0,05; não mudam o status |
 
@@ -102,8 +102,16 @@ carga não agenda treino: responde `needs_training` quando há venda nova.
   reports). Num banco antigo, essas tabelas continuam lá, sem uso.
 - **Treino mais longo por série, menos séries.** Cada série tem 36 ajustes na grade, 56 no
   walk-forward, 13 no complemento e 1 no ajuste final. A ~2,3 s por ajuste (medida do
-  ADR-016), cada série leva uns 4 minutos. A base real tem 8 séries de categoria e 9
-  produtos de grama com venda suficiente (dados até fev/2026). Com `TRAINING_WORKERS`
+  ADR-016), cada série leva uns 4 minutos. Com dados até 28/02/2026, a base tinha 9
+  produtos de grama, e o treino montava 25 séries: 8 de categoria (4 por loja) e 17 de
+  produto de grama (9 em Jardim Canadá e 8 em Itabirito). Dessas, 17 tinham previsão: as 8 de
+  categoria e 9 de grama (5 em Jardim Canadá e 4 em Itabirito). As outras 8 de grama ficavam
+  `insufficient_data` (venda em menos de 28 dias). Com a classificação SKU a SKU de
+  04/11/2026, que pôs a grama preta, o capim dos Texas e a semente de braquiária em Grama,
+  são 19 produtos e 43 séries (8 de categoria e 35 de produto), 23 com previsão (8 de
+  categoria e 15 de grama: 11 em Jardim Canadá e 4 em Itabirito). No treino de 05/11/2026,
+  9 ficaram `trained` e 14 `low_confidence` (antes, 9 e 8); as 6 séries novas, de capim dos
+  Texas e grama preta, ficaram todas `low_confidence`. A lista e o resultado estão no doc 07 §2. Com `TRAINING_WORKERS`
   processos, o treino cai na mesma proporção.
 - **Rastreabilidade:**
   - `forecast_jobs` guarda o disparo, a configuração e a versão do código;

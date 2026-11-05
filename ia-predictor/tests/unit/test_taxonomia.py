@@ -46,6 +46,22 @@ from training_scripts.preprocessing.taxonomy.categorias import map_categoria_neg
     ("ESTACA DE MADEIRA", "Produtos de jardim"),
     ("MANTA BIDIM METRO", "Produtos de jardim"),
     ("SUBSTRATO P/SUCULENTA 10L (BIOPLANT)", "Produtos de jardim"),
+    # classificação SKU a SKU de 2026-11-04: não vivos que casavam uma regra de planta
+    ("CUIA PLAST.PRETO CBB-25", "Produtos de jardim"),
+    ("KIT CUIA NUTRICOCO GDE", "Produtos de jardim"),
+    ("POTE ORQUIDEA N 15 MD", "Produtos de jardim"),
+    ("PREPARO PARA ORQUIDEAS 1KG (NUTRIPLAN)", "Produtos de jardim"),
+    ("FORTH HORTALICA 400GR", "Produtos de jardim"),
+    ("SEMENTE QUIABO SANTA CRUZ LINHA BOX", "Produtos de jardim"),
+    ("BANDEJA 01 CELULA 21X35", "Produtos de jardim"),
+    ("JARRAO DE AGUA FILTRO DE BARRO M MD", "Produtos de jardim"),
+    ("ROUNDUP 1L ( RANDAP)", "Produtos de jardim"),
+    ("GRAMA AMENDOIM BANDEJA", "Grama"),
+    # e o que passou a Grama
+    ("GRAMA PRETA PELO DE URSO BDJA (UNID)", "Grama"),
+    ("CAPIM DOS TEXAS ROXO", "Grama"),
+    ("SEMENTE BRACHIARIA 1KG", "Grama"),
+    ("SUCULENTA ( ROSA DE PEDRA ) CUIA", "Plantas diversas"),
 ])
 def test_categoria_pelo_nome(nome, categoria):
     assert map_categoria_negocio("", nome) == categoria

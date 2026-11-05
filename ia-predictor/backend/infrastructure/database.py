@@ -134,7 +134,9 @@ class ProcessingLog(Base):
 
     `kind = "reclassification"` não é planilha: registra a reclassificação das encomendas
     grandes da base inteira (`scripts/reclassificar_encomendas.py`, ADR-018), com os limiares
-    de cada loja em `quality.limiar_encomenda_un`. Fica fora da lista de arquivos das telas.
+    de cada loja em `quality.limiar_encomenda_un`, ou a das categorias do catálogo
+    (`scripts/reclassificar_produtos.py`), com cada produto em `quality.produtos_reclassificados`.
+    Fica fora da lista de arquivos das telas.
     """
 
     __tablename__ = "processing_log"

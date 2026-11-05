@@ -174,6 +174,11 @@ python -m backend.scripts.treinar_previsoes --workers 8
 # sem apagar nada; sem --aplicar só mostra o que mudaria. Rodado no Neon em 31/10/2026
 python -m backend.scripts.reclassificar_encomendas [--aplicar]
 
+# Reaplicar as regras de categoria (taxonomy/categorias.py) ao catálogo do banco: a planilha
+# só classifica produto novo. Sem --aplicar só mostra o que mudaria; depois, conferir as
+# encomendas com reclassificar_encomendas (produto que entra/sai de Serviço e taxa)
+python -m backend.scripts.reclassificar_produtos [--aplicar]
+
 # Preencher o histórico da previsão de um banco antigo a partir do último treino
 python -m backend.scripts.semear_historico [--recriar]
 
@@ -245,7 +250,7 @@ diagrama em `docs/database/modelo_dados.drawio`, gerado por `docs/database/gerar
 | `products` | Catálogo: código, nome mais recente, categoria, subcategoria (`categoria_fina`) |
 | `sales` | Uma linha de produto por nota, só com os campos da planilha que o sistema usa (sem cliente, vendedor, operador); `is_bulk_order` = encomenda grande: pedido acima de média + 4 desvios-padrão da quantidade de todos os pedidos da loja (ADR-018); cada planilha recalcula o limiar da loja e classifica só as linhas que insere (a base gravada não é remarcada); o limiar de cada carga fica em `processing_log.quality.limiar_encomenda_un`. Índice da deduplicação entre planilhas |
 | `calendar_days` | Calendário por loja (loja fechada, abertura excepcional, feriado, data comemorativa); precisa cobrir os 14 dias seguintes à última venda (dia que faltar usa o padrão: fechada só no domingo) |
-| `processing_log` | Cada planilha gravada (nome, SHA-256, linhas lidas/novas/duplicadas, qualidade); em `quality`, o período da planilha e os dias de loja aberta que ficaram sem venda, avisados na conferência antes de gravar; `forecast_job_id`, o primeiro treino que a usou. A planilha não é guardada. `kind = "reclassification"`: a reclassificação das encomendas grandes da base (`reclassificar_encomendas`), com os limiares de cada loja — fora da lista de arquivos |
+| `processing_log` | Cada planilha gravada (nome, SHA-256, linhas lidas/novas/duplicadas, qualidade); em `quality`, o período da planilha e os dias de loja aberta que ficaram sem venda, avisados na conferência antes de gravar; `forecast_job_id`, o primeiro treino que a usou. A planilha não é guardada. `kind = "reclassification"`: a reclassificação das encomendas grandes da base (`reclassificar_encomendas`), com os limiares de cada loja, ou das categorias do catálogo (`reclassificar_produtos`), com cada produto que mudou — fora da lista de arquivos |
 | `forecast_jobs` | Cada treino da previsão (botão "Treinar previsões" ou script): status, andamento (série atual, %), impressão digital dos dados (`skipped` se não mudaram desde o último `done`), `data_until`, configuração com a versão do código, contagens por status. As telas leem o último `done` |
 | `forecast_job_logs` | Log do treino, uma linha por série (ordem, AIC, métricas, resíduos, status ou motivo da recusa) e as do treino (planilhas novas, histórico gravado, limpeza do walk-forward) |
 | `series_models` | Cada série (4 categorias + cada produto de grama, por loja): status, ordem, AIC, MASE, cobertura, métricas do walk-forward e diagnóstico dos resíduos (`metrics`), coeficientes do ajuste final (`params`); `insufficient_data`/`error` com o motivo |
@@ -271,7 +276,7 @@ e `backend/domain/models/trainer.py`.
 
 | Decisão | Valor | Motivo |
 | --- | --- | --- |
-| Séries | em cada loja, as 4 categorias e cada produto de grama (com ≥ 180 dias antes da 1ª origem; produto, venda em ≥ 28 dias da última janela). Até 28/02/2026: 9 produtos de grama → 25 séries (8 categorias + 17 grama × loja), 17 com previsão (8 + 9) — lista no doc 07 §2 | categoria direta vence a desagregação em 7 de 8 pares (ADR-016); a loja compra grama produto a produto. Total da loja = soma das categorias (faixa conservadora). Outras categorias não têm previsão por produto |
+| Séries | em cada loja, as 4 categorias e cada produto de grama (com ≥ 180 dias antes da 1ª origem; produto, venda em ≥ 28 dias da última janela). Até 28/02/2026, com a classificação SKU a SKU de 04/11/2026 (grama preta, capim dos Texas e semente de braquiária em Grama): 19 produtos de grama → 43 séries (8 categorias + 35 grama × loja), 23 com previsão (8 + 15: 9 `trained`, 14 `low_confidence` — as 6 novas, de capim dos Texas e grama preta, todas `low_confidence`); antes, 9 produtos → 25 séries, 17 com previsão (9 + 8) — lista e resultado no doc 07 §2 | categoria direta vence a desagregação em 7 de 8 pares (ADR-016); a loja compra grama produto a produto. Total da loja = soma das categorias (faixa conservadora). Outras categorias não têm previsão por produto |
 | Alvo | fluxo diário: sem as encomendas grandes — pedido acima de média + 4 desvios-padrão da quantidade de todos os pedidos da loja, hoje 1.343 un. em Jardim Canadá e 1.960 em Itabirito (ADR-018; antes, 2.000 fixo, ADR-013) —, sem `Servico e taxa` | no treino de produção (17 séries, ADR-018 §4.1), 4 desvios erra menos que o 2.000 fixo em 5 séries de Jardim Canadá, mais em 2 e igual em 10, com 9 séries `trained` contra 8; 3 desvios derruba 3 séries para `low_confidence` (IC < 90% ou MASE > 1) |
 | Modelo | SARIMAX m = 7, **d = 0**, D = 0, com constante; ordem por AIC (p, q ∈ 0..2; P, Q ∈ 0..1) só com a janela antes da 1ª origem | as 12 séries rejeitam raiz unitária no ADF e `d = 1` sobrediferencia (lag 1 da diferença −0,42 a −0,53); custo medido: `d = 1` erra 1–7% menos na família Grama |
 | Exógenas | 6 dummies de dia da semana, `loja_fechada`, `abertura_excepcional` (calendário de cada loja) | as do L1 (docs 03 e 04) |

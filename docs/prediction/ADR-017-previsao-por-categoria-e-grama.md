@@ -102,11 +102,16 @@ carga não agenda treino: responde `needs_training` quando há venda nova.
   reports). Num banco antigo, essas tabelas continuam lá, sem uso.
 - **Treino mais longo por série, menos séries.** Cada série tem 36 ajustes na grade, 56 no
   walk-forward, 13 no complemento e 1 no ajuste final. A ~2,3 s por ajuste (medida do
-  ADR-016), cada série leva uns 4 minutos. Com dados até 28/02/2026, a base tem 9
-  produtos de grama, e o treino monta 25 séries: 8 de categoria (4 por loja) e 17 de
-  produto de grama (9 em Jardim Canadá e 8 em Itabirito). Dessas, 17 têm previsão: as 8 de
-  categoria e 9 de grama (5 em Jardim Canadá e 4 em Itabirito). As outras 8 de grama ficam
-  `insufficient_data` (venda em menos de 28 dias). A lista está no doc 07 §2. Com `TRAINING_WORKERS`
+  ADR-016), cada série leva uns 4 minutos. Com dados até 28/02/2026, a base tinha 9
+  produtos de grama, e o treino montava 25 séries: 8 de categoria (4 por loja) e 17 de
+  produto de grama (9 em Jardim Canadá e 8 em Itabirito). Dessas, 17 tinham previsão: as 8 de
+  categoria e 9 de grama (5 em Jardim Canadá e 4 em Itabirito). As outras 8 de grama ficavam
+  `insufficient_data` (venda em menos de 28 dias). Com a classificação SKU a SKU de
+  04/11/2026, que pôs a grama preta, o capim dos Texas e a semente de braquiária em Grama,
+  são 19 produtos e 43 séries (8 de categoria e 35 de produto), 23 com previsão (8 de
+  categoria e 15 de grama: 11 em Jardim Canadá e 4 em Itabirito). No treino de 05/11/2026,
+  9 ficaram `trained` e 14 `low_confidence` (antes, 9 e 8); as 6 séries novas, de capim dos
+  Texas e grama preta, ficaram todas `low_confidence`. A lista e o resultado estão no doc 07 §2. Com `TRAINING_WORKERS`
   processos, o treino cai na mesma proporção.
 - **Rastreabilidade:**
   - `forecast_jobs` guarda o disparo, a configuração e a versão do código;

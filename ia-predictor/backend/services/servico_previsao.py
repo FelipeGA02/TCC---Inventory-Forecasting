@@ -90,6 +90,7 @@ from pathlib import Path
 
 import pandas as pd
 from sqlalchemy import case, delete, func, insert, select, update
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from backend.config import settings
@@ -139,6 +140,10 @@ _EM_CURSO = ("pending", "running")
 _BATIMENTO_S = 30
 _SEM_SINAL_APOS = timedelta(minutes=3)
 _INTERVALO_PROGRESSO_S = 2.0              # no modo sequencial, grava o andamento no máximo a cada 2 s
+# Esperas entre as tentativas de gravar no banco durante o treino (~1 min no total): o treino
+# leva mais de uma hora, e uma queda curta da conexão (DNS, rede) com o Postgres remoto
+# derrubava o treino inteiro. Fica abaixo de `_SEM_SINAL_APOS`.
+_ESPERAS_RETENTATIVA_S = (2, 5, 10, 15, 30)
 
 # Um treino por vez neste processo. Adquirida no disparo e liberada ao fim de `_executar`.
 _TRAVA = threading.Lock()
@@ -360,6 +365,20 @@ class _Serie:
     com_fator: bool = False         # fator das datas comemorativas (ADR-019)
 
 
+def _com_retentativa(gravar, *args, **kwargs):
+    """Roda `gravar` (uma sessão própria, do início ao commit) e tenta de novo se a conexão com
+    o banco cair (`OperationalError`), esperando `_ESPERAS_RETENTATIVA_S`. Na falha, a sessão
+    desfaz tudo, então repetir não duplica nada."""
+    for espera in (*_ESPERAS_RETENTATIVA_S, None):
+        try:
+            return gravar(*args, **kwargs)
+        except OperationalError:
+            if espera is None:
+                raise
+            log.warning("serviço de previsão: banco fora do ar; nova tentativa em %s s", espera, exc_info=True)
+            time.sleep(espera)
+
+
 def _registrar(job_id: int, mensagem: str, nivel: str = "info", serie: str | None = None,
                db: Session | None = None) -> None:
     getattr(log, {"info": "info", "warning": "warning", "error": "error"}[nivel])(
@@ -368,12 +387,19 @@ def _registrar(job_id: int, mensagem: str, nivel: str = "info", serie: str | Non
     if db is not None:
         db.add(linha)
         return
-    with SessionLocal() as s:
-        s.add(linha)
-        s.commit()
+
+    def gravar() -> None:
+        with SessionLocal() as s:
+            s.add(ForecastJobLog(job_id=job_id, level=nivel, series_key=serie, message=mensagem[:2000]))
+            s.commit()
+    _com_retentativa(gravar)
 
 
 def _atualizar_job(job_id: int, **campos) -> None:
+    _com_retentativa(_atualizar_job_uma_vez, job_id, **campos)
+
+
+def _atualizar_job_uma_vez(job_id: int, **campos) -> None:
     with SessionLocal() as db:
         job = db.get(ForecastJob, job_id)
         for k, v in campos.items():
@@ -524,6 +550,11 @@ def _gravar_serie(job_id: int, s: _Serie, r: ResultadoSerie, cfg: ConfigTreino, 
     nivel_log, texto = _texto_resultado(r)
     if r.status != evaluator.STATUS_DADOS_INSUFICIENTES:
         texto += _texto_encomendas(s.encomendas, s.rotulo.split(" · ")[0]) + _texto_ajustes(r.ajustes)
+    _com_retentativa(_gravar_resultado, job_id, s, r, cfg, contadores, total, texto, nivel_log)
+
+
+def _gravar_resultado(job_id: int, s: _Serie, r: ResultadoSerie, cfg: ConfigTreino, contadores: dict,
+                      total: int, texto: str, nivel_log: str) -> None:
     with SessionLocal() as db:
         modelo = SeriesModel(
             job_id=job_id, unit_id=s.unit_id, level=s.nivel, category_id=s.category_id,
@@ -673,8 +704,8 @@ def _executar(job_id: int, cfg: ConfigTreino) -> None:
         if falhas:
             partes.append(f"{falhas} com falha")
         mensagem = "Treino concluído: " + "; ".join(partes) + "."
-        _concluir(job_id, mensagem, data_until + timedelta(days=1), {s.unit_id for s in series}, historico,
-                  ultima_planilha)
+        _com_retentativa(_concluir, job_id, mensagem, data_until + timedelta(days=1), {s.unit_id for s in series},
+                         historico, ultima_planilha)
     except Exception as erro:  # noqa: BLE001 — o erro vai para o disparo e para o log
         log.exception("serviço de previsão: treino %s falhou", job_id)
         mensagem = f"O treino falhou: {type(erro).__name__}: {erro}"[:500]

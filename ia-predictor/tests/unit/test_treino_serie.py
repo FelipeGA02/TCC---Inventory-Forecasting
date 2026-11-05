@@ -216,3 +216,29 @@ def test_dominio_nao_importa_framework_nem_banco():
                      else [no.module or ""] if isinstance(no, ast.ImportFrom) else [])
             for nome in nomes:
                 assert nome.split(".")[0] not in proibidos, f"{arquivo.name} importa {nome}"
+
+
+def test_gravacao_do_treino_tenta_de_novo_quando_o_banco_cai(monkeypatch):
+    """Queda curta da conexão (DNS) não derruba o treino: a gravação espera e repete."""
+    from sqlalchemy.exc import OperationalError
+
+    from backend.services import servico_previsao
+
+    monkeypatch.setattr(servico_previsao.time, "sleep", lambda _s: None)
+    chamadas = []
+
+    def grava():
+        chamadas.append(1)
+        if len(chamadas) < 3:
+            raise OperationalError("SELECT 1", {}, Exception("failed to resolve host"))
+        return "ok"
+
+    assert servico_previsao._com_retentativa(grava) == "ok"
+    assert len(chamadas) == 3
+
+    # fora do ar além das tentativas: o erro sobe e o treino fica `error`
+    chamadas.clear()
+    monkeypatch.setattr(servico_previsao, "_ESPERAS_RETENTATIVA_S", (1,))
+    with pytest.raises(OperationalError):
+        servico_previsao._com_retentativa(grava)
+    assert len(chamadas) == 2

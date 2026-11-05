@@ -98,7 +98,8 @@ Com a base até 28/02/2026, a regra pega:
     São Carlos 0,20;
   - Itabirito: Grama 0,35, Esmeralda (ITO) 0,31, São Carlos 0,21.
 
-Todas, menos a São Carlos de Itabirito, passaram pelo teste.
+Todas passaram pelo teste (a São Carlos de Itabirito no doc 08 §9.4). A queda de Flores de
+corte em Itabirito depois do Réveillon (2 a 8/01) ficou fora: só 1 ocorrência caiu (§9.4).
 
 Multiplicadores de 2026, com as ocorrências de 2024 e 2025 (base até 28/02/2026). A previsão
 que sai dessa base, de 01 a 14/03/2026, já pega o Dia da Mulher:

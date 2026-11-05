@@ -84,6 +84,7 @@ SEM_FATOR = {("itabirito:category:Flores de corte", "Finados")}
 # ano e nos feriados prolongados de abril e maio, nas séries em que `eda_eventos.py` viu a
 # queda. Tiradentes de 2025 (segunda depois da Páscoa) fica fora: a semana dele é a da Páscoa.
 ANO_NOVO = "Ano Novo"  # a semana antes do 1º de janeiro (feriado "Confraternização mundial")
+POS_REVEILLON = "Pós-Réveillon"  # de 2 a 8/01: a janela da data em 08/01 (doc 08 §9.4)
 CASOS_FERIADOS = {
     "jardim-canada:category:Flores de corte": [ANO_NOVO],
     "itabirito:category:Flores de corte": [ANO_NOVO],
@@ -105,6 +106,11 @@ CASOS_REDUCAO = {
     "jardim-canada:product:3": [ANO_NOVO],    # GRAMA ESMERALDA
     "jardim-canada:product:710": [ANO_NOVO],  # GRAMA SAO CARLOS
     "jardim-canada:category:Grama": [ANO_NOVO],
+    # doc 08 §9.4: as que ficaram de fora — a São Carlos de Itabirito, que a regra da queda
+    # pega sem teste, e a queda de Flores de corte depois do Réveillon (Jardim Canadá, controle)
+    "itabirito:product:710": [ANO_NOVO],      # GRAMA SAO CARLOS
+    "itabirito:category:Flores de corte": [POS_REVEILLON],
+    "jardim-canada:category:Flores de corte": [POS_REVEILLON],
 }
 # grupo → (casos, sem fator, pasta de saída, base longe também dos feriados)
 GRUPOS = {
@@ -130,6 +136,8 @@ def calendario(unidade: str) -> pd.DataFrame:
 
 def datas_do_evento(cal: pd.DataFrame, evento: str, ate: pd.Timestamp) -> list[pd.Timestamp]:
     """Datas de uma data comemorativa ou de um feriado do calendário (`ANO_NOVO` = 1º/01)."""
+    if evento == POS_REVEILLON:
+        return [d + pd.Timedelta(days=7) for d in datas_do_evento(cal, ANO_NOVO, ate - pd.Timedelta(days=7))]
     if evento == ANO_NOVO:
         marca = cal["nome_feriado"] == "Confraternização mundial"
     else:

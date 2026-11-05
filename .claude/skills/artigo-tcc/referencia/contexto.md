@@ -1,5 +1,31 @@
 # Contexto do artigo e fatos consolidados
 
+## Estado em 05/11/2026 (vale sobre as seções antigas abaixo)
+
+- **DOCX vigente:** `docs/project/TCC2 - Relatorio Tecnico - v4.docx` (v4, 05/11/2026: sem a classificação confiável/cautela, 4.7 integrada à arquitetura; scripts em `exemplos/revisao_2026-11-05_v4/`). A v3 foi montada a partir do DOCX **nativo** da v2
+  (`Downloads/TCC2 - Relatorio Tecnico - v2 (comentarios atendidos).docx`). A cópia de mesmo nome em `docs/project/`
+  é uma conversão de PDF para Word: não use como base.
+- **Estrutura do DOCX nativo** (diferente da antiga convertida): Times New Roman 12, entrelinha 1,5; corpo com
+  `ind firstLine=709` e sem parágrafos vazios entre parágrafos; títulos `Ttulo1`/`Ttulo2` com o número digitado
+  ("5.6 Delineamento experimental") e `pageBreakBefore` no `Ttulo1`; listas "a)" com tab 1077 e recuo pendente 369;
+  sumário e listas de figuras/quadros/tabelas **estáticos** (números digitados); "Quadro" = grade sz 4, "Tabela" =
+  aberta (topo 12, cabeçalho 8, fim 12); referências com título em **negrito**; a numeração do texto começa pelo
+  `pgNumType start` da última seção (= índice 0-based da folha da introdução no PDF; hoje 10). Os scripts antigos
+  (`docx_lib.py`, `check_article.py`) foram escritos para a versão convertida; para a v3 use
+  `exemplos/revisao_2026-11-05/` (`docbuild.py` gera cada tipo de parágrafo; `build_article.py` monta tudo;
+  `extract_pages.py` lê as páginas do PDF do Word; repetir até a paginação estabilizar).
+- **Solução descrita:** ADR-017 (SARIMAX por categoria e por produto de grama, por loja; d = 0; escala original;
+  janela de 365 dias; 56 origens; treino sob demanda; histórico congelado; conferência da planilha). Sem alertas, sem
+  simulação, sem agendador, sem quantidade de referência (só trabalhos futuros).
+- **Experimentos E0 a E10:** Quadro 2 e Seção 8.2; quadro de rastreabilidade em
+  `docs/project/TCC2 - Relatorio Tecnico - v3 - quadro de rastreabilidade dos experimentos.md`. E10 vem do treino do
+  sistema reproduzido em SQLite local (código `c8b0b55`, dados até 28/02/2026).
+- **Figuras:** 1 a 6 de `diagramas/*.dot` (Graphviz); 7 a 13 capturadas do sistema real (API + Vite sobre SQLite local,
+  Chrome DevTools, 1600 × 720). Telas com **dados reais** da parceira: autorização pendente.
+- **Pendências:** ver `docs/project/TCC2 - Relatorio Tecnico - v3 - relatorio de alteracoes.md` §7 e §8.
+
+---
+
 Estado em 30/09/2026, quando o artigo foi consolidado. Antes de reutilizar qualquer número,
 confira a fonte indicada: se o repositório evoluiu (novo treino, novo ADR), a fonte manda.
 

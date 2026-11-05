@@ -1,18 +1,33 @@
 digraph ER {
-  rankdir=LR; nodesep=0.45; ranksep=1.0; pad=0.2;
-  node [shape=plaintext, fontname="Arial", fontsize=12];
-  edge [color="#555555", fontname="Arial", fontsize=10, arrowhead=crow, penwidth=1.0];
-  usuario [label=<<TABLE BORDER="1" CELLBORDER="1" CELLSPACING="0" CELLPADDING="5" BGCOLOR="#eaf7ea" COLOR="#75af77"><TR><TD>USUARIO</TD><TD ALIGN="LEFT" BALIGN="LEFT">PK id_usuario<BR/> email<BR/> nome<BR/> senha_hash<BR/> perfil</TD></TR></TABLE>>];
-  log [label=<<TABLE BORDER="1" CELLBORDER="1" CELLSPACING="0" CELLPADDING="5" BGCOLOR="#fff6dd" COLOR="#d6b655"><TR><TD>LOG_PROCESSAMENTO</TD><TD ALIGN="LEFT" BALIGN="LEFT">PK id_log<BR/> arquivo<BR/> hash<BR/> linhas_adicionadas<BR/> linhas_duplicadas<BR/> data</TD></TR></TABLE>>];
-  hist [label=<<TABLE BORDER="1" CELLBORDER="1" CELLSPACING="0" CELLPADDING="5" BGCOLOR="#fff6dd" COLOR="#d6b655"><TR><TD>HISTORICO_RETREINO</TD><TD ALIGN="LEFT" BALIGN="LEFT">PK id_retreino<BR/> gatilho<BR/> inicio<BR/> fim<BR/> modelos_ajustados<BR/> status</TD></TR></TABLE>>];
-  cat [label=<<TABLE BORDER="1" CELLBORDER="1" CELLSPACING="0" CELLPADDING="5" BGCOLOR="#eaf7ea" COLOR="#75af77"><TR><TD>CATEGORIA</TD><TD ALIGN="LEFT" BALIGN="LEFT">PK id_categoria<BR/> unidade<BR/> nome<BR/> participacao<BR/> mase</TD></TR></TABLE>>];
-  prod [label=<<TABLE BORDER="1" CELLBORDER="1" CELLSPACING="0" CELLPADDING="5" BGCOLOR="#f4f8fd" COLOR="#81acd3"><TR><TD>PRODUTO</TD><TD ALIGN="LEFT" BALIGN="LEFT">PK produto_cod<BR/>FK id_categoria<BR/> descricao<BR/> grupo<BR/> total_vendido</TD></TR></TABLE>>];
-  modelo [label=<<TABLE BORDER="1" CELLBORDER="1" CELLSPACING="0" CELLPADDING="5" BGCOLOR="#fbeee8" COLOR="#c98a6a"><TR><TD>MODELO</TD><TD ALIGN="LEFT" BALIGN="LEFT">PK id_modelo<BR/> unidade<BR/> ordem<BR/> ordem_sazonal<BR/> mase<BR/> cobertura_ic<BR/> status<BR/> data_treino</TD></TR></TABLE>>];
-  prev [label=<<TABLE BORDER="1" CELLBORDER="1" CELLSPACING="0" CELLPADDING="5" BGCOLOR="#fbeee8" COLOR="#c98a6a"><TR><TD>PREVISAO</TD><TD ALIGN="LEFT" BALIGN="LEFT">PK id_previsao<BR/>FK id_modelo<BR/>FK produto_cod<BR/> data<BR/> valor_previsto<BR/> limite_inferior<BR/> limite_superior</TD></TR></TABLE>>];
-  cat -> prod [label="1:N"];
-  prod -> prev [label="1:N"];
-  modelo -> prev [label="1:N"];
-  usuario -> log -> hist [style=invis];
-  {rank=same; usuario; cat; modelo;}
-  {rank=same; log; prod;}
+  rankdir=LR; nodesep=0.3; ranksep=0.8; pad=0.2;
+  node [shape=plaintext, fontname="Arial", fontsize=11];
+  edge [color="#555555", fontname="Arial", fontsize=9, arrowhead=crow, penwidth=1.0];
+  users [label=<<TABLE BORDER="1" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#eaf7ea" COLOR="#75af77"><TR><TD>users</TD><TD ALIGN="LEFT" BALIGN="LEFT">PK id<BR/> email<BR/> name<BR/> hashed_password<BR/> role</TD></TR></TABLE>>];
+  revoked [label=<<TABLE BORDER="1" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#eaf7ea" COLOR="#75af77"><TR><TD>revoked_tokens</TD><TD ALIGN="LEFT" BALIGN="LEFT">PK jti<BR/>FK user_id<BR/> expires_at</TD></TR></TABLE>>];
+  units [label=<<TABLE BORDER="1" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#f4f8fd" COLOR="#81acd3"><TR><TD>units</TD><TD ALIGN="LEFT" BALIGN="LEFT">PK id<BR/> name<BR/> city</TD></TR></TABLE>>];
+  categories [label=<<TABLE BORDER="1" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#f4f8fd" COLOR="#81acd3"><TR><TD>categories</TD><TD ALIGN="LEFT" BALIGN="LEFT">PK id<BR/> name<BR/> show_on_dashboard</TD></TR></TABLE>>];
+  products [label=<<TABLE BORDER="1" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#f4f8fd" COLOR="#81acd3"><TR><TD>products</TD><TD ALIGN="LEFT" BALIGN="LEFT">PK code<BR/>FK category_id<BR/> name<BR/> subcategory<BR/> total_sold</TD></TR></TABLE>>];
+  calendar [label=<<TABLE BORDER="1" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#f4f8fd" COLOR="#81acd3"><TR><TD>calendar_days</TD><TD ALIGN="LEFT" BALIGN="LEFT">PK,FK unit_id<BR/>PK day<BR/> store_closed<BR/> exceptional_opening<BR/> holiday_name</TD></TR></TABLE>>];
+  plog [label=<<TABLE BORDER="1" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#fff6dd" COLOR="#d6b655"><TR><TD>processing_log</TD><TD ALIGN="LEFT" BALIGN="LEFT">PK id<BR/>FK user_id<BR/>FK forecast_job_id<BR/> filename<BR/> file_sha256<BR/> rows_added<BR/> rows_duplicate<BR/> quality</TD></TR></TABLE>>];
+  sales [label=<<TABLE BORDER="1" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#fff6dd" COLOR="#d6b655"><TR><TD>sales</TD><TD ALIGN="LEFT" BALIGN="LEFT">PK id<BR/>FK unit_id<BR/>FK product_code<BR/>FK import_id<BR/> sale_date<BR/> document_number<BR/> quantity<BR/> net_amount<BR/> is_bulk_order</TD></TR></TABLE>>];
+  jobs [label=<<TABLE BORDER="1" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#fbeee8" COLOR="#c98a6a"><TR><TD>forecast_jobs</TD><TD ALIGN="LEFT" BALIGN="LEFT">PK id<BR/>FK user_id<BR/> trigger<BR/> status<BR/> data_fingerprint<BR/> data_until<BR/> config</TD></TR></TABLE>>];
+  jlogs [label=<<TABLE BORDER="1" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#fbeee8" COLOR="#c98a6a"><TR><TD>forecast_job_logs</TD><TD ALIGN="LEFT" BALIGN="LEFT">PK id<BR/>FK job_id<BR/> series_key<BR/> message</TD></TR></TABLE>>];
+  models [label=<<TABLE BORDER="1" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#fbeee8" COLOR="#c98a6a"><TR><TD>series_models</TD><TD ALIGN="LEFT" BALIGN="LEFT">PK id<BR/>FK job_id<BR/>FK unit_id<BR/>FK category_id<BR/>FK product_code<BR/> status<BR/> sarimax_order<BR/> aic<BR/> mase<BR/> ci95_coverage_pct<BR/> metrics<BR/> params</TD></TR></TABLE>>];
+  fcst [label=<<TABLE BORDER="1" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#fbeee8" COLOR="#c98a6a"><TR><TD>series_forecasts</TD><TD ALIGN="LEFT" BALIGN="LEFT">PK id<BR/>FK model_id<BR/> forecast_date<BR/> predicted<BR/> lower_95<BR/> upper_95</TD></TR></TABLE>>];
+  bt [label=<<TABLE BORDER="1" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#fbeee8" COLOR="#c98a6a"><TR><TD>series_backtest_points</TD><TD ALIGN="LEFT" BALIGN="LEFT">PK id<BR/>FK model_id<BR/> origin_date<BR/> day<BR/> horizon<BR/> predicted</TD></TR></TABLE>>];
+  hist [label=<<TABLE BORDER="1" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#fbeee8" COLOR="#c98a6a"><TR><TD>forecast_history</TD><TD ALIGN="LEFT" BALIGN="LEFT">PK id<BR/>FK unit_id<BR/>FK job_id<BR/> level<BR/> item<BR/> day<BR/> predicted<BR/> source<BR/> store_closed</TD></TR></TABLE>>];
+  users -> revoked [label="1:N"];
+  users -> plog [label="1:N"];
+  users -> jobs [label="1:N"];
+  categories -> products [label="1:N"];
+  units -> calendar [label="1:N"];
+  units -> sales [label="1:N"];
+  products -> sales [label="1:N"];
+  plog -> sales [label="1:N"];
+  jobs -> plog [label="1:N"];
+  jobs -> jlogs [label="1:N"];
+  jobs -> models [label="1:N"];
+  jobs -> hist [label="1:N"];
+  models -> fcst [label="1:N"];
+  models -> bt [label="1:N"];
 }

@@ -13,6 +13,7 @@
  * Este módulo oferece os seletores para os filtros de loja e categoria.
  */
 import type {
+  AjusteData,
   BaseReal,
   Categoria,
   CategoriaId,
@@ -28,7 +29,7 @@ import type {
   UnidadeDados,
   UnidadeId,
 } from "@/domain/types";
-import { formatarNumero } from "@/lib/format";
+import { formatarDecimal, formatarDiaMes, formatarNumero } from "@/lib/format";
 
 export let contexto: Contexto;
 export let lojas: Contexto["lojas"];
@@ -101,6 +102,34 @@ function somaCategorias<T>(itens: T[], pegar: (item: T, c: CategoriaId) => numbe
 // ---------------------------------------------------------------------------
 // Previsão e histórico (loja → categoria)
 // ---------------------------------------------------------------------------
+
+/** Ajuste de data comemorativa com a loja a que pertence. */
+export type AjusteDaLoja = AjusteData & { unidade: UnidadeId; nomeUnidade: string };
+
+/** As datas comemorativas que mudaram a previsão dos 14 dias nas lojas do filtro (ADR-019). */
+export function ajustesDe(filtro: FiltroUnidade): AjusteDaLoja[] {
+  return unidadesDoFiltro(filtro)
+    .flatMap((u) => (u.ajustes_datas ?? []).map((a) => ({ ...a, unidade: u.id, nomeUnidade: u.nome })))
+    .sort((a, b) => a.data.localeCompare(b.data) || a.nivel.localeCompare(b.nivel));
+}
+
+/** Nome da série de um ajuste: a categoria ou o produto de grama. */
+export function nomeDoAjuste(a: AjusteData): string {
+  return a.nivel === "categoria" ? nomeCategoria(a.item as CategoriaId) : (a.nome ?? a.item);
+}
+
+/**
+ * Frase do ajuste para a tela, sem jargão: "previsão de 26/12 a 31/12 reduzida a 35% pelo
+ * Ano Novo — nessa semana, em 2025 e 2026, a loja vendeu 35% de uma semana comum".
+ */
+export function textoAjuste(a: AjusteData): string {
+  const dias = a.dias.length ? `de ${formatarDiaMes(a.dias[0]!)} a ${formatarDiaMes(a.dias[a.dias.length - 1]!)}` : "";
+  const anos = a.anos.join(" e ");
+  if (a.multiplicador < 1) {
+    return `previsão ${dias} reduzida a ${Math.round(a.multiplicador * 100)}% pelo ${a.evento} — nessa semana, em ${anos}, a loja vendeu ${Math.round(a.fator * 100)}% de uma semana comum`;
+  }
+  return `previsão ${dias} multiplicada por ${formatarDecimal(a.multiplicador)} pelo ${a.evento} — nessa semana, em ${anos}, a loja vendeu ${formatarDecimal(a.fator, 1)} vezes uma semana comum`;
+}
 
 /**
  * Previsão diária do filtro de loja. Em "Todas", soma as lojas dia a dia — inclusive os

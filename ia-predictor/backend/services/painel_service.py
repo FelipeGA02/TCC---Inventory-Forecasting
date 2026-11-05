@@ -85,6 +85,11 @@ def _modelo(m: SeriesModel) -> dict:
             "metricas": montagem.metricas_da_tela(m.metrics), "mensagem": m.message}
 
 
+def _ajustes(m: SeriesModel) -> list[dict]:
+    """As datas comemorativas da previsão da série (ADR-019; `series_models.params`)."""
+    return list((m.params or {}).get("ajustes_datas") or [])
+
+
 def _previsores(db: Session, job: ForecastJob) -> dict:
     """Previsores do treino no formato que `domain.painel` espera: categorias (com o 1º
     dia de cada janela do walk-forward) e produtos de grama, por loja."""
@@ -94,7 +99,7 @@ def _previsores(db: Session, job: ForecastJob) -> dict:
     for p in db.scalars(select(SeriesForecast).where(SeriesForecast.model_id.in_(ids))
                         .order_by(SeriesForecast.model_id, SeriesForecast.forecast_date)):
         previsao[p.model_id].append({"data": str(p.forecast_date), "previsto": p.predicted,
-                                     "inf": p.lower_95, "sup": p.upper_95})
+                                     "inf": p.lower_95, "sup": p.upper_95, "fator": p.event_factor})
     categorias = [m.id for m in modelos if m.level == "category"]
     for p in db.scalars(select(SeriesBacktestPoint).where(SeriesBacktestPoint.model_id.in_(categorias),
                                                           SeriesBacktestPoint.horizon == 1)
@@ -106,9 +111,10 @@ def _previsores(db: Session, job: ForecastJob) -> dict:
         u = out.setdefault(m.unit_id, {"categorias": {}, "produtos": {}})
         if m.level == "category":
             u["categorias"][m.category_id] = {"modelo": _modelo(m), "previsao": previsao[m.id],
-                                              "backtest": backtest[m.id]}
+                                              "backtest": backtest[m.id], "ajustes": _ajustes(m)}
         else:
-            u["produtos"][m.product_code] = {"modelo": _modelo(m), "previsao": previsao[m.id]}
+            u["produtos"][m.product_code] = {"modelo": _modelo(m), "previsao": previsao[m.id],
+                                             "ajustes": _ajustes(m)}
     return out
 
 
@@ -183,7 +189,8 @@ def historico(db: Session, unidade: str, nivel: str, item: str) -> list[dict]:
     real = montagem.venda_diaria(df[df["unit_id"] == unidade], coluna, item, fim)
     if real is None:
         raise ItemSemHistorico()
-    previstos = {p.day: (p.predicted, p.lower_95, p.upper_95, p.source, p.origin_date, p.store_closed)
+    previstos = {p.day: (p.predicted, p.lower_95, p.upper_95, p.source, p.origin_date, p.store_closed,
+                         p.event_factor)
                  for p in db.scalars(select(ForecastHistory).where(
                      ForecastHistory.unit_id == unidade, ForecastHistory.level == level,
                      ForecastHistory.item == item, ForecastHistory.day <= fim.date()))}

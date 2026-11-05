@@ -11,7 +11,7 @@ import { api } from "../../data/api";
 import { mensagemDoErro } from "@/lib/http/errors";
 import { Segmentado, StatusBadge } from "../shared";
 import { eixo, estiloTooltip } from "@/styles/tokens";
-import { formatarData, formatarDiaMes, formatarMesAno, formatarNumero, formatarQtd } from "@/lib/format";
+import { formatarData, formatarDecimal, formatarDiaMes, formatarMesAno, formatarNumero, formatarQtd } from "@/lib/format";
 
 /**
  * Aba "Histórico de previsão": para cada categoria e cada produto de grama de cada loja (cada
@@ -102,6 +102,12 @@ function rotuloDoDia(data: string, d: DiaHistoricoPrevisao | undefined): string 
   if (d?.fonte === "forecast" && d.horizonte) partes.push(`previsto ${d.horizonte} dia${d.horizonte > 1 ? "s" : ""} antes`);
   if (d?.fonte === "walk_forward") partes.push("teste do treino, com as vendas até a véspera");
   if (d?.loja_fechada) partes.push("a previsão contava com a loja fechada");
+  if (d?.ajuste) {
+    const pelo = d.ajuste.evento ? ` pelo ${d.ajuste.evento}` : " pela data comemorativa";
+    partes.push(d.ajuste.multiplicador < 1
+      ? `previsão reduzida a ${Math.round(d.ajuste.multiplicador * 100)}%${pelo}`
+      : `previsão multiplicada por ${formatarDecimal(d.ajuste.multiplicador)}${pelo}`);
+  }
   return partes.join(" · ");
 }
 

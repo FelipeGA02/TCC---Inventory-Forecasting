@@ -20,7 +20,8 @@ def test_historico_antigo_ganha_job_id(tmp_path):
 
     completar_colunas(engine)
     completar_colunas(engine)  # idempotente
-    assert {"job_id", "store_closed"} <= {c["name"] for c in inspect(engine).get_columns("forecast_history")}
+    assert {"job_id", "store_closed", "event_factor"} <= {
+        c["name"] for c in inspect(engine).get_columns("forecast_history")}
     with engine.begin() as conn:
         conn.execute(Base.metadata.tables["forecast_history"].insert(), {
             "unit_id": "itabirito", "level": "category", "item": "grama", "day": date(2026, 3, 1),
@@ -40,3 +41,14 @@ def test_planilha_antiga_ganha_o_treino_que_a_usou(tmp_path):
     Base.metadata.create_all(engine)
     completar_colunas(engine)
     assert "forecast_job_id" in {c["name"] for c in inspect(engine).get_columns("processing_log")}
+
+
+def test_previsao_antiga_ganha_o_fator_das_datas(tmp_path):
+    engine = create_engine(f"sqlite:///{tmp_path / 'antigo.db'}")
+    with engine.begin() as conn:  # series_forecasts como era antes do ADR-019
+        conn.execute(text(
+            "CREATE TABLE series_forecasts (id INTEGER PRIMARY KEY, model_id INTEGER NOT NULL, "
+            "forecast_date DATE NOT NULL, predicted FLOAT NOT NULL, lower_95 FLOAT NOT NULL, upper_95 FLOAT NOT NULL)"))
+    Base.metadata.create_all(engine)
+    completar_colunas(engine)
+    assert "event_factor" in {c["name"] for c in inspect(engine).get_columns("series_forecasts")}

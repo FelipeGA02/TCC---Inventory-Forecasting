@@ -83,8 +83,10 @@ O produto que falha em qualquer uma vira `insufficient_data`: fica sem previsão
 vai para o log e para o painel. O que passa nas duas é treinado, e quem decide a qualidade da
 previsão é o walk-forward. A série fica `trained` se o modelo errar menos que repetir a
 semana anterior (MASE < 1) e se a faixa de 95% acertar entre 90% e 98% dos dias. Se não,
-fica `low_confidence`, e a previsão sai com aviso. Ou seja, as duas contagens dizem se o
-produto *pode* ser previsto, e o walk-forward diz se a previsão é *confiável*.
+fica `low_confidence`. Nos dois casos a previsão sai e a tela a mostra do mesmo jeito: o
+status fica no log e no serviço de previsão, e o acerto aparece nos indicadores. Ou seja, as
+duas contagens dizem se o produto *pode* ser previsto, e o walk-forward mede *quanto* a
+previsão acerta.
 
 *De onde vem o 28.* O número foi herdado do corte do rateio por produto na desagregação
 anterior: produto com menos de 28 dias de venda recebia rateio uniforme da categoria
@@ -233,7 +235,7 @@ a cada treino: com planilhas novas, um produto pode passar dos 28 dias ou cair a
      `series_models.metrics`. O log cita o problema quando p ≤ 0,05; o diagnóstico não muda
      o status.
 5. **Status.** `trained` se MASE < 1 e cobertura da faixa em [90%, 98%]. Senão
-   `low_confidence`: a previsão sai com aviso. Ajuste que falha vira `error`, e o treino
+   `low_confidence`, e a previsão sai igual, sem aviso na tela. Ajuste que falha vira `error`, e o treino
    segue com as outras séries.
 
 **Paralelismo.** Com `TRAINING_WORKERS > 1` cada série vai para um processo. Se o pool
@@ -262,6 +264,28 @@ O painel (`GET /api/v1/painel`) lê o último treino concluído:
   previsão.
 
 Loja fechada e evento do dia vêm do calendário.
+
+**Datas comemorativas (ADR-019).** Em Flores de corte, a previsão dos dias da semana do Dia
+da Mulher, do Dia das Mães, do Dia dos Namorados, do Natal e do Ano Novo é multiplicada pelo
+fator da data. Nas outras séries, a de 26 a 31/12 e a da semana do Dia do Trabalho, pela queda.
+- **Quais dias:** de 6 dias antes até a data, com a loja aberta e sem abertura excepcional (no
+  Ano Novo, de 26 a 31/12).
+- **De onde vem o fator:** é recalculado a cada treino. É quanto a semana da data vendeu a
+  mais ou a menos nas últimas 3 ocorrências.
+  - **Alta (Flores de corte):** metade do aumento, entre 1 e 3.
+  - **Queda (as outras):** a queda inteira, com piso de 0,2, só se cada ocorrência (pelo
+    menos 2) ficou em até 0,8 de uma semana comum.
+- **O que muda junto:** a faixa de 95% é multiplicada pelo mesmo número, e o total da loja
+  herda o ajuste.
+- **Onde fica:** o multiplicador fica em `series_forecasts.event_factor` e
+  `forecast_history.event_factor`, e a frase do ajuste, no log da série.
+- **Na tela:**
+  - a Previsão avisa cada série ajustada nos 14 dias (`ajustes_datas` do painel);
+  - o histórico diz, no dia, "previsão reduzida a 35% pelo Ano Novo" (`ajuste`);
+  - o relatório gerencial tem a tabela "Datas comemorativas".
+- **No walk-forward:** o fator de cada origem usa só a venda anterior a ela.
+- **Por quê:** sem o ajuste, o modelo prevê uma semana comum, menos da metade do que essas
+  semanas vendem (doc 08).
 
 A previsão não é recalculada todo dia: com o mesmo modelo e os mesmos dados ela daria os
 mesmos números. Ela muda quando a loja treina de novo com vendas novas.
@@ -365,9 +389,9 @@ calendário real, o aviso não dispara nenhuma vez.
 | `forecast_jobs` | cada disparo: status, andamento, impressão digital, `data_until`, configuração (com `versao_codigo`) | sempre |
 | `forecast_job_logs` | uma linha por série e as do treino (planilhas novas, histórico, limpeza) | sempre |
 | `series_models` | cada série: status, ordem, AIC, métricas, diagnóstico, coeficientes, motivo | sempre |
-| `series_forecasts` | os 14 dias de cada série | sempre (é a origem dos valores que o histórico trocou) |
+| `series_forecasts` | os 14 dias de cada série, com o multiplicador da data comemorativa (`event_factor`, ADR-019) | sempre (é a origem dos valores que o histórico trocou) |
 | `series_backtest_points` | todas as origens e horizontes do walk-forward | só nos últimos 4 treinos concluídos |
-| `forecast_history` | o previsto congelado de cada dia | sempre |
+| `forecast_history` | o previsto congelado de cada dia, com o `event_factor` que entrou nele | sempre |
 | `processing_log` | cada planilha: contagens, período, dias faltando, `forecast_job_id` | sempre |
 
 | Comando (a partir de `ia-predictor/`) | Para quê |
@@ -379,7 +403,8 @@ calendário real, o aviso não dispara nenhuma vez.
 | Teste | O que garante |
 | --- | --- |
 | `tests/unit/test_historico_previsao.py` | a regra do histórico: congelamento, 9 e 20 dias, 1º dia das janelas, loja fechada |
-| `tests/unit/test_treino_serie.py` | walk-forward, complemento até a última venda, métricas, diagnóstico e coeficientes |
+| `tests/unit/test_treino_serie.py` | walk-forward, complemento até a última venda, métricas, diagnóstico e coeficientes; o fator das datas só na semana da data |
+| `tests/unit/test_datas_comemorativas.py` | o fator das datas: regra de cada ano, metade do aumento, sem olhar o futuro, piso e teto, abertura excepcional, últimas ocorrências |
 | `tests/unit/test_cobertura_planilha.py` | os dias faltando: entre a base e a planilha, domingo e feriado, loja ausente, dentro da planilha |
 | `tests/integration/test_servico_previsao.py` | treino de ponta a ponta, histórico gravado, planilhas ligadas, limpeza do walk-forward, script |
 | `tests/integration/test_upload.py` | conferência sem gravar, aviso de dias faltando, gravação com o aviso no `processing_log` |

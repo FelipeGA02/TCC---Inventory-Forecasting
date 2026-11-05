@@ -291,6 +291,29 @@ def test_series_do_treino_nao_tem_encomendas(client):
         assert por_chave[chave].loc["2026-01-15"] == balcao  # ...e fica fora das duas séries
 
 
+def test_so_flores_de_corte_leva_o_fator_das_datas(client, monkeypatch):
+    """ADR-019: a alta das datas comemorativas vale só para as séries de Flores de corte, a
+    queda para as outras, e `FORECAST_SERVICE_EVENT_FACTOR=false` desliga as duas."""
+    with SessionLocal() as db:
+        job = ForecastJob(status="running", heartbeat_at=datetime.now())
+        db.add(job)
+        db.commit()
+        try:
+            series, _ = servico_previsao._montar_series(db, CONFIG_TESTE, job.id)
+            monkeypatch.setattr(settings, "FORECAST_SERVICE_EVENT_FACTOR", False)
+            desligado = servico_previsao.config_treino()
+            sem_fator, _ = servico_previsao._montar_series(db, desligado, job.id)
+        finally:
+            db.delete(job)
+            db.commit()
+    com = {s.chave for s in series if s.com_fator}
+    assert com == {f"{loja}:category:flores-de-corte" for loja in ("jardim-canada", "itabirito")}
+    # a queda (fim de ano, Dia do Trabalho) vale para as outras séries: categorias e produtos de grama
+    assert {s.chave for s in series if s.com_queda} == {s.chave for s in series} - com
+    assert desligado.fator_datas == () and not any(s.com_fator for s in sem_fator)
+    assert desligado.queda_datas == () and not any(s.com_queda for s in sem_fator)
+
+
 def test_venda_nova_ou_alterada_muda_a_impressao_digital(client, admin):
     with SessionLocal() as db:
         antes = servico_previsao.impressao_digital(db)

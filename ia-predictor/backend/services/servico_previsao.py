@@ -51,6 +51,17 @@ Do ajuste final ficam os coeficientes (`series_models.params`) e o diagnóstico 
 (Ljung-Box e Shapiro-Wilk, em `metrics`, citado no log quando p ≤ 0,05 — não muda o
 status). A configuração gravada no disparo leva a versão do código (`versao_codigo`).
 
+Datas comemorativas (ADR-019)
+-----------------------------
+Nas séries de `CATEGORIAS_COM_FATOR` (Flores de corte), a previsão dos dias da semana do Dia
+da Mulher, do Dia das Mães, do Dia dos Namorados, do Natal e do Ano Novo é multiplicada pelo
+fator da data (a alta); nas outras séries (categorias e produtos de grama), a de 26 a 31/12 e
+da semana do Dia do Trabalho, pela queda, quando a série caiu nas 2 últimas ocorrências. O
+fator é recalculado a cada treino com as vendas (`domain.models.datas_comemorativas`). O multiplicador
+de cada dia fica em `series_forecasts.event_factor` e `forecast_history.event_factor`, os
+ajustes da previsão em `series_models.params` e no log da série. Desligado com
+`FORECAST_SERVICE_EVENT_FACTOR=false`.
+
 Série que não tem dados para isso (histórico curto, produto que quase não vende) fica
 registrada como `insufficient_data`, com o motivo, sem previsão — "todos os produtos de
 grama" entram no log, mas só os que têm venda suficiente recebem modelo.
@@ -120,6 +131,7 @@ log = logging.getLogger(__name__)
 D_REGULAR = 0          # séries estacionárias (ADF em 12 de 12): diferenciar seria má especificação
 D_SAZONAL = 0          # o ciclo semanal entra pelas dummies de dia da semana
 CATEGORIA_PRODUTOS = "grama"   # produtos treinados um a um: todos os desta categoria
+CATEGORIAS_COM_FATOR = ("flores-de-corte",)  # fator das datas comemorativas (ADR-019; doc 08)
 BASE_TREINO = ("fluxo diário (sem encomendas grandes: pedido acima de média + 4 desvios-padrão da quantidade "
                "de todos os pedidos da loja, ADR-018)")
 
@@ -158,6 +170,7 @@ def config_treino() -> ConfigTreino:
         origens=settings.FORECAST_SERVICE_WF_ORIGINS, passo=1,
         min_historico_dias=settings.MIN_OBSERVATIONS_DAYS,
         min_dias_com_venda=settings.FORECAST_SERVICE_MIN_SALE_DAYS,
+        **({} if settings.FORECAST_SERVICE_EVENT_FACTOR else {"fator_datas": (), "queda_datas": ()}),
     )
 
 
@@ -332,7 +345,7 @@ def versao_codigo() -> str | None:
 
 def _config_registrada(cfg: ConfigTreino, limiares_encomenda: dict) -> dict:
     return {**cfg.como_dict(), "base": BASE_TREINO, "limiares_encomenda_un": limiares_encomenda,
-            "categoria_produtos": CATEGORIA_PRODUTOS,
+            "categoria_produtos": CATEGORIA_PRODUTOS, "categorias_com_fator": list(CATEGORIAS_COM_FATOR),
             "workers": max(1, settings.TRAINING_WORKERS), "versao_codigo": versao_codigo()}
 
 
@@ -351,6 +364,8 @@ class _Serie:
     X: pd.DataFrame
     aberta: pd.Series
     encomendas: dict | None = None  # limiar da loja e o que saiu da série na janela (`_encomendas_da_serie`)
+    com_fator: bool = False         # alta das datas comemorativas (ADR-019): Flores de corte
+    com_queda: bool = False         # queda de fim de ano e do Dia do Trabalho (ADR-019): as outras séries
 
 
 def _com_retentativa(gravar, *args, **kwargs):
@@ -425,6 +440,25 @@ def _texto_encomendas(e: dict | None, loja: str) -> str:
             "fora da série.")
 
 
+def _num(valor: float, casas: int = 1) -> str:
+    return f"{valor:.{casas}f}".replace(".", ",")
+
+
+def _texto_ajustes(ajustes: list[dict] | None) -> str:
+    """Frase do log de cada série sobre as datas comemorativas da previsão (ADR-019)."""
+    partes = []
+    for a in ajustes or []:
+        anos = " e ".join(map(str, a["anos"]))
+        inicio = f" {a['evento']} ({date.fromisoformat(a['data']):%d/%m/%Y}): previsão dos {len(a['dias'])} dia(s) da semana da data"
+        if a["multiplicador"] < 1:  # a queda (fim de ano, Dia do Trabalho)
+            partes.append(f"{inicio} reduzida a {round(100 * a['multiplicador'])}% — nessa semana, em {anos}, a loja "
+                          f"vendeu {round(100 * a['fator'])}% de uma semana comum.")
+        else:
+            partes.append(f"{inicio} multiplicada por {_num(a['multiplicador'], 2)} — nessa semana, em {anos}, a loja "
+                          f"vendeu {_num(a['fator'])} vezes uma semana comum.")
+    return "".join(partes)
+
+
 def _montar_series(db: Session, cfg: ConfigTreino, job_id: int) -> tuple[list[_Serie], date]:
     """As séries de cada loja: as 4 categorias e cada produto de grama que vendeu nela."""
     df = base_vendas.carregar_vendas(db)
@@ -460,7 +494,9 @@ def _montar_series(db: Session, cfg: ConfigTreino, job_id: int) -> tuple[list[_S
             series.append(_Serie(f"{loja['id']}:{NIVEL_CATEGORIA}:{cat_id}", f"{loja['nome']} · {cat_nome}",
                                  loja["id"], NIVEL_CATEGORIA, cat_id, None, y, X, aberta,
                                  _encomendas_da_serie(vendas[vendas["cat"] == cat_id], data_until,
-                                                      cfg.janela_dias, limiar)))
+                                                      cfg.janela_dias, limiar),
+                                 com_fator=cat_id in CATEGORIAS_COM_FATOR and bool(cfg.fator_datas),
+                                 com_queda=cat_id not in CATEGORIAS_COM_FATOR and bool(cfg.queda_datas)))
 
         grama = vendas[vendas["cat"] == CATEGORIA_PRODUTOS]
         ordem = grama.groupby("produto_cod")["qtdade"].sum().sort_values(ascending=False).index
@@ -472,7 +508,8 @@ def _montar_series(db: Session, cfg: ConfigTreino, job_id: int) -> tuple[list[_S
                                  loja["id"], NIVEL_PRODUTO, CATEGORIA_PRODUTOS, str(cod), y,
                                  X.loc[ini_prod:], aberta.loc[ini_prod:],
                                  _encomendas_da_serie(vendas[vendas["produto_cod"] == cod], data_until,
-                                                      cfg.janela_dias, limiar)))
+                                                      cfg.janela_dias, limiar),
+                                 com_queda=bool(cfg.queda_datas)))
     return series, data_until.date()
 
 
@@ -487,10 +524,9 @@ def _texto_resultado(r: ResultadoSerie) -> tuple[str, str]:
     relativo = m.get("erro_relativo_naive")
     comparacao = ("" if relativo is None else
                   f", erro {abs(round((1 - relativo) * 100))}% {'menor' if relativo <= 1 else 'maior'} que repetir a semana anterior")
-    status = "confiável" if r.status == evaluator.STATUS_TREINADO else "usar com cautela"
     return "info", (f"SARIMAX{ordem}, AIC {r.aic:.1f}. Walk-forward com {m.get('origens')} origens: "
                     f"MASE {m.get('mase')}{comparacao}, faixa de 95% acertou {m.get('cobertura_ic95_pct')}% "
-                    f"dos dias. Previsão de {len(r.previsao)} dias gravada — {status}.{_texto_residuos(r.diagnostico)}")
+                    f"dos dias. Previsão de {len(r.previsao)} dias gravada.{_texto_residuos(r.diagnostico)}")
 
 
 def _texto_residuos(diagnostico: dict | None) -> str:
@@ -521,7 +557,7 @@ def _gravar_serie(job_id: int, s: _Serie, r: ResultadoSerie, cfg: ConfigTreino, 
     contadores[r.status] = contadores.get(r.status, 0) + 1
     nivel_log, texto = _texto_resultado(r)
     if r.status != evaluator.STATUS_DADOS_INSUFICIENTES:
-        texto += _texto_encomendas(s.encomendas, s.rotulo.split(" · ")[0])
+        texto += _texto_encomendas(s.encomendas, s.rotulo.split(" · ")[0]) + _texto_ajustes(r.ajustes)
     _com_retentativa(_gravar_resultado, job_id, s, r, cfg, contadores, total, texto, nivel_log)
 
 
@@ -539,7 +575,8 @@ def _gravar_resultado(job_id: int, s: _Serie, r: ResultadoSerie, cfg: ConfigTrei
             params={"trend": "c" if cfg.d == 0 else "n", "transformation": "nenhuma", "training_base": BASE_TREINO,
                     "window_days": cfg.janela_dias, "ordens_convergidas": r.ordens_convergidas,
                     "dias_historico": r.dias_historico, "dias_com_venda_janela": r.dias_com_venda_janela,
-                    "encomendas_grandes": s.encomendas, "coeficientes": r.coeficientes},
+                    "encomendas_grandes": s.encomendas, "coeficientes": r.coeficientes,
+                    "fator_datas": s.com_fator, "queda_datas": s.com_queda, "ajustes_datas": r.ajustes},
             train_start=r.treino_inicio.date() if r.treino_inicio is not None else None,
             train_end=r.treino_fim.date() if r.treino_fim is not None else None,
             message=r.motivo)
@@ -548,7 +585,8 @@ def _gravar_resultado(job_id: int, s: _Serie, r: ResultadoSerie, cfg: ConfigTrei
         if r.previsao is not None:
             db.execute(insert(SeriesForecast), [
                 {"model_id": modelo.id, "forecast_date": p.data.date(), "predicted": round(float(p.previsto), 3),
-                 "lower_95": round(float(p.ic_inf), 3), "upper_95": round(float(p.ic_sup), 3)}
+                 "lower_95": round(float(p.ic_inf), 3), "upper_95": round(float(p.ic_sup), 3),
+                 "event_factor": None if p.fator == 1.0 else round(float(p.fator), 4)}
                 for p in r.previsao.itertuples()])
         if r.backtest is not None:
             db.execute(insert(SeriesBacktestPoint), [
@@ -583,7 +621,8 @@ def _treinar_sequencial(job_id: int, series: list[_Serie], cfg: ConfigTreino, co
                 _atualizar_job(job_id, current_series=rotulo,
                                progress_pct=round((base + feitos / total_ajustes) / total * 100, 1))
 
-        _gravar_serie(job_id, s, treinar_serie(s.y, s.X, s.aberta, cfg, s.nivel, ao_progredir=progresso),
+        _gravar_serie(job_id, s, treinar_serie(s.y, s.X, s.aberta, cfg, s.nivel, ao_progredir=progresso,
+                                               com_fator=s.com_fator, com_queda=s.com_queda),
                       cfg, contadores, total, historico)
 
 
@@ -595,7 +634,9 @@ def _treinar_em_paralelo(job_id: int, series: list[_Serie], cfg: ConfigTreino, c
     pendentes = {s.chave: s for s in series}
     try:
         with ProcessPoolExecutor(max_workers=workers, mp_context=multiprocessing.get_context("spawn")) as pool:
-            futuros = [pool.submit(treinar_serie_tarefa, (s.chave, s.y, s.X, s.aberta, cfg, s.nivel)) for s in series]
+            futuros = [pool.submit(treinar_serie_tarefa, (s.chave, s.y, s.X, s.aberta, cfg, s.nivel, s.com_fator,
+                                                                s.com_queda))
+                       for s in series]
             _atualizar_job(job_id, current_series=f"{len(series)} séries em {workers} processos")
             for futuro in as_completed(futuros):
                 chave, resultado = futuro.result()
@@ -662,11 +703,11 @@ def _executar(job_id: int, cfg: ConfigTreino) -> None:
             restantes = _treinar_em_paralelo(job_id, restantes, cfg, contadores, total, historico, workers)
         _treinar_sequencial(job_id, restantes, cfg, contadores, total, historico)
 
-        boas = contadores.get(evaluator.STATUS_TREINADO, 0)
-        cautela = contadores.get(evaluator.STATUS_BAIXA_CONFIANCA, 0)
+        com_previsao = (contadores.get(evaluator.STATUS_TREINADO, 0)
+                        + contadores.get(evaluator.STATUS_BAIXA_CONFIANCA, 0))
         falhas = contadores.get(evaluator.STATUS_ERRO, 0)
         sem_dados = contadores.get(evaluator.STATUS_DADOS_INSUFICIENTES, 0)
-        partes = [f"{boas + cautela} séries com previsão ({boas} confiáveis, {cautela} para usar com cautela)"]
+        partes = [f"{com_previsao} séries com previsão"]
         if sem_dados:
             partes.append(f"{sem_dados} sem vendas suficientes")
         if falhas:
@@ -776,7 +817,8 @@ def semear_historico(db: Session, recriar: bool = False) -> int:
         m = modelos[p.model_id]
         pontos[m.unit_id][1].append({"level": m.level, "item": m.product_code or m.category_id,
                                      "day": p.forecast_date, "predicted": p.predicted, "lower_95": p.lower_95,
-                                     "upper_95": p.upper_95, "source": "forecast", "origin_date": inicio})
+                                     "upper_95": p.upper_95, "source": "forecast", "origin_date": inicio,
+                                     "event_factor": p.event_factor})
     total = sum(gravar_historico(db, loja, inicio, *pontos[loja], job.id)
                 for loja in sorted({m.unit_id for m in modelos.values()}))
     db.commit()

@@ -27,6 +27,8 @@ from datetime import date
 
 import pandas as pd
 
+from backend.domain.models import datas_comemorativas
+
 Chave = tuple[str, str, date]  # (nível, item, dia)
 _COLUNAS = ["origem", "data", "previsto", "ic_inf", "ic_sup"]
 
@@ -36,10 +38,13 @@ def chave(p: dict) -> Chave:
 
 
 def _ponto(level: str, item: str, linha, source: str, origem, fechada: pd.Series | None) -> dict:
+    fator = getattr(linha, "fator", 1.0)
+    fator = 1.0 if pd.isna(fator) else float(fator)
     return {"level": level, "item": item, "day": linha.data.date(), "predicted": round(float(linha.previsto), 3),
             "lower_95": round(float(linha.ic_inf), 3), "upper_95": round(float(linha.ic_sup), 3),
             "source": source, "origin_date": origem.date(),
-            "store_closed": None if fechada is None or linha.data not in fechada.index else bool(fechada[linha.data])}
+            "store_closed": None if fechada is None or linha.data not in fechada.index else bool(fechada[linha.data]),
+            "event_factor": None if fator == 1.0 else round(fator, 4)}
 
 
 def pontos_da_serie(level: str, item: str, backtest: pd.DataFrame, complemento: pd.DataFrame | None,
@@ -47,10 +52,12 @@ def pontos_da_serie(level: str, item: str, backtest: pd.DataFrame, complemento: 
     """(walk-forward, previsão) de uma série treinada (`ResultadoSerie` do trainer), no
     formato de `pontos_a_gravar`. Do walk-forward, o 1º dia de cada janela: o das origens
     completas (`backtest`, h = 1) e o do complemento, que vai até a véspera da previsão.
-    `fechada`: loja fechada por dia (bool, índice diário), como o treino a viu."""
-    janelas = [backtest.loc[backtest["horizonte"] == 1, _COLUNAS]]
+    `fechada`: loja fechada por dia (bool, índice diário), como o treino a viu. A coluna
+    `fator` (datas comemorativas, ADR-019), quando existe, vira `event_factor`."""
+    colunas = _COLUNAS + (["fator"] if "fator" in backtest.columns else [])
+    janelas = [backtest.loc[backtest["horizonte"] == 1, colunas]]
     if complemento is not None and len(complemento):
-        janelas.append(complemento[_COLUNAS])
+        janelas.append(complemento[[c for c in colunas if c in complemento.columns]])
     walk_forward = [_ponto(level, item, p, "walk_forward", p.origem, fechada)
                     for p in pd.concat(janelas).sort_values("data").itertuples()]
     inicio = previsao["data"].min()
@@ -75,19 +82,24 @@ def pontos_a_gravar(gravados_antes: set[Chave], walk_forward: list[dict], previs
 
 
 def serie_com_previsto(real: pd.Series,
-                       previstos: dict[date, tuple[float, float, float, str, date, bool | None]]) -> list[dict]:
+                       previstos: dict[date, tuple[float, float, float, str, date, bool | None, float | None]]
+                       ) -> list[dict]:
     """Vendido de cada dia de `real` (índice diário) com o previsto gravado: valor, faixa,
     de onde veio (`fonte`: "forecast" | "walk_forward"), a quantos dias do início da
-    previsão ele estava (`horizonte`, 1 no walk-forward) e se a previsão contava com a loja
-    fechada (`loja_fechada`). `None` nos dias sem previsão."""
+    previsão ele estava (`horizonte`, 1 no walk-forward), se a previsão contava com a loja
+    fechada (`loja_fechada`) e o ajuste da data comemorativa que entrou nele (`ajuste`:
+    evento e multiplicador, ADR-019). `None` nos dias sem previsão."""
     serie = []
     for dia, vendido in real.items():
         p = previstos.get(dia.date())
+        fator = p[6] if p is not None and len(p) > 6 else None
         serie.append({"data": str(dia.date()), "real": round(float(vendido), 1),
                       "previsto": None if p is None else p[0],
                       "inf": None if p is None else p[1],
                       "sup": None if p is None else p[2],
                       "fonte": None if p is None else p[3],
                       "horizonte": None if p is None else (dia.date() - p[4]).days + 1,
-                      "loja_fechada": None if p is None else p[5]})
+                      "loja_fechada": None if p is None else p[5],
+                      "ajuste": None if fator is None else {"evento": datas_comemorativas.evento_do_dia(dia),
+                                                            "multiplicador": round(float(fator), 3)}})
     return serie

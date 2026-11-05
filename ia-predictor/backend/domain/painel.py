@@ -14,7 +14,9 @@ loja) em `previsores`:
     }
 
 `modelo` = {ordem, ordem_sazonal, aic, status, metricas, mensagem} (sem previsão, só
-`status` e `mensagem`); `backtest` = o 1º dia de cada janela do walk-forward (h = 1). A
+`status` e `mensagem`); `backtest` = o 1º dia de cada janela do walk-forward (h = 1);
+`ajustes` = as datas comemorativas da previsão (ADR-019: `Ajuste.como_dict`), que a loja
+recebe juntas em `ajustes_datas`. A
 previsão da loja é a soma das 4 categorias, dia a dia — inclusive os limites da faixa, o
 que dá uma faixa conservadora (mais larga que a exata da soma).
 """
@@ -73,6 +75,20 @@ def _previsao_da_loja(prev: dict, cal_u: pd.DataFrame, ids_cat: list[str]) -> li
             "categorias": cats,
         })
     return previsao
+
+
+def _ajustes_da_loja(prev: dict, ids_cat: list[str], nomes: pd.Series) -> list[dict]:
+    """As datas comemorativas que mudaram a previsão dos 14 dias da loja (ADR-019), uma por
+    série: a alta de Flores de corte, a queda de fim de ano e do Dia do Trabalho nas outras."""
+    saida = []
+    series = [("categoria", k, None, prev["categorias"].get(k) or {}) for k in ids_cat]
+    series += [("produto", s, nomes.get(s), p) for s, p in prev["produtos"].items()]
+    for nivel, item, nome, p in series:
+        for a in p.get("ajustes") or []:
+            saida.append({"nivel": nivel, "item": item, "nome": nome, "evento": a["evento"], "data": a["data"],
+                          "multiplicador": a["multiplicador"], "fator": a["fator"], "anos": a["anos"],
+                          "dias": a["dias"]})
+    return sorted(saida, key=lambda a: (a["data"], a["nivel"], -abs(a["multiplicador"] - 1)))
 
 
 def montar_unidade(v: pd.DataFrame, cal_u: pd.DataFrame, loja: dict, ids_cat: list[str],
@@ -138,6 +154,7 @@ def montar_unidade(v: pd.DataFrame, cal_u: pd.DataFrame, loja: dict, ids_cat: li
             "previsao_14d": r1(sum(x["previsto"] for x in previsao_p)) if previsao_p else None,
         })
     produtos.sort(key=lambda x: (x["previsao_14d"] is None, -(x["previsao_14d"] or x["vendido_8_semanas"])))
+    ajustes = _ajustes_da_loja(prev, ids_cat, nomes)
 
     # ---- Encomendas grandes: resumo e últimas
     if len(enc):
@@ -168,6 +185,7 @@ def montar_unidade(v: pd.DataFrame, cal_u: pd.DataFrame, loja: dict, ids_cat: li
         "encomendas": encomendas,
         "categorias_modelo": {k: (prev["categorias"].get(k) or {}).get("modelo") for k in ids_cat},
         "previsao": _previsao_da_loja(prev, cal_u, ids_cat),
+        "ajustes_datas": ajustes,
         "historico_diario": historico_diario,
         "historico_semanal": historico_semanal,
         "produtos": produtos,

@@ -98,7 +98,8 @@ Com a base até 28/02/2026, a regra pega:
     São Carlos 0,20;
   - Itabirito: Grama 0,35, Esmeralda (ITO) 0,31, São Carlos 0,21.
 
-Todas, menos a São Carlos de Itabirito, passaram pelo teste.
+Todas passaram pelo teste (a São Carlos de Itabirito no doc 08 §9.4). A queda de Flores de
+corte em Itabirito depois do Réveillon (2 a 8/01) ficou fora: só 1 ocorrência caiu (§9.4).
 
 Multiplicadores de 2026, com as ocorrências de 2024 e 2025 (base até 28/02/2026). A previsão
 que sai dessa base, de 01 a 14/03/2026, já pega o Dia da Mulher:
@@ -179,8 +180,9 @@ Ficam de fora:
     (`ajuste`, de `forecast_history.event_factor`; a data sai da regra, por
     `evento_do_dia`).
   - **No relatório gerencial,** uma tabela "Datas comemorativas".
-- **Constituição, Princípio III:** a validação de cada ajuste é a do doc 08 (fora do
-  walk-forward do treino), registrada aqui.
+- **Constituição, Princípio III (v4.0.0):** o ajuste que o walk-forward do treino quase
+  nunca atravessa é validado em experimento próprio (doc 08), com a receita de produção, e
+  revisto a cada ano de vendas. O Princípio II permite o ajuste como estatística.
 
 ## 6. Referências
 

@@ -705,7 +705,7 @@ desagregação para o SKU (seção 2.5).
 | 5 | Incorporar um ajuste de tendência nas combinações com crescimento ou queda mais acentuados (Grama e Produtos de jardim em Itabirito; Produtos de jardim em Jardim Canadá) | Média |
 | 6 | Incluir, na comparação de modelos, uma abordagem baseada só em regras de calendário — para as combinações onde o histórico recente de vendas não ajuda a prever o próximo dia | Média |
 | 7 | Ampliar a janela de tempo usada para distribuir a previsão da categoria entre os produtos, e tratar o rateio pela média da categoria como o caminho padrão (não uma exceção) para a maioria dos produtos | Média |
-| 8 | ~~Sinalizar as combinações de variação mais extrema (Grama em Itabirito, Flores de corte em Jardim Canadá) com aviso de menor confiança~~ — não adotado: a tela não mostra selo nem aviso de confiança (2026-11-05) | Média |
+| 8 | ~~Sinalizar as combinações de variação mais extrema (Grama em Itabirito, Flores de corte em Jardim Canadá) com aviso de menor confiança~~ — não adotado (2026-11-05) | Média |
 | 9 | Apresentar Plantas diversas e Insumos e acessórios como grupos do painel (não como série própria), somando a previsão dos produtos de cada um; reavaliar Insumos e acessórios com mais histórico | Média |
 | 10 | **Decidido**: o L1 ajusta 2 séries (por unidade), não 6 — a separação por categoria não melhora a acurácia (seção 3.11), a por unidade é apoiada; `categoria` passa a nível de desagregação (seção 3.0) | Alta |
 | 11 | Definir com a floricultura a regra de tratamento das vendas com quantidade negativa (devoluções) | Baixa |

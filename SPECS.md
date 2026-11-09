@@ -849,7 +849,7 @@ Query params:
 }
 ```
 
-`model_status` (do modelo L1 da categoria): `"trained"` | `"low_confidence"` | `"insufficient_data"` | `"error"` | `"pending"`
+`model_status` (do modelo L1 da categoria): `"trained"` | `"insufficient_data"` | `"error"` | `"pending"`
 
 ---
 
@@ -1144,7 +1144,6 @@ Query params:
   "skus_covered": 20,
   "total_categories": 24,
   "trained_categories": 19,
-  "low_confidence_categories": 3,
   "failed_categories": 0,
   "insufficient_data_categories": 2,
   "is_training": false,
@@ -1234,7 +1233,7 @@ class ProductSummary(BaseModel):
     categoria: str
     unidade: str
     total_sold: float
-    model_status: str   # trained | low_confidence | insufficient_data | error | pending
+    model_status: str   # trained | insufficient_data | error | pending
     last_mase: Optional[float]
     last_trained_at: Optional[str]
 
@@ -1306,7 +1305,6 @@ class ModelStatusResponse(BaseModel):
     skus_covered: int
     total_categories: int
     trained_categories: int
-    low_confidence_categories: int
     failed_categories: int
     insufficient_data_categories: int
     is_training: bool
@@ -1337,7 +1335,7 @@ class Category(Base):
     unidade           = Column(String, index=True)
     categoria         = Column(String, index=True)
     shelf_life_dias   = Column(Integer)     # validade (default por config até a parceira confirmar)
-    model_status      = Column(String)      # trained | low_confidence | insufficient_data | error | pending
+    model_status      = Column(String)      # trained | insufficient_data | error | pending
     mase              = Column(Float)
     rmsse             = Column(Float)
     ic_coverage_pct   = Column(Float)
@@ -1349,7 +1347,7 @@ class ModelArtifact(Base):
     __tablename__ = "model_artifacts"
     id              = Column(Integer, primary_key=True, autoincrement=True)
     category_id     = Column(Integer, ForeignKey("categories.id"), index=True)
-    status          = Column(String)    # trained | low_confidence | insufficient_data | error | training
+    status          = Column(String)    # trained | insufficient_data | error | training
     sarimax_order   = Column(String)    # e.g. "(1,1,1)"
     seasonal_order  = Column(String)    # e.g. "(1,0,1,7)"
     use_log         = Column(Boolean, default=False)
@@ -1427,7 +1425,7 @@ class ModelRegistry:
         """Status do modelo L1 mais recente para a categoria."""
 
     def list_trained_categories(self) -> list[tuple[str, str]]:
-        """Pares (unidade, categoria) com status ∈ {'trained', 'low_confidence'}."""
+        """Pares (unidade, categoria) com status 'trained'."""
 
     def mark_training(self, unidade: str, categoria: str) -> None: ...
     def mark_error(self, unidade: str, categoria: str, error: str) -> None: ...

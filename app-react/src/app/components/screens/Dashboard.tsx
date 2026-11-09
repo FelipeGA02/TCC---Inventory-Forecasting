@@ -3,7 +3,7 @@ import { Boxes, Receipt, ShoppingBag, Truck } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
-import { COR_ENCOMENDA, CORES_CATEGORIA, COR_TOTAL, categorias, contexto, textoLimiarEncomenda } from "../../data/mockData";
+import { COR_ENCOMENDA, CORES_CATEGORIA, COR_TOTAL, categorias, contexto, textoLimiarEncomenda } from "../../data/painel";
 import { CATEGORIAS_ANALISE, COR_FLORES, analiseDe, type CategoriaAnalise } from "../../data/analises";
 import { FiltroLoja, Kpi, Segmentado, useFiltroLoja } from "../shared";
 import { eixo, estiloTooltip } from "@/styles/tokens";

@@ -193,20 +193,6 @@ def ajustes(y: pd.Series, X: pd.DataFrame, dias: pd.DatetimeIndex, eventos: tupl
     return saida
 
 
-def evento_do_dia(dia: date | pd.Timestamp,
-                  eventos: tuple[str, ...] = DATAS_FLORES_DE_CORTE + DATAS_DE_QUEDA) -> str | None:
-    """A data de `eventos` cuja semana (de `DIAS_ANTES` antes até ela) contém `dia`, ou None —
-    para dizer na tela de qual data veio um ajuste gravado (`forecast_history.event_factor`).
-    As semanas das datas de `DATAS_FLORES_DE_CORTE` e `DATAS_DE_QUEDA` não se cruzam."""
-    dia = pd.Timestamp(dia).normalize()
-    for evento in dict.fromkeys(eventos):
-        for ano in (dia.year, dia.year + 1):
-            d = data_do_evento(evento, ano)
-            if d - pd.Timedelta(days=DIAS_ANTES) <= dia <= d:
-                return evento
-    return None
-
-
 def multiplicadores(dias: pd.DatetimeIndex, lista: list[Ajuste]) -> np.ndarray:
     """Multiplicador de cada dia de `dias`: o do ajuste cuja semana o contém, ou 1."""
     m = pd.Series(1.0, index=dias)

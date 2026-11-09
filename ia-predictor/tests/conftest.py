@@ -51,8 +51,10 @@ INICIO, FIM = date(2025, 12, 1), date(2026, 2, 28)
 FIM_CALENDARIO = date(2026, 3, 31)
 # A base sintética tem 3 meses — menos que a janela e o histórico mínimo de produção —,
 # então o treino de ponta a ponta roda com uma configuração reduzida.
+# previsão de 21 dias com walk-forward de 14: a previsão final é independente do teste (ADR-021)
 CONFIG_TESTE = ConfigTreino(janela_dias=30, origens=3, grade_pq=(0, 1), grade_PQ=(0,), min_historico_dias=20,
-                            min_dias_com_venda=10)
+                            min_dias_com_venda=10, horizonte_previsao=21, d_candidatos=(0, 1))
+DIAS_PREVISAO = 21
 
 
 def _dias(ini: date, fim: date):

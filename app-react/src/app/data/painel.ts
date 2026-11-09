@@ -10,10 +10,13 @@
  *     configuração — o que o layout e os filtros usam;
  *   - `definirPainel()` (só quando uma tela que usa a previsão é aberta, ver `recursos.ts`):
  *     o painel inteiro em `dados` e `unidades`.
- * Este módulo oferece os seletores para os filtros de loja e categoria.
+ * Este módulo oferece os seletores para os filtros de loja, categoria e horizonte.
+ *
+ * Horizonte (ADR-021): o treino grava a previsão de 91 dias; as telas mostram os primeiros
+ * `horizonte` dias, escolhidos pela loja de 14 (padrão, 2 semanas) a 91 (3 meses). O teste
+ * de acerto do treino (métricas) continua sendo o das 2 primeiras semanas.
  */
 import type {
-  AjusteData,
   BaseReal,
   Categoria,
   CategoriaId,
@@ -29,12 +32,17 @@ import type {
   UnidadeDados,
   UnidadeId,
 } from "@/domain/types";
-import { formatarDecimal, formatarDiaMes, formatarNumero } from "@/lib/format";
+import { formatarNumero } from "@/lib/format";
 
 export let contexto: Contexto;
 export let lojas: Contexto["lojas"];
 export let categorias: Categoria[];
+/** Horizonte do teste de acerto do treino (walk-forward): 14 dias. */
 export let HORIZONTE_DIAS: number;
+/** Dias previstos pelo último treino (até 91): o limite do seletor de horizonte. */
+export let HORIZONTE_MAX: number;
+/** Horizonte que as telas mostram ao abrir: 2 semanas. */
+export const HORIZONTE_PADRAO = 14;
 export let LIMIARES_ENCOMENDA: Record<UnidadeId, number>;
 export let IDS_CATEGORIA: CategoriaId[];
 
@@ -46,6 +54,7 @@ export function definirContexto(c: Contexto): void {
   lojas = c.lojas;
   categorias = c.categorias;
   HORIZONTE_DIAS = c.configuracao.horizonte_dias;
+  HORIZONTE_MAX = c.configuracao.horizonte_previsao_dias ?? c.configuracao.horizonte_dias;
   LIMIARES_ENCOMENDA = c.configuracao.limiares_encomenda_un;
   IDS_CATEGORIA = c.categorias.map((x) => x.id);
 }
@@ -59,6 +68,44 @@ export function textoLimiarEncomenda(unidade: FiltroUnidade): string {
 export function definirPainel(painel: BaseReal): void {
   dados = painel;
   unidades = painel.unidades;
+}
+
+// ---------------------------------------------------------------------------
+// Horizonte (quantos dias à frente as telas mostram)
+// ---------------------------------------------------------------------------
+
+const HORIZONTES: { dias: number; label: string }[] = [
+  { dias: 14, label: "2 semanas" },
+  { dias: 21, label: "3 semanas" },
+  { dias: 28, label: "4 semanas" },
+  { dias: 42, label: "6 semanas" },
+  { dias: 56, label: "8 semanas" },
+  { dias: 91, label: "3 meses" },
+];
+
+/** Dias que o último treino previu (o painel carregado manda; antes dele, o contexto). */
+export function diasPrevistos(): number {
+  return unidades?.[0]?.previsao.length || HORIZONTE_MAX || HORIZONTE_PADRAO;
+}
+
+/**
+ * As opções do seletor, todas sempre listadas; `disponivel` = o último treino previu esses dias
+ * (treino anterior ao ADR-021 previa só 14: as maiores ficam desativadas até o próximo treino).
+ */
+export function opcoesHorizonte(): { dias: number; label: string; disponivel: boolean }[] {
+  const max = diasPrevistos();
+  return HORIZONTES.map((h) => ({ ...h, disponivel: h.dias <= max }));
+}
+
+/** O horizonte escolhido, limitado ao que o treino previu (treino antigo previa só 14 dias). */
+export function horizonteEfetivo(horizonte: number): number {
+  return Math.max(1, Math.min(horizonte, diasPrevistos()));
+}
+
+/** "2 semanas", "3 meses"... para os títulos. */
+export function textoHorizonte(horizonte: number): string {
+  const h = horizonteEfetivo(horizonte);
+  return HORIZONTES.find((x) => x.dias === h)?.label ?? `${h} dias`;
 }
 
 /** Paleta categórica validada (dataviz: lightness, chroma, CVD e contraste). Ordem fixa. */
@@ -103,41 +150,14 @@ function somaCategorias<T>(itens: T[], pegar: (item: T, c: CategoriaId) => numbe
 // Previsão e histórico (loja → categoria)
 // ---------------------------------------------------------------------------
 
-/** Ajuste de data comemorativa com a loja a que pertence. */
-export type AjusteDaLoja = AjusteData & { unidade: UnidadeId; nomeUnidade: string };
-
-/** As datas comemorativas que mudaram a previsão dos 14 dias nas lojas do filtro (ADR-019). */
-export function ajustesDe(filtro: FiltroUnidade): AjusteDaLoja[] {
-  return unidadesDoFiltro(filtro)
-    .flatMap((u) => (u.ajustes_datas ?? []).map((a) => ({ ...a, unidade: u.id, nomeUnidade: u.nome })))
-    .sort((a, b) => a.data.localeCompare(b.data) || a.nivel.localeCompare(b.nivel));
-}
-
-/** Nome da série de um ajuste: a categoria ou o produto de grama. */
-export function nomeDoAjuste(a: AjusteData): string {
-  return a.nivel === "categoria" ? nomeCategoria(a.item as CategoriaId) : (a.nome ?? a.item);
-}
-
 /**
- * Frase do ajuste para a tela, sem jargão: "previsão de 26/12 a 31/12 reduzida a 35% pelo
- * Ano Novo — nessa semana, em 2025 e 2026, a loja vendeu 35% de uma semana comum".
+ * Previsão diária do filtro de loja nos primeiros `horizonte` dias. Em "Todas", soma as lojas
+ * dia a dia — inclusive os limites da faixa, o que dá uma faixa conservadora (mais larga que a
+ * exata da soma).
  */
-export function textoAjuste(a: AjusteData): string {
-  const dias = a.dias.length ? `de ${formatarDiaMes(a.dias[0]!)} a ${formatarDiaMes(a.dias[a.dias.length - 1]!)}` : "";
-  const anos = a.anos.join(" e ");
-  if (a.multiplicador < 1) {
-    return `previsão ${dias} reduzida a ${Math.round(a.multiplicador * 100)}% pelo ${a.evento} — nessa semana, em ${anos}, a loja vendeu ${Math.round(a.fator * 100)}% de uma semana comum`;
-  }
-  return `previsão ${dias} multiplicada por ${formatarDecimal(a.multiplicador)} pelo ${a.evento} — nessa semana, em ${anos}, a loja vendeu ${formatarDecimal(a.fator, 1)} vezes uma semana comum`;
-}
-
-/**
- * Previsão diária do filtro de loja. Em "Todas", soma as lojas dia a dia — inclusive os
- * limites da faixa, o que dá uma faixa conservadora (mais larga que a exata da soma).
- */
-export function previsaoDe(filtro: FiltroUnidade): DiaPrevisto[] {
+export function previsaoDe(filtro: FiltroUnidade, horizonte: number = HORIZONTE_PADRAO): DiaPrevisto[] {
   const us = unidadesDoFiltro(filtro);
-  return us[0]!.previsao.map((dia, i) => {
+  return us[0]!.previsao.slice(0, horizonteEfetivo(horizonte)).map((dia, i) => {
     const dias = us.map((u) => u.previsao[i]!);
     const cats = {} as DiaPrevisto["categorias"];
     for (const c of IDS_CATEGORIA) {
@@ -207,9 +227,9 @@ export function segundaDaSemana(iso: string): string {
 }
 
 /** Previsão agregada por semana (segunda a domingo), no formato do histórico. */
-export function semanasPrevistasDe(filtro: FiltroUnidade): (SemanaHistorico & { dias: number })[] {
+export function semanasPrevistasDe(filtro: FiltroUnidade, horizonte: number = HORIZONTE_PADRAO): (SemanaHistorico & { dias: number })[] {
   const grupos = new Map<string, DiaPrevisto[]>();
-  for (const d of previsaoDe(filtro)) {
+  for (const d of previsaoDe(filtro, horizonte)) {
     const s = segundaDaSemana(d.data);
     grupos.set(s, [...(grupos.get(s) ?? []), d]);
   }
@@ -232,7 +252,7 @@ export const temPrevisao = (p: { previsao: unknown[] }): boolean => p.previsao.l
 /**
  * Produtos de grama do filtro, cada um com o modelo da sua loja. Em "Todas as lojas" cada
  * produto aparece por loja (o mesmo código pode ter previsão numa loja e não na outra).
- * Ordem: os com previsão pela previsão de 14 dias, depois os outros pela venda das 8 semanas.
+ * Ordem: os com previsão pela previsão das 2 primeiras semanas, depois os outros pelo total vendido.
  */
 export function produtosDe(
   filtro: FiltroUnidade,
@@ -248,13 +268,23 @@ export function produtosDe(
         ? temPrevisao(a) ? -1 : 1
         : temPrevisao(a)
           ? (b.previsao_14d ?? 0) - (a.previsao_14d ?? 0)
-          : b.vendido_8_semanas - a.vendido_8_semanas,
+          : b.vendido_total - a.vendido_total,
     );
 }
 
-/** Total previsto nos 14 dias para o filtro de categoria. */
-export function previsto14d(filtro: FiltroUnidade, categoria: FiltroCategoria = "todas"): Faixa {
-  const dias = previsaoDe(filtro).map((d) => faixaDoDia(d, categoria));
+/** Os primeiros `horizonte` dias previstos de um produto. */
+export function previsaoDoProduto<T extends { previsao: (Faixa & { data: string })[] }>(p: T, horizonte: number) {
+  return p.previsao.slice(0, horizonteEfetivo(horizonte));
+}
+
+/** Total previsto de um produto nos primeiros `horizonte` dias (nulo sem modelo). */
+export function previstoDoProduto(p: { previsao: (Faixa & { data: string })[] }, horizonte: number): number | null {
+  return temPrevisao(p) ? somar(previsaoDoProduto(p, horizonte).map((d) => d.previsto)) : null;
+}
+
+/** Total previsto nos primeiros `horizonte` dias para o filtro de categoria. */
+export function previstoNoHorizonte(filtro: FiltroUnidade, categoria: FiltroCategoria = "todas", horizonte: number = HORIZONTE_PADRAO): Faixa {
+  const dias = previsaoDe(filtro, horizonte).map((d) => faixaDoDia(d, categoria));
   return { previsto: somar(dias.map((d) => d.previsto)), inf: somar(dias.map((d) => d.inf)), sup: somar(dias.map((d) => d.sup)) };
 }
 

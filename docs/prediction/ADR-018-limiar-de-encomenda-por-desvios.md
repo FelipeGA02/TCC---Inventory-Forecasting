@@ -102,27 +102,24 @@ Cada variante é avaliada no **próprio** fluxo, como o sistema avalia, por isso
 - o **MASE não serve** para isso: a escala dele (a naïve do treino) encolhe quando saem
   pedidos grandes, e o MASE de Jardim Canadá sobe mesmo com o erro relativo caindo.
 
-**Erro relativo à naïve (menor é melhor) e status:**
+**Erro relativo à naïve (menor é melhor); entre parênteses, a cobertura do IC 95% fora de 90–98% ou o MASE acima de 1 quando a variante os muda:**
 
 | Série | fixo 2.000 | 4 desvios | 3 desvios |
 | --- | --- | --- | --- |
-| Jardim Canadá · Grama | 0,830 T | **0,817 T** | 0,799 LC (IC 88,9%, MASE 1,02) |
-| Jardim Canadá · Plantas diversas | 0,960 T | **0,902 T** | 0,964 LC (IC 89,6%) |
-| Jardim Canadá · Produtos de jardim | 0,947 T | 0,911 T | **0,840 T** |
-| Jardim Canadá · Flores de corte | 0,797 LC | 0,797 LC | 0,795 LC |
-| Jardim Canadá · Grama Amendoim (bandeja) | 0,918 T | 0,837 T | 0,794 LC (MASE 1,05) |
-| Jardim Canadá · Grama Esmeralda | 0,853 LC | 0,858 LC | 0,849 LC |
-| Jardim Canadá · Grama São Carlos | 0,891 LC (IC 99,7%) | **0,883 T** | 0,880 T |
-| Jardim Canadá · Grama Esmeralda (ITO) | 1,760 T | 1,760 T | 1,760 T |
-| Jardim Canadá · Grama Zeon | 0,972 T | 0,972 T | 0,970 T |
-| Itabirito · Grama | 0,802 T | 0,802 T | 0,801 T |
-| Itabirito · Plantas diversas | **1,028** LC | 1,090 LC | 1,222 LC |
-| Itabirito · Produtos de jardim | 0,933 T | 0,933 T | 0,913 T |
-| Itabirito · Flores de corte | 0,980 LC | 0,980 LC | 0,980 LC |
+| Jardim Canadá · Grama | 0,830 | **0,817** | 0,799 (IC 88,9%, MASE 1,02) |
+| Jardim Canadá · Plantas diversas | 0,960 | **0,902** | 0,964 (IC 89,6%) |
+| Jardim Canadá · Produtos de jardim | 0,947 | 0,911 | **0,840** |
+| Jardim Canadá · Flores de corte | 0,797 | 0,797 | 0,795 |
+| Jardim Canadá · Grama Amendoim (bandeja) | 0,918 | 0,837 | 0,794 (MASE 1,05) |
+| Jardim Canadá · Grama Esmeralda | 0,853 | 0,858 | 0,849 |
+| Jardim Canadá · Grama São Carlos | 0,891 (IC 99,7%) | **0,883** | 0,880 |
+| Jardim Canadá · Grama Esmeralda (ITO) | 1,760 | 1,760 | 1,760 |
+| Jardim Canadá · Grama Zeon | 0,972 | 0,972 | 0,970 |
+| Itabirito · Grama | 0,802 | 0,802 | 0,801 |
+| Itabirito · Plantas diversas | **1,028** | 1,090 | 1,222 |
+| Itabirito · Produtos de jardim | 0,933 | 0,933 | 0,913 |
+| Itabirito · Flores de corte | 0,980 | 0,980 | 0,980 |
 | Itabirito · 4 produtos de grama | iguais nas 3 variantes | | |
-| **Séries `trained`** | **8** | **9** | **6** |
-
-T = `trained`, LC = `low_confidence`.
 
 - **4 desvios contra o fixo:**
   - melhor em 5 séries, todas de Jardim Canadá: Grama, Plantas diversas, Produtos de
@@ -132,17 +129,18 @@ T = `trained`, LC = `low_confidence`.
   - igual nas outras 10, porque em Itabirito o limiar (1.960) quase não muda a marcação;
   - a faixa de 95% de Jardim Canadá fica mais estreita (Grama: 3.154 → 2.604 un.) e a
     cobertura cai, mas fica dentro de 90–98%;
-  - Grama São Carlos de Jardim Canadá passa a `trained` (a cobertura era 99,7%).
+  - a cobertura de Grama São Carlos de Jardim Canadá volta para dentro de 90–98% (era 99,7%).
 - **3 desvios:**
   - erra menos ainda em parte de Jardim Canadá;
   - mas a faixa de 95% passa a cobrir menos de 90% em Grama e Plantas diversas, e o MASE
-    passa de 1 em Grama e Grama Amendoim: 3 séries caem para `low_confidence`;
+    passa de 1 em Grama e Grama Amendoim;
   - em Itabirito, Plantas diversas piora para 1,222.
 - **Ressalva:** a janela de teste são as últimas 8 semanas (jan–fev/2026), e as diferenças
   só aparecem quando a marcação muda dentro da janela de treino ou de teste.
 
-**Leitura:** 4 desvios ganha do fixo e de 3 desvios no critério do sistema (séries
-`trained`) e erra menos que o fixo em Jardim Canadá, onde a marcação muda. É o valor adotado.
+**Leitura:** 4 desvios erra menos que o fixo em Jardim Canadá, onde a marcação muda, sem
+tirar a cobertura da faixa de 90–98% nem levar o MASE acima de 1, ao contrário de 3 desvios.
+É o valor adotado.
 
 ## 5. Consequências e cuidados
 

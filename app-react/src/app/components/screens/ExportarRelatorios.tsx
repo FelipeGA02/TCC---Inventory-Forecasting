@@ -17,11 +17,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import type { FiltroUnidade } from "@/domain/types";
-import { categorias, nomeCategoria, nomeUnidade } from "../../data/mockData";
+import { categorias, nomeCategoria, nomeUnidade } from "../../data/painel";
 import {
   documentoImpressao,
   formatarCelula,
   relatorioGerencial,
+  horizonteDe,
   relatorioGerencialHtml,
   relatorios,
   type FiltroCategoria,
@@ -32,7 +33,7 @@ import {
 } from "../../data/relatorios";
 import { baixarCsv, baixarXlsx, imprimirHtml, tabelaHtml } from "@/lib/exportar";
 import { formatarNumero, formatarTamanhoArquivo } from "@/lib/format";
-import { Segmentado, opcoesLoja, useFiltroLoja } from "../shared";
+import { FiltroHorizonte, Segmentado, opcoesLoja, useFiltroLoja } from "../shared";
 
 const LINHAS_PREVIA = 12;
 const CHAVE_HISTORICO = "verde-perto:relatorios-baixados";
@@ -85,6 +86,7 @@ function descreverFiltros(r: { filtros?: Relatorio["filtros"] }, f: FiltrosRelat
   const partes: string[] = [];
   if (!r.filtros || r.filtros.includes("unidade")) partes.push(nomeUnidade(f.unidade));
   if (r.filtros?.includes("categoria")) partes.push(f.categoria === "todas" ? "todas as categorias" : nomeCategoria(f.categoria));
+  if (!r.filtros || r.filtros.includes("horizonte")) partes.push(`próximos ${horizonteDe(f)} dias`);
   return partes.join(" · ");
 }
 
@@ -94,10 +96,11 @@ const opcoesCategoria: { valor: FiltroCategoria; label: string }[] = [
 ];
 
 export function ExportarRelatorios() {
-  const { unidade: unidadeGlobal, categoria: categoriaGlobal } = useFiltroLoja();
+  const { unidade: unidadeGlobal, categoria: categoriaGlobal, horizonte: horizonteGlobal } = useFiltroLoja();
   const [selecionado, setSelecionado] = useState<string>(relatorios[0]!.id);
-  const [filtros, setFiltros] = useState<FiltrosRelatorio>({ unidade: unidadeGlobal, categoria: categoriaGlobal });
+  const [filtros, setFiltros] = useState<FiltrosRelatorio>({ unidade: unidadeGlobal, categoria: categoriaGlobal, horizonte: horizonteGlobal });
   const [lojaGerencial, setLojaGerencial] = useState<FiltroUnidade>(unidadeGlobal);
+  const [horizonteGerencial, setHorizonteGerencial] = useState<number>(horizonteGlobal);
   const [historico, setHistorico] = useState<Baixado[]>(lerHistorico);
 
   useEffect(() => gravarHistorico(historico), [historico]);
@@ -135,7 +138,7 @@ export function ExportarRelatorios() {
   };
 
   const gerarGerencial = () => {
-    const f: FiltrosRelatorio = { unidade: lojaGerencial, categoria: "todas" };
+    const f: FiltrosRelatorio = { unidade: lojaGerencial, categoria: "todas", horizonte: horizonteGerencial };
     if (!imprimirHtml(relatorioGerencialHtml(f))) {
       toast.error("O navegador bloqueou a janela de impressão.", { description: "Permita pop-ups para este site e tente de novo." });
       return;
@@ -147,6 +150,7 @@ export function ExportarRelatorios() {
   const rebaixar = (b: Baixado) => {
     if (b.relatorioId === relatorioGerencial.id) {
       setLojaGerencial(b.filtros.unidade);
+      setHorizonteGerencial(horizonteDe(b.filtros));
       if (imprimirHtml(relatorioGerencialHtml(b.filtros))) registrar(b.relatorioId, b.titulo, "pdf", b.filtros, null);
       return;
     }
@@ -172,6 +176,7 @@ export function ExportarRelatorios() {
           </div>
           <div className="flex items-center gap-3 flex-wrap">
             <Segmentado rotulo="Loja" opcoes={opcoesLoja()} valor={lojaGerencial} onChange={setLojaGerencial} />
+            <FiltroHorizonte valor={horizonteGerencial} onChange={setHorizonteGerencial} />
             <Button className="gap-1.5 text-xs" style={{ background: "var(--primary)", color: "#fff" }} onClick={gerarGerencial}>
               <Printer size={14} /> Gerar PDF
             </Button>
@@ -267,6 +272,9 @@ export function ExportarRelatorios() {
                       valor={filtros.categoria}
                       onChange={(categoria) => setFiltros((f) => ({ ...f, categoria }))}
                     />
+                  )}
+                  {relatorio.filtros.includes("horizonte") && (
+                    <FiltroHorizonte valor={horizonteDe(filtros)} onChange={(horizonte) => setFiltros((f) => ({ ...f, horizonte }))} />
                   )}
                 </div>
               )}

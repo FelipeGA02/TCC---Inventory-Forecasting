@@ -11,7 +11,7 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import type { Contexto } from "@/domain/types";
 import { mensagemDoErro } from "@/lib/http/errors";
 import { api } from "./api";
-import { definirContexto } from "./mockData";
+import { definirContexto } from "./painel";
 import { invalidarRecursos } from "./recursos";
 
 interface DadosValor {

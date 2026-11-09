@@ -1,28 +1,31 @@
 <!-- Sync Impact Report
-  Version change: 3.0.0 → 3.1.0
-  Motivação: a previsão deixa de ser regerada todo dia. Com o mesmo modelo e os mesmos
-    dados, regerar a previsão todo dia repete os mesmos números. Cada treino (ou mudança
-    em `calendar_days` depois dele, conferida às 03:00) gera uma vez a previsão de
-    FORECAST_STORED_DAYS (60) dias a partir do último dia com venda, gravada em
-    `forecast_runs` + `forecasts_cache`; a API entrega os 14 dias a partir de hoje. O
-    treino agendado de segunda é pulado (`skipped`) sem venda nova e com a mesma config.
-  MINOR porque amplia uma exigência do Princípio V (treino pulado registrado) e
-    redefine o gatilho da geração, sem remover nem renomear princípio.
+  Version change: 3.1.0 → 4.0.0
+  Motivação: a classificação `low_confidence` sai do sistema (pedido do usuário em
+    2026-11-09; a tela já não mostrava selo nem aviso desde 2026-11-05). O walk-forward
+    continua obrigatório e as métricas continuam registradas em cada série, mas não
+    classificam a série: toda série que ajusta tem previsão (`status = "trained"`);
+    `insufficient_data` e `error` continuam.
+  MAJOR porque redefine o Princípio III (os limiares deixam de decidir o status e de exigir
+    aviso no dashboard) e a coluna "Ação se falhar" dos Quality Gates.
   Modified:
-    - Princípio V — "geração diária de previsão/reposição MUST registrar data e contagem
-      de SKUs" → toda geração da previsão MUST registrar em `forecast_runs` data, período
-      previsto e contagem de SKUs atendidos; treino pulado MUST ficar como `skipped` em
-      `retrain_history`.
-    - Critérios de Aceitação da API — "Geração diária de previsão + reposição < 15min" →
-      "Geração da previsão < 15min".
-  Templates updated:
-    ✅ .specify/templates/spec-template.md (compatible — sem referência à geração diária)
-    ✅ .specify/templates/plan-template.md (compatible)
-    ✅ .specify/templates/tasks-template.md (compatible)
-    ✅ CLAUDE.md (regra 5 e agendamento já descrevem o novo comportamento)
-  Follow-up TODOs:
-    - Propagar a SPECS.md e specs/001-sistema-previsao-vendas/{spec,plan,tasks}.md.
-    - Pendência anterior (v3.0.0): simulação de reposição nos Quality Gates (ADR-011).
+    - Princípio III — "avaliado ... antes de ser persistido como `status = "trained"`" +
+      "Limiares de aceitação" + "`status = "low_confidence"` e exibir aviso" → walk-forward
+      antes de gravar a previsão; MASE, cobertura e simulação como métricas de referência
+      registradas em cada série, sem classificar nem gerar aviso.
+    - Quality Gates / Critérios de Aceitação de Modelos — MASE, cobertura e simulação:
+      "`status = "low_confidence"` + alerta no dashboard" → "registrado nas métricas da
+      série; não classifica nem gera aviso".
+  Added sections: nenhuma. Removed sections: nenhuma.
+  Templates:
+    ✅ .specify/templates/spec-template.md (sem referência ao status)
+    ✅ .specify/templates/plan-template.md (sem referência ao status)
+    ✅ .specify/templates/tasks-template.md (sem referência ao status)
+    ✅ CLAUDE.md, SPECS.md, specs/001-sistema-previsao-vendas/{spec,plan}.md, docs/
+       (atualizados na mesma mudança)
+  Follow-up TODOs (anteriores, não tratados aqui):
+    - Princípio II: categoria por SARIMAX direto em vez de desagregação (ADR-016/017).
+    - Simulação de reposição nos Quality Gates: L3 fora de escopo (ADR-011).
+    - Princípio V: `retrain_history`/`forecast_runs` → `forecast_jobs` (ADR-017).
 -->
 
 # Sistema de Previsão de Vendas — Floricultura Constitution
@@ -75,22 +78,25 @@ ganho empírico viola a parcimônia estatística.
 
 ### III. Validação Obrigatória Antes de Produção
 
-Todo modelo L1 treinado MUST ser avaliado com walk-forward cross-validation (≥ 4 folds,
-origem móvel, horizonte de 14 dias) antes de ser persistido como `status = "trained"`.
+Todo modelo treinado MUST ser avaliado com walk-forward cross-validation (≥ 4 folds,
+origem móvel, horizonte de 14 dias) antes de a previsão ser gravada.
 
-Limiares de aceitação:
+Métricas de referência, MUST ser registradas em cada série (`series_models.metrics`) e no
+log do treino:
 
-- **MASE < 1.0** (o modelo MUST bater a previsão ingênua sazonal semanal), medido em L1 e
-  no nível de SKU após desagregação;
-- **cobertura empírica do intervalo de 95%** MUST ficar em [90%, 98%];
-- a **simulação de reposição** (perda por perecibilidade + ruptura) sobre o hold-out MUST
-  ser melhor que a regra ingênua "repor a média dos últimos 7 dias".
+- **MASE** (referência: < 1.0, o modelo bate a previsão ingênua sazonal semanal);
+- **cobertura empírica do intervalo de 95%** (referência: [90%, 98%]);
+- a **simulação de reposição** (perda por perecibilidade + ruptura) sobre o hold-out,
+  contra a regra ingênua "repor a média dos últimos 7 dias".
 
-Modelos que não atingirem os limiares MUST ter `status = "low_confidence"` e exibir aviso
-explícito no dashboard. MAPE e SMAPE continuam sendo calculados e reportados, mas são
-**informativos** (instáveis com contagem baixa) — não bloqueiam nem classificam.
-**Rationale**: artigo TCC seção 6.5; garantia de qualidade mínima antes de influenciar
-decisões de compra de produto perecível.
+As métricas MUST NOT classificar a série nem gerar aviso no dashboard: toda série que
+ajusta tem previsão (`status = "trained"`). Série sem histórico suficiente fica
+`insufficient_data` e série cujo ajuste falha fica `error`, ambas sem previsão. MAPE e
+SMAPE continuam sendo calculados e reportados, mas são **informativos** (instáveis com
+contagem baixa).
+**Rationale**: artigo TCC seção 6.5; o walk-forward mede a qualidade antes de a previsão
+influenciar decisões de compra, e as métricas ficam disponíveis (tela de histórico, API,
+log) sem um rótulo que a loja não usa para decidir.
 
 ### IV. Interface para Usuário Não Técnico
 
@@ -134,7 +140,7 @@ dados operacionais da empresa parceira; evitar acesso não autorizado ao sistema
 
 | Métrica | Limiar | Ação se falhar |
 | --- | --- | --- |
-| MASE (L1 e SKU) | < 1.0 | `status = "low_confidence"` + alerta no dashboard |
+| MASE (L1 e SKU) | < 1.0 | registrado nas métricas da série; não classifica nem gera aviso |
 | Cobertura do IC 95% | ∈ [90%, 98%] | idem |
 | Simulação de reposição (perda + ruptura) | melhor que regra ingênua de 7 dias | idem |
 | Ljung-Box p-value (resíduos L1) | > 0.05 | log de aviso; não bloqueia deploy |
@@ -178,4 +184,4 @@ Versionamento semântico: MAJOR = remoção/redefinição de princípio; MINOR =
 PATCH = clarificação ou correção de texto.
 Revisão obrigatória a cada Sprint concluído.
 
-**Version**: 3.1.0 | **Ratified**: 2026-07-28 | **Last Amended**: 2026-10-17
+**Version**: 4.0.0 | **Ratified**: 2026-07-28 | **Last Amended**: 2026-11-09

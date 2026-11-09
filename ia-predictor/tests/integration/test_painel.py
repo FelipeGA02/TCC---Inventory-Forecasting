@@ -3,14 +3,16 @@
 concluído (`com_previsao`: as 4 categorias e o produto de grama 100, nas 2 lojas)."""
 from datetime import timedelta
 
-from tests.conftest import CATEGORIAS, CONFIG_TESTE, FIM
+from tests.conftest import CATEGORIAS, CONFIG_TESTE, DIAS_PREVISAO, FIM
 
 IDS_CAT = [c for c, _, _ in CATEGORIAS]
 CHAVES_BASE_REAL = {"gerado_em", "fonte", "base", "configuracao", "categorias", "unidades", "importacao"}
 CHAVES_UNIDADE = {"id", "nome", "cidade", "periodo", "linhas", "skus_vendidos", "volume_total",
                   "volume_flores_de_corte", "volume_por_categoria", "skus_por_categoria", "encomendas",
                   "categorias_modelo", "previsao", "historico_diario", "historico_semanal", "produtos",
-                  "backtest_categorias", "ajustes_datas"}
+                  "backtest_categorias"}
+CHAVES_PRODUTO = {"codigo", "nome", "categoria", "subcategoria", "dias_com_venda", "vendido_total",
+                  "vendido_em_encomendas", "historico_diario", "modelo", "previsao", "previsao_14d"}
 CHAVES_METRICAS = {"rodadas", "rodadas_vence_naive", "dias_avaliados", "mae", "mase", "erro_relativo_naive",
                    "cobertura_ic95_pct", "largura_ic95", "venda_media_dia", "previsto_sobre_real_pct",
                    "erro_total_14d_pct", "ljung_box_p", "shapiro_p"}
@@ -25,14 +27,17 @@ def test_painel_no_formato_base_real(client, viewer, com_previsao):
     assert p["base"]["fim"] == str(FIM)
     cfg = p["configuracao"]
     assert cfg["horizonte_dias"] == 14 and (cfg["m"], cfg["d"], cfg["D"]) == (7, 0, 0)
+    assert cfg["horizonte_previsao_dias"] == DIAS_PREVISAO  # ADR-021
+    assert cfg["d_candidatos"] == [0, 1]  # ADR-020
     assert cfg["origens"] == CONFIG_TESTE.origens and cfg["dados_ate"] == str(FIM)
     assert [u["id"] for u in p["unidades"]] == ["jardim-canada", "itabirito"]
 
     u = p["unidades"][0]
     assert set(u) == CHAVES_UNIDADE
     assert u["nome"] == "Jardim Canadá"
-    # 14 dias a partir do dia seguinte à última venda; o total é a soma das 4 categorias
-    assert [d["data"] for d in u["previsao"]] == [str(FIM + timedelta(days=i)) for i in range(1, 15)]
+    # todos os dias previstos a partir do dia seguinte à última venda (a tela escolhe quantos
+    # mostrar); o total é a soma das 4 categorias
+    assert [d["data"] for d in u["previsao"]] == [str(FIM + timedelta(days=i)) for i in range(1, DIAS_PREVISAO + 1)]
     for dia in u["previsao"]:
         assert set(dia["categorias"]) == set(IDS_CAT)
         assert abs(dia["previsto"] - sum(c["previsto"] for c in dia["categorias"].values())) < 0.01
@@ -44,9 +49,9 @@ def test_painel_no_formato_base_real(client, viewer, com_previsao):
 
     # um modelo por categoria, com as métricas da tela e o diagnóstico dos resíduos
     assert set(u["categorias_modelo"]) == set(IDS_CAT)
-    for m in u["categorias_modelo"].values():
-        assert m["status"] in ("trained", "low_confidence")
-        assert m["ordem"][1] == 0 and m["ordem_sazonal"][3] == 7
+    for cat, m in u["categorias_modelo"].items():
+        assert m["status"] == "trained"
+        assert m["ordem"][1] in (0, 1) and m["ordem_sazonal"][3] == 7  # d escolhido pelo walk-forward (ADR-020)
         assert set(m["metricas"]) == CHAVES_METRICAS and m["metricas"]["rodadas"] == CONFIG_TESTE.origens
     # o 1º dia de cada janela completa do walk-forward, por categoria
     assert all(len(pts) == CONFIG_TESTE.origens for pts in u["backtest_categorias"].values())
@@ -54,17 +59,15 @@ def test_painel_no_formato_base_real(client, viewer, com_previsao):
     # só os produtos de grama, cada um com o seu modelo
     assert [prod["codigo"] for prod in u["produtos"]] == ["100"]
     prod = u["produtos"][0]
-    assert "regular" not in prod and "backtest" not in prod
-    assert len(prod["previsao"]) == 14 and prod["previsao_14d"] is not None
-    assert prod["modelo"]["status"] in ("trained", "low_confidence")
+    assert set(prod) == CHAVES_PRODUTO
+    assert len(prod["previsao"]) == DIAS_PREVISAO
+    # `previsao_14d` soma só os 14 primeiros dias (ordena a lista)
+    assert abs(prod["previsao_14d"] - sum(d["previsto"] for d in prod["previsao"][:14])) < 0.1
+    assert prod["modelo"]["status"] == "trained"
     assert u["encomendas"]["vendas"] > 0  # notas de 3.000 un. no dia 15
     assert len(u["historico_diario"]) == 56
-    # datas comemorativas da previsão (ADR-019): cada ajuste é de uma série da loja, nos 14 dias
-    previstos = {d["data"] for d in u["previsao"]}
-    for a in u["ajustes_datas"]:
-        assert (a["nivel"], a["item"]) in {("categoria", c) for c in IDS_CAT} | {("produto", "100")}
-        assert set(a["dias"]) <= previstos and a["multiplicador"] != 1
-    assert all("fator" in d for d in prod["previsao"])
+    # o fator das datas comemorativas (ADR-019) é interno: não vai para a tela
+    assert all(set(d) == {"data", "previsto", "inf", "sup"} for d in prod["previsao"])
 
 
 def test_planilhas_carregadas_no_painel(client, viewer, com_previsao):
@@ -89,10 +92,11 @@ def test_contexto_leve(client, viewer, com_previsao):
     assert [x["id"] for x in c["categorias"]] == IDS_CAT
     assert c["base"]["fim"] == str(FIM) and c["base"]["skus"] == 4  # sem o frete
     assert c["configuracao"]["horizonte_dias"] == 14
+    assert c["configuracao"]["horizonte_previsao_dias"] == DIAS_PREVISAO
     assert c["previsao"]["dados_ate"] == str(FIM)
     assert {(x["loja"], x["categoria"]) for x in c["previsao"]["categorias"]} == {
         (loja, cat) for loja in ("jardim-canada", "itabirito") for cat in IDS_CAT}
-    assert {x["status"] for x in c["previsao"]["categorias"]} <= {"trained", "low_confidence"}
+    assert {x["status"] for x in c["previsao"]["categorias"]} <= {"trained"}
     assert c["previsao"]["produtos"][0]["nome"] == "GRAMA ESMERALDA M2"
     assert set(c["importacao"]) == {"arquivos", "qualidade"}
 

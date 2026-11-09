@@ -33,7 +33,7 @@ import {
 } from "../ui/dropdown-menu";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "../ui/sheet";
 import type { UnidadeId } from "@/domain/types";
-import { CORES_CATEGORIA, categorias, nomeUnidade, textoLimiarEncomenda } from "../../data/mockData";
+import { CORES_CATEGORIA, categorias, nomeUnidade, textoLimiarEncomenda } from "../../data/painel";
 import { COR_FLORES, type CategoriaAnalise } from "../../data/analises";
 import { api, type ConsultaRegistros } from "../../data/api";
 import { mensagemDoErro } from "@/lib/http/errors";

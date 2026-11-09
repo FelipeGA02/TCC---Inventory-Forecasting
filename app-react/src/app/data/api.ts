@@ -3,7 +3,7 @@
  * cliente HTTP (`@/lib/http/client`), que renova o acesso sozinho quando expira.
  */
 import { http } from "@/lib/http/client";
-import type { BaseReal, Contexto, DiaHistoricoPrevisao, Perfil } from "@/domain/types";
+import type { BaseReal, Contexto, HistoricoPrevisao, Perfil } from "@/domain/types";
 import type { AnalisesJson } from "./analises";
 
 export interface UsuarioApi {
@@ -61,7 +61,6 @@ export interface TreinoServico {
   progresso_pct: number;
   serie_atual: string | null;
   series_treinadas: number;
-  series_baixa_confianca: number;
   series_dados_insuficientes: number;
   series_com_erro: number;
   mensagem: string | null;
@@ -77,11 +76,16 @@ export interface StatusServicoPrevisao {
   config: {
     m: number;
     d: number;
+    /** d testados no walk-forward de cada série; fica o que errou menos (ADR-020) */
+    d_candidatos: number[];
     D: number;
     janela_dias: number;
     origens: number;
     passo_dias: number;
+    /** horizonte do teste de acerto (walk-forward) */
     horizonte_dias: number;
+    /** dias da previsão gravada (ADR-021) */
+    horizonte_previsao_dias: number;
     base: string;
     categoria_produtos: string;
   };
@@ -107,7 +111,7 @@ export const api = {
   contexto: () => http.get<Contexto>("/api/v1/contexto"),
   painel: () => http.get<BaseReal>("/api/v1/painel"),
   historico: (loja: string, nivel: "categoria" | "produto", item: string) =>
-    http.get<DiaHistoricoPrevisao[]>(
+    http.get<HistoricoPrevisao>(
       `/api/v1/painel/historico/${encodeURIComponent(loja)}/${nivel}/${encodeURIComponent(item)}`,
     ),
   analises: () => http.get<AnalisesJson>("/api/v1/analises"),

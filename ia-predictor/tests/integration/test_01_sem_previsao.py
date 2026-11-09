@@ -21,6 +21,7 @@ def test_contexto_sem_previsao(client, viewer):
     c = client.get("/api/v1/contexto", headers=viewer).json()
     assert c["previsao"] is None
     assert c["configuracao"]["horizonte_dias"] == 14
+    assert c["configuracao"]["horizonte_previsao_dias"] == 91  # ADR-021
 
 
 def test_status_do_servico_antes_do_primeiro_treino(client, admin):
@@ -29,7 +30,9 @@ def test_status_do_servico_antes_do_primeiro_treino(client, admin):
     assert s["em_andamento"] is None and s["ultimo_concluido_em"] is None
     assert s["dados_alterados"] is True  # nunca treinou: um disparo treina
     assert (s["config"]["m"], s["config"]["d"], s["config"]["D"]) == (7, 0, 0)
+    assert s["config"]["d_candidatos"] == [0, 1]  # ADR-020: o walk-forward de cada série escolhe
     assert s["config"]["passo_dias"] == 1 and s["config"]["horizonte_dias"] == 14
+    assert s["config"]["horizonte_previsao_dias"] == 91  # ADR-021
 
 
 def test_rotas_do_treino_antigo_sairam(client, admin):

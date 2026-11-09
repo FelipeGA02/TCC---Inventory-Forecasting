@@ -1,7 +1,7 @@
 """Serviço de previsão: treina as 4 categorias e todos os produtos de grama de cada loja.
 
-É o treino da previsão do sistema (ADR-017): a previsão de 14 dias, o histórico e os
-relatórios leem o último disparo concluído. Disparado pelo botão "Treinar previsões" (só
+É o treino da previsão do sistema (ADR-017): a previsão (91 dias gravados, a tela mostra de 14
+a 91 — ADR-021), o histórico e os relatórios leem o último disparo concluído. Disparado pelo botão "Treinar previsões" (só
 admin), roda em segundo plano numa thread da API; com `TRAINING_RUNNER=externo` (API no
 Render) roda pelo script `backend/scripts/treinar_previsoes.py`, de outra máquina, com o
 mesmo código (`treinar_agora`). Não há agendador: a loja envia as planilhas e treina. Grava
@@ -10,8 +10,8 @@ tudo no banco de `DATABASE_URL` (o Neon, em produção — ADR-014):
   * `forecast_jobs`: o disparo, com o andamento que a aba de notificações mostra;
   * `forecast_job_logs`: o log do treino, série a série;
   * `series_models` + `series_forecasts` + `series_backtest_points`: o resultado de cada
-    série — ordem, AIC, métricas do walk-forward, previsão dos próximos 14 dias e os pontos
-    do walk-forward;
+    série — ordem, AIC, métricas do walk-forward, previsão dos próximos
+    `FORECAST_MAX_HORIZON_DAYS` dias (91) e os pontos do walk-forward;
   * `forecast_history`: o previsto de cada dia, congelado quando o dia passa — o histórico
     da previsão na tela (`domain.historico_previsao`);
   * `processing_log.forecast_job_id`: as planilhas que entraram pela primeira vez neste
@@ -28,28 +28,30 @@ Gravado só quando o disparo termina `done`, na mesma transação que muda o sta
 de treino que falhou ou caiu no meio a loja nunca viu, então não pode congelar. Em cada loja
 do treino, apaga os dias a partir do início da previsão nova (dia seguinte à última venda),
 de todas as séries — inclusive a que desta vez ficou sem modelo, cujo número sai da tela —,
-grava os 14 dias novos e preenche com o 1º dia das janelas do walk-forward só os dias
+grava os dias novos (todo o horizonte da previsão) e preenche com o 1º dia das janelas do walk-forward só os dias
 anteriores ainda vazios. `skipped` não muda nada.
 
 Só treina se os dados mudaram
 -----------------------------
 Cada disparo calcula a impressão digital (SHA-256) das vendas, do calendário e do catálogo
 — contagem, maior id, soma das quantidades, período, marcação de encomenda grande, última
-alteração do calendário e dos produtos. Se ela é igual à do último treino concluído, o
+alteração do calendário e dos produtos — e da receita do modelo (`_receita`: os `d`
+candidatos, horizontes, janela...): mudar a receita também pede treino novo. Se ela é igual à do último treino concluído, o
 disparo é registrado como `skipped` e nada é treinado. Treino que terminou em erro não
 conta: o próximo disparo treina.
 
 Modelo (fixo, decisão registrada na docstring de `domain/models/trainer.py`)
 ---------------------------------------------------------------------------
-SARIMAX com m = 7, d = 0, D = 0 e constante; ordem (p, q)(P, Q) por AIC; exógenas de
-calendário; série diária do **fluxo** — vendas sem as encomendas grandes (pedido acima de
+SARIMAX com m = 7 e D = 0; `d` escolhido série a série (ADR-020): o walk-forward roda com cada
+`d` de `FORECAST_SERVICE_D_CANDIDATES` (0 e 1) e fica o que errou menos — d = 0 com constante,
+d = 1 sem. Ordem (p, q)(P, Q) por AIC para cada `d`; exógenas de calendário; série diária do **fluxo** — vendas sem as encomendas grandes (pedido acima de
 média + 4 desvios-padrão da quantidade dos pedidos da loja, ADR-018; o limiar de cada loja
 no momento fica na configuração do disparo). Walk-forward
 com janela deslizante de `FORECAST_SERVICE_WINDOW_DAYS` dias e origem andando 1 dia por
-`FORECAST_SERVICE_WF_ORIGINS` origens, cada uma prevendo `FORECAST_HORIZON_DAYS` dias.
+`FORECAST_SERVICE_WF_ORIGINS` origens, cada uma prevendo `FORECAST_HORIZON_DAYS` dias (14: é o
+que dá as métricas). A previsão final cobre `FORECAST_MAX_HORIZON_DAYS` dias (ADR-021).
 Do ajuste final ficam os coeficientes (`series_models.params`) e o diagnóstico dos resíduos
-(Ljung-Box e Shapiro-Wilk, em `metrics`, citado no log quando p ≤ 0,05 — não muda o
-status). A configuração gravada no disparo leva a versão do código (`versao_codigo`).
+(Ljung-Box e Shapiro-Wilk, em `metrics`, citado no log quando p ≤ 0,05). A configuração gravada no disparo leva a versão do código (`versao_codigo`).
 
 Datas comemorativas (ADR-019)
 -----------------------------
@@ -128,7 +130,6 @@ from training_scripts.preprocessing.remove_encomendas_06 import K_DESVIOS, LIMIA
 
 log = logging.getLogger(__name__)
 
-D_REGULAR = 0          # séries estacionárias (ADF em 12 de 12): diferenciar seria má especificação
 D_SAZONAL = 0          # o ciclo semanal entra pelas dummies de dia da semana
 CATEGORIA_PRODUTOS = "grama"   # produtos treinados um a um: todos os desta categoria
 CATEGORIAS_COM_FATOR = ("flores-de-corte",)  # fator das datas comemorativas (ADR-019; doc 08)
@@ -163,9 +164,11 @@ class TreinoForaDaApi(Exception):
 # Configuração e impressão digital dos dados
 # --------------------------------------------------------------------------- #
 def config_treino() -> ConfigTreino:
+    """Configuração do treino; o `d` de cada série sai do walk-forward entre `d_candidatos`."""
+    candidatos = tuple(dict.fromkeys(settings.FORECAST_SERVICE_D_CANDIDATES)) or (0,)
     return ConfigTreino(
-        m=settings.SEASONAL_PERIOD, d=D_REGULAR, D=D_SAZONAL,
-        horizonte=settings.FORECAST_HORIZON_DAYS,
+        m=settings.SEASONAL_PERIOD, d=candidatos[0], d_candidatos=candidatos if len(candidatos) > 1 else (), D=D_SAZONAL,
+        horizonte=settings.FORECAST_HORIZON_DAYS, horizonte_previsao=settings.FORECAST_MAX_HORIZON_DAYS,
         janela_dias=settings.FORECAST_SERVICE_WINDOW_DAYS,
         origens=settings.FORECAST_SERVICE_WF_ORIGINS, passo=1,
         min_historico_dias=settings.MIN_OBSERVATIONS_DAYS,
@@ -174,10 +177,24 @@ def config_treino() -> ConfigTreino:
     )
 
 
+def _receita() -> dict:
+    """A receita do modelo que entra na impressão digital: os `d` candidatos e as
+    configurações do treino (das variáveis de ambiente). Sem a versão do código (um commit
+    qualquer não pede treino)."""
+    return {"d_candidatos": list(settings.FORECAST_SERVICE_D_CANDIDATES), "selecao_d": "walk-forward",
+            "m": settings.SEASONAL_PERIOD, "D": D_SAZONAL,
+            "horizonte": settings.FORECAST_HORIZON_DAYS, "horizonte_previsao": settings.FORECAST_MAX_HORIZON_DAYS,
+            "janela_dias": settings.FORECAST_SERVICE_WINDOW_DAYS, "origens": settings.FORECAST_SERVICE_WF_ORIGINS,
+            "min_historico_dias": settings.MIN_OBSERVATIONS_DAYS,
+            "min_dias_com_venda": settings.FORECAST_SERVICE_MIN_SALE_DAYS,
+            "datas_comemorativas": settings.FORECAST_SERVICE_EVENT_FACTOR}
+
+
 def impressao_digital(db: Session) -> str:
-    """SHA-256 do estado dos dados de que o treino depende. Muda com venda nova, venda
-    apagada ou alterada (soma das quantidades), mudança na marcação de encomenda grande, no
-    calendário ou no catálogo (produto que troca de categoria muda as séries)."""
+    """SHA-256 do estado dos dados de que o treino depende e da receita do modelo. Muda com
+    venda nova, venda apagada ou alterada (soma das quantidades), mudança na marcação de
+    encomenda grande, no calendário ou no catálogo (produto que troca de categoria muda as
+    séries), e com a receita (`_receita`: d, horizontes, janela...)."""
     vendas = db.execute(select(
         func.count(Sale.id), func.max(Sale.id), func.sum(Sale.quantity),
         func.min(Sale.sale_date), func.max(Sale.sale_date),
@@ -192,6 +209,7 @@ def impressao_digital(db: Session) -> str:
         "calendario": [calendario[0], str(calendario[1])],
         "produtos": [produtos[0], str(produtos[1])],
         "categorias": [[c, bool(v)] for c, v in categorias],
+        "receita": _receita(),
     }
     return hashlib.sha256(json.dumps(estado, sort_keys=True, default=str).encode()).hexdigest()
 
@@ -344,7 +362,8 @@ def versao_codigo() -> str | None:
 
 
 def _config_registrada(cfg: ConfigTreino, limiares_encomenda: dict) -> dict:
-    return {**cfg.como_dict(), "base": BASE_TREINO, "limiares_encomenda_un": limiares_encomenda,
+    return {**cfg.como_dict(), "base": BASE_TREINO,
+            "limiares_encomenda_un": limiares_encomenda,
             "categoria_produtos": CATEGORIA_PRODUTOS, "categorias_com_fator": list(CATEGORIAS_COM_FATOR),
             "workers": max(1, settings.TRAINING_WORKERS), "versao_codigo": versao_codigo()}
 
@@ -470,7 +489,7 @@ def _montar_series(db: Session, cfg: ConfigTreino, job_id: int) -> tuple[list[_S
     categorias = list(db.execute(select(Category.id, Category.name).where(Category.show_on_dashboard.is_(True))
                                  .order_by(Category.sort_order)).all())
     data_until = df["emissao"].max()
-    fim_previsao = data_until + pd.Timedelta(days=cfg.horizonte)
+    fim_previsao = data_until + pd.Timedelta(days=cfg.dias_previsao)
 
     series: list[_Serie] = []
     for loja in lojas:
@@ -513,6 +532,14 @@ def _montar_series(db: Session, cfg: ConfigTreino, job_id: int) -> tuple[list[_S
     return series, data_until.date()
 
 
+def _texto_d(cfg: ConfigTreino) -> str:
+    """Trecho do log sobre o `d` (ADR-020)."""
+    if len(cfg.ds) == 1:
+        return f"d={cfg.ds[0]} em todas as séries"
+    return (f"d de cada série escolhido pelo walk-forward entre {' e '.join(map(str, cfg.ds))} "
+            "(fica o que errou menos; d=0 com constante, d=1 sem)")
+
+
 def _texto_resultado(r: ResultadoSerie) -> tuple[str, str]:
     """(nível do log, mensagem) para o resultado de uma série."""
     if r.status == evaluator.STATUS_DADOS_INSUFICIENTES:
@@ -521,12 +548,23 @@ def _texto_resultado(r: ResultadoSerie) -> tuple[str, str]:
         return "error", f"Falhou: {r.motivo}"
     m = r.metricas or {}
     ordem = f"({','.join(map(str, r.ordem))})({','.join(map(str, r.ordem_sazonal))})"
+    constante = " com constante" if r.ordem[1] == 0 else " sem constante"
     relativo = m.get("erro_relativo_naive")
     comparacao = ("" if relativo is None else
                   f", erro {abs(round((1 - relativo) * 100))}% {'menor' if relativo <= 1 else 'maior'} que repetir a semana anterior")
-    return "info", (f"SARIMAX{ordem}, AIC {r.aic:.1f}. Walk-forward com {m.get('origens')} origens: "
+    return "info", (f"SARIMAX{ordem}{constante}, AIC {r.aic:.1f}.{_texto_selecao_d(m)} Walk-forward com {m.get('origens')} origens: "
                     f"MASE {m.get('mase')}{comparacao}, faixa de 95% acertou {m.get('cobertura_ic95_pct')}% "
                     f"dos dias. Previsão de {len(r.previsao)} dias gravada.{_texto_residuos(r.diagnostico)}")
+
+
+def _texto_selecao_d(m: dict) -> str:
+    """Frase do log com o erro de cada `d` no walk-forward (ADR-020)."""
+    sel = m.get("selecao_d")
+    if not sel:
+        return ""
+    partes = [f"d={d}: " + ("não ajustou" if v.get("falhou") else f"erro médio {_num(v['mae'], 1)} por dia")
+              for d, v in sorted(sel.items())]
+    return f" d escolhido pelo walk-forward: {m.get('d_escolhido')} ({'; '.join(partes)})."
 
 
 def _texto_residuos(diagnostico: dict | None) -> str:
@@ -572,7 +610,7 @@ def _gravar_resultado(job_id: int, s: _Serie, r: ResultadoSerie, cfg: ConfigTrei
             aic=r.aic, mase=(r.metricas or {}).get("mase"),
             ci95_coverage_pct=(r.metricas or {}).get("cobertura_ic95_pct"),
             metrics=None if r.metricas is None else {**r.metricas, **(r.diagnostico or {})},
-            params={"trend": "c" if cfg.d == 0 else "n", "transformation": "nenhuma", "training_base": BASE_TREINO,
+            params={"trend": "c" if (r.ordem or (0, 0))[1] == 0 else "n", "transformation": "nenhuma", "training_base": BASE_TREINO,
                     "window_days": cfg.janela_dias, "ordens_convergidas": r.ordens_convergidas,
                     "dias_historico": r.dias_historico, "dias_com_venda_janela": r.dias_com_venda_janela,
                     "encomendas_grandes": s.encomendas, "coeficientes": r.coeficientes,
@@ -599,7 +637,6 @@ def _gravar_resultado(job_id: int, s: _Serie, r: ResultadoSerie, cfg: ConfigTrei
         job.done_series = contadores["concluidas"]
         job.progress_pct = round(contadores["concluidas"] / total * 100, 1) if total else 0.0
         job.series_trained = contadores.get(evaluator.STATUS_TREINADO, 0)
-        job.series_low_confidence = contadores.get(evaluator.STATUS_BAIXA_CONFIANCA, 0)
         job.series_insufficient = contadores.get(evaluator.STATUS_DADOS_INSUFICIENTES, 0)
         job.series_failed = contadores.get(evaluator.STATUS_ERRO, 0)
         job.heartbeat_at = datetime.now()
@@ -634,8 +671,8 @@ def _treinar_em_paralelo(job_id: int, series: list[_Serie], cfg: ConfigTreino, c
     pendentes = {s.chave: s for s in series}
     try:
         with ProcessPoolExecutor(max_workers=workers, mp_context=multiprocessing.get_context("spawn")) as pool:
-            futuros = [pool.submit(treinar_serie_tarefa, (s.chave, s.y, s.X, s.aberta, cfg, s.nivel, s.com_fator,
-                                                                s.com_queda))
+            futuros = [pool.submit(treinar_serie_tarefa, (s.chave, s.y, s.X, s.aberta, cfg, s.nivel,
+                                                                s.com_fator, s.com_queda))
                        for s in series]
             _atualizar_job(job_id, current_series=f"{len(series)} séries em {workers} processos")
             for futuro in as_completed(futuros):
@@ -682,9 +719,11 @@ def _executar(job_id: int, cfg: ConfigTreino) -> None:
                        message=f"Treinando {len(treinaveis)} séries...")
         _registrar(job_id, (
             f"Treino iniciado com vendas até {data_until:%d/%m/%Y}: {n_cat} séries de categoria e {n_prod} "
-            f"produtos de grama, {len(treinaveis)} com dados suficientes. SARIMAX m={cfg.m}, d={cfg.d}, D={cfg.D} "
-            f"com constante; janela deslizante de {cfg.janela_dias} dias; walk-forward com {cfg.origens} origens "
-            f"de 1 em 1 dia, prevendo {cfg.horizonte} dias. Base: {BASE_TREINO}. Limiar de encomenda grande de "
+            f"produtos de grama, {len(treinaveis)} com dados suficientes. SARIMAX m={cfg.m}, D={cfg.D}; "
+            + _texto_d(cfg)
+            + f"; janela deslizante de {cfg.janela_dias} dias; walk-forward com {cfg.origens} origens de 1 em 1 dia, "
+            f"prevendo {cfg.horizonte} dias (o teste de acerto); previsão final de {cfg.dias_previsao} dias. "
+            f"Base: {BASE_TREINO}. Limiar de encomenda grande de "
             f"cada loja (média + {K_DESVIOS:g} desvios-padrão dos pedidos dela): "
             + ", ".join(f"{s.rotulo.split(' · ')[0]} {_un(s.encomendas['limiar_un'])} un."
                         for s in {s.unit_id: s for s in series if s.encomendas}.values())))
@@ -703,8 +742,7 @@ def _executar(job_id: int, cfg: ConfigTreino) -> None:
             restantes = _treinar_em_paralelo(job_id, restantes, cfg, contadores, total, historico, workers)
         _treinar_sequencial(job_id, restantes, cfg, contadores, total, historico)
 
-        com_previsao = (contadores.get(evaluator.STATUS_TREINADO, 0)
-                        + contadores.get(evaluator.STATUS_BAIXA_CONFIANCA, 0))
+        com_previsao = contadores.get(evaluator.STATUS_TREINADO, 0)
         falhas = contadores.get(evaluator.STATUS_ERRO, 0)
         sem_dados = contadores.get(evaluator.STATUS_DADOS_INSUFICIENTES, 0)
         partes = [f"{com_previsao} séries com previsão"]

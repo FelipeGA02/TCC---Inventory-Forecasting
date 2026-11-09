@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 
 from backend.domain.features.exogenous import COLUNAS_EXOGENAS, matriz_exogena
-from backend.domain.models import evaluator, trainer
+from backend.domain.models import evaluator, forecaster, trainer
 from backend.domain.models.trainer import (
     NIVEL_CATEGORIA,
     NIVEL_PRODUTO,
@@ -53,15 +53,96 @@ def test_origens_andam_um_dia_e_deixam_o_horizonte_a_frente():
 def test_treina_com_m7_d0_D0_e_preve_14_dias():
     y, X, aberta = _serie()
     r = treinar_serie(y, X, aberta, RAPIDA, NIVEL_CATEGORIA)
-    assert r.status in (evaluator.STATUS_TREINADO, evaluator.STATUS_BAIXA_CONFIANCA), r.motivo
+    assert r.status == evaluator.STATUS_TREINADO, r.motivo
     assert r.ordem[1] == 0 and r.ordem_sazonal[1] == 0 and r.ordem_sazonal[3] == 7
     assert list(r.previsao["data"]) == list(pd.date_range(FIM + pd.Timedelta(days=1), periods=14))
     assert (r.previsao[["previsto", "ic_inf", "ic_sup"]] >= 0).all().all()
     domingo = r.previsao[r.previsao["data"].dt.weekday == 6]
-    assert (domingo["previsto"] < 5).all()  # loja fechada no domingo
+    assert (domingo[["previsto", "ic_inf", "ic_sup"]] == 0).all().all()  # loja fechada no domingo
     assert r.backtest["origem"].nunique() == RAPIDA.origens
     assert set(r.backtest["horizonte"]) == set(range(1, 15))
     assert r.metricas["mase"] is not None and r.metricas["dias_avaliados"] > 0
+
+
+def test_previsao_final_vai_alem_do_horizonte_do_walk_forward():
+    """ADR-021: o walk-forward (status) usa `horizonte`; a previsão final, `horizonte_previsao`."""
+    y, _, _ = _serie()
+    X, _ = matriz_exogena(pd.date_range(y.index[0], FIM + pd.Timedelta(days=91), freq="D"),
+                          _calendario(y.index[0], FIM + pd.Timedelta(days=91)))
+    cfg = ConfigTreino(**{**RAPIDA.__dict__, "horizonte_previsao": 91})
+    assert cfg.dias_previsao == 91 and RAPIDA.dias_previsao == RAPIDA.horizonte == 14
+    r = treinar_serie(y, X, X["loja_fechada"] == 0, cfg, NIVEL_CATEGORIA)
+    assert r.status == evaluator.STATUS_TREINADO, r.motivo
+    assert list(r.previsao["data"]) == list(pd.date_range(FIM + pd.Timedelta(days=1), periods=91))
+    assert set(r.backtest["horizonte"]) == set(range(1, 15))  # o teste continua com h = 14
+    # mesmo modelo, mesmos dados: os 14 primeiros dias são os da previsão de 14
+    curta = treinar_serie(y, X, X["loja_fechada"] == 0, RAPIDA, NIVEL_CATEGORIA)
+    np.testing.assert_allclose(r.previsao["previsto"].values[:14], curta.previsao["previsto"].values)
+    assert r.metricas == curta.metricas
+
+
+def test_d_escolhido_pelo_walk_forward():
+    """ADR-020: com `d_candidatos`, cada d tem a sua ordem e o seu walk-forward; fica o que errou
+    menos, e o backtest, as métricas e a previsão são os dele."""
+    y, X, aberta = _serie()
+    rng = np.random.default_rng(3)
+    nivel = pd.Series(np.cumsum(rng.normal(0, 4, len(y))), index=y.index)  # nível que anda
+    y = (y + nivel.where(y > 0, 0)).clip(lower=0)
+    cfg = ConfigTreino(**{**RAPIDA.__dict__, "d_candidatos": (0, 1)})
+    r = treinar_serie(y, X, aberta, cfg, NIVEL_CATEGORIA)
+    assert r.status == evaluator.STATUS_TREINADO, r.motivo
+    sel = r.metricas["selecao_d"]
+    assert set(sel) == {"0", "1"} and all(v["ordem"][0][1] == int(d) for d, v in sel.items())
+    d = r.metricas["d_escolhido"]
+    assert r.ordem[1] == d and sel[str(d)]["mae"] == min(v["mae"] for v in sel.values())
+    assert r.metricas["mae"] == sel[str(d)]["mae"]
+    # cada um sozinho dá o mesmo walk-forward do candidato
+    so = treinar_serie(y, X, aberta, ConfigTreino(**{**RAPIDA.__dict__, "d": d}), NIVEL_CATEGORIA)
+    assert so.metricas["mae"] == r.metricas["mae"] and so.ordem == r.ordem
+    np.testing.assert_allclose(so.previsao["previsto"].values, r.previsao["previsto"].values)
+
+
+def test_d_candidato_que_nao_ajusta_fica_de_fora(monkeypatch):
+    y, X, aberta = _serie()
+    original = trainer.selecionar_ordem
+
+    def falha_com_d1(*a, **k):
+        if k["d"] == 1:
+            raise trainer.NenhumaOrdemConvergiu()
+        return original(*a, **k)
+
+    monkeypatch.setattr(trainer, "selecionar_ordem", falha_com_d1)
+    r = treinar_serie(y, X, aberta, ConfigTreino(**{**RAPIDA.__dict__, "d_candidatos": (0, 1)}), NIVEL_CATEGORIA)
+    assert r.ordem[1] == 0 and r.metricas["d_escolhido"] == 0 and set(r.metricas["selecao_d"]) == {"0"}
+
+
+def test_d1_treina_sem_constante():
+    """ADR-020: com d = 1 a constante viraria tendência, então o modelo fica sem ela."""
+    y, X, aberta = _serie()
+    r = treinar_serie(y, X, aberta, ConfigTreino(**{**RAPIDA.__dict__, "d": 1}), NIVEL_CATEGORIA)
+    assert r.status == evaluator.STATUS_TREINADO, r.motivo
+    assert r.ordem[1] == 1 and "intercept" not in r.coeficientes
+    assert (r.previsao[["previsto", "ic_inf", "ic_sup"]] >= 0).all().all()
+
+
+def test_dia_de_loja_fechada_tem_previsao_e_faixa_zeradas():
+    """O SARIMAX só desconta um valor fixo no dia fechado: depois de um sábado forte, os
+    termos MA deixavam previsto e faixa acima de zero no domingo (Flores de corte, 01/03)."""
+    class _Previsao:
+        predicted_mean = np.array([30.0, 7.2, 40.0])
+        def conf_int(self, alpha):
+            return np.array([[10.0, 50.0], [0.0, 117.8], [-5.0, 90.0]])
+
+    class _Resultado:
+        def get_forecast(self, passos, exog):
+            return _Previsao()
+
+    dias = pd.date_range("2026-02-28", periods=3)  # sábado, domingo (fechada), segunda
+    X = pd.DataFrame({"loja_fechada": [0.0, 1.0, 0.0], "abertura_excepcional": 0.0}, index=dias)
+    prev, inf, sup = forecaster.prever(_Resultado(), X)
+    assert list(prev) == [30.0, 0.0, 40.0]
+    assert list(inf) == [10.0, 0.0, 0.0]  # o limite negativo continua cortado em zero
+    assert list(sup) == [50.0, 0.0, 90.0]
 
 
 def test_janela_deslizante_e_ordem_sem_olhar_o_periodo_avaliado(monkeypatch):
@@ -167,14 +248,18 @@ def test_metricas_ignoram_dia_fechado():
     assert m["mae"] == 11.0 and m["cobertura_ic95_pct"] == 50.0
 
 
-@pytest.mark.parametrize("mase,cobertura,esperado", [
-    (0.7, 94.0, evaluator.STATUS_TREINADO),
-    (1.1, 94.0, evaluator.STATUS_BAIXA_CONFIANCA),
-    (0.7, 85.0, evaluator.STATUS_BAIXA_CONFIANCA),
-    (0.7, 99.0, evaluator.STATUS_BAIXA_CONFIANCA),
-])
-def test_status_segue_os_limiares(mase, cobertura, esperado):
-    assert evaluator.status_do_modelo({"mase": mase, "cobertura_ic95_pct": cobertura}) == esperado
+def test_serie_que_ajusta_tem_previsao_mesmo_errando_mais_que_a_naive():
+    """Sem classificação de confiança: MASE e cobertura ficam nas métricas, não no status."""
+    idx = pd.date_range("2025-01-01", periods=400, freq="D")
+    rng = np.random.default_rng(3)
+    y = pd.Series(rng.poisson(5, len(idx)).astype(float), index=idx)  # ruído puro: a naïve empata
+    fut = pd.date_range(idx[0], periods=len(idx) + 30, freq="D")
+    X = pd.DataFrame({"seg": (fut.dayofweek == 0).astype(float)}, index=fut)
+    aberta = pd.Series(True, index=fut)
+    cfg = ConfigTreino(origens=4, grade_pq=(0,), grade_PQ=(0,), min_historico_dias=180)
+    r = treinar_serie(y, X, aberta, cfg, NIVEL_CATEGORIA)
+    assert r.status == evaluator.STATUS_TREINADO and r.previsao is not None
+    assert "mase" in r.metricas and "cobertura_ic95_pct" in r.metricas
 
 
 def test_fator_das_datas_multiplica_so_a_semana_da_data():

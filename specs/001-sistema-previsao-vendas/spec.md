@@ -209,7 +209,7 @@ a reposição sugerida dos top 10 produtos para os próximos 14 dias e os alerta
 - **Produto (SKU)**: `produto_cod` + `produto_nome`; pertence a uma **Categoria** e a uma
   **Unidade**; tem histórico de vendas diárias e uma previsão desagregada.
 - **Categoria × Unidade**: unidade de modelagem da camada L1; tem série diária agregada,
-  `shelf_life_dias`, um modelo SARIMAX treinado e status (`trained`, `low_confidence`,
+  `shelf_life_dias`, um modelo SARIMAX treinado e status (`trained`,
   `insufficient_data`).
 - **Transação**: registro individual de venda com data, quantidade, valor, unidade operacional.
 - **Modelo**: artefato SARIMAX treinado para uma `Categoria × Unidade`; ordem, métricas

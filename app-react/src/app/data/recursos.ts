@@ -6,7 +6,7 @@
  */
 import { definirAnalises } from "./analises";
 import { api } from "./api";
-import { definirPainel } from "./mockData";
+import { definirPainel } from "./painel";
 
 export type Recurso = "painel" | "analises";
 

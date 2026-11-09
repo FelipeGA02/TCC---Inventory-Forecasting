@@ -178,7 +178,8 @@ export function Notificacoes() {
           <BrainCircuit size={13} className="flex-shrink-0 mt-0.5" />
           <span>
             A previsão não se atualiza sozinha: depois de carregar as planilhas, a gestora usa "Treinar previsões", no alto da
-            tela. Cada treino prevê os 14 dias seguintes à última venda.
+            tela. Cada treino prevê os próximos 3 meses a partir da última venda; a tela de previsão mostra 2 semanas, ou mais
+            se você escolher.
           </span>
         </div>
       </PopoverContent>

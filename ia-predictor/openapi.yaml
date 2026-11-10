@@ -28,6 +28,11 @@ info:
     `/api/v1/painel/historico/*` ao abrir cada item, e Conferir Dados consulta a base
     **paginada** em `/api/v1/registros/*`.
 
+    ## 9.0.0
+    Conferir Dados sem abas: saem o parâmetro `visao` de `/api/v1/registros/*` e o `por_visao` do
+    resumo. Desconto e devolução viram os filtros `desconto` e `movimento`, combináveis com os outros.
+    Novo `GET /api/v1/atividades`: o log de uso (planilhas enviadas e treinos) da tela Relatórios.
+
     ## 8.0.0
     O treino prevê `FORECAST_MAX_HORIZON_DAYS` (91) dias, e não mais 14 (ADR-021): a `previsao` do
     painel (loja e produto) traz todos eles, e a tela escolhe quantos mostrar (14 a 91, padrão 14).
@@ -69,7 +74,7 @@ info:
     produtos regulares), o teste de acerto por produto (`/painel/produtos/.../backtest`) e as
     rotas nunca implementadas (products, forecast, alerts, simulation, reports). O painel lê
     o último treino do serviço de previsão; o upload não agenda treino (`needs_training`).
-  version: "8.0.0"
+  version: "9.0.0"
   contact:
     name: Daniel Nunes da Silva & Felipe Gurgel Araújo
     email: felipegurgel5@gmail.com
@@ -588,18 +593,32 @@ components:
           items:
             $ref: "#/components/schemas/Registro"
 
+    Atividade:
+      description: Uma planilha enviada (`tipo = planilha`) ou um treino da previsão (`tipo = treino`). Os campos do outro tipo vêm nulos.
+      type: object
+      required: [tipo, id, inicio, fim, situacao, usuario, origem, arquivo, periodo, linhas_novas, linhas_duplicadas, dados_ate, series_com_previsao, series_sem_dados, series_com_falha, mensagem]
+      properties:
+        tipo: {type: string, enum: [planilha, treino]}
+        id: {type: integer}
+        inicio: {type: string, format: date-time}
+        fim: {type: string, format: date-time, nullable: true}
+        situacao: {type: string, enum: [concluido, sem_dados_novos, em_andamento, erro]}
+        usuario: {type: string, nullable: true, description: Nome de quem enviou ou treinou (nulo na carga inicial e no script)}
+        origem: {type: string, enum: [envio, carga_inicial, botao, script]}
+        arquivo: {type: string, nullable: true}
+        periodo: {type: array, nullable: true, items: {type: string, format: date}, minItems: 2, maxItems: 2, description: Primeiro e último dia da planilha}
+        linhas_novas: {type: integer, nullable: true}
+        linhas_duplicadas: {type: integer, nullable: true}
+        dados_ate: {type: string, format: date, nullable: true, description: Último dia com venda usado no treino}
+        series_com_previsao: {type: integer, nullable: true}
+        series_sem_dados: {type: integer, nullable: true}
+        series_com_falha: {type: integer, nullable: true}
+        mensagem: {type: string, nullable: true, description: O motivo do erro (só quando `situacao = erro`)}
+
     ResumoRegistros:
-      description: Totais do filtro. `por_visao` conta cada aba com os mesmos filtros; o resto vale para a aba pedida.
+      description: Totais do filtro.
       type: object
       properties:
-        por_visao:
-          type: object
-          properties:
-            todos: {type: integer}
-            encomendas: {type: integer}
-            cadastrados: {type: integer}
-            descontos: {type: integer}
-            devolucoes: {type: integer}
         registros: {type: integer}
         notas: {type: integer}
         quantidade: {type: number}
@@ -1055,6 +1074,34 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorDetail"
 
+  /api/v1/atividades:
+    get:
+      tags: [painel]
+      summary: Log de uso do sistema — planilhas enviadas e treinos da previsão, do mais recente ao mais antigo
+      description: A reclassificação da base (scripts de manutenção) fica de fora. `mensagem` só vem quando deu erro.
+      operationId: getAtividades
+      security:
+        - BearerAuth: []
+      parameters:
+        - {name: limite, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+      responses:
+        "200":
+          description: Eventos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Atividade"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          description: Limite fora de 1 a 500
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationError"
+
   /api/v1/analises:
     get:
       tags: [painel]
@@ -1092,7 +1139,7 @@ paths:
   /api/v1/registros/linhas:
     get:
       tags: [painel]
-      summary: Uma página da base linha a linha (filtro, busca, aba e ordem feitos no banco)
+      summary: Uma página da base linha a linha (filtro, busca e ordem feitos no banco)
       operationId: getLinhasRegistros
       security:
         - BearerAuth: []
@@ -1103,12 +1150,13 @@ paths:
         - {name: pagamentos, in: query, schema: {type: array, items: {type: string}}, style: form, explode: true}
         - {name: cliente, in: query, schema: {type: string, enum: [todos, consumidor, cadastrado], default: todos}}
         - {name: tipo, in: query, schema: {type: string, enum: [todos, dia, encomenda], default: todos}}
+        - {name: desconto, in: query, schema: {type: string, enum: [todos, com, sem], default: todos}, description: linhas com ou sem desconto}
+        - {name: movimento, in: query, schema: {type: string, enum: [todos, venda, devolucao], default: todos}, description: "devolução = quantidade ou valor líquido negativo"}
         - {name: data_de, in: query, schema: {type: string, format: date}}
         - {name: data_ate, in: query, schema: {type: string, format: date}}
         - {name: valor_min, in: query, schema: {type: number}}
         - {name: valor_max, in: query, schema: {type: number}}
         - {name: busca, in: query, schema: {type: string, maxLength: 100}, description: produto, código ou nº da nota}
-        - {name: visao, in: query, schema: {type: string, enum: [todos, encomendas, cadastrados, descontos, devolucoes], default: todos}}
         - {name: ordem, in: query, schema: {type: string, enum: [data, loja, nota, produto, categoria, qtd, unit, desc, liq, pag, cliente, tipo], default: data}}
         - {name: direcao, in: query, schema: {type: string, enum: [asc, desc], default: desc}}
         - {name: pagina, in: query, schema: {type: integer, minimum: 1, default: 1}}
@@ -1132,7 +1180,7 @@ paths:
   /api/v1/registros/resumo:
     get:
       tags: [painel]
-      summary: Totais do filtro e contagem de cada aba
+      summary: Totais do filtro
       operationId: getResumoRegistros
       security:
         - BearerAuth: []
@@ -1143,12 +1191,13 @@ paths:
         - {name: pagamentos, in: query, schema: {type: array, items: {type: string}}, style: form, explode: true}
         - {name: cliente, in: query, schema: {type: string, enum: [todos, consumidor, cadastrado], default: todos}}
         - {name: tipo, in: query, schema: {type: string, enum: [todos, dia, encomenda], default: todos}}
+        - {name: desconto, in: query, schema: {type: string, enum: [todos, com, sem], default: todos}, description: linhas com ou sem desconto}
+        - {name: movimento, in: query, schema: {type: string, enum: [todos, venda, devolucao], default: todos}, description: "devolução = quantidade ou valor líquido negativo"}
         - {name: data_de, in: query, schema: {type: string, format: date}}
         - {name: data_ate, in: query, schema: {type: string, format: date}}
         - {name: valor_min, in: query, schema: {type: number}}
         - {name: valor_max, in: query, schema: {type: number}}
         - {name: busca, in: query, schema: {type: string, maxLength: 100}, description: produto, código ou nº da nota}
-        - {name: visao, in: query, schema: {type: string, enum: [todos, encomendas, cadastrados, descontos, devolucoes], default: todos}}
       responses:
         "200":
           description: Totais
@@ -1197,12 +1246,13 @@ paths:
         - {name: pagamentos, in: query, schema: {type: array, items: {type: string}}, style: form, explode: true}
         - {name: cliente, in: query, schema: {type: string, enum: [todos, consumidor, cadastrado], default: todos}}
         - {name: tipo, in: query, schema: {type: string, enum: [todos, dia, encomenda], default: todos}}
+        - {name: desconto, in: query, schema: {type: string, enum: [todos, com, sem], default: todos}, description: linhas com ou sem desconto}
+        - {name: movimento, in: query, schema: {type: string, enum: [todos, venda, devolucao], default: todos}, description: "devolução = quantidade ou valor líquido negativo"}
         - {name: data_de, in: query, schema: {type: string, format: date}}
         - {name: data_ate, in: query, schema: {type: string, format: date}}
         - {name: valor_min, in: query, schema: {type: number}}
         - {name: valor_max, in: query, schema: {type: number}}
         - {name: busca, in: query, schema: {type: string, maxLength: 100}, description: produto, código ou nº da nota}
-        - {name: visao, in: query, schema: {type: string, enum: [todos, encomendas, cadastrados, descontos, devolucoes], default: todos}}
         - {name: ordem, in: query, schema: {type: string, enum: [data, loja, nota, produto, categoria, qtd, unit, desc, liq, pag, cliente, tipo], default: data}}
         - {name: direcao, in: query, schema: {type: string, enum: [asc, desc], default: desc}}
       responses:

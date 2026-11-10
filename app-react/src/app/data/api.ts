@@ -97,6 +97,26 @@ export interface DisparoTreino {
   treino: TreinoServico;
 }
 
+/** Um evento do log de uso (`GET /api/v1/atividades`): planilha enviada ou treino da previsão. */
+export interface Atividade {
+  tipo: "planilha" | "treino";
+  id: number;
+  inicio: string;
+  fim: string | null;
+  situacao: "concluido" | "sem_dados_novos" | "em_andamento" | "erro";
+  usuario: string | null;
+  origem: "envio" | "carga_inicial" | "botao" | "script";
+  arquivo: string | null;
+  periodo: [string, string] | null;
+  linhas_novas: number | null;
+  linhas_duplicadas: number | null;
+  dados_ate: string | null;
+  series_com_previsao: number | null;
+  series_sem_dados: number | null;
+  series_com_falha: number | null;
+  mensagem: string | null;
+}
+
 /** Filtros, ordem e página da tela Conferir Dados (query de `/api/v1/registros/*`). */
 export type ConsultaRegistros = Record<string, string | number | null | undefined | string[]>;
 
@@ -115,6 +135,7 @@ export const api = {
       `/api/v1/painel/historico/${encodeURIComponent(loja)}/${nivel}/${encodeURIComponent(item)}`,
     ),
   analises: () => http.get<AnalisesJson>("/api/v1/analises"),
+  atividades: () => http.get<Atividade[]>("/api/v1/atividades"),
 
   // Conferir Dados: a base paginada no banco
   indiceRegistros: <T>() => http.get<T>("/api/v1/registros"),

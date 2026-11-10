@@ -45,14 +45,15 @@ import { formatarMesAno, formatarMoeda, formatarNumero, formatarQtd } from "@/li
  * Conferir Dados: cada registro da base, mês a mês.
  *
  * Padrões de tabela de dados grandes (NN/g "Data Tables: Four Major User Tasks"; Shopify
- * Polaris IndexTable/IndexFilters; Stripe e Airtable): visões rápidas em abas, busca em
- * destaque, painel de filtros com filtros ativos em etiquetas removíveis, ordenação no
- * cabeçalho, cabeçalho fixo, escolha de colunas e densidade, linha de totais do filtro,
- * detalhe da nota num painel lateral, exportação do resultado filtrado e paginação numerada.
+ * Polaris IndexTable/IndexFilters; Stripe e Airtable): busca em destaque, painel de filtros
+ * com filtros ativos em etiquetas removíveis, ordenação no cabeçalho, cabeçalho fixo,
+ * escolha de colunas e densidade, linha de totais do filtro, detalhe da nota num painel
+ * lateral, exportação do resultado filtrado e paginação numerada. A tela sempre abre com
+ * todos os dados; quem recorta são os filtros.
  *
  * Dados: paginados no banco. `GET /api/v1/registros` traz só os meses e as opções dos
- * filtros; cada página vem de `/registros/linhas` (filtro, busca, aba e ordenação no SQL),
- * os totais e a contagem das abas de `/registros/resumo`, a nota aberta de
+ * filtros; cada página vem de `/registros/linhas` (filtro, busca e ordenação no SQL),
+ * os totais de `/registros/resumo`, a nota aberta de
  * `/registros/nota` e o arquivo de `/registros/exportar` (só ao exportar). Nomes de
  * cliente, vendedor e operador não saem da API (dados pessoais).
  */
@@ -65,7 +66,6 @@ interface Indice {
   lojas: UnidadeId[];
   pagamentos: string[];
   limiares_encomenda_un: Record<UnidadeId, number>;
-  total_registros: number;
   meses: { mes: string; registros: number }[];
 }
 
@@ -88,7 +88,6 @@ interface Registro {
 }
 
 interface Resumo {
-  por_visao: Record<Visao, number>;
   registros: number;
   notas: number;
   quantidade: number;
@@ -120,7 +119,7 @@ function useEstavel<T>(valor: T, ms = 350): T {
 }
 
 // ---------------------------------------------------------------------------
-// Colunas, visões e filtros
+// Colunas e filtros
 // ---------------------------------------------------------------------------
 
 type ColunaId = "data" | "loja" | "nota" | "produto" | "categoria" | "qtd" | "unit" | "desc" | "liq" | "pag" | "cliente" | "tipo";
@@ -147,21 +146,14 @@ const COLUNAS: Coluna[] = [
   { id: "tipo", titulo: "Tipo" },
 ];
 
-type Visao = "todos" | "encomendas" | "cadastrados" | "descontos" | "devolucoes";
-const VISOES: { id: Visao; rotulo: string }[] = [
-  { id: "todos", rotulo: "Todos" },
-  { id: "encomendas", rotulo: "Encomendas grandes" },
-  { id: "cadastrados", rotulo: "Clientes cadastrados" },
-  { id: "descontos", rotulo: "Com desconto" },
-  { id: "devolucoes", rotulo: "Devoluções" },
-];
-
 interface Filtros {
   lojas: UnidadeId[];
   categorias: CategoriaAnalise[];
   pagamentos: string[];
   cliente: "todos" | "consumidor" | "cadastrado";
   tipo: "todos" | "dia" | "encomenda";
+  desconto: "todos" | "com" | "sem";
+  movimento: "todos" | "venda" | "devolucao";
   dataDe: string;
   dataAte: string;
   valorMin: string;
@@ -174,6 +166,8 @@ const FILTROS_VAZIOS: Filtros = {
   pagamentos: [],
   cliente: "todos",
   tipo: "todos",
+  desconto: "todos",
+  movimento: "todos",
   dataDe: "",
   dataAte: "",
   valorMin: "",
@@ -200,7 +194,7 @@ function lerPrefs(): Prefs {
 const numOuNulo = (s: string) => (s.trim() === "" || Number.isNaN(Number(s.replace(",", "."))) ? null : Number(s.replace(",", ".")));
 
 /** Filtros da tela → query de `/api/v1/registros/*` (meses vazios = todos). */
-function montarConsulta(meses: string[], todos: boolean, f: Filtros, busca: string, visao: Visao): ConsultaRegistros {
+function montarConsulta(meses: string[], todos: boolean, f: Filtros, busca: string): ConsultaRegistros {
   return {
     meses: todos ? [] : meses,
     lojas: f.lojas,
@@ -208,12 +202,13 @@ function montarConsulta(meses: string[], todos: boolean, f: Filtros, busca: stri
     pagamentos: f.pagamentos,
     cliente: f.cliente,
     tipo: f.tipo,
+    desconto: f.desconto,
+    movimento: f.movimento,
     data_de: f.dataDe || undefined,
     data_ate: f.dataAte || undefined,
     valor_min: numOuNulo(f.valorMin),
     valor_max: numOuNulo(f.valorMax),
     busca,
-    visao,
   };
 }
 
@@ -270,7 +265,7 @@ function Escolha<T extends string>({ opcoes, valor, onChange }: { opcoes: { valo
         <button
           key={o.valor}
           onClick={() => onChange(o.valor)}
-          className="px-2.5 py-1 rounded text-xs"
+          className="px-2.5 py-1 rounded text-xs whitespace-nowrap"
           style={{ background: valor === o.valor ? "#fff" : "transparent", color: valor === o.valor ? "var(--primary)" : "var(--muted-foreground)", fontWeight: valor === o.valor ? 600 : 500 }}
         >
           {o.label}
@@ -373,7 +368,6 @@ export function PreVisualizacao() {
   const [meses, setMeses] = useState<string[]>([]);
   const [erro, setErro] = useState<string | null>(null);
 
-  const [visao, setVisao] = useState<Visao>("todos");
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_VAZIOS);
   const [busca, setBusca] = useState("");
   const [ordem, setOrdem] = useState<Ordem>({ col: "data", dir: "desc" });
@@ -410,15 +404,15 @@ export function PreVisualizacao() {
   const filtrosEstaveis = useEstavel(filtros);
   // a mesma consulta (sem página e ordem) alimenta os totais e as páginas
   const consulta = useMemo(
-    () => montarConsulta(meses, todosMeses, filtrosEstaveis, termo, visao),
-    [meses, todosMeses, filtrosEstaveis, termo, visao],
+    () => montarConsulta(meses, todosMeses, filtrosEstaveis, termo),
+    [meses, todosMeses, filtrosEstaveis, termo],
   );
   const chaveConsulta = JSON.stringify(consulta);
   const semMeses = !!indice && meses.length === 0;
 
   useEffect(() => setPagina(1), [chaveConsulta, ordem, prefs.tamanho]);
 
-  // Totais do filtro e contagem das abas: só quando o filtro muda (não a cada página)
+  // Totais do filtro: só quando o filtro muda (não a cada página)
   useEffect(() => {
     if (!indice || semMeses) return;
     const ctrl = new AbortController();
@@ -469,7 +463,6 @@ export function PreVisualizacao() {
   }, [notaAberta]);
 
   const total = semMeses ? 0 : (resumo?.registros ?? 0);
-  const contagemVisao = resumo?.por_visao;
   const totalPaginas = Math.max(1, Math.ceil(total / prefs.tamanho));
   const paginaAtual = Math.min(pagina, totalPaginas);
   const visiveis = semMeses ? [] : (linhas ?? []);
@@ -487,15 +480,15 @@ export function PreVisualizacao() {
   const limparTudo = () => {
     setFiltros(FILTROS_VAZIOS);
     setBusca("");
-    setVisao("todos");
     if (indice) setMeses(indice.meses.map((m) => m.mes));
   };
 
   const set = <K extends keyof Filtros>(k: K, v: Filtros[K]) => setFiltros((f) => ({ ...f, [k]: v }));
   const nFiltros =
     filtros.lojas.length + filtros.categorias.length + filtros.pagamentos.length + (filtros.cliente !== "todos" ? 1 : 0) + (filtros.tipo !== "todos" ? 1 : 0) +
+    (filtros.desconto !== "todos" ? 1 : 0) + (filtros.movimento !== "todos" ? 1 : 0) +
     (filtros.dataDe || filtros.dataAte ? 1 : 0) + (filtros.valorMin || filtros.valorMax ? 1 : 0);
-  const algumFiltro = nFiltros > 0 || busca !== "" || visao !== "todos" || !todosMeses;
+  const algumFiltro = nFiltros > 0 || busca !== "" || !todosMeses;
 
   const alternarOrdem = (col: ColunaId) =>
     setOrdem((o) => (!o || o.col !== col ? { col, dir: "asc" } : o.dir === "asc" ? { col, dir: "desc" } : null));
@@ -601,6 +594,8 @@ export function PreVisualizacao() {
     ...filtros.pagamentos.map((p) => ({ chave: `p${p}`, texto: `Pagamento: ${p}`, remover: () => set("pagamentos", filtros.pagamentos.filter((x) => x !== p)) })),
     ...(filtros.cliente !== "todos" ? [{ chave: "cli", texto: `Cliente: ${filtros.cliente === "cadastrado" ? "cadastrado" : "consumidor"}`, remover: () => set("cliente", "todos") }] : []),
     ...(filtros.tipo !== "todos" ? [{ chave: "tipo", texto: `Tipo: ${filtros.tipo === "encomenda" ? "encomenda grande" : "dia a dia"}`, remover: () => set("tipo", "todos") }] : []),
+    ...(filtros.desconto !== "todos" ? [{ chave: "desc", texto: filtros.desconto === "com" ? "Com desconto" : "Sem desconto", remover: () => set("desconto", "todos") }] : []),
+    ...(filtros.movimento !== "todos" ? [{ chave: "mov", texto: filtros.movimento === "devolucao" ? "Só devoluções" : "Só vendas", remover: () => set("movimento", "todos") }] : []),
     ...(filtros.dataDe || filtros.dataAte
       ? [{
           chave: "periodo",
@@ -617,49 +612,15 @@ export function PreVisualizacao() {
     <div className="p-6">
       <div className="rounded-xl border bg-white flex flex-col" style={{ borderColor: "var(--border)" }}>
         {/* Cabeçalho */}
-        <div className="px-5 pt-5 pb-3 flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <h2 className="text-sm" style={{ fontWeight: 600 }}>
-              Registros de venda
-            </h2>
-            <p className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>
-              Cada linha das planilhas carregadas ({indice ? formatarNumero(indice.total_registros) : "…"} registros, sem fretes e serviços). Clique numa linha para ver a nota
-              inteira. Nomes de cliente, vendedor e operador não são exibidos.
-            </p>
-          </div>
+        <div className="px-5 pt-5 pb-3 flex items-center justify-between gap-4 flex-wrap">
+          <h2 className="text-sm" style={{ fontWeight: 600 }}>
+            Registros de venda
+          </h2>
           {indice && <SeletorMeses meses={indice.meses} selecionados={meses} onChange={setMeses} />}
         </div>
 
-        {/* Visões rápidas */}
-        <div className="px-5 flex items-end gap-1 border-b overflow-x-auto overflow-y-hidden" style={{ borderColor: "var(--border)" }} role="tablist">
-          {VISOES.map((v) => {
-            const ativo = visao === v.id;
-            return (
-              <button
-                key={v.id}
-                role="tab"
-                aria-selected={ativo}
-                onClick={() => setVisao(v.id)}
-                className="px-3 py-2 text-xs whitespace-nowrap -mb-px border-b-2 transition-colors"
-                style={{ borderColor: ativo ? "var(--primary)" : "transparent", color: ativo ? "var(--primary)" : "var(--muted-foreground)", fontWeight: ativo ? 600 : 500 }}
-              >
-                {v.rotulo}
-                <span className="ml-1.5 rounded-full px-1.5 py-0.5 text-[10px]" style={{ background: ativo ? "var(--secondary)" : "var(--muted)" }}>
-                  {contagemVisao ? formatarNumero(contagemVisao[v.id] ?? 0) : "…"}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-        {visao === "encomendas" && (
-          <p className="px-5 pt-3 text-xs" style={{ color: "var(--muted-foreground)" }}>
-            Encomenda grande é a nota bem acima do tamanho habitual da loja: hoje, acima de {textoLimiarEncomenda("todas")}. Esse limite é
-            recalculado a cada planilha enviada, e cada nota mantém a classificação que recebeu quando entrou. Essas notas ficam fora da previsão.
-          </p>
-        )}
-
         {/* Barra de ferramentas */}
-        <div className="px-5 py-3 flex items-center gap-2 flex-wrap">
+        <div className="px-5 pb-3 flex items-center gap-2 flex-wrap">
           <div className="relative flex-1 min-w-[240px] max-w-md">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--muted-foreground)" }} />
             <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por produto, código ou nº da nota" className="h-9 text-xs pl-9" />
@@ -681,7 +642,7 @@ export function PreVisualizacao() {
                 )}
               </Button>
             </PopoverTrigger>
-            <PopoverContent align="start" className="w-[520px] p-0">
+            <PopoverContent align="start" className="w-[600px] max-w-[calc(100vw-2rem)] p-0">
               <div className="p-4 grid grid-cols-2 gap-5 max-h-[60vh] overflow-y-auto">
                 <SecaoFiltro titulo="Loja">
                   <ListaMarcavel opcoes={(indice?.lojas ?? []).map((l) => ({ valor: l, label: nomeUnidade(l) }))} marcados={filtros.lojas} onChange={(v) => set("lojas", v)} />
@@ -706,11 +667,17 @@ export function PreVisualizacao() {
                 <SecaoFiltro titulo="Tipo de venda">
                   <Escolha opcoes={[{ valor: "todos", label: "Todos" }, { valor: "dia", label: "Dia a dia" }, { valor: "encomenda", label: "Encomenda grande" }]} valor={filtros.tipo} onChange={(v) => set("tipo", v)} />
                 </SecaoFiltro>
+                <SecaoFiltro titulo="Desconto">
+                  <Escolha opcoes={[{ valor: "todos", label: "Todos" }, { valor: "com", label: "Com desconto" }, { valor: "sem", label: "Sem desconto" }]} valor={filtros.desconto} onChange={(v) => set("desconto", v)} />
+                </SecaoFiltro>
+                <SecaoFiltro titulo="Vendas e devoluções">
+                  <Escolha opcoes={[{ valor: "todos", label: "Todos" }, { valor: "venda", label: "Vendas" }, { valor: "devolucao", label: "Devoluções" }]} valor={filtros.movimento} onChange={(v) => set("movimento", v)} />
+                </SecaoFiltro>
                 <SecaoFiltro titulo="Período">
                   <div className="flex items-center gap-2">
-                    <Input type="date" min={primeiroDia} max={ultimoDia} value={filtros.dataDe} onChange={(e) => set("dataDe", e.target.value)} className="h-8 text-xs w-[124px] px-2" />
+                    <Input type="date" aria-label="Data inicial" min={primeiroDia} max={ultimoDia} value={filtros.dataDe} onChange={(e) => set("dataDe", e.target.value)} className="h-8 text-xs flex-1 min-w-0 px-2" />
                     <span className="text-xs">a</span>
-                    <Input type="date" min={primeiroDia} max={ultimoDia} value={filtros.dataAte} onChange={(e) => set("dataAte", e.target.value)} className="h-8 text-xs w-[124px] px-2" />
+                    <Input type="date" aria-label="Data final" min={primeiroDia} max={ultimoDia} value={filtros.dataAte} onChange={(e) => set("dataAte", e.target.value)} className="h-8 text-xs flex-1 min-w-0 px-2" />
                   </div>
                 </SecaoFiltro>
                 <SecaoFiltro titulo="Valor líquido da linha (R$)">
@@ -800,6 +767,13 @@ export function PreVisualizacao() {
               </button>
             )}
           </div>
+        )}
+
+        {filtros.tipo === "encomenda" && (
+          <p className="px-5 pb-3 text-xs" style={{ color: "var(--muted-foreground)" }}>
+            Encomenda grande é a nota bem acima do tamanho habitual da loja: hoje, acima de {textoLimiarEncomenda("todas")}. Esse limite é
+            recalculado a cada planilha enviada, e cada nota mantém a classificação que recebeu quando entrou. Essas notas ficam fora da previsão.
+          </p>
         )}
 
         {/* Tabela */}

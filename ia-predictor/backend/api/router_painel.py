@@ -6,6 +6,7 @@
     dos produtos de grama) e `/painel/historico/{loja}/{categoria|produto}/{item}` (vendido
     × previsto congelado, na tela de histórico da previsão);
   * `/analises` (painel inicial);
+  * `/atividades` (tela Relatórios): o log de uso — planilhas enviadas e treinos;
   * `/registros/*` (Conferir Dados): a base paginada no banco — índice dos meses, uma página,
     os totais do filtro, os itens de uma nota e a exportação.
 
@@ -25,7 +26,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
 from backend.infrastructure.database import SessionLocal, get_db
-from backend.services import painel_service, registros_service
+from backend.services import atividades_service, painel_service, registros_service
 from backend.services.registros_service import Filtros
 
 router = APIRouter()
@@ -77,6 +78,13 @@ def historico(unidade: str, nivel: Literal["categoria", "produto"], item: str,
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=_MSG_SEM_HISTORICO)
 
 
+@router.get("/atividades", response_class=RespostaJSON)
+def atividades(limite: int = Query(default=100, ge=1, le=atividades_service.LIMITE_MAXIMO),
+               db: Session = Depends(get_db)) -> RespostaJSON:
+    """Log de uso: planilhas enviadas e treinos da previsão, do mais recente ao mais antigo."""
+    return RespostaJSON(atividades_service.listar(db, limite))
+
+
 @router.get("/analises", response_class=RespostaJSON)
 def analises(db: Session = Depends(get_db)) -> RespostaJSON:
     return RespostaJSON(painel_service.analises(db))
@@ -92,19 +100,20 @@ def filtros_registros(
     pagamentos: list[str] = Query(default=[], description="como a tela mostra (ex.: Pix)"),
     cliente: Literal["todos", "consumidor", "cadastrado"] = "todos",
     tipo: Literal["todos", "dia", "encomenda"] = "todos",
+    desconto: Literal["todos", "com", "sem"] = "todos",
+    movimento: Literal["todos", "venda", "devolucao"] = "todos",
     data_de: date | None = None,
     data_ate: date | None = None,
     valor_min: float | None = None,
     valor_max: float | None = None,
     busca: str = Query(default="", max_length=100),
-    visao: Literal["todos", "encomendas", "cadastrados", "descontos", "devolucoes"] = "todos",
 ) -> Filtros:
     for m in meses:
         if len(m) != 7 or m[4] != "-" or not (m[:4] + m[5:]).isdigit():
             raise HTTPException(status_code=422, detail=f"Mês inválido: {m}. Use AAAA-MM.")
     return Filtros(meses=meses, lojas=lojas, categorias=categorias, pagamentos=pagamentos,
-                   cliente=cliente, tipo=tipo, data_de=data_de, data_ate=data_ate,
-                   valor_min=valor_min, valor_max=valor_max, busca=busca, visao=visao)
+                   cliente=cliente, tipo=tipo, desconto=desconto, movimento=movimento,
+                   data_de=data_de, data_ate=data_ate, valor_min=valor_min, valor_max=valor_max, busca=busca)
 
 
 Ordem = Literal["data", "loja", "nota", "produto", "categoria", "qtd", "unit", "desc", "liq", "pag",

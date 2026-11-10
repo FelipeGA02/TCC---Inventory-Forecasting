@@ -1,8 +1,11 @@
 """Telas do frontend montadas do banco: formatos de `app-react/src/domain/types.ts`
 (`BaseReal`) e de `app-react/src/app/data/analises.ts`. A previsão é a do último treino
 concluído (`com_previsao`: as 4 categorias e o produto de grama 100, nas 2 lojas)."""
-from datetime import timedelta
+from datetime import date, timedelta
 
+from sqlalchemy import delete, insert
+
+from backend.infrastructure.database import SessionLocal, Sale
 from tests.conftest import CATEGORIAS, CONFIG_TESTE, DIAS_PREVISAO, FIM
 
 IDS_CAT = [c for c, _, _ in CATEGORIAS]
@@ -135,14 +138,47 @@ def test_registros_filtros_e_resumo(client, viewer):
     assert all(x["loja"] == "itabirito" and x["cat"] == "grama" and x["data"].startswith("2026-01")
                for x in pag["linhas"])
     assert r["quantidade"] == round(sum(x["qtd"] for x in pag["linhas"]), 3)
-    assert r["por_visao"]["encomendas"] == 1  # 3.000 un. no dia 15
+    assert "por_visao" not in r  # sem abas: a tela sempre parte de todos os dados
 
-    enc = client.get("/api/v1/registros/resumo", headers=viewer, params={**filtro, "visao": "encomendas"}).json()
-    assert enc["registros"] == 1 and enc["por_visao"] == r["por_visao"]
+    enc = client.get("/api/v1/registros/resumo", headers=viewer, params={**filtro, "tipo": "encomenda"}).json()
+    assert enc["registros"] == 1  # 3.000 un. no dia 15
 
     busca = client.get("/api/v1/registros/linhas", headers=viewer, params={"busca": "esmeralda"}).json()
     assert {x["cod"] for x in busca["linhas"]} == {"100"}
     assert client.get("/api/v1/registros/linhas", headers=viewer, params={"meses": ["janeiro"]}).status_code == 422
+
+
+def test_registros_filtros_de_desconto_e_devolucao(client, viewer):
+    """Desconto e devolução são filtros comuns: combinam entre si e com os outros."""
+    base = {"sale_date": date(2026, 2, 2), "unit_id": "itabirito", "document_type": "C1", "product_code": "100",
+            "unit_price": 2.0, "payment_method": "PIX", "is_registered_customer": False, "is_bulk_order": False}
+    extras = [
+        {**base, "document_number": "D1", "quantity": 5.0, "gross_amount": 10.0, "discount": 1.0, "net_amount": 9.0},
+        {**base, "document_number": "D2", "quantity": -5.0, "gross_amount": -10.0, "discount": 0.0, "net_amount": -10.0},
+        {**base, "document_number": "D3", "quantity": -5.0, "gross_amount": -10.0, "discount": 1.0, "net_amount": -9.0},
+    ]
+    filtro = {"meses": ["2026-02"], "lojas": ["itabirito"]}
+
+    def registros(**extra) -> int:
+        return client.get("/api/v1/registros/resumo", headers=viewer, params={**filtro, **extra}).json()["registros"]
+
+    antes = registros()
+    with SessionLocal() as db:
+        ids = [db.execute(insert(Sale).values(v).returning(Sale.id)).scalar_one() for v in extras]
+        db.commit()
+    try:
+        assert registros() == antes + 3
+        assert registros(desconto="com") == 2 and registros(desconto="sem") == antes + 1
+        assert registros(movimento="devolucao") == 2 and registros(movimento="venda") == antes + 1
+        assert registros(desconto="com", movimento="devolucao") == 1
+        linhas = client.get("/api/v1/registros/linhas", headers=viewer,
+                            params={**filtro, "desconto": "com", "movimento": "devolucao"}).json()["linhas"]
+        assert [x["nota"] for x in linhas] == ["D3"]
+        assert client.get("/api/v1/registros/linhas", headers=viewer, params={"desconto": "x"}).status_code == 422
+    finally:
+        with SessionLocal() as db:
+            db.execute(delete(Sale).where(Sale.id.in_(ids)))
+            db.commit()
 
 
 def test_registros_ordem_nota_e_exportacao(client, viewer):

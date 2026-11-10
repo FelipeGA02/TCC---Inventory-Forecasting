@@ -8,6 +8,7 @@ O status antes do primeiro treino está em `test_01_sem_previsao`.
 import time
 from datetime import date, datetime, timedelta
 
+import pandas as pd
 import pytest
 from sqlalchemy import delete, func, select
 
@@ -25,7 +26,7 @@ from backend.infrastructure.database import (
     SessionLocal,
 )
 from backend.services import servico_previsao
-from tests.conftest import CONFIG_TESTE, FIM
+from tests.conftest import CONFIG_TESTE, DIAS_PREVISAO, FIM
 
 BASE = "/api/v1/servico-previsao"
 
@@ -83,7 +84,7 @@ def test_treino_completo_em_segundo_plano(client, admin, config_rapida, monkeypa
     # 2 lojas × (4 categorias + 1 produto de grama)
     assert t["total_series"] == t["series_concluidas"] == 10
     assert t["progresso_pct"] == 100.0
-    assert t["series_treinadas"] + t["series_baixa_confianca"] == 10
+    assert t["series_treinadas"] == 10
     assert t["dados_ate"] == "2026-02-28"
     monkeypatch.setattr(servico_previsao, "ultimo_concluido", ultimo_concluido)  # volta a ver os treinos
     s = client.get(f"{BASE}/status", headers=admin).json()
@@ -93,11 +94,11 @@ def test_treino_completo_em_segundo_plano(client, admin, config_rapida, monkeypa
     assert {(x["loja"], x["nivel"]) for x in series} == {(l, n) for l in ("itabirito", "jardim-canada")
                                                           for n in ("category", "product")}
     for x in series:
-        assert x["ordem"][1] == 0  # d = 0
+        assert x["ordem"][1] in (0, 1)  # d escolhido pelo walk-forward de cada série (ADR-020)
         assert x["ordem_sazonal"][1] == 0  # D = 0
         assert x["ordem_sazonal"][3] == 7  # m = 7
-        assert len(x["previsao"]) == 14
-        assert x["previsao"][0]["data"] == "2026-03-01" and x["previsao"][-1]["data"] == "2026-03-14"
+        assert len(x["previsao"]) == DIAS_PREVISAO  # a previsão final vai além do walk-forward (ADR-021)
+        assert x["previsao"][0]["data"] == "2026-03-01" and x["previsao"][-1]["data"] == "2026-03-21"
         assert x["metricas"]["origens"] == 3
     produtos = [x for x in series if x["nivel"] == "product"]
     assert {x["produto_codigo"] for x in produtos} == {"100"} and produtos[0]["nome"] == "GRAMA ESMERALDA M2"
@@ -105,16 +106,20 @@ def test_treino_completo_em_segundo_plano(client, admin, config_rapida, monkeypa
     with SessionLocal() as db:
         modelos = [m.id for m in db.scalars(select(SeriesModel).where(SeriesModel.job_id == treino_id))]
         assert db.scalar(select(func.count()).select_from(SeriesForecast)
-                         .where(SeriesForecast.model_id.in_(modelos))) == 10 * 14
+                         .where(SeriesForecast.model_id.in_(modelos))) == 10 * DIAS_PREVISAO
         assert db.scalar(select(func.count()).select_from(SeriesBacktestPoint)
                          .where(SeriesBacktestPoint.model_id.in_(modelos))) == 10 * 3 * 14
         job = db.get(ForecastJob, treino_id)
-        assert job.config["d"] == 0 and job.config["D"] == 0 and job.config["m"] == 7
+        assert job.config["D"] == 0 and job.config["m"] == 7 and job.config["d_candidatos"] == [0, 1]
+        assert job.config["horizonte"] == 14 and job.config["horizonte_previsao"] == DIAS_PREVISAO
         assert job.config["passo"] == 1 and job.data_fingerprint == servico_previsao.impressao_digital(db)
         assert "versao_codigo" in job.config
         # coeficientes e diagnóstico dos resíduos do ajuste final de cada série
         for m in db.scalars(select(SeriesModel).where(SeriesModel.job_id == treino_id)):
-            assert "intercept" in m.params["coeficientes"] and "loja_fechada" in m.params["coeficientes"]
+            # com d = 0 o modelo leva constante; com d = 1, não (ela viraria tendência)
+            assert ("intercept" in m.params["coeficientes"]) == (m.sarimax_order[1] == 0)
+            assert m.params["trend"] == ("c" if m.sarimax_order[1] == 0 else "n")
+            assert "loja_fechada" in m.params["coeficientes"]
             assert {"ljung_box_p", "shapiro_p", "erro_total_14d_pct", "origens_vence_naive"} <= set(m.metrics)
             # o que saiu da série como encomenda grande, com o limiar da loja (ADR-018)
             assert {"limiar_un", "pedidos", "pct_venda"} <= set(m.params["encomendas_grandes"])
@@ -146,7 +151,7 @@ def test_historico_do_primeiro_treino_vem_do_walk_forward(client, viewer):
     um previsto com as vendas até a véspera."""
     r = client.get("/api/v1/painel/historico/jardim-canada/categoria/grama", headers=viewer)
     assert r.status_code == 200, r.text
-    serie = r.json()
+    serie = r.json()["serie"]
     assert serie[0]["data"] == "2025-12-01" and serie[-1]["data"] == str(FIM)  # base inteira
     com_previsto = [d for d in serie if d["previsto"] is not None]
     assert [d["data"] for d in com_previsto] == [str(FIM - timedelta(days=i)) for i in range(15, -1, -1)]
@@ -163,14 +168,32 @@ def test_historico_do_primeiro_treino_vem_do_walk_forward(client, viewer):
         segunda = {h.store_closed for h in db.scalars(select(ForecastHistory).where(
             ForecastHistory.day == FIM + timedelta(days=2)))}
     assert domingo == {True} and segunda == {False}
-    # a previsão dos 14 dias de cada uma das 10 séries, esperando os dias passarem
-    assert len(futuro) == 10 * 14
+    # a previsão de cada uma das 10 séries (todos os dias previstos), esperando os dias passarem
+    assert len(futuro) == 10 * DIAS_PREVISAO
     assert {(fonte, origem, jid) for _, fonte, origem, jid in futuro.values()} == {
         ("forecast", FIM + timedelta(days=1), job.id)}
 
 
+def test_historico_traz_a_avaliacao_do_ultimo_treino(client, viewer):
+    """As métricas do histórico são as do walk-forward da série no último treino concluído."""
+    avaliacao = client.get("/api/v1/painel/historico/jardim-canada/categoria/grama", headers=viewer).json()["avaliacao"]
+    with SessionLocal() as db:
+        job = servico_previsao.ultimo_concluido(db)
+        modelo = db.scalar(select(SeriesModel).where(SeriesModel.job_id == job.id,
+                                                     SeriesModel.series_key == "jardim-canada:category:grama"))
+    m = modelo.metrics
+    assert avaliacao["status"] == modelo.status
+    assert avaliacao["dados_ate"] == str(job.data_until)
+    assert (avaliacao["mae"], avaliacao["mase"], avaliacao["largura_ic95"], avaliacao["dias_avaliados"]) == (
+        m["mae"], m["mase"], m["largura_ic95"], m["dias_avaliados"])
+    assert avaliacao["wape_pct"] == pytest.approx(m["mae"] / m["venda_media_dia"] * 100, abs=0.05)
+    # as métricas que saíram da tela não vêm mais
+    assert not {"cobertura_ic95_pct", "erro_total_14d_pct", "previsto_sobre_real_pct",
+                "erro_relativo_naive"} & set(avaliacao)
+
+
 def test_historico_do_produto_sem_encomendas_grandes(client, viewer):
-    serie = client.get("/api/v1/painel/historico/jardim-canada/produto/100", headers=viewer).json()
+    serie = client.get("/api/v1/painel/historico/jardim-canada/produto/100", headers=viewer).json()["serie"]
     dia15 = next(d for d in serie if d["data"] == "2026-01-15")
     assert dia15["real"] == 0.0  # a nota de 3.000 un. é encomenda grande
     assert serie[-1]["previsto"] is not None
@@ -204,10 +227,10 @@ def test_treino_em_processos_paralelos(client, admin, config_rapida, monkeypatch
     t = _esperar_fim(client, admin, limite_s=300)["ultimo"]
     assert t["status"] == "done", t["mensagem"]
     with SessionLocal() as db:
-        # dias com venda ficam como estavam; a previsão nova (mesmo início) troca os 14 dias
+        # dias com venda ficam como estavam; a previsão nova (mesmo início) troca os dias previstos
         assert _historico_gravado(db, ForecastHistory.day <= FIM) == passado
         futuro = _historico_gravado(db, ForecastHistory.day > FIM)
-    assert len(futuro) == 10 * 14 and {jid for *_, jid in futuro.values()} == {t["id"]}
+    assert len(futuro) == 10 * DIAS_PREVISAO and {jid for *_, jid in futuro.values()} == {t["id"]}
     assert t["series_concluidas"] == 10 and t["series_com_erro"] == 0
     logs = client.get(f"{BASE}/treinos/{t['id']}/logs", headers=admin).json()
     assert not any("seguem uma a uma" in l["mensagem"] for l in logs)  # rodou mesmo em paralelo
@@ -216,7 +239,7 @@ def test_treino_em_processos_paralelos(client, admin, config_rapida, monkeypatch
 def test_produto_sem_vendas_suficientes_fica_registrado_sem_previsao(client, admin, monkeypatch):
     _forcar_novo_treino(monkeypatch)
     monkeypatch.setattr(settings, "TRAINING_WORKERS", 1)
-    exigente = ConfigTreino(janela_dias=30, origens=3, grade_pq=(0, 1), grade_PQ=(0,), min_historico_dias=20,
+    exigente = ConfigTreino(janela_dias=30, janela_venda_dias=30, origens=3, grade_pq=(0, 1), grade_PQ=(0,), min_historico_dias=20,
                             min_dias_com_venda=29)  # o produto 100 vende 25 dias por janela de 30
     monkeypatch.setattr(servico_previsao, "config_treino", lambda: exigente)
     assert client.post(f"{BASE}/treinos", headers=admin).status_code == 202
@@ -312,6 +335,47 @@ def test_so_flores_de_corte_leva_o_fator_das_datas(client, monkeypatch):
     assert {s.chave for s in series if s.com_queda} == {s.chave for s in series} - com
     assert desligado.fator_datas == () and not any(s.com_fator for s in sem_fator)
     assert desligado.queda_datas == () and not any(s.com_queda for s in sem_fator)
+
+
+def test_d_de_cada_serie_sai_do_walk_forward(client, com_previsao):
+    """ADR-020: o treino roda o walk-forward com d = 0 e d = 1 em cada série e fica com o que
+    errou menos; o erro de cada um fica nas métricas e no log."""
+    with SessionLocal() as db:
+        job = servico_previsao.ultimo_concluido(db)
+        modelos = [m for m in db.scalars(select(SeriesModel).where(SeriesModel.job_id == job.id))
+                   if m.status == "trained"]
+        logs = [l.message for l in db.scalars(select(ForecastJobLog).where(ForecastJobLog.job_id == job.id))]
+        assert modelos
+        for m in modelos:
+            sel = m.metrics["selecao_d"]
+            assert set(sel) == {"0", "1"} and m.metrics["d_escolhido"] == m.sarimax_order[1]
+            validos = {d: v["mae"] for d, v in sel.items() if not v.get("falhou")}
+            assert validos[str(m.sarimax_order[1])] == min(validos.values())
+            assert m.metrics["mae"] == validos[str(m.sarimax_order[1])]
+        assert any("d escolhido pelo walk-forward" in l for l in logs)
+        # X cobre os dias da previsão final, não só os do walk-forward (ADR-021)
+        series, _ = servico_previsao._montar_series(db, CONFIG_TESTE, job.id)
+    assert all(s.X.index.max() == pd.Timestamp(FIM) + pd.Timedelta(days=DIAS_PREVISAO) for s in series)
+
+
+def test_candidatos_de_d_vem_da_configuracao(monkeypatch):
+    assert servico_previsao.config_treino().ds == (0, 1)
+    monkeypatch.setattr(settings, "FORECAST_SERVICE_D_CANDIDATES", [0])
+    assert servico_previsao.config_treino().ds == (0,) and servico_previsao.config_treino().d_candidatos == ()
+
+
+def test_receita_nova_pede_treino(client, monkeypatch):
+    """Mudar a receita do modelo (d, horizonte...) muda a impressão digital: o próximo disparo
+    treina mesmo sem venda nova."""
+    with SessionLocal() as db:
+        antes = servico_previsao.impressao_digital(db)
+        monkeypatch.setattr(settings, "FORECAST_SERVICE_D_CANDIDATES", [0])
+        assert servico_previsao.impressao_digital(db) != antes
+        monkeypatch.setattr(settings, "FORECAST_SERVICE_D_CANDIDATES", [0, 1])
+        monkeypatch.setattr(settings, "FORECAST_MAX_HORIZON_DAYS", 28)
+        assert servico_previsao.impressao_digital(db) != antes
+        monkeypatch.setattr(settings, "FORECAST_MAX_HORIZON_DAYS", 91)
+        assert servico_previsao.impressao_digital(db) == antes
 
 
 def test_venda_nova_ou_alterada_muda_a_impressao_digital(client, admin):

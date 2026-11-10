@@ -21,7 +21,7 @@ const routeTitles: Record<string, { title: string; subtitle: string }> = {
   "/importar": { title: "Carregar Planilha de Vendas", subtitle: "Envie o relatório de vendas e depois treine as previsões" },
   "/pre-visualizacao": { title: "Conferir Dados", subtitle: "Gerencie os dados importados pelas planilhas" },
   "/previsao": { title: "Previsão de Vendas", subtitle: "Previsão diária das categorias e dos produtos de grama de cada loja, e o histórico das previsões" },
-  "/exportar": { title: "Relatórios", subtitle: "Escolha, confira a prévia e baixe em Excel, CSV ou PDF" },
+  "/exportar": { title: "Relatórios", subtitle: "Relatórios para baixar e o registro de uso do sistema" },
 };
 
 const NOME_PERFIL = { admin: "Gestora (administração)", viewer: "Gerente (consulta)" } as const;

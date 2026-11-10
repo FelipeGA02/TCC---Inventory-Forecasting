@@ -69,7 +69,7 @@ simultâneos.
 | --- | --- | --- |
 | I. Domínio Puro | ✅ PASS | `backend/domain/` (etl, features, models, disaggregation, replenishment) não importa FastAPI/SQLAlchemy |
 | II. Estatística antes de ML | ✅ PASS | L1 é SARIMAX; Croston/TSB só na trilha de comparação por SKU (série esparsa, SARIMAX inaplicável); NN/boosting exigem evidência empírica |
-| III. Validação obrigatória | ✅ PASS | Walk-forward CV (≥4 folds, origem móvel, h=14d) + MASE < 1.0 + simulação de perda/ruptura antes de `status = "trained"` |
+| III. Validação obrigatória | ✅ PASS | Walk-forward CV (≥4 folds, origem móvel, h=14d) antes da previsão, com MASE e cobertura registrados |
 | IV. Interface para não-técnico | ✅ PASS | Recomendação e alertas em PT-BR sem jargão; SC-006 |
 | V. Rastreabilidade total | ✅ PASS | `processing_log`, `retrain_history` (inclusive treinos `skipped`) e `forecast_runs` (cada geração da previsão) |
 | VI. Segurança por Padrão | ✅ PASS | JWT em todos os `/api/v1/*`; bcrypt; sem dados pessoais na API |
@@ -356,10 +356,7 @@ fit_sarimax(ts_train, exog_train_w, order, seasonal_order)
 walk_forward_cv(n_splits=4, horizon=14)           # MASE, RMSSE, cobertura IC
 residual_tests()                                  # Ljung-Box + Shapiro-Wilk (log)
 
-MASE < 1.0  E  cobertura ∈ [90,98]  E  simulação melhor que ingênua?
-    → status = "trained"   ; salva artefato joblib + metadados
-else
-    → status = "low_confidence" ; salva (a tela mostra igual, sem aviso)
+status = "trained"   ; salva artefato joblib + metadados (MASE e cobertura registrados, sem classificar)
 
 generate_daily_forecast(model, exog_future, horizon=14) → ForecastResult (por categoria)
 

@@ -4,11 +4,13 @@ Regra: o previsto de um dia é o da última previsão feita antes dele — o nú
 viu na tela.
 
   * cada treino do serviço de previsão começa em `inicio` (dia seguinte à última venda) e
-    cobre os 14 dias do horizonte: grava ou troca o previsto desses dias;
+    cobre todos os dias que ele previu (91, ADR-021; 14 nos treinos anteriores): grava ou
+    troca o previsto desses dias, independentemente de quantos a tela mostra;
   * os dias antes de `inicio` já têm venda carregada e não mudam mais. Com o treino
     semanal, ficam congelados os dias entre um início e o seguinte (9 dias, se o treino
-    seguinte vier 9 dias depois); se ele demorar mais de 14 dias, ficam os 14;
-  * dia que nenhuma previsão cobriu — antes do 1º treino, ou o que passou dos 14 dias
+    seguinte vier 9 dias depois); se ele demorar mais que o horizonte da previsão, ficam os
+    dias que ela cobria;
+  * dia que nenhuma previsão cobriu — antes do 1º treino, ou o que passou do horizonte
     quando o treino seguinte demorou — vem do walk-forward desse treino, que só preenche
     dia ainda vazio. Do walk-forward entra só o 1º dia de cada janela (h = 1): as origens
     andam 1 dia, então cada dia tem um previsto só, feito com as vendas até a véspera.
@@ -26,8 +28,6 @@ from __future__ import annotations
 from datetime import date
 
 import pandas as pd
-
-from backend.domain.models import datas_comemorativas
 
 Chave = tuple[str, str, date]  # (nível, item, dia)
 _COLUNAS = ["origem", "data", "previsto", "ic_inf", "ic_sup"]
@@ -82,24 +82,21 @@ def pontos_a_gravar(gravados_antes: set[Chave], walk_forward: list[dict], previs
 
 
 def serie_com_previsto(real: pd.Series,
-                       previstos: dict[date, tuple[float, float, float, str, date, bool | None, float | None]]
+                       previstos: dict[date, tuple[float, float, float, str, date, bool | None]]
                        ) -> list[dict]:
     """Vendido de cada dia de `real` (índice diário) com o previsto gravado: valor, faixa,
     de onde veio (`fonte`: "forecast" | "walk_forward"), a quantos dias do início da
-    previsão ele estava (`horizonte`, 1 no walk-forward), se a previsão contava com a loja
-    fechada (`loja_fechada`) e o ajuste da data comemorativa que entrou nele (`ajuste`:
-    evento e multiplicador, ADR-019). `None` nos dias sem previsão."""
+    previsão ele estava (`horizonte`, 1 no walk-forward) e se a previsão contava com a loja
+    fechada (`loja_fechada`). `None` nos dias sem previsão. O fator da data comemorativa
+    (`event_factor`, ADR-019) é interno e não vai para a tela."""
     serie = []
     for dia, vendido in real.items():
         p = previstos.get(dia.date())
-        fator = p[6] if p is not None and len(p) > 6 else None
         serie.append({"data": str(dia.date()), "real": round(float(vendido), 1),
                       "previsto": None if p is None else p[0],
                       "inf": None if p is None else p[1],
                       "sup": None if p is None else p[2],
                       "fonte": None if p is None else p[3],
                       "horizonte": None if p is None else (dia.date() - p[4]).days + 1,
-                      "loja_fechada": None if p is None else p[5],
-                      "ajuste": None if fator is None else {"evento": datas_comemorativas.evento_do_dia(dia),
-                                                            "multiplicador": round(float(fator), 3)}})
+                      "loja_fechada": None if p is None else p[5]})
     return serie

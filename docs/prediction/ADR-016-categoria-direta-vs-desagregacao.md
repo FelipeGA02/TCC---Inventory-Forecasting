@@ -117,9 +117,9 @@ de 10 modelos fica em segundos — cabe folgado na janela de `RETRAIN_AFTER_UPLO
 "desagregação, sem modelo próprio". Passaria a registrar ordem, MASE, cobertura e
 `artifact_path` por categoria, como já faz para loja e produto.
 
-**Status dos modelos.** Com o protocolo deste experimento, `Produtos de jardim` em
-Itabirito fica em `low_confidence` (MASE 0,976 no direto, no limite; 1,023 na desagregação).
-As outras 7 categorias-unidade passam `MASE < 1` no direto.
+**MASE dos modelos.** Com o protocolo deste experimento, `Produtos de jardim` em Itabirito
+fica no limite (MASE 0,976 no direto; 1,023 na desagregação). As outras 7 categorias-unidade
+ficam com `MASE < 1` no direto.
 
 **Risco.** 8 modelos de categoria é mais superfície de falha que 2 L1 + rateio
 determinístico: uma categoria pode não convergir numa origem. O walk-forward deste

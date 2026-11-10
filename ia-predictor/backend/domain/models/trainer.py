@@ -5,9 +5,12 @@ banco, grava e mostra o andamento é `backend/services/servico_previsao.py`.
 
 Protocolo
 ---------
-  1. **Ordem por AIC** no grid `(p, q) × (P, Q)`, com `d`, `D` e `m` fixos, ajustada só na
-     janela que termina na véspera da primeira origem do walk-forward — a escolha não vê o
-     período que vai ser avaliado.
+  1. **Ordem por AIC** no grid `(p, q) × (P, Q)`, com `D` e `m` fixos, ajustada só na janela
+     que termina na véspera da primeira origem do walk-forward — a escolha não vê o período
+     que vai ser avaliado. Com `d_candidatos` (ADR-020), a ordem é escolhida para cada `d` e os
+     passos 1 e 2 rodam uma vez por `d`; fica o `d` cujo walk-forward errou menos (MAE nos dias
+     de loja aberta — o AIC não compara modelos com `d` diferente). Sem `d_candidatos`, só
+     `config.d`.
   2. **Walk-forward com janela deslizante**: a origem anda `passo` dia(s) por vez; em cada
      origem o modelo é reajustado nos últimos `janela_dias` dias antes dela e prevê os
      `horizonte` dias seguintes. As janelas de previsão se sobrepõem: cada dia avaliado
@@ -18,8 +21,10 @@ Protocolo
      da previsão (`domain.historico_previsao`): sem elas, os últimos 13 dias antes da
      previsão nova ficariam sem previsto.
   4. **Previsão final**: o mesmo modelo ajustado nos últimos `janela_dias` dias com venda
-     conhecida prevê os `horizonte` dias seguintes. Desse ajuste saem os coeficientes e o
-     diagnóstico dos resíduos (Ljung-Box e Shapiro-Wilk), registrados sem mudar o status.
+     conhecida prevê os `dias_previsao` dias seguintes (`horizonte_previsao`, ou `horizonte`
+     sem ele — ADR-021: o sistema prevê 91 dias e a tela escolhe quantos mostrar; o
+     walk-forward continua em `horizonte` = 14). Desse ajuste saem os coeficientes e o
+     diagnóstico dos resíduos (Ljung-Box e Shapiro-Wilk), registrados com as métricas.
   5. **Datas comemorativas** (ADR-019): em cada previsão — do walk-forward, do complemento e a
      final —, o previsto e a faixa dos dias da semana de uma data são multiplicados pelo fator
      dela (`domain.models.datas_comemorativas`), calculado só com a venda anterior ao primeiro
@@ -28,21 +33,17 @@ Protocolo
      já saem com o ajuste: medem o que a loja veria. A coluna `fator` (1 = sem ajuste) fica
      no walk-forward, no complemento e na previsão.
 
-Por que `d = 0`: as 12 séries de categoria e de produto de grama rejeitam raiz unitária no
-ADF e mostram sinal de sobrediferenciação com `d = 1` (autocorrelação de lag 1 da diferença
-entre −0,42 e −0,53; `training_scripts/disaggregation/estacionariedade_categoria_sku.py`).
-Diferenciar uma série estacionária é má especificação, e `d = 0` é a que os testes sustentam.
-
-Custo medido, registrado para não ser esquecido: no walk-forward, `d = 1` ainda erra 1–7%
-menos que `d = 0` na família Grama (categoria e os 2 produtos mais vendidos, nas 2 lojas) —
-só Grama de Jardim Canadá passa do limite de 5% (6,6%). A janela deslizante de 365 dias **não**
-explica essa diferença: `d = 0` com ela fica onde `d = 0` com janela expansiva já estava
-(`variantes_log_d_categoria_sku.py --janela 365`). Nas outras categorias `d = 0` empata ou
-vence (Flores de corte: 6–8% melhor).
+Por que escolher `d` série a série pelo walk-forward (ADR-020, doc 10): o KPSS no resíduo da
+regressão nas exógenas do modelo (Hyndman & Khandakar, 2008) rejeita a estacionariedade do nível
+nas séries grandes de Grama, Plantas diversas e Produtos de jardim, e nenhuma série em que ele
+rejeita fica melhor com `d = 0`; mas nas séries esparsas (3 a 22 un./dia) ele não tem poder para
+decidir, e várias delas erram menos com `d = 1`. O ADF é distorcido nestas séries (raiz MA perto de
+−1 na diferença; Schwert, 1989). Escolher pelo erro fora da amostra cobre os dois casos. Com
+`d > 0` o modelo fica sem constante (`forecaster.ajustar`: a constante viraria tendência).
 """
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 
 import numpy as np
 import pandas as pd
@@ -60,8 +61,16 @@ class ConfigTreino:
     m: int = 7
     d: int = 0
     D: int = 0
-    horizonte: int = 14
+    # d testados no walk-forward de cada série (ADR-020); vazio = só `d`
+    d_candidatos: tuple[int, ...] = ()
+    horizonte: int = 14             # do walk-forward (validação e métricas)
+    horizonte_previsao: int | None = None  # dias da previsão final; None = `horizonte`
+    # janela deslizante de treino; a produção usa FORECAST_SERVICE_WINDOW_DAYS (545, ADR-022). O padrão
+    # fica em 365 para os experimentos de training_scripts/ continuarem reproduzindo o que documentaram
     janela_dias: int = 365
+    # período em que o produto precisa ter vendido em `min_dias_com_venda` dias para ser treinado;
+    # separado da janela de treino para a janela maior não trazer de volta produto parado (ADR-022)
+    janela_venda_dias: int = 365
     origens: int = 56
     passo: int = 1
     grade_pq: tuple[int, ...] = (0, 1, 2)
@@ -70,9 +79,6 @@ class ConfigTreino:
     maxiter: int = 200
     min_historico_dias: int = 180   # antes da primeira origem (o 1º modelo do walk-forward também tem de cumprir)
     min_dias_com_venda: int = 28    # só produto: dias com venda na última janela
-    mase_max: float = 1.0
-    cobertura_min: float = 90.0
-    cobertura_max: float = 98.0
     max_origens_com_falha_pct: float = 50.0
     # datas comemorativas (ADR-019): a alta nas séries treinadas com `com_fator`, a queda nas
     # treinadas com `com_queda`
@@ -80,6 +86,16 @@ class ConfigTreino:
     fator_regra: datas_comemorativas.Regra = datas_comemorativas.REGRA_ALTA
     queda_datas: tuple[str, ...] = datas_comemorativas.DATAS_DE_QUEDA
     queda_regra: datas_comemorativas.Regra = datas_comemorativas.REGRA_QUEDA
+
+    @property
+    def ds(self) -> tuple[int, ...]:
+        """Os `d` que o treino avalia: `d_candidatos`, ou só `d`."""
+        return tuple(self.d_candidatos) or (self.d,)
+
+    @property
+    def dias_previsao(self) -> int:
+        """Dias da previsão final (a partir do dia seguinte à última venda)."""
+        return max(self.horizonte_previsao or self.horizonte, self.horizonte)
 
     def como_dict(self) -> dict:
         return {k: list(v) if isinstance(v, tuple) else v for k, v in asdict(self).items()}
@@ -136,9 +152,9 @@ def motivo_inelegivel(y: pd.Series, config: ConfigTreino, nivel: str) -> str | N
         return (f"histórico de {len(antes)} dias antes do período de validação; "
                 f"o mínimo é {config.min_historico_dias}")
     if nivel == NIVEL_PRODUTO:
-        dias = int((y.iloc[-config.janela_dias:] > 0).sum())
+        dias = int((y.iloc[-config.janela_venda_dias:] > 0).sum())
         if dias < config.min_dias_com_venda:
-            return (f"vendeu em {dias} dia(s) nos últimos {config.janela_dias}; "
+            return (f"vendeu em {dias} dia(s) nos últimos {config.janela_venda_dias}; "
                     f"o mínimo é {config.min_dias_com_venda}")
     return None
 
@@ -155,12 +171,47 @@ def _ajustes_datas(y: pd.Series, X: pd.DataFrame, antes_de: pd.Timestamp, dias: 
     return datas_comemorativas.multiplicadores(dias, lista), lista
 
 
+def _avaliar_d(y: pd.Series, X: pd.DataFrame, aberta: pd.Series, config: ConfigTreino, origens: list,
+               com_fator: bool, com_queda: bool, tick) -> dict:
+    """Ordem por AIC (com `config.d`) na janela antes da 1ª origem e o walk-forward dela.
+    Devolve {escolha, pontos, metricas, falhas}; `metricas` = None se falhou em origens demais.
+    Levanta `NenhumaOrdemConvergiu`."""
+    pre = _janela(y, origens[0], config.janela_dias)
+    escolha = selecionar_ordem(pre, X.loc[pre.index], d=config.d, D=config.D, m=config.m,
+                               grade_pq=config.grade_pq, grade_PQ=config.grade_PQ,
+                               maxiter=config.maxiter, ao_ajustar=tick)
+    linhas, falhas = [], 0
+    for origem in origens:
+        treino = _janela(y, origem, config.janela_dias)
+        futuro = pd.date_range(origem, periods=config.horizonte, freq="D")
+        try:
+            res = ajustar(treino, X.loc[treino.index], escolha.ordem, escolha.ordem_sazonal, config.maxiter)
+            prev, inf, sup = prever(res, X.loc[futuro], config.alpha)
+        except Exception:  # noqa: BLE001 — origem que não ajusta: conta e segue
+            falhas += 1
+            tick()
+            continue
+        fator, _ = _ajustes_datas(y, X, origem, futuro, config, com_fator, com_queda)
+        ultima_semana = treino.values[-config.m:]
+        escala = float(np.mean(np.abs(treino.values[config.m:] - treino.values[:-config.m])))
+        for h, dia in enumerate(futuro):
+            linhas.append({"origem": origem, "data": dia, "horizonte": h + 1, "previsto": float(prev[h] * fator[h]),
+                           "ic_inf": float(inf[h] * fator[h]), "ic_sup": float(sup[h] * fator[h]),
+                           "real": float(y.loc[dia]), "naive": float(ultima_semana[h % config.m]),
+                           "escala": escala, "aberta": bool(aberta.loc[dia]), "fator": float(fator[h])})
+        tick()
+    if not linhas or falhas * 100 > config.max_origens_com_falha_pct * len(origens):
+        return {"escolha": escolha, "pontos": None, "metricas": None, "falhas": falhas}
+    pontos = pd.DataFrame(linhas)
+    return {"escolha": escolha, "pontos": pontos, "metricas": evaluator.metricas_walk_forward(pontos), "falhas": falhas}
+
+
 def treinar_serie(y: pd.Series, X: pd.DataFrame, aberta: pd.Series, config: ConfigTreino, nivel: str,
                   ao_progredir=None, com_fator: bool = False, com_queda: bool = False) -> ResultadoSerie:
     """Treina uma série. Nunca levanta exceção: falha vira `status = "error"` com o motivo.
 
-    `X` e `aberta` (bool: loja aberta no dia) cobrem o índice de `y` e os `horizonte` dias
-    depois dele. `ao_progredir(feitos, total)` é chamado a cada ajuste. `com_fator`: aplica a
+    `X` e `aberta` (bool: loja aberta no dia) cobrem o índice de `y` e os `config.dias_previsao`
+    dias depois dele. `ao_progredir(feitos, total)` é chamado a cada ajuste. `com_fator`: aplica a
     alta das datas de `config.fator_datas`; `com_queda`, a queda das de `config.queda_datas`
     (passo 5 do protocolo).
     """
@@ -177,7 +228,7 @@ def treinar_serie(y: pd.Series, X: pd.DataFrame, aberta: pd.Series, config: Conf
     origens = origens_walk_forward(fim, config)
     complemento = origens_complemento(fim, config)
     n_grade = len(config.grade_pq) ** 2 * len(config.grade_PQ) ** 2
-    total, feitos = n_grade + len(origens) + len(complemento) + 1, 0
+    total, feitos = (n_grade + len(origens)) * len(config.ds) + len(complemento) + 1, 0
 
     def tick():
         nonlocal feitos
@@ -186,49 +237,40 @@ def treinar_serie(y: pd.Series, X: pd.DataFrame, aberta: pd.Series, config: Conf
             ao_progredir(feitos, total)
 
     try:
-        # 1. Ordem por AIC, só com a janela anterior à primeira origem.
-        pre = _janela(y, origens[0], config.janela_dias)
-        try:
-            escolha = selecionar_ordem(pre, X.loc[pre.index], d=config.d, D=config.D, m=config.m,
-                                       grade_pq=config.grade_pq, grade_PQ=config.grade_PQ,
-                                       maxiter=config.maxiter, ao_ajustar=tick)
-        except NenhumaOrdemConvergiu:
+        # 1 e 2. Para cada d: ordem por AIC antes da 1ª origem e walk-forward.
+        avaliados: dict[int, dict] = {}
+        for d in config.ds:
+            try:
+                avaliados[d] = _avaliar_d(y, X, aberta, replace(config, d=d), origens, com_fator, com_queda, tick)
+            except NenhumaOrdemConvergiu:
+                continue
+        if not avaliados:
             base.motivo = "nenhuma ordem do grid conseguiu ajustar a série"
             return base
+        validos = {d: a for d, a in avaliados.items() if a["metricas"] is not None}
+        if not validos:
+            d, a = next(iter(avaliados.items()))
+            base.ordem, base.ordem_sazonal, base.origens_com_falha = a["escolha"].ordem, a["escolha"].ordem_sazonal, a["falhas"]
+            base.status = evaluator.STATUS_ERRO
+            base.motivo = f"o modelo não ajustou em {a['falhas']} de {len(origens)} origens da validação"
+            return base
+        # o d do walk-forward que errou menos; empate fica com o primeiro candidato
+        d = min(validos, key=lambda k: (validos[k]["metricas"]["mae"], config.ds.index(k)))
+        escolhido = validos[d]
+        escolha = escolhido["escolha"]
         base.ordem, base.ordem_sazonal = escolha.ordem, escolha.ordem_sazonal
         base.aic, base.ordens_convergidas = round(escolha.aic, 2), escolha.ordens_convergidas
-
-        # 2. Walk-forward com janela deslizante, origem andando `passo` dia(s).
-        linhas, falhas = [], 0
-        for origem in origens:
-            treino = _janela(y, origem, config.janela_dias)
-            futuro = pd.date_range(origem, periods=config.horizonte, freq="D")
-            try:
-                res = ajustar(treino, X.loc[treino.index], escolha.ordem, escolha.ordem_sazonal, config.maxiter)
-                prev, inf, sup = prever(res, X.loc[futuro], config.alpha)
-            except Exception:  # noqa: BLE001 — origem que não ajusta: conta e segue
-                falhas += 1
-                tick()
-                continue
-            fator, _ = _ajustes_datas(y, X, origem, futuro, config, com_fator, com_queda)
-            ultima_semana = treino.values[-config.m:]
-            escala = float(np.mean(np.abs(treino.values[config.m:] - treino.values[:-config.m])))
-            for h, dia in enumerate(futuro):
-                linhas.append({"origem": origem, "data": dia, "horizonte": h + 1, "previsto": float(prev[h] * fator[h]),
-                               "ic_inf": float(inf[h] * fator[h]), "ic_sup": float(sup[h] * fator[h]),
-                               "real": float(y.loc[dia]), "naive": float(ultima_semana[h % config.m]),
-                               "escala": escala, "aberta": bool(aberta.loc[dia]), "fator": float(fator[h])})
-            tick()
-        base.origens_com_falha = falhas
-        if not linhas or falhas * 100 > config.max_origens_com_falha_pct * len(origens):
-            base.status = evaluator.STATUS_ERRO
-            base.motivo = f"o modelo não ajustou em {falhas} de {len(origens)} origens da validação"
-            return base
-
-        pontos = pd.DataFrame(linhas)
-        base.metricas = evaluator.metricas_walk_forward(pontos)
-        base.metricas["origens_com_falha"] = falhas
-        base.backtest = pontos.drop(columns=["escala", "aberta"])
+        base.origens_com_falha = escolhido["falhas"]
+        base.metricas = {**escolhido["metricas"], "origens_com_falha": escolhido["falhas"]}
+        if len(config.ds) > 1:
+            base.metricas["d_escolhido"] = d
+            base.metricas["selecao_d"] = {
+                str(k): {"ordem": [list(a["escolha"].ordem), list(a["escolha"].ordem_sazonal)],
+                         "aic": round(a["escolha"].aic, 2),
+                         **({k2: a["metricas"].get(k2) for k2 in ("mae", "mase", "cobertura_ic95_pct")}
+                            if a["metricas"] else {"falhou": True})}
+                for k, a in avaliados.items()}
+        base.backtest = escolhido["pontos"].drop(columns=["escala", "aberta"])
 
         # 3. Complemento: o 1º dia das origens que não têm o horizonte inteiro à frente.
         linhas = []
@@ -247,7 +289,7 @@ def treinar_serie(y: pd.Series, X: pd.DataFrame, aberta: pd.Series, config: Conf
         base.complemento = pd.DataFrame(linhas, columns=["origem", "data", "previsto", "ic_inf", "ic_sup", "fator"])
 
         # 4. Previsão dos próximos dias com a última janela.
-        futuro = pd.date_range(fim + pd.Timedelta(days=1), periods=config.horizonte, freq="D")
+        futuro = pd.date_range(fim + pd.Timedelta(days=1), periods=config.dias_previsao, freq="D")
         res = ajustar(janela_final, X.loc[janela_final.index], escolha.ordem, escolha.ordem_sazonal,
                       config.maxiter)
         prev, inf, sup = prever(res, X.loc[futuro], config.alpha)
@@ -259,9 +301,7 @@ def treinar_serie(y: pd.Series, X: pd.DataFrame, aberta: pd.Series, config: Conf
         base.ajustes = [a.como_dict() for a in lista]
         base.coeficientes = {nome: round(float(v), 6) for nome, v in res.params.items()}
         base.diagnostico = evaluator.diagnostico_residuos(res.resid, descartar=config.m)
-        base.status = evaluator.status_do_modelo(base.metricas, mase_max=config.mase_max,
-                                                 cobertura_min=config.cobertura_min,
-                                                 cobertura_max=config.cobertura_max)
+        base.status = evaluator.STATUS_TREINADO
         base.motivo = None
         return base
     except Exception as erro:  # noqa: BLE001 — a falha de uma série não derruba as outras

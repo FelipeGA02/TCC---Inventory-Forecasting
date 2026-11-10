@@ -1,7 +1,9 @@
-# 07 — Previsão de 14 dias e histórico da previsão: como o sistema treina, guarda e mostra
+# 07 — Previsão (2 semanas a 3 meses) e histórico da previsão: como o sistema treina, guarda e mostra
 
-A decisão está no [ADR-017](ADR-017-previsao-por-categoria-e-grama.md). Este documento
-descreve o funcionamento: o caminho de uma planilha até a previsão na tela, o que cada
+A decisão está no [ADR-017](ADR-017-previsao-por-categoria-e-grama.md), com o d escolhido série a série do
+[ADR-020](ADR-020-diferenciacao-por-serie.md) e a previsão de 91 dias com horizonte escolhido na
+tela do [ADR-021](ADR-021-horizonte-de-previsao-selecionavel.md) (o nome do arquivo ficou do tempo
+em que a previsão era de 14 dias). Este documento descreve o funcionamento: o caminho de uma planilha até a previsão na tela, o que cada
 tabela guarda e as regras do histórico congelado.
 
 ---
@@ -22,9 +24,11 @@ planilha da semana ──► conferência (sem gravar) ──► gravação ─�
    Ela confirma, e as vendas novas vão para `sales`.
 2. **A gestora treina as previsões** (botão no alto da tela, só admin). O treino roda em
    segundo plano, e o sino de notificações mostra o andamento. Sem dados novos desde o
-   último treino concluído, o disparo fica `skipped` e nada é treinado.
-3. **As telas passam a mostrar o treino novo** quando ele termina `done`: previsão de 14
-   dias, histórico, relatórios e notificações.
+   último treino concluído, o disparo fica `skipped` e nada é treinado. A receita do modelo (d
+   de cada família, horizontes, janela...) entra na impressão digital: depois de mudá-la, o
+   próximo disparo treina mesmo sem venda nova.
+3. **As telas passam a mostrar o treino novo** quando ele termina `done`: previsão (2 semanas
+   por padrão; a loja escolhe até 3 meses), histórico, relatórios e notificações.
 
 Não há treino agendado. Na API publicada no Render, que não treina
 (`TRAINING_RUNNER=externo`), o passo 2 é o script
@@ -54,7 +58,7 @@ venda da base (`data_until`).
 
 **Quem treina.** Fica `insufficient_data`, sem previsão e com o motivo no log:
 - a série com menos de 180 dias antes da 1ª origem do walk-forward;
-- o produto que vendeu em menos de 28 dias da última janela de 365.
+- o produto que vendeu em menos de 28 dos últimos 365 dias.
 
 **A partir de quando uma série tem previsão.** Os 180 dias contam antes da 1ª origem do
 walk-forward, e não até a última venda. A 1ª origem fica 68 dias antes da última venda: são
@@ -63,8 +67,8 @@ dias à frente. Então a série precisa de **249 dias de calendário** (180 + 69
 primeira venda até a última, o que dá pouco mais de 8 meses. Os dias contados são de
 calendário, inclusive os zeros (domingo, feriado, dia sem venda). A série de categoria
 começa na primeira venda da loja, e a de produto, na primeira venda do produto naquela loja.
-O produto de grama precisa ainda de venda em pelo menos 28 desses dias, dentro da última
-janela de 365. Com os parâmetros padrão (`MIN_OBSERVATIONS_DAYS=180`,
+O produto de grama precisa ainda de venda em pelo menos 28 desses dias, dentro dos últimos
+365 dias. Com os parâmetros padrão (`MIN_OBSERVATIONS_DAYS=180`,
 `FORECAST_SERVICE_WF_ORIGINS=56`, `FORECAST_HORIZON_DAYS=14`), um produto que estreia hoje
 ganha previsão no primeiro treino depois de 249 dias e 28 dias com venda. Com dados até
 28/02/2026, isso vale para quem vendeu pela primeira vez até 25/06/2025.
@@ -75,18 +79,18 @@ em cada loja e a cada treino (`motivo_inelegivel` em `backend/domain/models/trai
 
 1. **Histórico:** 180 dias antes da 1ª origem do walk-forward, ou seja, 249 dias de
    calendário desde a primeira venda do produto na loja (`MIN_OBSERVATIONS_DAYS`).
-2. **Frequência de venda:** venda em pelo menos 28 dias da última janela de 365
-   (`FORECAST_SERVICE_MIN_SALE_DAYS`). Conta dias com venda, não quantidade, e as encomendas
+2. **Frequência de venda:** venda em pelo menos 28 dos últimos 365 dias
+   (`FORECAST_SERVICE_MIN_SALE_DAYS` e `FORECAST_SERVICE_MIN_SALE_WINDOW_DAYS`). Esse período é
+   separado da janela de treino (545 dias, ADR-022): a janela maior não traz de volta produto
+   que parou de vender. Conta dias com venda, não quantidade, e as encomendas
    grandes ficam de fora. Esta é a regra que separa o produto regular do irregular.
 
 O produto que falha em qualquer uma vira `insufficient_data`: fica sem previsão, e o motivo
-vai para o log e para o painel. O que passa nas duas é treinado, e quem decide a qualidade da
-previsão é o walk-forward. A série fica `trained` se o modelo errar menos que repetir a
-semana anterior (MASE < 1) e se a faixa de 95% acertar entre 90% e 98% dos dias. Se não,
-fica `low_confidence`. Nos dois casos a previsão sai e a tela a mostra do mesmo jeito: o
-status fica no log e no serviço de previsão, e o acerto aparece nos indicadores. Ou seja, as
-duas contagens dizem se o produto *pode* ser previsto, e o walk-forward mede *quanto* a
-previsão acerta.
+vai para o log e para o painel. O que passa nas duas é treinado e tem previsão (`trained`).
+O walk-forward mede quanto a previsão acerta (erro médio por dia, erro em % da venda, MASE,
+largura e cobertura da faixa de 95%); as métricas ficam no log e aparecem na tela de
+histórico, sem classificar a série. Ou seja, as duas contagens dizem se o produto *pode* ser
+previsto, e o walk-forward mede *quanto* a previsão acerta.
 
 *De onde vem o 28.* O número foi herdado do corte do rateio por produto na desagregação
 anterior: produto com menos de 28 dias de venda recebia rateio uniforme da categoria
@@ -144,23 +148,24 @@ contam só o fluxo diário (sem encomendas grandes), e o mínimo é 28 nos últi
 Esmeralda em Itabirito (31), Esmeralda ITO em Jardim Canadá (33), grama preta Ana (34) e Zeon
 (35) em Jardim Canadá estão perto do mínimo de 28.
 
-*Resultado do treino (treino 10, 05/11/2026).* 9 séries `trained` e 14 `low_confidence`.
-Antes da revisão (treino 6, 02/11/2026) eram 9 e 8. As 17 séries que já existiam mantêm o
-status; nas categorias, a mudança de composição mexe pouco no MASE (Jardim Canadá: Grama 0,924
-→ 0,945, Plantas diversas 0,937 → 0,971, Produtos de jardim 0,906 → 0,876; Itabirito: até
-0,02). As 6 séries novas ficam todas `low_confidence`:
+*Resultado do treino (treino 10, 05/11/2026).* 23 séries com previsão; antes da revisão
+(treino 6, 02/11/2026) eram 17. Nas categorias, a mudança de composição mexe pouco no MASE
+(Jardim Canadá: Grama 0,924 → 0,945, Plantas diversas 0,937 → 0,971, Produtos de jardim 0,906
+→ 0,876; Itabirito: até 0,02). As 6 séries novas:
 
-| Loja | Série | MASE | Faixa de 95% acertou | Por que não é `trained` |
-| --- | --- | --- | --- | --- |
-| Jardim Canadá | 1293 CAPIM DOS TEXAS ROXO | 2,285 | 91,1% | MASE ≥ 1 |
-| Jardim Canadá | 00020227 CAPIM DOS TEXAS ROXO | 0,764 | 100,0% | faixa larga demais |
-| Jardim Canadá | 1294 CAPIM DOS TEXAS VERDE | 0,739 | 99,1% | faixa larga demais |
-| Jardim Canadá | 166 GRAMA PRETA PELO DE URSO BDJA (UNID) | 0,676 | 100,0% | faixa larga demais |
-| Jardim Canadá | 00150005 GRAMA PRETA PELO URSO SAQ | 1,080 | 97,8% | MASE ≥ 1 |
-| Jardim Canadá | 167 GRAMA PRETA ANA | 1,007 | 97,8% | MASE ≥ 1 |
+| Loja | Série | MASE | Faixa de 95% acertou |
+| --- | --- | --- | --- |
+| Jardim Canadá | 1293 CAPIM DOS TEXAS ROXO | 2,285 | 91,1% |
+| Jardim Canadá | 00020227 CAPIM DOS TEXAS ROXO | 0,764 | 100,0% |
+| Jardim Canadá | 1294 CAPIM DOS TEXAS VERDE | 0,739 | 99,1% |
+| Jardim Canadá | 166 GRAMA PRETA PELO DE URSO BDJA (UNID) | 0,676 | 100,0% |
+| Jardim Canadá | 00150005 GRAMA PRETA PELO URSO SAQ | 1,080 | 97,8% |
+| Jardim Canadá | 167 GRAMA PRETA ANA | 1,007 | 97,8% |
 
 São produtos de venda esporádica (34 a 59 dias com venda no ano): a faixa cobre os muitos dias
-de venda zero e fica larga, ou o modelo não bate a repetição da semana anterior.
+de venda zero e fica larga, ou o modelo não bate a repetição da semana anterior (MASE ≥ 1).
+
+*Com o d escolhido série a série (ADR-020, treino de 09/11/2026, mesma base).* Ver ADR-020 §6.
 
 *Séries sem previsão (20).* Em 17 o motivo é a venda em menos de 28 dias: produtos de venda
 esporádica, com poucos dias no ano e às vezes uma única compra grande. Com tantos zeros, a
@@ -213,10 +218,12 @@ a cada treino: com planilhas novas, um produto pode passar dos 28 dias ou cair a
 
 **Para cada série treinável:**
 
-1. **Ordem por AIC.** O grid é p, q ∈ 0..2 e P, Q ∈ 0..1, com m = 7, d = 0, D = 0,
-   constante e as 8 exógenas de calendário. Ajusta só na janela de 365 dias que termina na
-   véspera da 1ª origem, então a escolha não vê o período avaliado.
-2. **Walk-forward.** São 56 origens andando 1 dia. Em cada uma, o modelo é reajustado nos 365
+1. **Ordem por AIC.** O grid é p, q ∈ 0..2 e P, Q ∈ 0..1, com m = 7, D = 0 e as 8 exógenas de
+   calendário. Ajusta só na janela de treino (545 dias, `FORECAST_SERVICE_WINDOW_DAYS`, ADR-022; até
+   10/11/2026, 365) que termina na véspera da 1ª origem, então a
+   escolha não vê o período avaliado. Isso é feito duas vezes, com d = 0 (com constante) e d = 1
+   (sem), e os passos 1 e 2 rodam para cada um (ADR-020).
+2. **Walk-forward.** São 56 origens andando 1 dia. Em cada uma, o modelo é reajustado nos 545
    dias antes dela e prevê os 14 dias seguintes. As janelas se sobrepõem: cada dia avaliado
    aparece em até 14 origens, uma por horizonte. As métricas são dos dias de loja aberta:
    - MASE;
@@ -225,18 +232,19 @@ a cada treino: com planilhas novas, um produto pode passar dos 28 dias ou cair a
    - cobertura e largura da faixa de 95%;
    - previsto ÷ vendido;
    - erro no total de cada janela.
+   Com os dois d avaliados, fica o d cujo walk-forward errou menos (erro médio por dia); o erro
+   de cada um vai para `series_models.metrics.selecao_d` e para o log da série.
 3. **Complemento.** A última origem completa fica 13 dias antes da última venda. As 13
    origens seguintes preveem só o próprio dia (h = 1), fora das métricas, para o histórico
    (§4).
-4. **Ajuste final.** Ajusta nos últimos 365 dias e prevê os 14 dias seguintes à última
-   venda. Desse ajuste saem:
+4. **Ajuste final.** Ajusta nos últimos 545 dias e prevê os 91 dias seguintes à última venda
+   (`FORECAST_MAX_HORIZON_DAYS`, ADR-021; o walk-forward continua com 14). Desse ajuste saem:
    - os coeficientes (`series_models.params.coeficientes`);
    - o diagnóstico dos resíduos: Ljung-Box até 14 dias e Shapiro-Wilk, em
-     `series_models.metrics`. O log cita o problema quando p ≤ 0,05; o diagnóstico não muda
-     o status.
-5. **Status.** `trained` se MASE < 1 e cobertura da faixa em [90%, 98%]. Senão
-   `low_confidence`, e a previsão sai igual, sem aviso na tela. Ajuste que falha vira `error`, e o treino
-   segue com as outras séries.
+     `series_models.metrics`. O log cita o problema quando p ≤ 0,05.
+5. **Status.** `trained`: a série ajustou e tem previsão; as métricas do walk-forward ficam
+   registradas, sem classificar a série. Ajuste que falha vira `error`, e o treino segue com
+   as outras séries.
 
 **Paralelismo.** Com `TRAINING_WORKERS > 1` cada série vai para um processo. Se o pool
 quebrar (acontece no proot/Termux), as séries que faltam seguem uma a uma.
@@ -250,10 +258,25 @@ quebrar (acontece no proot/Termux), as séries que faltam seguem uma a uma.
 
 Treino que falha ou cai no meio não muda nada do que as telas mostram.
 
-## 3. A previsão de 14 dias
+## 3. A previsão (2 semanas a 3 meses)
 
-Cada série com modelo grava os 14 dias seguintes à última venda, com faixa de 95%
-(`series_forecasts`).
+Cada série com modelo grava os 91 dias seguintes à última venda, com faixa de 95%
+(`series_forecasts`; até 08/11/2026 eram 14). A tela de Previsão e os relatórios mostram os
+primeiros 14, 21, 28, 42, 56 ou 91 dias, à escolha da loja (caixa de opções "Horizonte",
+padrão **2 semanas**). O teste de acerto (walk-forward, indicadores do histórico) é o das
+2 primeiras semanas; o acerto além delas está no ADR-021 §3.1, sem aviso na tela. Acima do
+gráfico, o quadro "Feriados e datas comemorativas no período" mostra cada data do horizonte num
+cartão, com o dia da semana e se as lojas abrem (fechadas, abertas ou aberta só numa delas).
+
+O calendário (`calendar_days`) precisa cobrir os 91 dias seguintes à última venda; dia que
+faltar usa o padrão da loja (fechada só no domingo), e o treino registra o aviso.
+
+Nos dias em que o calendário dá a loja fechada, previsto e faixa são zero
+(`forecaster.prever`, desde 2026-11-09), na previsão e no walk-forward. A exógena
+`loja_fechada` só desconta um valor fixo, e os termos MA levam a surpresa dos dias anteriores
+para o domingo. No treino de 06/11/2026, Flores de corte de Jardim Canadá previa 7,2 em
+01/03/2026 (domingo) depois de vender 227 na sexta e 124 no sábado, com faixa de 0 a 118. As
+métricas não mudam: o walk-forward já é avaliado só nos dias de loja aberta.
 
 O painel (`GET /api/v1/painel`) lê o último treino concluído:
 - a previsão de cada categoria por dia, com o modelo dela (`categorias_modelo`) e o teste de
@@ -279,10 +302,9 @@ fator da data. Nas outras séries, a de 26 a 31/12 e a da semana do Dia do Traba
   herda o ajuste.
 - **Onde fica:** o multiplicador fica em `series_forecasts.event_factor` e
   `forecast_history.event_factor`, e a frase do ajuste, no log da série.
-- **Na tela:**
-  - a Previsão avisa cada série ajustada nos 14 dias (`ajustes_datas` do painel);
-  - o histórico diz, no dia, "previsão reduzida a 35% pelo Ano Novo" (`ajuste`);
-  - o relatório gerencial tem a tabela "Datas comemorativas".
+- **Na tela:** nada. O fator é interno: a tela mostra o previsto e a faixa já ajustados, sem
+  aviso, e a API não o entrega (`openapi.yaml` 6.0.0; até a 5.1.0 havia aviso na Previsão,
+  no histórico e no relatório gerencial).
 - **No walk-forward:** o fator de cada origem usa só a venda anterior a ela.
 - **Por quê:** sem o ajuste, o modelo prevê uma semana comum, menos da metade do que essas
   semanas vendem (doc 08).
@@ -300,7 +322,8 @@ Cada treino concluído tem um `início` = dia seguinte à última venda. Em cada
 
 1. **apaga os dias ≥ início**, de todas as séries. Inclui a série que desta vez ficou sem
    modelo: o número dela sai da tela, então não pode congelar depois;
-2. **grava os 14 dias da previsão nova** (`source = forecast`, `origin_date` = início);
+2. **grava os dias da previsão nova** (os 91, qualquer que seja o horizonte que a tela mostra;
+   `source = forecast`, `origin_date` = início);
 3. **preenche com o walk-forward só os dias < início ainda vazios** (`source = walk_forward`).
    Entra só o 1º dia de cada janela (h = 1), das origens completas e do complemento. Como as
    origens andam 1 dia, cada dia tem um previsto só, feito com as vendas até a véspera.
@@ -310,9 +333,13 @@ entre o início de um treino e o do seguinte:
 
 | Intervalo | Fica congelado da previsão anterior | O walk-forward preenche |
 | --- | --- | --- |
-| G ≤ 14 (ex.: 9) | os G primeiros dias (horizontes 1 a G) | nada |
-| G > 14 (ex.: 20) | os 14 dias | os G − 14 dias que sobram |
+| G ≤ 91 (ex.: 9 ou 20) | os G primeiros dias (horizontes 1 a G) | nada |
+| G > 91 | os 91 dias | os dias que sobram, até 69 antes do início novo |
 | 1º treino | — | os 69 dias antes do início |
+
+Até 08/11/2026 a previsão gravada tinha 14 dias: com G > 14 ficavam os 14 e o walk-forward
+preenchia o resto. O exemplo abaixo é desse tempo; com 91 dias, no treino 3 os dias de 27/10 a
+01/11 ficam com a previsão do treino 2 (horizontes 15 a 20).
 
 **Exemplo:**
 - **Treino 1**, vendas até 03/10: grava a previsão de 04/10 a 17/10; o walk-forward preenche
@@ -324,8 +351,8 @@ entre o início de um treino e o do seguinte:
   Grava de 02/11 a 15/11.
 
 **O complemento** existe por causa do treino 3. O buraco sempre termina na véspera do início
-novo, e sem as 13 origens parciais o h = 1 não chegaria a esses dias. Um buraco maior que 69
-dias (a loja dez semanas sem treinar) fica vazio no começo.
+novo, e sem as 13 origens parciais o h = 1 não chegaria a esses dias. Com a previsão de 91
+dias, o buraco só aparece se a loja passar mais de 91 dias sem treinar.
 
 **O que cada ponto guarda** (`forecast_history`):
 - previsto e faixa;
@@ -340,9 +367,26 @@ vendido de cada dia (sem encomendas grandes, de `sales`) contra o previsto conge
 duas linhas:
 - **o que a tela mostrava** (`forecast`);
 - **o teste do treino** (`walk_forward`). Essa é otimista perto da outra: prevê só 1 dia à
-  frente, enquanto a previsão congelada tem horizontes de até 7 a 14 dias.
+  frente, enquanto a previsão congelada tem horizonte de até 7 dias com o treino semanal (mais,
+  se a loja demorar a treinar).
 
 O tooltip mostra o horizonte e se a previsão contava com a loja fechada.
+
+Acima do gráfico, 4 medidas do teste (walk-forward) da série no último treino concluído que a
+avaliou (`avaliacao` da resposta; se o último treino a recusou, vale o anterior), em linguagem
+simples e com o nome técnico entre parênteses:
+- **Erro médio por dia (MAE):** quanto a previsão de um dia erra, em média, para mais ou para
+  menos;
+- **Erro em relação à venda (WAPE):** esse erro comparado com o que se vende num dia (erro
+  somado ÷ venda somada);
+- **Contra copiar a semana anterior (MASE):** abaixo de 1, erra menos do que repetir as vendas
+  da semana anterior;
+- **Tamanho da faixa (amplitude do IC 95%):** distância média entre o mínimo e o máximo
+  previstos para um dia.
+
+Todas nos dias de loja aberta do walk-forward. Até a versão 6 da API a tela mostrava acerto no
+total de 14 dias, cobertura da faixa, origens que venciam a naïve e previsto ÷ vendido, lidos do
+painel.
 
 **Pontos de atenção:**
 - **A fronteira é o dia seguinte à última venda, não o dia do clique.** Se a loja treina no
@@ -389,7 +433,7 @@ calendário real, o aviso não dispara nenhuma vez.
 | `forecast_jobs` | cada disparo: status, andamento, impressão digital, `data_until`, configuração (com `versao_codigo`) | sempre |
 | `forecast_job_logs` | uma linha por série e as do treino (planilhas novas, histórico, limpeza) | sempre |
 | `series_models` | cada série: status, ordem, AIC, métricas, diagnóstico, coeficientes, motivo | sempre |
-| `series_forecasts` | os 14 dias de cada série, com o multiplicador da data comemorativa (`event_factor`, ADR-019) | sempre (é a origem dos valores que o histórico trocou) |
+| `series_forecasts` | os 91 dias de cada série (14 até 08/11/2026), com o multiplicador da data comemorativa (`event_factor`, ADR-019) | sempre (é a origem dos valores que o histórico trocou) |
 | `series_backtest_points` | todas as origens e horizontes do walk-forward | só nos últimos 4 treinos concluídos |
 | `forecast_history` | o previsto congelado de cada dia, com o `event_factor` que entrou nele | sempre |
 | `processing_log` | cada planilha: contagens, período, dias faltando, `forecast_job_id` | sempre |
@@ -403,8 +447,8 @@ calendário real, o aviso não dispara nenhuma vez.
 | Teste | O que garante |
 | --- | --- |
 | `tests/unit/test_historico_previsao.py` | a regra do histórico: congelamento, 9 e 20 dias, 1º dia das janelas, loja fechada |
-| `tests/unit/test_treino_serie.py` | walk-forward, complemento até a última venda, métricas, diagnóstico e coeficientes; o fator das datas só na semana da data |
+| `tests/unit/test_treino_serie.py` | walk-forward, complemento até a última venda, métricas, diagnóstico e coeficientes; o fator das datas só na semana da data; a previsão final além do horizonte do walk-forward (ADR-021); d = 1 sem constante (ADR-020) |
 | `tests/unit/test_datas_comemorativas.py` | o fator das datas: regra de cada ano, metade do aumento, sem olhar o futuro, piso e teto, abertura excepcional, últimas ocorrências |
 | `tests/unit/test_cobertura_planilha.py` | os dias faltando: entre a base e a planilha, domingo e feriado, loja ausente, dentro da planilha |
-| `tests/integration/test_servico_previsao.py` | treino de ponta a ponta, histórico gravado, planilhas ligadas, limpeza do walk-forward, script |
+| `tests/integration/test_servico_previsao.py` | treino de ponta a ponta, histórico gravado, planilhas ligadas, limpeza do walk-forward, script; d escolhido pelo walk-forward e receita na impressão digital |
 | `tests/integration/test_upload.py` | conferência sem gravar, aviso de dias faltando, gravação com o aviso no `processing_log` |

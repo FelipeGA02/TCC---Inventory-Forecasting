@@ -5,7 +5,7 @@ import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
 import { Progress } from "../ui/progress";
 import { useNavigate } from "react-router";
-import { contexto } from "../../data/mockData";
+import { contexto } from "../../data/painel";
 import { api, type ResultadoUpload, type VerificacaoUpload } from "../../data/api";
 import { useDados } from "../../data/CarregarDados";
 import { useServicoPrevisao } from "../../data/ServicoPrevisao";

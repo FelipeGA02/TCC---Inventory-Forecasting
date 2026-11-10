@@ -3,7 +3,7 @@
  * cliente HTTP (`@/lib/http/client`), que renova o acesso sozinho quando expira.
  */
 import { http } from "@/lib/http/client";
-import type { BaseReal, Contexto, DiaHistoricoPrevisao, Perfil } from "@/domain/types";
+import type { BaseReal, Contexto, HistoricoPrevisao, Perfil } from "@/domain/types";
 import type { AnalisesJson } from "./analises";
 
 export interface UsuarioApi {
@@ -61,7 +61,6 @@ export interface TreinoServico {
   progresso_pct: number;
   serie_atual: string | null;
   series_treinadas: number;
-  series_baixa_confianca: number;
   series_dados_insuficientes: number;
   series_com_erro: number;
   mensagem: string | null;
@@ -77,11 +76,16 @@ export interface StatusServicoPrevisao {
   config: {
     m: number;
     d: number;
+    /** d testados no walk-forward de cada série; fica o que errou menos (ADR-020) */
+    d_candidatos: number[];
     D: number;
     janela_dias: number;
     origens: number;
     passo_dias: number;
+    /** horizonte do teste de acerto (walk-forward) */
     horizonte_dias: number;
+    /** dias da previsão gravada (ADR-021) */
+    horizonte_previsao_dias: number;
     base: string;
     categoria_produtos: string;
   };
@@ -91,6 +95,26 @@ export interface DisparoTreino {
   iniciado: boolean;
   mensagem: string;
   treino: TreinoServico;
+}
+
+/** Um evento do log de uso (`GET /api/v1/atividades`): planilha enviada ou treino da previsão. */
+export interface Atividade {
+  tipo: "planilha" | "treino";
+  id: number;
+  inicio: string;
+  fim: string | null;
+  situacao: "concluido" | "sem_dados_novos" | "em_andamento" | "erro";
+  usuario: string | null;
+  origem: "envio" | "carga_inicial" | "botao" | "script";
+  arquivo: string | null;
+  periodo: [string, string] | null;
+  linhas_novas: number | null;
+  linhas_duplicadas: number | null;
+  dados_ate: string | null;
+  series_com_previsao: number | null;
+  series_sem_dados: number | null;
+  series_com_falha: number | null;
+  mensagem: string | null;
 }
 
 /** Filtros, ordem e página da tela Conferir Dados (query de `/api/v1/registros/*`). */
@@ -107,10 +131,11 @@ export const api = {
   contexto: () => http.get<Contexto>("/api/v1/contexto"),
   painel: () => http.get<BaseReal>("/api/v1/painel"),
   historico: (loja: string, nivel: "categoria" | "produto", item: string) =>
-    http.get<DiaHistoricoPrevisao[]>(
+    http.get<HistoricoPrevisao>(
       `/api/v1/painel/historico/${encodeURIComponent(loja)}/${nivel}/${encodeURIComponent(item)}`,
     ),
   analises: () => http.get<AnalisesJson>("/api/v1/analises"),
+  atividades: () => http.get<Atividade[]>("/api/v1/atividades"),
 
   // Conferir Dados: a base paginada no banco
   indiceRegistros: <T>() => http.get<T>("/api/v1/registros"),

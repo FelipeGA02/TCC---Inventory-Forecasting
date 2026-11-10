@@ -2,11 +2,12 @@ import { createContext, useContext, useState, type ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import type { CategoriaId, FiltroCategoria, FiltroUnidade, StatusModelo } from "@/domain/types";
 import { badgeStatus, estiloStatus } from "@/styles/tokens";
-import { CORES_CATEGORIA, categorias, lojas } from "../../data/mockData";
+import { CORES_CATEGORIA, HORIZONTE_PADRAO, categorias, horizonteEfetivo, lojas, opcoesHorizonte } from "../../data/painel";
 import { Card, CardContent } from "../ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
 // ---------------------------------------------------------------------------
-// Filtros de loja e categoria compartilhados entre as telas
+// Filtros de loja, categoria e horizonte compartilhados entre as telas
 // ---------------------------------------------------------------------------
 
 interface FiltroLojaCtx {
@@ -14,6 +15,9 @@ interface FiltroLojaCtx {
   setUnidade: (u: FiltroUnidade) => void;
   categoria: FiltroCategoria;
   setCategoria: (c: FiltroCategoria) => void;
+  /** Quantos dias à frente as telas de previsão mostram (14 a 91, padrão 14 — ADR-021). */
+  horizonte: number;
+  setHorizonte: (dias: number) => void;
 }
 
 const FiltroLojaContext = createContext<FiltroLojaCtx | null>(null);
@@ -21,8 +25,9 @@ const FiltroLojaContext = createContext<FiltroLojaCtx | null>(null);
 export function FiltroLojaProvider({ children }: { children: ReactNode }) {
   const [unidade, setUnidade] = useState<FiltroUnidade>("todas");
   const [categoria, setCategoria] = useState<FiltroCategoria>("todas");
+  const [horizonte, setHorizonte] = useState<number>(HORIZONTE_PADRAO);
   return (
-    <FiltroLojaContext.Provider value={{ unidade, setUnidade, categoria, setCategoria }}>
+    <FiltroLojaContext.Provider value={{ unidade, setUnidade, categoria, setCategoria, horizonte, setHorizonte }}>
       {children}
     </FiltroLojaContext.Provider>
   );
@@ -113,6 +118,36 @@ export function FiltroCategoriaGlobal() {
   return <Segmentado rotulo="Categoria" opcoes={opcoesCategoria()} valor={categoria} onChange={setCategoria} />;
 }
 
+/** Seletor do horizonte (2 semanas a 3 meses), limitado aos dias que o último treino previu. */
+export function FiltroHorizonte({ valor, onChange }: { valor?: number; onChange?: (dias: number) => void } = {}) {
+  const ctx = useFiltroLoja();
+  const atual = horizonteEfetivo(valor ?? ctx.horizonte);
+  const mudar = onChange ?? ctx.setHorizonte;
+  const opcoes = opcoesHorizonte();
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs font-medium" style={{ color: "var(--muted-foreground)" }}>
+        Horizonte
+      </span>
+      <Select value={String(atual)} onValueChange={(v) => mudar(Number(v))}>
+        <SelectTrigger aria-label="Horizonte da previsão" className="h-8 text-xs w-44 bg-white" style={{ fontWeight: 600 }}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {opcoes.map((o) => (
+            <SelectItem key={o.dias} value={String(o.dias)} className="text-xs" disabled={!o.disponivel}>
+              {o.label}
+              <span style={{ color: "var(--muted-foreground)", fontWeight: 400 }}>
+                {o.disponivel ? ` · ${o.dias} dias` : " · disponível no próximo treino"}
+              </span>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
 /** Barra de filtros padrão das telas: loja + categoria. */
 export function BarraFiltros({ extra }: { extra?: ReactNode }) {
   return (
@@ -130,7 +165,7 @@ export function BarraFiltros({ extra }: { extra?: ReactNode }) {
 
 /** Selo só quando a série não tem previsão (poucos dados, falha, calculando): com previsão, nada. */
 export function StatusBadge({ status, compacto = false }: { status: StatusModelo; compacto?: boolean }) {
-  if (status === "trained" || status === "low_confidence") return null;
+  if (status === "trained") return null;
   const e = estiloStatus[status];
   return (
     <span
@@ -224,25 +259,5 @@ export function TituloSecao({ titulo, descricao, acao }: { titulo: string; descr
       </div>
       {acao}
     </div>
-  );
-}
-
-/** Mini gráfico de barras (8 semanas) em SVG puro — cabe numa célula de tabela. */
-export function MiniBarras({ valores, cor }: { valores: number[]; cor: string }) {
-  const max = Math.max(...valores, 1);
-  const w = 64;
-  const h = 20;
-  const passo = w / valores.length;
-  return (
-    <svg width={w} height={h} role="img" aria-label="Vendas das últimas 8 semanas">
-      {valores.map((v, i) => {
-        const alt = Math.max(1, (v / max) * h);
-        return (
-          <rect key={i} x={i * passo + 1} y={h - alt} width={passo - 2} height={alt} rx={1} fill={cor} opacity={i === valores.length - 1 ? 1 : 0.55}>
-            <title>{`Semana ${i + 1}: ${Math.round(v)}`}</title>
-          </rect>
-        );
-      })}
-    </svg>
   );
 }

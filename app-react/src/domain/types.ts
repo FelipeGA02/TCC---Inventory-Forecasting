@@ -9,7 +9,7 @@
  *  - o total da loja é a soma das 4 categorias.
  */
 
-export type StatusModelo = "trained" | "low_confidence" | "insufficient_data" | "error" | "training";
+export type StatusModelo = "trained" | "insufficient_data" | "error" | "training";
 
 export type Perfil = "admin" | "viewer";
 
@@ -48,27 +48,6 @@ export interface DiaPrevisto extends Faixa {
   loja_fechada: boolean;
   evento: string | null;
   categorias: PorCategoria<Faixa>;
-}
-
-/**
- * Uma data comemorativa que mudou a previsão de uma série nos 14 dias (ADR-019): a alta de
- * Flores de corte (multiplicador > 1) ou a queda das outras séries no fim de ano e no Dia do
- * Trabalho (multiplicador < 1).
- */
-export interface AjusteData {
-  nivel: "categoria" | "produto";
-  /** Id da categoria ou código do produto de grama. */
-  item: string;
-  /** Nome do produto (nulo na categoria). */
-  nome: string | null;
-  evento: string;
-  data: string;
-  /** O que multiplicou o previsto e a faixa desses dias. */
-  multiplicador: number;
-  /** Venda ÷ semana comum nas ocorrências passadas. */
-  fator: number;
-  anos: number[];
-  dias: string[];
 }
 
 export interface DiaHistorico {
@@ -125,18 +104,14 @@ export interface Produto {
   categoria: CategoriaId;
   subcategoria: string;
   dias_com_venda: number;
-  pct_dias_abertos_com_venda: number;
-  media_dia_aberto: number;
-  vendido_8_semanas: number;
   vendido_total: number;
   vendido_em_encomendas: number;
-  /** Venda das últimas 8 semanas, da mais antiga para a mais recente. */
-  historico_semanal: number[];
   /** Venda diária (sem encomendas grandes) dos últimos 28 dias. */
   historico_diario?: { data: string; vendido: number }[];
   modelo: ModeloSerie;
-  /** Vazia quando o produto ficou sem modelo neste treino. `fator`: multiplicador da data comemorativa. */
-  previsao: (Faixa & { data: string; fator?: number | null })[];
+  /** Todos os dias previstos pelo treino (até 91); vazia quando o produto ficou sem modelo. */
+  previsao: (Faixa & { data: string })[];
+  /** Soma dos 14 primeiros dias: só ordena a lista (a tela soma o horizonte escolhido). */
   previsao_14d: number | null;
 }
 
@@ -173,8 +148,29 @@ export interface DiaHistoricoPrevisao {
   horizonte: number | null;
   /** Se a previsão contava com a loja fechada no dia (calendário da época). */
   loja_fechada: boolean | null;
-  /** A data comemorativa que mudou o previsto do dia; o do modelo sem ela é previsto ÷ multiplicador. */
-  ajuste?: { evento: string | null; multiplicador: number } | null;
+}
+
+/** Métricas do teste (walk-forward) da série no último treino que a avaliou, nos dias de loja aberta. */
+export interface AvaliacaoHistorico {
+  status: StatusModelo;
+  treinado_em: string;
+  dados_ate: string | null;
+  dias_avaliados: number;
+  /** Erro médio absoluto por dia (MAE). */
+  mae: number;
+  /** Erro absoluto somado ÷ venda somada, em % (WAPE). */
+  wape_pct: number | null;
+  /** MAE ÷ erro de repetir a semana anterior; abaixo de 1, a previsão é melhor. */
+  mase: number;
+  /** Distância média entre o mínimo e o máximo da faixa de 95%. */
+  largura_ic95: number;
+  venda_media_dia: number;
+}
+
+/** `GET /api/v1/painel/historico/*`: a série diária e a avaliação do último treino. */
+export interface HistoricoPrevisao {
+  serie: DiaHistoricoPrevisao[];
+  avaliacao: AvaliacaoHistorico | null;
 }
 
 export interface UnidadeDados {
@@ -191,10 +187,12 @@ export interface UnidadeDados {
   encomendas: Encomendas;
   /** O SARIMAX de cada categoria nesta loja (nulo se a categoria não entrou no treino). */
   categorias_modelo: PorCategoria<ModeloSerie | null>;
-  /** 14 dias a partir do dia seguinte à última venda; o total é a soma das 4 categorias. */
+  /**
+   * Todos os dias previstos pelo treino (`configuracao.horizonte_previsao_dias`, até 91) a partir
+   * do dia seguinte à última venda; a tela mostra os primeiros 14 a 91 (ADR-021). O total é a
+   * soma das 4 categorias.
+   */
   previsao: DiaPrevisto[];
-  /** As datas comemorativas que mudaram a previsão das séries da loja (ADR-019). */
-  ajustes_datas?: AjusteData[];
   historico_diario: DiaHistorico[];
   historico_semanal: SemanaHistorico[];
   produtos: Produto[];
@@ -226,9 +224,15 @@ export interface BaseReal {
   };
   /** O treino que gerou a previsão (`forecast_jobs.config`). */
   configuracao: {
+    /** Horizonte do teste de acerto (walk-forward): 14. */
     horizonte_dias: number;
+    /** Dias previstos pelo treino; a tela escolhe de 14 até este (ADR-021). */
+    horizonte_previsao_dias: number;
     m: number;
+    /** Com um candidato só, o d de todas as séries; com mais, o primeiro. */
     d: number;
+    /** d testados no walk-forward de cada série; o escolhido está em `ordem` (ADR-020). */
+    d_candidatos: number[];
     D: number;
     alpha_ic: number;
     janela_dias: number;
@@ -262,7 +266,13 @@ export interface Contexto {
   lojas: { id: UnidadeId; nome: string; cidade: string }[];
   categorias: Categoria[];
   /** treino_na_api: falso quando a API não treina (Render) — o front não oferece "Treinar previsões" */
-  configuracao: { horizonte_dias: number; limiares_encomenda_un: Record<UnidadeId, number>; treino_na_api: boolean };
+  configuracao: {
+    horizonte_dias: number;
+    /** Dias previstos pelo último treino (até 91): limite do seletor de horizonte. */
+    horizonte_previsao_dias: number;
+    limiares_encomenda_un: Record<UnidadeId, number>;
+    treino_na_api: boolean;
+  };
   base: { inicio: string | null; fim: string | null; linhas: number; skus: number };
   /** O último treino concluído; nulo antes do primeiro. */
   previsao: {

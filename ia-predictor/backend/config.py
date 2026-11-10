@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Literal
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # `ia-predictor/.env`, de onde quer que o comando seja rodado (uvicorn na raiz do repo com
@@ -36,13 +37,17 @@ class Settings(BaseSettings):
     DOCS_ENABLED: bool = True
 
     # Previsão (ADR-017): SARIMAX direto nas 4 categorias e em cada produto de grama, por
-    # loja, com m = SEASONAL_PERIOD, d = 0 e D = 0 (fixos em servico_previsao.py).
-    FORECAST_HORIZON_DAYS: int = 14       # dias previstos a partir do dia seguinte à última venda
+    # loja, com m = SEASONAL_PERIOD e D = 0; o d de cada série sai do walk-forward entre os
+    # FORECAST_SERVICE_D_CANDIDATES (ADR-020).
+    FORECAST_HORIZON_DAYS: int = 14       # horizonte do walk-forward (validação e métricas): h = 14
+    FORECAST_MAX_HORIZON_DAYS: int = 91   # dias previstos a partir do dia seguinte à última venda; a tela escolhe de 14 a este (ADR-021)
+    FORECAST_SERVICE_D_CANDIDATES: list[int] = [0, 1]  # ADR-020: d testados no walk-forward de cada série; [0] = d = 0 em tudo
     SEASONAL_PERIOD: int = 7              # m — sazonalidade semanal do SARIMAX
     MIN_OBSERVATIONS_DAYS: int = 180      # histórico mínimo antes da 1ª origem do walk-forward
-    FORECAST_SERVICE_WINDOW_DAYS: int = 365     # janela deslizante de treino (dias)
+    FORECAST_SERVICE_WINDOW_DAYS: int = 545     # janela deslizante de treino (dias) — ADR-022 (antes 365; doc 11)
     FORECAST_SERVICE_WF_ORIGINS: int = 56       # origens do walk-forward, andando 1 dia (8 semanas)
-    FORECAST_SERVICE_MIN_SALE_DAYS: int = 28    # produto: dias com venda na última janela para treinar
+    FORECAST_SERVICE_MIN_SALE_DAYS: int = 28    # produto: dias com venda nos últimos FORECAST_SERVICE_MIN_SALE_WINDOW_DAYS para treinar
+    FORECAST_SERVICE_MIN_SALE_WINDOW_DAYS: int = 365  # período da regra acima, separado da janela de treino (ADR-022)
     FORECAST_SERVICE_KEEP_BACKTEST_JOBS: int = 4  # treinos concluídos que guardam o walk-forward inteiro
     FORECAST_SERVICE_EVENT_FACTOR: bool = True  # datas comemorativas (ADR-019): alta em Flores de corte, queda de fim de ano e Dia do Trabalho nas outras
     TRAINING_WORKERS: int = 8             # processos no treino (no servidor: o nº de CPUs)
@@ -53,6 +58,12 @@ class Settings(BaseSettings):
 
     # CORS
     CORS_ORIGINS: list[str] = ["http://localhost:5173"]
+
+    @model_validator(mode="after")
+    def _horizontes(self) -> "Settings":
+        if not 1 <= self.FORECAST_HORIZON_DAYS <= self.FORECAST_MAX_HORIZON_DAYS:
+            raise ValueError("FORECAST_MAX_HORIZON_DAYS precisa ser maior ou igual a FORECAST_HORIZON_DAYS (>= 1).")
+        return self
 
     def exigir_segredos(self) -> None:
         """Chamado na subida da API. Os scripts (carga, treino) não precisam destes valores."""

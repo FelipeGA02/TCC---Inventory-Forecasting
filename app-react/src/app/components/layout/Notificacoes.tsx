@@ -174,13 +174,6 @@ export function Notificacoes() {
             })
           )}
         </div>
-        <div className="px-4 py-2.5 border-t flex items-start gap-2 text-[11px]" style={{ borderColor: "var(--border)", color: "var(--muted-foreground)" }}>
-          <BrainCircuit size={13} className="flex-shrink-0 mt-0.5" />
-          <span>
-            A previsão não se atualiza sozinha: depois de carregar as planilhas, a gestora usa "Treinar previsões", no alto da
-            tela. Cada treino prevê os 14 dias seguintes à última venda.
-          </span>
-        </div>
       </PopoverContent>
     </Popover>
   );

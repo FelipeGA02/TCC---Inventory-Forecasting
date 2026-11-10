@@ -1,7 +1,8 @@
 """Dados das telas do frontend, montados a partir do banco.
 
-  * `painel()`: formato `BaseReal` (previsão de 14 dias das categorias e dos produtos de
-    grama de cada loja, histórico, encomendas grandes, planilhas carregadas);
+  * `painel()`: formato `BaseReal` (previsão das categorias e dos produtos de grama de cada
+    loja — todos os dias que o treino gravou, até 91; a tela escolhe quantos mostrar, ADR-021 —,
+    histórico, encomendas grandes, planilhas carregadas);
   * `historico()`: vendido × previsto congelado de uma categoria ou produto
     (`forecast_history`), para a tela de histórico da previsão;
   * `analises()`: análises descritivas por loja;
@@ -85,11 +86,6 @@ def _modelo(m: SeriesModel) -> dict:
             "metricas": montagem.metricas_da_tela(m.metrics), "mensagem": m.message}
 
 
-def _ajustes(m: SeriesModel) -> list[dict]:
-    """As datas comemorativas da previsão da série (ADR-019; `series_models.params`)."""
-    return list((m.params or {}).get("ajustes_datas") or [])
-
-
 def _previsores(db: Session, job: ForecastJob) -> dict:
     """Previsores do treino no formato que `domain.painel` espera: categorias (com o 1º
     dia de cada janela do walk-forward) e produtos de grama, por loja."""
@@ -99,7 +95,7 @@ def _previsores(db: Session, job: ForecastJob) -> dict:
     for p in db.scalars(select(SeriesForecast).where(SeriesForecast.model_id.in_(ids))
                         .order_by(SeriesForecast.model_id, SeriesForecast.forecast_date)):
         previsao[p.model_id].append({"data": str(p.forecast_date), "previsto": p.predicted,
-                                     "inf": p.lower_95, "sup": p.upper_95, "fator": p.event_factor})
+                                     "inf": p.lower_95, "sup": p.upper_95})
     categorias = [m.id for m in modelos if m.level == "category"]
     for p in db.scalars(select(SeriesBacktestPoint).where(SeriesBacktestPoint.model_id.in_(categorias),
                                                           SeriesBacktestPoint.horizon == 1)
@@ -111,17 +107,26 @@ def _previsores(db: Session, job: ForecastJob) -> dict:
         u = out.setdefault(m.unit_id, {"categorias": {}, "produtos": {}})
         if m.level == "category":
             u["categorias"][m.category_id] = {"modelo": _modelo(m), "previsao": previsao[m.id],
-                                              "backtest": backtest[m.id], "ajustes": _ajustes(m)}
+                                              "backtest": backtest[m.id]}
         else:
-            u["produtos"][m.product_code] = {"modelo": _modelo(m), "previsao": previsao[m.id],
-                                             "ajustes": _ajustes(m)}
+            u["produtos"][m.product_code] = {"modelo": _modelo(m), "previsao": previsao[m.id]}
     return out
+
+
+def _horizontes(cfg: dict) -> dict:
+    """Horizonte do teste (walk-forward) e dias previstos pelo treino. Treino anterior ao
+    ADR-021 previa só o horizonte do teste."""
+    if not cfg:  # sem treino: os da configuração atual
+        return {"horizonte_dias": settings.FORECAST_HORIZON_DAYS,
+                "horizonte_previsao_dias": settings.FORECAST_MAX_HORIZON_DAYS}
+    teste = cfg.get("horizonte", settings.FORECAST_HORIZON_DAYS)
+    return {"horizonte_dias": teste, "horizonte_previsao_dias": max(cfg.get("horizonte_previsao") or teste, teste)}
 
 
 def _configuracao(job: ForecastJob, lojas: list[dict]) -> dict:
     cfg = job.config or {}
-    return {"horizonte_dias": cfg.get("horizonte", settings.FORECAST_HORIZON_DAYS), "m": cfg.get("m"),
-            "d": cfg.get("d"), "D": cfg.get("D"), "alpha_ic": cfg.get("alpha"), "janela_dias": cfg.get("janela_dias"),
+    return {**_horizontes(cfg), "m": cfg.get("m"),
+            "d": cfg.get("d"), "d_candidatos": cfg.get("d_candidatos") or [cfg.get("d")], "D": cfg.get("D"), "alpha_ic": cfg.get("alpha"), "janela_dias": cfg.get("janela_dias"),
             "origens": cfg.get("origens"), "passo_origem_dias": cfg.get("passo"),
             "limiares_encomenda_un": {u["id"]: (cfg.get("limiares_encomenda_un") or {}).get(u["id"], LIMIAR_ADR013)
                                       for u in lojas},
@@ -174,11 +179,30 @@ def painel(db: Session) -> dict:
     return cache.obter("painel", versao, construir)
 
 
-def historico(db: Session, unidade: str, nivel: str, item: str) -> list[dict]:
-    """Histórico da previsão de uma categoria (`nivel="categoria"`) ou produto da loja: o
-    vendido de cada dia (sem encomendas grandes), do começo da base ao último dia com venda
-    do último treino concluído, com o previsto gravado em `forecast_history` — vazio antes
-    do 1º treino."""
+def _avaliacao(db: Session, unidade: str, level: str, item: str) -> dict | None:
+    """Métricas do walk-forward da série no último treino concluído que a avaliou (o mais
+    recente com métricas): se o último treino a recusou, vale o anterior."""
+    filtro = SeriesModel.category_id == item if level == "category" else SeriesModel.product_code == item
+    linha = db.execute(
+        select(SeriesModel, ForecastJob)
+        .join(ForecastJob, ForecastJob.id == SeriesModel.job_id)
+        .where(ForecastJob.status == "done", SeriesModel.unit_id == unidade, SeriesModel.level == level,
+               filtro, SeriesModel.metrics.isnot(None))
+        .order_by(ForecastJob.id.desc()).limit(1)).first()
+    if linha is None:
+        return None
+    modelo, job = linha
+    return montagem.avaliacao_do_historico(
+        modelo.metrics, modelo.status, (job.finished_at or job.created_at).isoformat(timespec="seconds"),
+        str(job.data_until) if job.data_until else None)
+
+
+def historico(db: Session, unidade: str, nivel: str, item: str) -> dict:
+    """Histórico da previsão de uma categoria (`nivel="categoria"`) ou produto da loja:
+    `serie` = o vendido de cada dia (sem encomendas grandes), do começo da base ao último dia
+    com venda do último treino concluído, com o previsto gravado em `forecast_history` — vazio
+    antes do 1º treino; `avaliacao` = as métricas do último treino que avaliou a série
+    (`_avaliacao`), ou None."""
     versao = cache.versao_dados(db)
     treino = ultimo_treino(db)
     if treino is None:
@@ -189,13 +213,13 @@ def historico(db: Session, unidade: str, nivel: str, item: str) -> list[dict]:
     real = montagem.venda_diaria(df[df["unit_id"] == unidade], coluna, item, fim)
     if real is None:
         raise ItemSemHistorico()
-    previstos = {p.day: (p.predicted, p.lower_95, p.upper_95, p.source, p.origin_date, p.store_closed,
-                         p.event_factor)
+    previstos = {p.day: (p.predicted, p.lower_95, p.upper_95, p.source, p.origin_date, p.store_closed)
                  for p in db.scalars(select(ForecastHistory).where(
                      ForecastHistory.unit_id == unidade, ForecastHistory.level == level,
                      ForecastHistory.item == item, ForecastHistory.day <= fim.date()))}
+    avaliacao = _avaliacao(db, unidade, level, item)
     db.commit()
-    return historico_previsao.serie_com_previsto(real, previstos)
+    return {"serie": historico_previsao.serie_com_previsto(real, previstos), "avaliacao": avaliacao}
 
 
 # --------------------------------------------------------------------------- #
@@ -233,7 +257,7 @@ def contexto(db: Session) -> dict:
     return {
         "lojas": base_vendas.carregar_lojas(db),
         "categorias": _categorias(db),
-        "configuracao": {"horizonte_dias": config.get("horizonte", settings.FORECAST_HORIZON_DAYS),
+        "configuracao": {**_horizontes(config),
                          "limiares_encomenda_un": base_vendas.limiares_encomenda_atuais(db),
                          # falso no Render: o front não oferece "Treinar previsões"
                          "treino_na_api": settings.TRAINING_RUNNER == "local"},

@@ -52,6 +52,7 @@ export function TreinarPrevisoes() {
   const semDadosNovos = status?.dados_alterados === false;
   const podeTreinar = Boolean(status) && !conferindo && !andamento && !semDadosNovos && !enviando;
   const horizonte = status?.config.horizonte_dias ?? 14;
+  const diasPrevistos = status?.config.horizonte_previsao_dias ?? horizonte;
   const semanas = Math.round((status?.config.origens ?? 56) / 7);
 
   const abrir = async () => {
@@ -98,9 +99,9 @@ export function TreinarPrevisoes() {
             <AlertDialogDescription asChild>
               <div className="flex flex-col gap-3 text-sm" style={{ color: "var(--muted-foreground)" }}>
                 <p>
-                  Calcula a previsão de vendas dos próximos {horizonte} dias de cada uma das 4 categorias e de cada produto de
-                  grama, nas 2 lojas. Antes de gravar, testa o acerto da previsão dia a dia nas últimas {semanas} semanas. Usa as
-                  vendas do balcão, sem as encomendas grandes.
+                  Calcula a previsão de vendas dos próximos {diasPrevistos} dias de cada uma das 4 categorias e de cada produto
+                  de grama, nas 2 lojas. Antes de gravar, testa o acerto da previsão das 2 primeiras semanas ({horizonte} dias),
+                  dia a dia, nas últimas {semanas} semanas. Usa as vendas do balcão, sem as encomendas grandes.
                 </p>
                 <p>Roda em segundo plano: você pode continuar usando o sistema e acompanhar o andamento no sino de notificações.</p>
                 {conferindo || !status ? (

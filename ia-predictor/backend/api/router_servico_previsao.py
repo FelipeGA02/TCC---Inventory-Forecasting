@@ -57,15 +57,17 @@ def _treino(job: ForecastJob | None) -> TreinoServico | None:
         id=job.id, status=job.status, criado_em=job.created_at, iniciado_em=job.started_at,
         concluido_em=job.finished_at, dados_ate=job.data_until, total_series=job.total_series,
         series_concluidas=job.done_series, progresso_pct=job.progress_pct, serie_atual=job.current_series,
-        series_treinadas=job.series_trained, series_baixa_confianca=job.series_low_confidence,
+        series_treinadas=job.series_trained,
         series_dados_insuficientes=job.series_insufficient, series_com_erro=job.series_failed,
         mensagem=job.message)
 
 
 def _config() -> ConfigServico:
     c = servico_previsao.config_treino()
-    return ConfigServico(m=c.m, d=c.d, D=c.D, janela_dias=c.janela_dias, origens=c.origens, passo_dias=c.passo,
-                         horizonte_dias=c.horizonte, base=servico_previsao.BASE_TREINO,
+    return ConfigServico(m=c.m, d=c.d, d_candidatos=list(c.ds), D=c.D,
+                         janela_dias=c.janela_dias, origens=c.origens, passo_dias=c.passo,
+                         horizonte_dias=c.horizonte, horizonte_previsao_dias=c.dias_previsao,
+                         base=servico_previsao.BASE_TREINO,
                          categoria_produtos=servico_previsao.CATEGORIA_PRODUTOS)
 
 

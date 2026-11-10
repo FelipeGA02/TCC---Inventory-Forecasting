@@ -1,31 +1,46 @@
 <!-- Sync Impact Report
   Version change: 3.1.0 → 4.0.0
-  Motivação: a classificação `low_confidence` sai do sistema (pedido do usuário em
-    2026-11-09; a tela já não mostrava selo nem aviso desde 2026-11-05). O walk-forward
-    continua obrigatório e as métricas continuam registradas em cada série, mas não
-    classificam a série: toda série que ajusta tem previsão (`status = "trained"`);
-    `insufficient_data` e `error` continuam.
-  MAJOR porque redefine o Princípio III (os limiares deixam de decidir o status e de exigir
-    aviso no dashboard) e a coluna "Ação se falhar" dos Quality Gates.
+  Motivação: alinhar a constituição ao sistema que roda desde o ADR-017 (2026-10-26) e às
+    decisões seguintes (ADR-018 a ADR-022). Reúne duas emendas feitas em paralelo, ambas
+    numeradas 4.0.0: a de 2026-11-05 (Princípios II, III, V e VI; as pendências estavam
+    listadas no CLAUDE.md como "emenda pendente") e a de 2026-11-09 (a classificação
+    `low_confidence` sai do sistema, pedido do usuário). Consolidadas no merge da PR #47.
+  MAJOR porque redefine os Princípios II, III e V e remove um Quality Gate (simulação de
+    reposição).
   Modified:
-    - Princípio III — "avaliado ... antes de ser persistido como `status = "trained"`" +
-      "Limiares de aceitação" + "`status = "low_confidence"` e exibir aviso" → walk-forward
-      antes de gravar a previsão; MASE, cobertura e simulação como métricas de referência
-      registradas em cada série, sem classificar nem gerar aviso.
-    - Quality Gates / Critérios de Aceitação de Modelos — MASE, cobertura e simulação:
+    - Princípio II — "L1 por unidade + desagregação em cascata (unidade → categoria → SKU)" →
+      SARIMAX direto em cada uma das 4 categorias e em cada produto de grama, por loja
+      (ADR-016: categoria direta vence a desagregação em 7 de 8 pares; ADR-017). Ajuste
+      pós-modelo das datas comemorativas (ADR-019) permitido como estatística, não ML.
+    - Princípio III — walk-forward com o protocolo do sistema (56 origens andando 1 dia,
+      h = 14, janela deslizante de 545 dias, d de cada série escolhido no walk-forward)
+      antes de gravar a previsão; MASE e cobertura como métricas de referência registradas
+      em cada série, sem classificar nem gerar aviso (toda série que ajusta fica
+      `trained`); sem a simulação de reposição (L3 fora, ADR-011); o fator das datas é
+      validado em experimento próprio (doc 08), fora do walk-forward do treino.
+    - Princípio IV — exemplos sem reposição; status sem rótulo de confiança.
+    - Princípio V — `retrain_history`/`forecast_runs` → `processing_log`, `forecast_jobs`,
+      `forecast_job_logs`, `series_models`, `forecast_history`; treino sem dados novos =
+      `skipped`; logs pela API `/api/v1/servico-previsao/*`.
+    - Princípio VI — perfis com as rotas atuais (admin: upload e treino; viewer: contexto,
+      painel, histórico, análises, registros).
+    - Quality Gates / Critérios de Aceitação de Modelos — MASE e cobertura:
       "`status = "low_confidence"` + alerta no dashboard" → "registrado nas métricas da
       série; não classifica nem gera aviso".
-  Added sections: nenhuma. Removed sections: nenhuma.
+  Removed:
+    - Quality Gate "Simulação de reposição (perda + ruptura)".
+    - Critério "Geração da previsão < 15min" (a previsão sai do próprio treino).
   Templates:
-    ✅ .specify/templates/spec-template.md (sem referência ao status)
-    ✅ .specify/templates/plan-template.md (sem referência ao status)
-    ✅ .specify/templates/tasks-template.md (sem referência ao status)
-    ✅ CLAUDE.md, SPECS.md, specs/001-sistema-previsao-vendas/{spec,plan}.md, docs/
-       (atualizados na mesma mudança)
-  Follow-up TODOs (anteriores, não tratados aqui):
-    - Princípio II: categoria por SARIMAX direto em vez de desagregação (ADR-016/017).
-    - Simulação de reposição nos Quality Gates: L3 fora de escopo (ADR-011).
-    - Princípio V: `retrain_history`/`forecast_runs` → `forecast_jobs` (ADR-017).
+    ✅ .specify/templates/plan-template.md (genérico: gates lidos desta constituição)
+    ✅ .specify/templates/spec-template.md (genérico, sem referência a princípio ou status)
+    ✅ .specify/templates/tasks-template.md (genérico)
+    ✅ .claude/skills/speckit-*/SKILL.md (sem nome de princípio desatualizado)
+    ✅ CLAUDE.md (Regras Invioláveis sem "emenda pendente"; v4.0.0)
+    ✅ docs/prediction/ADR-016, ADR-017, ADR-019 (pendência da emenda resolvida)
+  Follow-up TODOs:
+    - SPECS.md e specs/001-sistema-previsao-vendas/{spec,plan,tasks}.md ainda descrevem
+      o desenho antigo (L1/L2/L3, constituição v2.0.0): registro histórico, a reescrever
+      numa revisão das specs (/speckit-specify ou /speckit-plan).
 -->
 
 # Sistema de Previsão de Vendas — Floricultura Constitution
@@ -38,101 +53,104 @@ A camada de domínio (`backend/domain/`) MUST conter exclusivamente lógica de n
 Ela MUST NOT importar FastAPI, SQLAlchemy, APScheduler ou qualquer framework de I/O.
 Toda dependência externa MUST ser injetada via interfaces — nunca instanciada no domínio.
 **Rationale**: domínio testável de forma isolada, sem infraestrutura; permite trocar banco,
-framework ou scheduler sem tocar na lógica de previsão.
+framework ou forma de disparo do treino sem tocar na lógica de previsão.
 
 ### II. Estatística Antes de Machine Learning
 
-O modelo central da **camada de demanda agregada (L1)** — uma série diária por
-`unidade` — MUST ser SARIMAX (statsmodels), com sazonalidade semanal (`m=7`) e exógenas
-de calendário.
+O modelo do sistema MUST ser SARIMAX (statsmodels) com sazonalidade semanal (`m = 7`) e
+exógenas de calendário (dia da semana, loja fechada, abertura excepcional), ajustado
+**direto em cada série**: cada uma das 4 categorias e cada produto de grama, em cada loja
+(ADR-017). O total da loja MUST ser a soma das categorias.
 
-`categoria` e SKU MUST ser obtidos por **desagregação proporcional em cascata**
-(`unidade` → `categoria` → SKU), cada passo pela participação móvel × perfil de
-dia-da-semana do nível — não por um SARIMAX próprio: o teste de separação de
-`training_scripts/eda/eda_separacao.py` (EDA 4) não mostrou redução de erro em modelar
-`categoria` direto.
+A categoria MUST NOT ser obtida por desagregação de uma série da loja: o experimento
+`disaggregation/categoria_direta_vs_desagregacao.py` (351 origens dia a dia, h = 14, fluxo
+diário) mostrou o SARIMAX direto na categoria vencendo a desagregação em 7 dos 8 pares
+categoria-loja (ADR-016). Produto fora da categoria Grama MUST NOT ganhar modelo próprio
+sem novo experimento.
 
-> **⚠️ Princípio sob contestação empírica — requer emenda via `/speckit-constitution`.**
-> O experimento `disaggregation/categoria_direta_vs_desagregacao.py` (351 origens dia a
-> dia, h=14, 4 categorias, fluxo diário — protocolo muito mais forte que o da EDA 4)
-> mostra o SARIMAX **direto** na categoria vencendo a desagregação em **7 dos 8** pares
-> categoria-unidade, com destaque em Flores de corte (erro relativo à naïve 0,733 vs
-> 0,830 em Itabirito; 0,723 vs 0,878 em Jardim Canadá, onde a faixa de 95% da
-> desagregação cobre só 60,3% do realizado). Ver ADR-016. Enquanto a emenda não for
-> votada, este parágrafo continua valendo como norma.
+São PERMITIDOS, como estatística e não como ML:
+- ajuste multiplicativo pós-modelo das datas comemorativas (ADR-019), com o fator
+  recalculado das vendas a cada treino, só com venda anterior ao primeiro dia previsto;
+- modelos de demanda intermitente (Croston, TSB, SBA) na trilha de comparação por SKU,
+  onde a série diária é quase toda zero;
+- ponderação de exógenas por Random Forest MDI como diagnóstico, não como previsão.
 
-Para a **camada de SKU** especificamente, onde a série diária individual é
-majoritariamente composta de zeros e o SARIMAX é matematicamente inaplicável, também são
-PERMITIDOS modelos de **demanda intermitente** (Croston, TSB, SBA) como trilha de
-comparação formal contra a abordagem hierárquica.
-
-Modelos de ML (redes neurais, gradient boosting) MUST NOT ser introduzidos em nenhuma
-camada sem evidência quantitativa de superioridade sobre a abordagem vigente no conjunto
-de dados disponível, avaliada com o mesmo protocolo de walk-forward CV.
-Ponderação de variáveis exógenas via Random Forest MDI é PERMITIDA como pré-processamento,
-não como modelo de previsão.
-**Rationale**: a M4/M5 Competition mostra que métodos estatísticos e de demanda
-intermitente superam ML em séries curtas e esparsas de varejo. SARIMAX governa o sinal
-agregado (denso); Croston/TSB governam o padrão esparso por item. Introduzir ML sem
-ganho empírico viola a parcimônia estatística.
+Modelos de ML (redes neurais, gradient boosting) MUST NOT entrar no sistema sem evidência
+quantitativa de superioridade sobre o SARIMAX vigente, avaliada com o mesmo protocolo de
+walk-forward.
+**Rationale**: a M4/M5 Competition mostra que métodos estatísticos superam ML em séries
+curtas e esparsas de varejo; a evidência do próprio projeto (ADR-016) decide o grão.
 
 ### III. Validação Obrigatória Antes de Produção
 
-Todo modelo treinado MUST ser avaliado com walk-forward cross-validation (≥ 4 folds,
-origem móvel, horizonte de 14 dias) antes de a previsão ser gravada.
+Toda série treinada MUST ser avaliada com walk-forward de origem móvel antes de a previsão
+ser gravada: no sistema, 56 origens andando 1 dia (≥ 4 folds), horizonte de 14 dias,
+janela deslizante de 545 dias (ADR-022), ordem escolhida só com a janela anterior à
+primeira origem e d escolhido pelo erro do walk-forward (ADR-020). Todo parâmetro estimado
+dos dados (fator das datas, limiar de encomenda) MUST usar só a venda anterior a cada
+origem.
 
 Métricas de referência, MUST ser registradas em cada série (`series_models.metrics`) e no
 log do treino:
 
 - **MASE** (referência: < 1.0, o modelo bate a previsão ingênua sazonal semanal);
-- **cobertura empírica do intervalo de 95%** (referência: [90%, 98%]);
-- a **simulação de reposição** (perda por perecibilidade + ruptura) sobre o hold-out,
-  contra a regra ingênua "repor a média dos últimos 7 dias".
+- **cobertura empírica do intervalo de 95%** (referência: [90%, 98%]).
 
 As métricas MUST NOT classificar a série nem gerar aviso no dashboard: toda série que
 ajusta tem previsão (`status = "trained"`). Série sem histórico suficiente fica
 `insufficient_data` e série cujo ajuste falha fica `error`, ambas sem previsão. MAPE e
 SMAPE continuam sendo calculados e reportados, mas são **informativos** (instáveis com
 contagem baixa).
-**Rationale**: artigo TCC seção 6.5; o walk-forward mede a qualidade antes de a previsão
-influenciar decisões de compra, e as métricas ficam disponíveis (tela de histórico, API,
-log) sem um rótulo que a loja não usa para decidir.
+
+Ajuste que o walk-forward do treino quase nunca atravessa (as datas comemorativas,
+ADR-019: as 56 origens cobrem só as 8 semanas antes da última venda) MUST ser validado em
+experimento próprio, com a receita de produção, com e sem o ajuste, nas ocorrências
+passadas da data (doc 08), e revisto quando entrar um ano novo de vendas.
+**Rationale**: artigo TCC seção 6.5; o walk-forward mede a qualidade contra a naïve antes
+de a previsão informar a compra de produto perecível, e as métricas ficam disponíveis
+(tela de histórico, API, log) sem um rótulo que a loja não usa para decidir. A loja decide
+a compra (ADR-011): o sistema informa quanto deve vender, e a simulação de perda e ruptura
+saiu com a reposição.
 
 ### IV. Interface para Usuário Não Técnico
 
-Toda mensagem exposta ao usuário final (alertas, erros, status de modelos) MUST ser
+Toda mensagem exposta ao usuário final (avisos, erros, situação das previsões) MUST ser
 escrita em português claro, sem jargão técnico (sem "MASE", "SARIMAX", "p-value").
-O equivalente em linguagem de negócio MUST ser fornecido (ex: "Precisão estimada: 92%",
-"Repor 40 unidades até quinta — o restante murcha antes de vender").
-A UI MUST permitir upload de planilha e visualização de previsões/reposição sem
-treinamento técnico.
+O equivalente em linguagem de negócio MUST ser fornecido (ex.: "Intervalo acertou 94% dos
+dias no teste", "previsão de 26/12 a 31/12 reduzida a 35% pelo Ano Novo").
+A UI MUST permitir enviar a planilha, treinar e ver a previsão sem treinamento técnico.
 **Rationale**: REQ-04 e RNF-01 do artigo; os operadores da floricultura não têm formação técnica.
 
 ### V. Rastreabilidade Total
 
 Todo upload de planilha MUST gerar registro em `processing_log` com: nome do arquivo,
-hash, data, registros adicionados/pulados/duplicados.
-Todo retrain (ajuste semanal dos modelos L1) MUST gerar registro em `retrain_history`
-com: trigger, data de início/fim, categorias treinadas e falhas.
-Treino agendado pulado por falta de venda nova MUST ficar registrado em `retrain_history`
-com `status = "skipped"`.
-Toda geração da previsão (ao fim de um treino ou após mudança no calendário) MUST
-registrar em `forecast_runs` data, período previsto e contagem de SKUs atendidos.
-Logs de execução MUST ser consultáveis via API (`GET /api/v1/models/status`).
+SHA-256, data, linhas lidas/novas/duplicadas e a qualidade (período, dias de loja aberta
+sem venda, limiar de encomenda grande).
+Todo treino MUST gerar registro em `forecast_jobs` com: origem do disparo, início/fim,
+status, impressão digital dos dados, último dia com venda, a configuração com a versão do
+código e as contagens de séries por status; e ligar a si as planilhas que entraram nele
+(`processing_log.forecast_job_id`).
+Treino sem dados novos (vendas, calendário e catálogo iguais ao último concluído) MUST
+ficar com `status = "skipped"`.
+Cada série MUST ter o seu resultado em `series_models` (status, ordem, métricas,
+diagnóstico dos resíduos, coeficientes, ajustes das datas) e uma linha no log do treino
+(`forecast_job_logs`). A previsão que a loja viu MUST ficar congelada em `forecast_history`.
+Os logs MUST ser consultáveis via API (`/api/v1/servico-previsao/*`).
 **Rationale**: RNF-02 do artigo; auditabilidade é requisito de confiabilidade operacional
 e rastreabilidade para a entidade parceira.
 
 ### VI. Segurança por Padrão (NON-NEGOTIABLE)
 
 Todos os endpoints `/api/v1/*` MUST exigir `Authorization: Bearer <JWT>` válido.
-O sistema MUST implementar dois perfis: `admin` (upload, retrain, export) e
-`viewer` (forecast, replenishment, products, alerts, simulation — somente leitura).
+O sistema MUST implementar dois perfis: `admin` (envio de planilha e treino da previsão) e
+`viewer` (contexto, painel, histórico da previsão, análises e registros — somente leitura).
 A API MUST NOT expor dados pessoais de clientes (`cliente_nome`, `cliente_cod`,
 CPF, endereço) em nenhum endpoint — somente dados agregados por produto/categoria.
-Tokens JWT MUST expirar em 8h; refresh MUST ser suportado.
+Tokens JWT MUST expirar em 8h; refresh MUST ser suportado e o logout MUST revogar o
+refresh token.
 Senhas MUST ser armazenadas com hash bcrypt — nunca em texto plano.
 **Rationale**: RNF-04 do artigo (LGPD e controle de acesso por perfil); proteção dos
-dados operacionais da empresa parceira; evitar acesso não autorizado ao sistema de compras.
+dados operacionais da empresa parceira.
 
 ## Quality Gates
 
@@ -140,24 +158,23 @@ dados operacionais da empresa parceira; evitar acesso não autorizado ao sistema
 
 | Métrica | Limiar | Ação se falhar |
 | --- | --- | --- |
-| MASE (L1 e SKU) | < 1.0 | registrado nas métricas da série; não classifica nem gera aviso |
+| MASE (categoria e produto de grama) | < 1.0 | registrado nas métricas da série; não classifica nem gera aviso |
 | Cobertura do IC 95% | ∈ [90%, 98%] | idem |
-| Simulação de reposição (perda + ruptura) | melhor que regra ingênua de 7 dias | idem |
-| Ljung-Box p-value (resíduos L1) | > 0.05 | log de aviso; não bloqueia deploy |
-| Shapiro-Wilk p-value (resíduos L1) | > 0.05 | log de aviso; não bloqueia deploy |
-| Observações mínimas L1 (`unidade`) | ≥ 180 dias | `status = "insufficient_data"` |
-| Observações mínimas SKU | ≥ 28 dias com venda ou ≥ 8 vendas | SKU cai no fallback de rateio da categoria |
+| Ljung-Box p-value (resíduos do ajuste final) | > 0.05 | citado no log; não bloqueia |
+| Shapiro-Wilk p-value (resíduos do ajuste final) | > 0.05 | citado no log; não bloqueia |
+| Histórico antes da 1ª origem do walk-forward | ≥ 180 dias | `status = "insufficient_data"` (sem previsão) |
+| Produto de grama: dias com venda na última janela de 365 | ≥ 28 | `status = "insufficient_data"` (sem previsão) |
+| Ajuste das datas comemorativas (ADR-019) | reduz o erro do total da semana no experimento do doc 08 | a data sai da lista na revisão anual |
 
 ### Critérios de Aceitação da API
 
-- Todos os endpoints MUST retornar em < 2s para dados de até 50 produtos.
+- Todos os endpoints de leitura MUST retornar em < 2s para os dados das 2 lojas.
 - Upload de XLSX ≤ 50 MB MUST processar em < 30s.
-- Ajuste semanal dos modelos L1 MUST concluir em < 2h (RNF-03).
-- Geração da previsão MUST concluir em < 15min.
+- O treino da previsão (todas as séries) MUST concluir em < 2h (RNF-03).
 
 ### Critérios de Aceitação da Interface
 
-- Usuário MUST conseguir fazer upload e visualizar previsão/reposição em ≤ 3 cliques.
+- Usuário MUST conseguir enviar a planilha e ver a previsão em ≤ 3 cliques.
 - Exportação PDF/Excel MUST ser gerada em < 10s.
 
 ## Development Workflow
@@ -166,22 +183,25 @@ dados operacionais da empresa parceira; evitar acesso não autorizado ao sistema
   Standard Process for Data Mining), adaptado a séries temporais: compreensão do
   negócio, compreensão dos dados, preparação dos dados, modelagem, avaliação e
   implantação (artigo, seção 6.1).
-- Implementação MUST seguir a ordem dos Sprints definida em `SPECS.md`.
+- Toda decisão de modelagem MUST vir de experimento com o protocolo do Princípio III,
+  reportando o erro relativo à naïve na mesma janela (não só o MASE), e ficar registrada
+  num ADR em `docs/`.
 - Nenhuma funcionalidade de domínio MUST ser implementada sem teste unitário correspondente.
 - Pull Requests que incluam lógica de negócio sem teste unitário MUST ser rejeitados.
 - Mudanças nos contratos de API (schemas Pydantic) MUST ser refletidas em `openapi.yaml`.
 - Após qualquer mudança em `openapi.yaml`, `openapi-typescript-codegen` MUST ser re-executado
   para regenerar o cliente TypeScript em `app-react/src/services/api/`.
-- O arquivo `SPECS.md` é o documento de referência primário; esta constituição governa os
-  princípios; conflitos MUST ser resolvidos pelo princípio mais restritivo.
+- O `CLAUDE.md` e os ADRs vigentes descrevem o sistema atual; `SPECS.md` e
+  `specs/001-*` guardam o desenho original. Conflitos MUST ser resolvidos por esta
+  constituição e, entre documentos, pelo ADR mais recente.
 
 ## Governance
 
 Esta constituição MUST ser consultada antes de qualquer decisão arquitetural.
 Emendas MUST ser documentadas com: motivação, impacto nos princípios existentes e
 migração do código afetado.
-Versionamento semântico: MAJOR = remoção/redefinição de princípio; MINOR = novo princípio;
-PATCH = clarificação ou correção de texto.
+Versionamento semântico: MAJOR = remoção/redefinição de princípio; MINOR = novo princípio
+ou exigência ampliada; PATCH = clarificação ou correção de texto.
 Revisão obrigatória a cada Sprint concluído.
 
 **Version**: 4.0.0 | **Ratified**: 2026-07-28 | **Last Amended**: 2026-11-09

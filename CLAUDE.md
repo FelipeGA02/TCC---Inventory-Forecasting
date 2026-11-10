@@ -124,22 +124,22 @@ Consulte `.specify/memory/constitution.md` para o texto completo. Resumo:
    da loja é a soma das categorias. O L1 por unidade e a desagregação saíram: o
    experimento `disaggregation/categoria_direta_vs_desagregacao.py` (351 origens dia a dia,
    4 categorias, fluxo diário) mostrou o SARIMAX direto na categoria vencendo a
-   desagregação em 7 dos 8 pares (ADR-016). A constituição ainda manda obter a categoria
-   por desagregação (Princípio II): a emenda via `/speckit-constitution` está pendente.
-   Croston/TSB/SBA ficam na trilha de comparação por SKU; NN/boosting só com evidência
-   empírica.
+   desagregação em 7 dos 8 pares (ADR-016). O ajuste das datas comemorativas depois do
+   SARIMAX (ADR-019) é estatística permitida. Croston/TSB/SBA ficam na trilha de comparação
+   por SKU; NN/boosting só com evidência empírica.
 3. **Validação obrigatória**: walk-forward CV (≥4 folds, origem móvel, h=14 dias; no
    sistema, 56 origens andando 1 dia) antes de gravar a previsão, com MASE, cobertura do
    IC 95% e as outras métricas registradas em cada série. As métricas não classificam a
-   série: toda série que ajusta tem previsão (`trained`).
-   A simulação de perda/ruptura caiu junto com a L3 (ADR-011); a constituição ainda a
-   exige (Princípio III e Quality Gates) e precisa de emenda via `/speckit-constitution`.
+   série: toda série que ajusta tem previsão (`trained`). Sem simulação de perda/ruptura
+   (L3 fora, ADR-011). O fator das datas comemorativas, que o walk-forward do treino quase
+   nunca atravessa, é validado em experimento próprio (doc 08) e revisto a cada ano de vendas.
 4. **Linguagem do usuário**: mensagens de erro e alertas em PT-BR sem jargão técnico.
 5. **Rastreabilidade**: todo upload e treino gravados em `processing_log` e `forecast_jobs`
    (treino sem dados novos fica como `skipped`). Cada treino registra a configuração com a
-   versão do código, o período usado, as contagens de séries (com previsão, sem dados, com falha) e o log série a
-   série, e liga a si as planilhas que entraram nele (`processing_log.forecast_job_id`). A
-   constituição ainda cita `retrain_history`/`forecast_runs` (emenda pendente).
+   versão do código, o período usado, as contagens de séries (com previsão, sem dados, com
+   falha) e o log série a série (`forecast_job_logs`, `series_models`), liga a si as
+   planilhas que entraram nele (`processing_log.forecast_job_id`) e congela a previsão em
+   `forecast_history`.
 6. **Segurança por padrão**: JWT obrigatório em todos os `/api/v1/*`; bcrypt para senhas; API não expõe dados pessoais de clientes.
 
 ---
@@ -432,12 +432,12 @@ Comandos disponíveis (invocar via Skill tool ou como `/speckit-*`):
 | `specs/001-sistema-previsao-vendas/spec.md` | User Stories e requisitos funcionais |
 | `specs/001-sistema-previsao-vendas/plan.md` | Plano técnico com constitution check |
 | `specs/001-sistema-previsao-vendas/tasks.md` | Tarefas organizadas por fase (TDD) |
-| `.specify/memory/constitution.md` | 6 princípios governantes (v4.0.0) |
+| `.specify/memory/constitution.md` | 6 princípios governantes (v4.0.0, emendada em 2026-11-05 e 2026-11-09) |
 | `docs/prediction/ADR-009-granularidade-diaria-e-reposicao.md` | **Espinha da revisão de escopo mensal→diário** — arquitetura L1/L2/L3, validação, shelf-life (L3 e grão `unidade × categoria` revisados pelo ADR-011) |
 | `docs/prediction/ADR-011-escopo-previsao-sem-reposicao.md` | Escopo: previsão de demanda sem reposição (L3 fora), 2 unidades; o L1 por `unidade` foi revisado pelo ADR-017 |
 | `docs/prediction/ADR-016-categoria-direta-vs-desagregacao.md` | Evidência: SARIMAX direto na categoria vence a desagregação em 7 de 8 pares categoria-loja (aceito pelo ADR-017) |
 | `docs/prediction/ADR-018-limiar-de-encomenda-por-desvios.md` | Encomenda grande = pedido acima de média + 4 desvios-padrão da quantidade de todos os pedidos da loja, em unidades; a planilha nova recalcula o limiar e classifica só as linhas inseridas: distribuição, comparação com o limiar fixo de 2.000 e o treino de produção das 17 séries com fixo × 4 × 3 desvios (§4.1) |
-| `docs/prediction/ADR-017-previsao-por-categoria-e-grama.md` | **A previsão do sistema**: SARIMAX direto em cada categoria e produto de grama, por loja; treino pelo botão ou script, sem agendador; histórico congelado; conferência da planilha. O que saiu e o que fica pendente (emenda da constituição) |
+| `docs/prediction/ADR-017-previsao-por-categoria-e-grama.md` | **A previsão do sistema**: SARIMAX direto em cada categoria e produto de grama, por loja; treino pelo botão ou script, sem agendador; histórico congelado; conferência da planilha. O que saiu e a emenda da constituição (v4.0.0) |
 | `docs/prediction/07-previsao_14_dias_e_historico.md` | Como o sistema treina, guarda e mostra: ciclo planilha → conferência → treino → telas, receita e walk-forward, previsão de 14 dias, regras do histórico (9 e 20 dias entre treinos), dias faltando na planilha, tabelas e testes |
 | `docs/prediction/08-fator_datas_comemorativas.md` | Datas comemorativas no fluxo (sem encomendas): só Flores de corte sobe (1,6–5,8× em Mulher, Mães, Namorados, Natal; Ano Novo em §9.2); a flor de Finados é a em vaso (crisântemo e kalanchoe, em Plantas diversas), só em Itabirito; fator multiplicativo pela metade no SARIMAX de produção corta 40–45% do erro do total da semana de Flores de corte (10 ocorrências), não o erro de cada dia; em Finados não serve (Grama: nível baixo do modelo; Produtos piora; Plantas diversas melhora uma ocorrência e piora a outra). Refeito em 2026-11-05 com a classificação SKU a SKU. §9: EDA de todos os feriados e datas em todas as séries; §9.3: a queda é de 26 a 31/12 (não da temporada) e, na Grama de Itabirito, do Dia do Trabalho, e a queda inteira vence no SARIMAX de produção. Adotado pelo ADR-019 |
 | `docs/prediction/ADR-019-fator-das-datas-comemorativas.md` | *Proposto* — previsão de Flores de corte × fator da data na semana do Dia da Mulher, das Mães, dos Namorados, do Natal e do Ano Novo (metade do aumento, entre 1 e 3); nas outras séries, a queda de 26 a 31/12 e do Dia do Trabalho (inteira, piso 0,2, só se caiu nas 2 últimas ocorrências, §2.1). Recalculado das vendas a cada treino (últimas 3 ocorrências), gravado em `event_factor`; desligável por `FORECAST_SERVICE_EVENT_FACTOR` |

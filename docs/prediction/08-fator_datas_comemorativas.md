@@ -529,11 +529,49 @@ Com as vendas até 28/02/2026, a regra pega no Ano Novo de 2027:
 
 No Dia do Trabalho de 2026, só a Grama de Itabirito (0,54). As Plantas diversas e os Produtos
 de jardim de Itabirito e a Amendoim das 2 lojas ficam fora, porque caíram num ano só. A São
-Carlos de Itabirito é a única série que a regra pega sem ter passado pelo teste.
+Carlos de Itabirito, que a regra também pega, foi testada depois (§9.4).
 
 Com 1 ocorrência só, a regra não ajusta: em 2025/26, o teste em ordem usou o fator de uma
 ocorrência, que o sistema não usaria. O teste valida o tamanho do fator. A escolha das séries
 (2 ocorrências abaixo de 0,8) é a do EDA.
+
+### 9.4 As que ficaram de fora (2026-11-05)
+
+Mesmo protocolo e fator da §9.3 (`--grupo reducao`), em duas perguntas que a §9.3 deixou
+abertas.
+
+**A São Carlos de Itabirito,** que a regra da queda pega sem ter passado pelo teste. Fator
+0,05 (2025, fora de ordem) e 0,30 (2026, em ordem). Erro do total da semana, sem → com a queda
+(piso 0,2):
+- **2025:** de 703% para 61%;
+- **2026:** de 8.133% para 2.386%. A loja vendeu 8 unidades na semana.
+
+O modelo dessa grama prevê 20 vezes o vendido também fora da semana (controle de 2.027%): a
+série é fraca. A queda corta a maior parte do erro onde ele mais pesa, e a série continua na
+regra.
+
+**A queda de Flores de corte depois do Réveillon** (de 2 a 8/01, a janela da data em 08/01),
+que a EDA viu em Itabirito (0,55 e 0,62 de 2 a 10/01). Jardim Canadá entra como controle.
+
+| Série | 2025 (fator de 2024) | 2026 (fator de 2025) |
+| --- | --- | --- |
+| Flores de corte, ITA | fator 1,60 · erro 156% → 309% | fator 0,45 · erro 103% → **9%** |
+| Flores de corte, JC *(controle)* | fator 1,99 · erro 13% → 73% | fator 1,62 · erro 4% → 56% |
+
+(erro do total da semana, sem → com o fator inteiro)
+
+- **Itabirito:**
+  - em 2024 a semana subiu (1,60), em 2025 caiu (0,45), e o fator só acerta quando o ano
+    anterior caiu;
+  - pela regra da queda, a série só entraria com 2 ocorrências seguidas abaixo de 0,8, ou
+    seja, a partir de janeiro de 2027;
+  - a evidência de hoje é 1 ocorrência, numa loja.
+- **Jardim Canadá:** não cai, e o modelo acerta a semana sem ajuste.
+- **Decisão:** fica fora do sistema. Refazer com janeiro de 2027. Se a semana cair de novo
+  em Itabirito, Flores de corte passa a ter também a regra da queda, só nessa janela.
+
+A Sexta-feira Santa espera as vendas de abril de 2026: a de 2025 é a única testável hoje
+(§9.2), e o resultado não se repetiu entre as lojas.
 
 ## 10. Como reproduzir
 
@@ -548,7 +586,7 @@ python -m training_scripts.datas_comemorativas.fator_multiplicativo --consolidar
 python -m training_scripts.datas_comemorativas.eda_eventos [--controle]         # §9.1
 python -m training_scripts.datas_comemorativas.fator_multiplicativo --grupo feriados --listar  # §9.2
 python -m training_scripts.datas_comemorativas.eda_reducao                                     # §9.3
-python -m training_scripts.datas_comemorativas.fator_multiplicativo --grupo reducao --listar   # §9.3
+python -m training_scripts.datas_comemorativas.fator_multiplicativo --grupo reducao --listar   # §9.3 e §9.4
 ```
 
 O `--preparar` monta as séries da `BaseClassificada03.csv`: depois de mudar a classificação,

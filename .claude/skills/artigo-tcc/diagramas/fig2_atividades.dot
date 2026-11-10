@@ -14,11 +14,13 @@ digraph ACT {
   ser [label="Montar séries diárias por loja: 4 categorias\ne produtos de grama (sem encomendas grandes)"];
   suf [shape=diamond, label="Histórico\nsuficiente?", style=filled, fillcolor="#fff6dd", color="#c9a227", width=2.0, height=1.0];
   ins [label="Registrar série sem\nprevisão e o motivo", fillcolor="#fbeee8", color="#b6662e", width=2.2];
-  aic [label="Selecionar a ordem do SARIMAX pelo AIC"];
-  wf  [label="Validar em walk-forward\n(56 origens, horizonte de 14 dias)"];
-  met [label="Calcular as métricas: MASE, erro relativo,
+  aic [label="Para d = 0 e d = 1: selecionar a ordem
+do SARIMAX pelo AIC"];
+  wf  [label="Para d = 0 e d = 1: validar em walk-forward\n(56 origens, horizonte de 14 dias)"];
+  met [label="Manter o d de menor erro e calcular as métricas:
+MASE, erro relativo,
 cobertura e largura do intervalo de 95%"];
-  fin [label="Ajustar nos últimos 365 dias e prever\nos 14 dias seguintes (intervalo de 95%)"];
+  fin [label="Ajustar nos últimos 365 dias e prever os 91 dias\nseguintes (intervalo de 95%) e aplicar o\nfator das datas comemorativas"];
   gh  [label="Gravar previsões, histórico congelado\ne registro do treino"];
   tel [label="Exibir previsão, histórico e relatórios"];
   fim [shape=doublecircle, label="", width=0.26, height=0.26, fixedsize=true, style=filled, fillcolor="#000000", color="#000000"];

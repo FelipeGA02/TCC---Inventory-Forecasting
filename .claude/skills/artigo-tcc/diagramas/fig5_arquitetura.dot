@@ -11,9 +11,9 @@ digraph ARQ {
     p2 [label="Encomendas grandes, calendário\npor loja e séries diárias", fillcolor="#eaf7ea", color="#3e8e41"];
     p1 -> p2; }
   subgraph cluster_mod { label="Camada de Modelagem (serviço de previsão)"; fontname="Arial"; fontsize=14; labeljust="l"; style="rounded,filled"; fillcolor="#fbf0ec"; color="#b6662e";
-    m1 [label="SARIMAX por categoria e por\nproduto de grama, em cada loja\n(statsmodels, ordem pelo AIC)", fillcolor="#fbeee8", color="#b6662e"];
+    m1 [label="SARIMAX por categoria e por\nproduto de grama, em cada loja\n(statsmodels, ordem pelo AIC e d pela validação)", fillcolor="#fbeee8", color="#b6662e"];
     m2 [label="Validação walk-forward\n(MASE, cobertura do intervalo de 95%)", fillcolor="#fbeee8", color="#b6662e"];
-    m3 [label="Previsão de 14 dias e\nhistórico congelado", fillcolor="#fbeee8", color="#b6662e"];
+    m3 [label="Previsão de 91 dias, fator das datas\ne histórico congelado", fillcolor="#fbeee8", color="#b6662e"];
     m1 -> m2 -> m3; }
   subgraph cluster_apr { label="Camada de Apresentação"; fontname="Arial"; fontsize=14; labeljust="l"; style="rounded,filled"; fillcolor="#f6f0fc"; color="#7a5ab5";
     a0 [label="API REST\n(FastAPI, autenticação JWT)", fillcolor="#efe6fb", color="#7a5ab5"];

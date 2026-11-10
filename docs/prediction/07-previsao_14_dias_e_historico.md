@@ -234,9 +234,10 @@ a cada treino: com planilhas novas, um produto pode passar dos 28 dias ou cair a
    - erro no total de cada janela.
    Com os dois d avaliados, fica o d cujo walk-forward errou menos (erro médio por dia); o erro
    de cada um vai para `series_models.metrics.selecao_d` e para o log da série.
-3. **Complemento.** A última origem completa fica 13 dias antes da última venda. As 13
-   origens seguintes preveem só o próprio dia (h = 1), fora das métricas, para o histórico
-   (§4).
+3. **Cobertura até a última venda.** A última origem fica 13 dias antes da última venda, então
+   as janelas cobrem todos os dias até ela; o histórico guarda de cada dia a janela mais antiga
+   (§4). Até 10/11/2026 havia um complemento (13 origens parciais com h = 1, fora das métricas)
+   só para o histórico, que guardava o 1º dia de cada janela; saiu com o ADR-023.
 4. **Ajuste final.** Ajusta nos últimos 545 dias e prevê os 91 dias seguintes à última venda
    (`FORECAST_MAX_HORIZON_DAYS`, ADR-021; o walk-forward continua com 14). Desse ajuste saem:
    - os coeficientes (`series_models.params.coeficientes`);
@@ -314,45 +315,42 @@ mesmos números. Ela muda quando a loja treina de novo com vendas novas.
 
 ## 4. O histórico da previsão
 
-**Regra:** o previsto de um dia é o da última previsão feita antes dele — o número que a loja
-viu na tela —, e não muda depois que o dia passa. A regra pura está em
-`backend/domain/historico_previsao.py`; a gravação, em `servico_previsao.gravar_historico`.
+**Regra (ADR-023, desde 10/11/2026):** o previsto de um dia é o **registro mais antigo** dele,
+e nenhum treino seguinte o troca. A regra pura está em `backend/domain/historico_previsao.py`;
+a gravação, em `servico_previsao.gravar_historico`.
 
-Cada treino concluído tem um `início` = dia seguinte à última venda. Em cada loja do treino:
+Cada treino concluído tem um `início` = dia seguinte à última venda. Em cada loja do treino,
+grava só os dias de cada série que **ainda não têm registro**:
 
-1. **apaga os dias ≥ início**, de todas as séries. Inclui a série que desta vez ficou sem
-   modelo: o número dela sai da tela, então não pode congelar depois;
-2. **grava os dias da previsão nova** (os 91, qualquer que seja o horizonte que a tela mostra;
-   `source = forecast`, `origin_date` = início);
-3. **preenche com o walk-forward só os dias < início ainda vazios** (`source = walk_forward`).
-   Entra só o 1º dia de cada janela (h = 1), das origens completas e do complemento. Como as
-   origens andam 1 dia, cada dia tem um previsto só, feito com as vendas até a véspera.
+1. **da previsão nova, os 14 primeiros dias** (`FORECAST_HORIZON_DAYS`; `source = forecast`,
+   `origin_date` = início). Os 91 dias previstos continuam em `series_forecasts` para a tela de
+   Previsão; o histórico guarda só as 2 semanas que o teste de acerto avalia;
+2. **do walk-forward, de cada dia a janela mais antiga que o previu** (`source = walk_forward`,
+   `origin_date` = a origem dessa janela): a de maior horizonte, até 14 dias antes, feita com
+   as vendas até a véspera da origem. Os 13 primeiros dias do período testado só aparecem nas
+   primeiras janelas, com horizonte 1 a 13; os outros ficam com h = 14.
 
-Dia < início nunca é apagado: é isso que congela. Os casos saem dessa regra, sendo G os dias
-entre o início de um treino e o do seguinte:
+Os casos, sendo G os dias entre o início de um treino e o do seguinte:
 
-| Intervalo | Fica congelado da previsão anterior | O walk-forward preenche |
+| Intervalo | Fica da previsão anterior | O walk-forward do treino novo preenche |
 | --- | --- | --- |
-| G ≤ 91 (ex.: 9 ou 20) | os G primeiros dias (horizontes 1 a G) | nada |
-| G > 91 | os 91 dias | os dias que sobram, até 69 antes do início novo |
-| 1º treino | — | os 69 dias antes do início |
-
-Até 08/11/2026 a previsão gravada tinha 14 dias: com G > 14 ficavam os 14 e o walk-forward
-preenchia o resto. O exemplo abaixo é desse tempo; com 91 dias, no treino 3 os dias de 27/10 a
-01/11 ficam com a previsão do treino 2 (horizontes 15 a 20).
+| G ≤ 14 (ex.: 7 ou 9) | os 14 dias inteiros (horizontes 1 a 14) | nada |
+| G > 14 (ex.: 20) | os 14 dias | os G − 14 dias que sobram, até a véspera do início novo |
+| 1º treino | — | os 69 dias antes do início (56 origens + 13) |
 
 **Exemplo:**
 - **Treino 1**, vendas até 03/10: grava a previsão de 04/10 a 17/10; o walk-forward preenche
-  de 27/07 a 03/10.
-- **Treino 2**, 9 dias depois, vendas até 12/10: apaga de 13 a 17/10 e grava de 13/10 a
-  26/10. Ficam congelados de 04 a 12/10 do treino 1 (9 dias).
-- **Treino 3**, 20 dias depois, vendas até 01/11: nenhum dia do treino 2 é ≥ 02/11, então os
-  14 (13 a 26/10) ficam. De 27/10 a 01/11 está vazio, e o walk-forward do treino 3 preenche.
-  Grava de 02/11 a 15/11.
+  de 27/07 a 03/10 (27/07 com h = 1, ..., de 09/08 em diante com h = 14).
+- **Treino 2**, 9 dias depois, vendas até 12/10: os dias de 04 a 17/10 já têm registro e
+  ficam com o treino 1; grava de 18/10 a 26/10 (horizontes 6 a 14 da previsão nova).
+- **Treino 3**, 20 dias depois, vendas até 01/11: de 27/10 a 01/11 ninguém previu; o
+  walk-forward do treino 3 preenche, com a janela de 14 dias antes. Grava de 02/11 a 15/11.
 
-**O complemento** existe por causa do treino 3. O buraco sempre termina na véspera do início
-novo, e sem as 13 origens parciais o h = 1 não chegaria a esses dias. Com a previsão de 91
-dias, o buraco só aparece se a loja passar mais de 91 dias sem treinar.
+**Antes (até 10/11/2026)** valia a última previsão feita antes do dia: cada treino apagava os
+dias ≥ início e gravava a previsão inteira (91 dias), e do walk-forward entrava só o 1º dia de
+cada janela (h = 1), com um complemento de 13 origens parciais para chegar até a última venda.
+O histórico mostrava o previsto da véspera nos dias do walk-forward, otimista perto da
+previsão que a loja via. `semear_historico --recriar` refaz um histórico gravado assim.
 
 **O que cada ponto guarda** (`forecast_history`):
 - previsto e faixa;
@@ -363,26 +361,28 @@ dias, o buraco só aparece se a loja passar mais de 91 dias sem treinar.
   calendário for corrigido depois, a tela ainda explica um previsto zero.
 
 **A tela** (`GET /api/v1/painel/historico/{loja}/{categoria|produto}/{item}`) mostra o
-vendido de cada dia (sem encomendas grandes, de `sales`) contra o previsto congelado, em
-duas linhas:
-- **o que a tela mostrava** (`forecast`);
-- **o teste do treino** (`walk_forward`). Essa é otimista perto da outra: prevê só 1 dia à
-  frente, enquanto a previsão congelada tem horizonte de até 7 dias com o treino semanal (mais,
-  se a loja demorar a treinar).
+vendido de cada dia (sem encomendas grandes, de `sales`) contra o previsto gravado, numa linha
+só: **o que a previsão mostrava** (`forecast`) ou **o teste do treino** (`walk_forward`), os
+dois com até 14 dias de antecedência.
 
-O tooltip mostra o horizonte e se a previsão contava com a loja fechada.
+O tooltip mostra com quantos dias de antecedência o dia foi previsto ("previsto 14 dias antes
+(teste do treino)") e se a previsão contava com a loja fechada.
 
-Acima do gráfico, 4 medidas do teste (walk-forward) da série no último treino concluído que a
+Acima do gráfico, 2 medidas do teste (walk-forward) da série no último treino concluído que a
 avaliou (`avaliacao` da resposta; se o último treino a recusou, vale o anterior), em linguagem
-simples e com o nome técnico entre parênteses:
-- **Erro médio por dia (MAE):** quanto a previsão de um dia erra, em média, para mais ou para
-  menos;
-- **Erro em relação à venda (WAPE):** esse erro comparado com o que se vende num dia (erro
-  somado ÷ venda somada);
-- **Contra copiar a semana anterior (MASE):** abaixo de 1, erra menos do que repetir as vendas
-  da semana anterior;
-- **Tamanho da faixa (amplitude do IC 95%):** distância média entre o mínimo e o máximo
+simples e com o nome técnico embaixo:
+- **Erro por dia, em unidades (MAE):** quanto a previsão de um dia erra, em média, para mais ou
+  para menos;
+- **Margem de incerteza (IC 95%):** metade da distância média entre o mínimo e o máximo
   previstos para um dia.
+
+O erro em % da venda (WAPE) saiu da tela em 10/11/2026: no dia a dia ele passa de 90% em séries
+em que poucos pedidos grandes fazem a maior parte da venda (Grama de Itabirito, 91% contra 117%
+de repetir a semana anterior), e assustava mais do que informava. A API ainda o entrega em
+`avaliacao.wape_pct`.
+
+No gráfico, o teste do treino (`walk_forward`) é a linha tracejada, com a marca "início do teste
+do treino", e a previsão gravada (`forecast`) é a linha cheia, com a marca "início da previsão".
 
 Todas nos dias de loja aberta do walk-forward. Até a versão 6 da API a tela mostrava acerto no
 total de 14 dias, cobertura da faixa, origens que venciam a naïve e previsto ÷ vendido, lidos do
@@ -390,13 +390,16 @@ painel.
 
 **Pontos de atenção:**
 - **A fronteira é o dia seguinte à última venda, não o dia do clique.** Se a loja treina no
-  dia 20 com vendas só até o dia 10, a previsão nova cobre de 11 a 24 e substitui a antiga
-  nesses dias. Continua honesta, porque só usou dados até o dia 10.
-- **Uma venda apagada que faz a última venda voltar** puxa o início para trás e "descongela"
-  dias. É coerente, porque esses dias voltaram a não ter venda.
-- **Banco com treino anterior à gravação do histórico:**
+  dia 20 com vendas só até o dia 10, a previsão nova cobre de 11 a 24, mas os dias que a
+  previsão anterior já tinha gravado ficam com ela.
+- **Uma venda apagada que faz a última venda voltar** não muda o histórico: os dias gravados
+  ficam com o registro mais antigo.
+- **Banco com histórico de outra regra:**
   `python -m backend.scripts.semear_historico [--recriar]` preenche o histórico a partir do
-  último treino. `--recriar` apaga antes o que o treino antigo do painel gravou.
+  último treino (walk-forward guardado em `series_backtest_points` + os 14 primeiros dias da
+  previsão). `--recriar` apaga antes tudo o que estava gravado. O walk-forward guardado não tem
+  o fator das datas comemorativas: `event_factor` fica nulo nesses dias (o previsto já vem
+  com ele).
 
 ## 5. Conferência da planilha antes de gravar
 
@@ -435,7 +438,7 @@ calendário real, o aviso não dispara nenhuma vez.
 | `series_models` | cada série: status, ordem, AIC, métricas, diagnóstico, coeficientes, motivo | sempre |
 | `series_forecasts` | os 91 dias de cada série (14 até 08/11/2026), com o multiplicador da data comemorativa (`event_factor`, ADR-019) | sempre (é a origem dos valores que o histórico trocou) |
 | `series_backtest_points` | todas as origens e horizontes do walk-forward | só nos últimos 4 treinos concluídos |
-| `forecast_history` | o previsto congelado de cada dia, com o `event_factor` que entrou nele | sempre |
+| `forecast_history` | o previsto mais antigo de cada dia (14 dias de cada previsão + a janela mais antiga do walk-forward), com o `event_factor` que entrou nele | sempre |
 | `processing_log` | cada planilha: contagens, período, dias faltando, `forecast_job_id` | sempre |
 
 | Comando (a partir de `ia-predictor/`) | Para quê |
@@ -446,8 +449,8 @@ calendário real, o aviso não dispara nenhuma vez.
 
 | Teste | O que garante |
 | --- | --- |
-| `tests/unit/test_historico_previsao.py` | a regra do histórico: congelamento, 9 e 20 dias, 1º dia das janelas, loja fechada |
-| `tests/unit/test_treino_serie.py` | walk-forward, complemento até a última venda, métricas, diagnóstico e coeficientes; o fator das datas só na semana da data; a previsão final além do horizonte do walk-forward (ADR-021); d = 1 sem constante (ADR-020) |
+| `tests/unit/test_historico_previsao.py` | a regra do histórico: registro mais antigo, janela mais antiga do walk-forward, 14 dias da previsão, loja fechada |
+| `tests/unit/test_treino_serie.py` | walk-forward até a última venda, métricas, diagnóstico e coeficientes; o fator das datas só na semana da data; a previsão final além do horizonte do walk-forward (ADR-021); d = 1 sem constante (ADR-020) |
 | `tests/unit/test_datas_comemorativas.py` | o fator das datas: regra de cada ano, metade do aumento, sem olhar o futuro, piso e teto, abertura excepcional, últimas ocorrências |
 | `tests/unit/test_cobertura_planilha.py` | os dias faltando: entre a base e a planilha, domingo e feriado, loja ausente, dentro da planilha |
 | `tests/integration/test_servico_previsao.py` | treino de ponta a ponta, histórico gravado, planilhas ligadas, limpeza do walk-forward, script; d escolhido pelo walk-forward e receita na impressão digital |

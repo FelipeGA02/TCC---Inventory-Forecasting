@@ -146,16 +146,17 @@ def test_treino_completo_em_segundo_plano(client, admin, config_rapida, monkeypa
 
 
 def test_historico_do_primeiro_treino_vem_do_walk_forward(client, viewer):
-    """Antes do 1º treino não há previsão congelada: o 1º dia de cada janela do walk-forward
-    (3 origens completas e as 13 do complemento) cobre os 16 dias até a última venda, cada
-    um previsto com as vendas até a véspera."""
+    """Antes do 1º treino não há previsão gravada: as 3 janelas de 14 dias do walk-forward
+    cobrem os 16 dias até a última venda, e cada dia fica com a janela mais antiga que o
+    previu (horizonte 1 a 14 nos dias da 1ª janela, 14 nos 2 últimos)."""
     r = client.get("/api/v1/painel/historico/jardim-canada/categoria/grama", headers=viewer)
     assert r.status_code == 200, r.text
     serie = r.json()["serie"]
     assert serie[0]["data"] == "2025-12-01" and serie[-1]["data"] == str(FIM)  # base inteira
     com_previsto = [d for d in serie if d["previsto"] is not None]
     assert [d["data"] for d in com_previsto] == [str(FIM - timedelta(days=i)) for i in range(15, -1, -1)]
-    assert {(d["fonte"], d["horizonte"]) for d in com_previsto} == {("walk_forward", 1)}
+    assert {d["fonte"] for d in com_previsto} == {"walk_forward"}
+    assert [d["horizonte"] for d in com_previsto] == list(range(1, 15)) + [14, 14]
     assert {d["loja_fechada"] for d in com_previsto if d["data"] == "2026-02-22"} == {True}  # domingo
     assert serie[0]["previsto"] is None and serie[0]["fonte"] is None and serie[0]["horizonte"] is None
 
@@ -168,10 +169,12 @@ def test_historico_do_primeiro_treino_vem_do_walk_forward(client, viewer):
         segunda = {h.store_closed for h in db.scalars(select(ForecastHistory).where(
             ForecastHistory.day == FIM + timedelta(days=2)))}
     assert domingo == {True} and segunda == {False}
-    # a previsão de cada uma das 10 séries (todos os dias previstos), esperando os dias passarem
-    assert len(futuro) == 10 * DIAS_PREVISAO
-    assert {(fonte, origem, jid) for _, fonte, origem, jid in futuro.values()} == {
-        ("forecast", FIM + timedelta(days=1), job.id)}
+    # os 14 primeiros dias da previsão de cada uma das 10 séries (a previsão tem 21), esperando
+    # os dias passarem; o 1º treino que os gravou fica (os seguintes, com a mesma base, não trocam)
+    assert len(futuro) == 10 * CONFIG_TESTE.horizonte < 10 * DIAS_PREVISAO
+    assert max(dia for _, _, _, dia in futuro) == FIM + timedelta(days=CONFIG_TESTE.horizonte)
+    assert {(fonte, origem) for _, fonte, origem, _ in futuro.values()} == {("forecast", FIM + timedelta(days=1))}
+    assert len({jid for *_, jid in futuro.values()}) == 1 and job is not None
 
 
 def test_historico_traz_a_avaliacao_do_ultimo_treino(client, viewer):
@@ -221,16 +224,15 @@ def test_treino_em_processos_paralelos(client, admin, config_rapida, monkeypatch
     _forcar_novo_treino(monkeypatch)
     monkeypatch.setattr(settings, "TRAINING_WORKERS", 2)
     with SessionLocal() as db:
-        passado = _historico_gravado(db, ForecastHistory.day <= FIM)
+        antes = _historico_gravado(db)
     r = client.post(f"{BASE}/treinos", headers=admin)
     assert r.status_code == 202, r.text
     t = _esperar_fim(client, admin, limite_s=300)["ultimo"]
     assert t["status"] == "done", t["mensagem"]
     with SessionLocal() as db:
-        # dias com venda ficam como estavam; a previsão nova (mesmo início) troca os dias previstos
-        assert _historico_gravado(db, ForecastHistory.day <= FIM) == passado
-        futuro = _historico_gravado(db, ForecastHistory.day > FIM)
-    assert len(futuro) == 10 * DIAS_PREVISAO and {jid for *_, jid in futuro.values()} == {t["id"]}
+        # todos os dias já tinham registro (mesma base): nada é trocado, nem a previsão
+        assert _historico_gravado(db) == antes
+    assert t["id"] not in {jid for *_, jid in antes.values()}
     assert t["series_concluidas"] == 10 and t["series_com_erro"] == 0
     logs = client.get(f"{BASE}/treinos/{t['id']}/logs", headers=admin).json()
     assert not any("seguem uma a uma" in l["mensagem"] for l in logs)  # rodou mesmo em paralelo
@@ -449,13 +451,15 @@ def test_treino_inexistente_responde_404(client, admin):
     assert client.get(f"{BASE}/treinos/99999/series", headers=admin).status_code == 404
 
 
-def test_historico_congela_ate_a_previsao_seguinte(client):
-    """Três treinos: o 2º 9 dias depois do 1º, o 3º 20 dias depois do 2º. Ficam os 9 dias
-    da 1ª previsão, os 14 da 2ª, e o walk-forward do 3º preenche os 6 que nenhuma cobriu.
-    O produto B fica sem modelo no 2º treino: os dias dele a partir do 2º início saem."""
+def test_historico_guarda_a_previsao_mais_antiga_de_cada_dia(client):
+    """Três treinos: o 2º 9 dias depois do 1º, o 3º 20 dias depois do 2º. Ficam os 14 dias
+    da 1ª previsão, os 9 da 2ª que a 1ª não cobria, e o walk-forward do 3º preenche os 6
+    que nenhuma cobriu. O produto B fica sem modelo no 2º treino: os dias que a 1ª previsão
+    gravou ficam, e o walk-forward do 3º preenche os seguintes."""
     loja, a, b = "itabirito", "300", "200"
     t1 = date(2026, 4, 4)
     t2, t3 = t1 + timedelta(days=9), t1 + timedelta(days=29)
+    treze = timedelta(days=13)
 
     def ponto(item, dia, valor, source, origem):
         return {"level": "product", "item": item, "day": dia, "predicted": valor, "lower_95": 0.0,
@@ -464,16 +468,16 @@ def test_historico_congela_ate_a_previsao_seguinte(client):
     def previsao(item, inicio, valor):
         return [ponto(item, inicio + timedelta(days=i), valor, "forecast", inicio) for i in range(14)]
 
-    def walk_forward(item, inicio, valor):  # 1º dia das 56 + 13 janelas, até a véspera do início
-        return [ponto(item, inicio - timedelta(days=i), valor, "walk_forward", inicio - timedelta(days=i))
+    def walk_forward(item, inicio, valor):  # a janela mais antiga de cada dia (h = 14), até a véspera do início
+        return [ponto(item, inicio - timedelta(days=i), valor, "walk_forward", inicio - timedelta(days=i) - treze)
                 for i in range(69, 0, -1)]
 
     with SessionLocal() as db:
         try:
-            servico_previsao.gravar_historico(db, loja, t1, walk_forward(a, t1, 1.0) + walk_forward(b, t1, 1.0),
+            servico_previsao.gravar_historico(db, loja, walk_forward(a, t1, 1.0) + walk_forward(b, t1, 1.0),
                                               previsao(a, t1, 10.0) + previsao(b, t1, 10.0), None)
-            servico_previsao.gravar_historico(db, loja, t2, walk_forward(a, t2, 2.0), previsao(a, t2, 20.0), None)
-            servico_previsao.gravar_historico(db, loja, t3, walk_forward(a, t3, 3.0) + walk_forward(b, t3, 3.0),
+            servico_previsao.gravar_historico(db, loja, walk_forward(a, t2, 2.0), previsao(a, t2, 20.0), None)
+            servico_previsao.gravar_historico(db, loja, walk_forward(a, t3, 3.0) + walk_forward(b, t3, 3.0),
                                               previsao(a, t3, 30.0) + previsao(b, t3, 30.0), None)
             db.commit()
             gravado = {(item, dia): (v, fonte, origem) for (_, _, item, dia), (v, fonte, origem, _)
@@ -487,25 +491,25 @@ def test_historico_congela_ate_a_previsao_seguinte(client):
         return [ini + timedelta(days=i) for i in range((fim - ini).days + 1)]
 
     um = timedelta(days=1)
-    for d in dias(t1 - 69 * um, t1 - um):  # antes do 1º treino: o walk-forward dele
-        assert gravado[(a, d)] == (1.0, "walk_forward", d)
-    for d in dias(t1, t2 - um):  # 9 dias congelados da 1ª previsão, horizontes 1..9
+    for d in dias(t1 - 69 * um, t1 - um):  # antes do 1º treino: o walk-forward dele, 14 dias antes
+        assert gravado[(a, d)] == (1.0, "walk_forward", d - treze)
+    for d in dias(t1, t1 + 13 * um):  # a 1ª previsão inteira, horizontes 1..14
         assert gravado[(a, d)] == (10.0, "forecast", t1)
-    for d in dias(t2, t2 + 13 * um):  # os 14 da 2ª previsão
+    for d in dias(t1 + 14 * um, t2 + 13 * um):  # o que a 2ª previsão cobriu além da 1ª
         assert gravado[(a, d)] == (20.0, "forecast", t2)
     for d in dias(t2 + 14 * um, t3 - um):  # 6 dias que nenhuma previsão cobriu
-        assert gravado[(a, d)] == (3.0, "walk_forward", d)
+        assert gravado[(a, d)] == (3.0, "walk_forward", d - treze)
     for d in dias(t3, t3 + 13 * um):
         assert gravado[(a, d)] == (30.0, "forecast", t3)
 
-    # B: os 9 dias da 1ª previsão ficam; os que ela previa depois do 2º início saíram, e o
-    # walk-forward do 3º treino, quando B volta a ter modelo, preenche esses dias
-    for d in dias(t1, t2 - um):
+    # B: a 1ª previsão inteira fica; o walk-forward do 3º treino, quando B volta a ter
+    # modelo, preenche os dias seguintes
+    for d in dias(t1, t1 + 13 * um):
         assert gravado[(b, d)] == (10.0, "forecast", t1)
-    for d in dias(t2, t3 - um):
-        assert gravado[(b, d)] == (3.0, "walk_forward", d)
-    # o walk-forward do 2º e do 3º treino não troca nenhum dia já gravado: só os 6 vazios
-    assert len([k for k in gravado if k[0] == a]) == 69 + 9 + 14 + 6 + 14
+    for d in dias(t1 + 14 * um, t3 - um):
+        assert gravado[(b, d)] == (3.0, "walk_forward", d - treze)
+    # nenhum dia já gravado é trocado
+    assert len([k for k in gravado if k[0] == a]) == 69 + 14 + 9 + 6 + 14
 
 
 def test_walk_forward_dos_treinos_antigos_e_apagado(client, admin, config_rapida, monkeypatch):
@@ -529,6 +533,26 @@ def test_walk_forward_dos_treinos_antigos_e_apagado(client, admin, config_rapida
                          .where(SeriesModel.job_id.in_(anteriores))) > 0
     logs = client.get(f"{BASE}/treinos/{t['id']}/logs", headers=admin).json()
     assert any(l["mensagem"].startswith("Walk-forward de treinos antigos apagado") for l in logs)
+
+
+def test_semear_historico_refaz_com_a_janela_mais_antiga(client):
+    """`semear_historico --recriar` (banco com histórico da regra anterior): do walk-forward
+    guardado do último treino, a janela mais antiga de cada dia; da previsão, os 14 primeiros
+    dias. Com a mesma base, dá os mesmos dias e números que o treino gravou."""
+    with SessionLocal() as db:
+        antes = {k: (v, fonte, origem) for k, (v, fonte, origem, _) in _historico_gravado(db).items()}
+        try:
+            total = servico_previsao.semear_historico(db, recriar=True)
+            depois = _historico_gravado(db)
+            job_id = servico_previsao.ultimo_concluido(db).id
+        finally:
+            # devolve o histórico como estava, para os testes seguintes
+            db.execute(delete(ForecastHistory))
+            db.commit()
+            servico_previsao.semear_historico(db)
+    assert total == len(depois) == len(antes) == 10 * (16 + CONFIG_TESTE.horizonte)
+    assert {k: (v, fonte, origem) for k, (v, fonte, origem, _) in depois.items()} == antes
+    assert {jid for *_, jid in depois.values()} == {job_id}
 
 
 def test_script_treina_fora_da_api_e_pula_sem_dados_novos(client, monkeypatch, capsys):

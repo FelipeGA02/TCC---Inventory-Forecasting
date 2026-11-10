@@ -14,24 +14,23 @@ Protocolo
   2. **Walk-forward com janela deslizante**: a origem anda `passo` dia(s) por vez; em cada
      origem o modelo é reajustado nos últimos `janela_dias` dias antes dela e prevê os
      `horizonte` dias seguintes. As janelas de previsão se sobrepõem: cada dia avaliado
-     aparece em até `horizonte` origens, uma por horizonte h = 1..`horizonte`.
-  3. **Complemento** (fora das métricas): a última origem completa fica `horizonte − 1` dias
-     antes do último dia com venda, então o 1º dia das janelas não chega até ele. As origens
-     seguintes, até esse dia, preveem só o próprio dia (h = 1) e servem só para o histórico
-     da previsão (`domain.historico_previsao`): sem elas, os últimos 13 dias antes da
-     previsão nova ficariam sem previsto.
+     aparece em até `horizonte` origens, uma por horizonte h = 1..`horizonte`. A última
+     origem fica `horizonte − 1` dias antes do último dia com venda, então as janelas cobrem
+     todos os dias até ele; o histórico da previsão (`domain.historico_previsao`) guarda de
+     cada dia a janela mais antiga que o previu.
+  3. (O complemento — origens parciais com h = 1 até a última venda, só para o histórico —
+     saiu quando o histórico passou a guardar a janela mais antiga de cada dia.)
   4. **Previsão final**: o mesmo modelo ajustado nos últimos `janela_dias` dias com venda
      conhecida prevê os `dias_previsao` dias seguintes (`horizonte_previsao`, ou `horizonte`
      sem ele — ADR-021: o sistema prevê 91 dias e a tela escolhe quantos mostrar; o
      walk-forward continua em `horizonte` = 14). Desse ajuste saem os coeficientes e o
      diagnóstico dos resíduos (Ljung-Box e Shapiro-Wilk), registrados com as métricas.
-  5. **Datas comemorativas** (ADR-019): em cada previsão — do walk-forward, do complemento e a
-     final —, o previsto e a faixa dos dias da semana de uma data são multiplicados pelo fator
+  5. **Datas comemorativas** (ADR-019): em cada previsão — do walk-forward e a final —, o previsto e a faixa dos dias da semana de uma data são multiplicados pelo fator
      dela (`domain.models.datas_comemorativas`), calculado só com a venda anterior ao primeiro
      dia previsto: com `com_fator`, a alta das datas de `fator_datas` (Flores de corte); com
      `com_queda`, a queda das datas de `queda_datas` (as outras séries). As métricas do walk-forward
      já saem com o ajuste: medem o que a loja veria. A coluna `fator` (1 = sem ajuste) fica
-     no walk-forward, no complemento e na previsão.
+     no walk-forward e na previsão.
 
 Por que escolher `d` série a série pelo walk-forward (ADR-020, doc 10): o KPSS no resíduo da
 regressão nas exógenas do modelo (Hyndman & Khandakar, 2008) rejeita a estacionariedade do nível
@@ -111,7 +110,6 @@ class ResultadoSerie:
     ordens_convergidas: int | None = None
     metricas: dict | None = None
     backtest: pd.DataFrame | None = None   # origem, data, horizonte, previsto, ic_inf, ic_sup, real, naive, fator
-    complemento: pd.DataFrame | None = None  # origem, data, previsto, ic_inf, ic_sup, fator — h = 1, fora das métricas
     previsao: pd.DataFrame | None = None   # data, previsto, ic_inf, ic_sup, fator
     ajustes: list[dict] | None = None      # datas comemorativas da previsão final (`Ajuste.como_dict`)
     coeficientes: dict | None = None       # do ajuste final: nome do termo → valor
@@ -129,13 +127,6 @@ def origens_walk_forward(fim: pd.Timestamp, config: ConfigTreino) -> list[pd.Tim
     ultima = fim - pd.Timedelta(days=config.horizonte - 1)
     primeira = ultima - pd.Timedelta(days=(config.origens - 1) * config.passo)
     return list(pd.date_range(primeira, ultima, freq=f"{config.passo}D"))
-
-
-def origens_complemento(fim: pd.Timestamp, config: ConfigTreino) -> list[pd.Timestamp]:
-    """As origens depois da última completa até `fim`, andando `passo` dia(s): cada uma só
-    tem o próprio dia de venda conhecida à frente."""
-    ultima = origens_walk_forward(fim, config)[-1]
-    return list(pd.date_range(ultima + pd.Timedelta(days=config.passo), fim, freq=f"{config.passo}D"))
 
 
 def _janela(y: pd.Series, antes_de: pd.Timestamp, dias: int) -> pd.Series:
@@ -226,9 +217,8 @@ def treinar_serie(y: pd.Series, X: pd.DataFrame, aberta: pd.Series, config: Conf
         return base
 
     origens = origens_walk_forward(fim, config)
-    complemento = origens_complemento(fim, config)
     n_grade = len(config.grade_pq) ** 2 * len(config.grade_PQ) ** 2
-    total, feitos = (n_grade + len(origens)) * len(config.ds) + len(complemento) + 1, 0
+    total, feitos = (n_grade + len(origens)) * len(config.ds) + 1, 0
 
     def tick():
         nonlocal feitos
@@ -272,29 +262,13 @@ def treinar_serie(y: pd.Series, X: pd.DataFrame, aberta: pd.Series, config: Conf
                 for k, a in avaliados.items()}
         base.backtest = escolhido["pontos"].drop(columns=["escala", "aberta"])
 
-        # 3. Complemento: o 1º dia das origens que não têm o horizonte inteiro à frente.
-        linhas = []
-        for origem in complemento:
-            treino = _janela(y, origem, config.janela_dias)
-            try:
-                res = ajustar(treino, X.loc[treino.index], escolha.ordem, escolha.ordem_sazonal, config.maxiter)
-                prev, inf, sup = prever(res, X.loc[[origem]], config.alpha)
-            except Exception:  # noqa: BLE001 — o dia fica sem previsto, como antes da 1ª origem
-                tick()
-                continue
-            f = _ajustes_datas(y, X, origem, pd.DatetimeIndex([origem]), config, com_fator, com_queda)[0][0]
-            linhas.append({"origem": origem, "data": origem, "previsto": float(prev[0] * f),
-                           "ic_inf": float(inf[0] * f), "ic_sup": float(sup[0] * f), "fator": float(f)})
-            tick()
-        base.complemento = pd.DataFrame(linhas, columns=["origem", "data", "previsto", "ic_inf", "ic_sup", "fator"])
-
         # 4. Previsão dos próximos dias com a última janela.
         futuro = pd.date_range(fim + pd.Timedelta(days=1), periods=config.dias_previsao, freq="D")
         res = ajustar(janela_final, X.loc[janela_final.index], escolha.ordem, escolha.ordem_sazonal,
                       config.maxiter)
         prev, inf, sup = prever(res, X.loc[futuro], config.alpha)
         tick()
-        # 5. Datas comemorativas da previsão final (no walk-forward e no complemento, já aplicadas).
+        # 5. Datas comemorativas da previsão final (no walk-forward, já aplicadas).
         fator, lista = _ajustes_datas(y, X, futuro[0], futuro, config, com_fator, com_queda)
         base.previsao = pd.DataFrame({"data": futuro, "previsto": prev * fator, "ic_inf": inf * fator,
                                       "ic_sup": sup * fator, "fator": fator})

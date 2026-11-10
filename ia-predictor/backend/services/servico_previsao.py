@@ -12,8 +12,8 @@ tudo no banco de `DATABASE_URL` (o Neon, em produção — ADR-014):
   * `series_models` + `series_forecasts` + `series_backtest_points`: o resultado de cada
     série — ordem, AIC, métricas do walk-forward, previsão dos próximos
     `FORECAST_MAX_HORIZON_DAYS` dias (91) e os pontos do walk-forward;
-  * `forecast_history`: o previsto de cada dia, congelado quando o dia passa — o histórico
-    da previsão na tela (`domain.historico_previsao`);
+  * `forecast_history`: o previsto de cada dia, no registro mais antigo que o sistema fez
+    dele — o histórico da previsão na tela (`domain.historico_previsao`);
   * `processing_log.forecast_job_id`: as planilhas que entraram pela primeira vez neste
     treino ("a previsão mudou por causa de qual envio?").
 
@@ -26,10 +26,10 @@ Histórico da previsão
 ---------------------
 Gravado só quando o disparo termina `done`, na mesma transação que muda o status: previsão
 de treino que falhou ou caiu no meio a loja nunca viu, então não pode congelar. Em cada loja
-do treino, apaga os dias a partir do início da previsão nova (dia seguinte à última venda),
-de todas as séries — inclusive a que desta vez ficou sem modelo, cujo número sai da tela —,
-grava os dias novos (todo o horizonte da previsão) e preenche com o 1º dia das janelas do walk-forward só os dias
-anteriores ainda vazios. `skipped` não muda nada.
+do treino, grava só os dias de cada série que ainda não têm registro: de cada dia do
+walk-forward, a janela mais antiga que o previu (até 14 dias antes), e os primeiros
+`FORECAST_HORIZON_DAYS` dias (14) da previsão nova. Nenhum dia gravado é trocado: fica a
+previsão mais antiga de cada dia. `skipped` não muda nada.
 
 Só treina se os dados mudaram
 -----------------------------
@@ -589,7 +589,7 @@ def _gravar_serie(job_id: int, s: _Serie, r: ResultadoSerie, cfg: ConfigTreino, 
     """
     if historico is not None and r.previsao is not None:
         wf, prev = historico_previsao.pontos_da_serie(s.nivel, s.product_code or s.category_id, r.backtest,
-                                                      r.complemento, r.previsao, fechada=~s.aberta)
+                                                      r.previsao, fechada=~s.aberta, dias_historico=cfg.horizonte)
         historico[s.unit_id][0].extend(wf)
         historico[s.unit_id][1].extend(prev)
     if treinada:
@@ -771,15 +771,14 @@ def _executar(job_id: int, cfg: ConfigTreino) -> None:
 # --------------------------------------------------------------------------- #
 # Histórico da previsão
 # --------------------------------------------------------------------------- #
-def gravar_historico(db: Session, unit_id: str, inicio: date, walk_forward: list[dict], previsao: list[dict],
+def gravar_historico(db: Session, unit_id: str, walk_forward: list[dict], previsao: list[dict],
                      job_id: int | None) -> int:
-    """Atualiza `forecast_history` de uma loja (sem commit): a previsão que começa em
-    `inicio` troca os dias de `inicio` em diante, de todas as séries da loja; o walk-forward
-    só preenche dia anterior ainda vazio. Devolve quantos dias gravou."""
-    db.execute(delete(ForecastHistory).where(ForecastHistory.unit_id == unit_id, ForecastHistory.day >= inicio))
+    """Grava em `forecast_history` de uma loja (sem commit) os dias que ainda não têm
+    registro: o que já está gravado é a previsão mais antiga do dia e fica. Devolve quantos
+    dias gravou."""
     gravados = {tuple(c) for c in db.execute(select(ForecastHistory.level, ForecastHistory.item, ForecastHistory.day)
                                              .where(ForecastHistory.unit_id == unit_id))}
-    novos = historico_previsao.pontos_a_gravar(gravados, walk_forward, previsao, inicio)
+    novos = historico_previsao.pontos_a_gravar(gravados, walk_forward, previsao)
     if novos:
         db.execute(insert(ForecastHistory), [{**p, "unit_id": unit_id, "job_id": job_id} for p in novos])
     return len(novos)
@@ -791,9 +790,10 @@ def _concluir(job_id: int, mensagem: str, inicio: date, lojas: set[str], histori
     treino as planilhas que entraram nele pela primeira vez, marca o disparo como `done` e
     apaga o walk-forward dos treinos antigos."""
     with SessionLocal() as db:
-        dias = sum(gravar_historico(db, loja, inicio, *historico[loja], job_id) for loja in sorted(lojas))
-        _registrar(job_id, f"Histórico da previsão atualizado: {dias} dia(s) gravados, com a previsão "
-                           f"a partir de {inicio:%d/%m/%Y}.", db=db)
+        dias = sum(gravar_historico(db, loja, *historico[loja], job_id) for loja in sorted(lojas))
+        _registrar(job_id, f"Histórico da previsão atualizado: {dias} dia(s) novos gravados, do walk-forward "
+                           f"e da previsão a partir de {inicio:%d/%m/%Y}; os dias já gravados ficam com a "
+                           "previsão mais antiga.", db=db)
         _registrar(job_id, _ligar_planilhas(db, job_id, ultima_planilha), db=db)
         job = db.get(ForecastJob, job_id)
         job.status, job.finished_at, job.progress_pct, job.current_series = "done", datetime.now(), 100.0, None
@@ -833,33 +833,36 @@ def _apagar_backtest_antigo(db: Session) -> int:
 
 
 def semear_historico(db: Session, recriar: bool = False) -> int:
-    """Preenche `forecast_history` a partir do último disparo concluído (bancos com treino
-    anterior à gravação do histórico): o 1º dia das janelas do walk-forward e a previsão.
-    Sem o complemento, que esse treino não gravou — o próximo completa esses dias.
-    `recriar` apaga o histórico antes (o que veio do treino antigo do painel). Devolve os
-    dias gravados."""
+    """Preenche `forecast_history` a partir do último disparo concluído, com a mesma regra do
+    treino: de cada dia do walk-forward guardado (`series_backtest_points`), a janela mais
+    antiga que o previu, e os primeiros `horizonte` dias da previsão. Só grava os dias sem
+    registro; `recriar` apaga o histórico antes (para refazer um histórico gravado com a regra
+    anterior). O walk-forward guardado não tem o fator das datas comemorativas (`event_factor`
+    fica nulo; o previsto já vem com ele). Devolve os dias gravados."""
     if recriar:
         db.execute(delete(ForecastHistory))
     job = ultimo_concluido(db)
     if job is None:
         db.commit()
         return 0
+    horizonte = int((job.config or {}).get("horizonte") or settings.FORECAST_HORIZON_DAYS)
     modelos = {m.id: m for m in db.scalars(select(SeriesModel).where(SeriesModel.job_id == job.id))}
     pontos = defaultdict(lambda: ([], []))
-    for p in db.scalars(select(SeriesBacktestPoint).where(SeriesBacktestPoint.model_id.in_(list(modelos)),
-                                                          SeriesBacktestPoint.horizon == 1)):
+    for p in db.scalars(select(SeriesBacktestPoint).where(SeriesBacktestPoint.model_id.in_(list(modelos)))):
         m = modelos[p.model_id]
         pontos[m.unit_id][0].append({"level": m.level, "item": m.product_code or m.category_id, "day": p.day,
                                      "predicted": p.predicted, "lower_95": p.lower_95, "upper_95": p.upper_95,
                                      "source": "walk_forward", "origin_date": p.origin_date})
     inicio = job.data_until + timedelta(days=1)
-    for p in db.scalars(select(SeriesForecast).where(SeriesForecast.model_id.in_(list(modelos)))):
+    fim_previsao = inicio + timedelta(days=horizonte - 1)
+    for p in db.scalars(select(SeriesForecast).where(SeriesForecast.model_id.in_(list(modelos)),
+                                                     SeriesForecast.forecast_date <= fim_previsao)):
         m = modelos[p.model_id]
         pontos[m.unit_id][1].append({"level": m.level, "item": m.product_code or m.category_id,
                                      "day": p.forecast_date, "predicted": p.predicted, "lower_95": p.lower_95,
                                      "upper_95": p.upper_95, "source": "forecast", "origin_date": inicio,
                                      "event_factor": p.event_factor})
-    total = sum(gravar_historico(db, loja, inicio, *pontos[loja], job.id)
+    total = sum(gravar_historico(db, loja, *pontos[loja], job.id)
                 for loja in sorted({m.unit_id for m in modelos.values()}))
     db.commit()
     return total

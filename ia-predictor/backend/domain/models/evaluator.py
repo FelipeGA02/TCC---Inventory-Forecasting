@@ -1,10 +1,9 @@
-"""Métricas do walk-forward, diagnóstico dos resíduos e status do modelo (limiares do
-`CLAUDE.md`). Lógica pura.
+"""Métricas do walk-forward e diagnóstico dos resíduos. Lógica pura.
 
-As métricas que decidem o status são as dos **dias de loja aberta**: no domingo e no
-feriado a venda é 0 e a previsão também, o que baixaria o MASE e subiria a cobertura sem
-dizer nada sobre a previsão. O diagnóstico dos resíduos (Ljung-Box e Shapiro-Wilk) é
-registrado por modelo, mas não muda o status.
+As métricas são as dos **dias de loja aberta**: no domingo e no feriado a venda é 0 e a
+previsão também, o que baixaria o MASE e subiria a cobertura sem dizer nada sobre a
+previsão. O diagnóstico dos resíduos (Ljung-Box e Shapiro-Wilk) é registrado por modelo.
+Nenhuma das duas classifica a série: toda série que ajusta tem previsão (`trained`).
 """
 from __future__ import annotations
 
@@ -16,7 +15,6 @@ from scipy import stats
 from statsmodels.stats.diagnostic import acorr_ljungbox
 
 STATUS_TREINADO = "trained"
-STATUS_BAIXA_CONFIANCA = "low_confidence"
 STATUS_DADOS_INSUFICIENTES = "insufficient_data"
 STATUS_ERRO = "error"
 
@@ -76,14 +74,3 @@ def diagnostico_residuos(residuos: pd.Series, descartar: int) -> dict:
         sw = float(stats.shapiro(r).pvalue)
     return {"ljung_box_p": _arred(lb, 4), "shapiro_p": _arred(sw, 4)}
 
-
-def status_do_modelo(metricas: dict, *, mase_max: float = 1.0,
-                     cobertura_min: float = 90.0, cobertura_max: float = 98.0) -> str:
-    """`trained` se bate a naïve sazonal (MASE < `mase_max`) e a faixa de 95% acerta entre
-    `cobertura_min` e `cobertura_max`; senão `low_confidence`. Nos dois casos a previsão sai e a
-    tela a mostra do mesmo jeito; o status fica no registro do treino."""
-    mase, cob = metricas.get("mase"), metricas.get("cobertura_ic95_pct")
-    if mase is None or cob is None:
-        return STATUS_BAIXA_CONFIANCA
-    ok = mase < mase_max and cobertura_min <= cob <= cobertura_max
-    return STATUS_TREINADO if ok else STATUS_BAIXA_CONFIANCA

@@ -4,10 +4,11 @@ info:
   title: Floricultura — API de Previsão de Vendas
   description: |
     Sistema de previsão de demanda diária para rede de floricultura com 2 unidades
-    operacionais (Jardim Canadá e Itabirito), horizonte de 14 dias, com intervalo de
-    confiança de 95%. Cada uma das 4 categorias e cada produto de grama, em cada loja, tem o
-    seu SARIMAX (m = 7, d = 0, D = 0, janela deslizante de 365 dias, testado dia a dia em 8
-    semanas); o total da loja é a soma das categorias (ADR-017). A previsão é treinada pelo
+    operacionais (Jardim Canadá e Itabirito), horizonte de 14 a 91 dias escolhido na tela
+    (padrão 14, ADR-021), com intervalo de confiança de 95%. Cada uma das 4 categorias e cada
+    produto de grama, em cada loja, tem o seu SARIMAX (m = 7, D = 0; d = 0 ou 1 escolhido série a série
+    pelo walk-forward — ADR-020; janela deslizante de
+    545 dias — ADR-022, testado dia a dia em 8 semanas com h = 14); o total da loja é a soma das categorias (ADR-017). A previsão é treinada pelo
     admin (`POST /api/v1/servico-previsao/treinos`) depois de carregar as planilhas; não há
     treino agendado. O histórico da previsão guarda o previsto de cada dia, congelado. A
     loja decide a compra; o sistema informa quanto deve vender (ADR-011).
@@ -27,6 +28,40 @@ info:
     `/api/v1/painel/historico/*` ao abrir cada item, e Conferir Dados consulta a base
     **paginada** em `/api/v1/registros/*`.
 
+    ## 9.0.1
+    Sem mudança de contrato. A janela de treino passa de 365 para 545 dias (ADR-022): muda o valor de
+    `janela_dias` na configuração do treino e do painel, e a descrição acima.
+
+    ## 9.0.0
+    Conferir Dados sem abas: saem o parâmetro `visao` de `/api/v1/registros/*` e o `por_visao` do
+    resumo. Desconto e devolução viram os filtros `desconto` e `movimento`, combináveis com os outros.
+    Novo `GET /api/v1/atividades`: o log de uso (planilhas enviadas e treinos) da tela Relatórios.
+
+    ## 8.0.0
+    O treino prevê `FORECAST_MAX_HORIZON_DAYS` (91) dias, e não mais 14 (ADR-021): a `previsao` do
+    painel (loja e produto) traz todos eles, e a tela escolhe quantos mostrar (14 a 91, padrão 14).
+    O teste de acerto (walk-forward) continua com h = 14. Novos campos:
+    `configuracao.horizonte_previsao_dias` (painel e contexto) e, no serviço de previsão,
+    `horizonte_previsao_dias` e `d_candidatos` (ADR-020: o treino roda o walk-forward com d = 0 e
+    d = 1 em cada série e fica com o que errou menos; o d escolhido está na ordem de cada série). `previsao_14d` do produto continua a soma dos 14 primeiros dias (ordena a lista).
+    Sai a classificação `low_confidence`: toda série que ajusta tem previsão e fica `trained`
+    (`StatusSerie`, `MetricasModelo.status`); MASE e cobertura da faixa continuam nas métricas,
+    sem classificar. No serviço de previsão sai `series_baixa_confianca` e `series_treinadas`
+    passa a contar todas as séries com previsão.
+
+    ## 7.0.0
+    `GET /api/v1/painel/historico/*` devolve um objeto em vez da lista de dias: `serie` (a lista
+    de antes) e `avaliacao`, as métricas do walk-forward da série no último treino concluído que
+    a avaliou (erro médio por dia, erro em % da venda, MASE e largura da faixa de 95%) — a tela
+    de histórico deixa de ler as métricas do painel.
+
+    ## 6.0.0
+    O fator das datas comemorativas (ADR-019) é interno: continua no previsto e na faixa, mas
+    saem `ajustes_datas` da loja do painel, `fator` do dia previsto de produto e `ajuste` do
+    dia do histórico da previsão. Saem também, de cada produto de grama do painel,
+    `vendido_8_semanas`, `media_dia_aberto`, `pct_dias_abertos_com_venda` e
+    `historico_semanal`; produto sem previsão fica ordenado por `vendido_total`.
+
     ## 5.1.0
     As datas comemorativas que mudaram a previsão (ADR-019) chegam à tela: `ajustes_datas` em
     cada loja do painel, `fator` em cada dia previsto de produto e `ajuste` em cada dia do
@@ -43,7 +78,7 @@ info:
     produtos regulares), o teste de acerto por produto (`/painel/produtos/.../backtest`) e as
     rotas nunca implementadas (products, forecast, alerts, simulation, reports). O painel lê
     o último treino do serviço de previsão; o upload não agenda treino (`needs_training`).
-  version: "5.1.0"
+  version: "9.0.1"
   contact:
     name: Daniel Nunes da Silva & Felipe Gurgel Araújo
     email: felipegurgel5@gmail.com
@@ -64,8 +99,8 @@ tags:
   - name: servico-previsao
     description: |
       Treino da previsão (só admin; ADR-017): SARIMAX direto nas 4 categorias e em cada
-      produto de grama, por loja (m=7, d=0, D=0), com walk-forward de janela deslizante e
-      origem andando 1 dia, prevendo 14 dias. Roda em segundo plano; andamento, log e
+      produto de grama, por loja (m=7, D=0; d de cada série pelo walk-forward, ADR-020), com walk-forward de janela
+      deslizante e origem andando 1 dia, prevendo 14 dias; a previsão final cobre 91 dias (ADR-021). Roda em segundo plano; andamento, log e
       resultados ficam no banco, e o último treino concluído é o que o painel mostra.
 
 # ─────────────────────────────────────────────
@@ -259,11 +294,9 @@ components:
     # --- Painel (telas do frontend) ---
     StatusSerie:
       type: string
-      enum: [trained, low_confidence, insufficient_data, error]
+      enum: [trained, insufficient_data, error]
       description: |
-        `trained`: passou nos testes (MASE < 1 e faixa de 95% entre 90% e 98%);
-        `low_confidence`: previsão gerada, sem passar num dos dois limiares (a tela mostra igual);
-        `insufficient_data`: vendeu pouco para
+        `trained`: o modelo ajustou e a série tem previsão; `insufficient_data`: vendeu pouco para
         prever (sem previsão); `error`: o ajuste falhou neste treino (sem previsão).
 
     MetricasModelo:
@@ -307,26 +340,6 @@ components:
         inf: {type: number, description: limite inferior da faixa de 95%}
         sup: {type: number, description: limite superior da faixa de 95%}
 
-    AjusteData:
-      type: object
-      description: |
-        Uma data comemorativa que mudou a previsão de uma série nos 14 dias (ADR-019): a alta
-        de Flores de corte (Dia da Mulher, das Mães, dos Namorados, Natal, Ano Novo) ou a queda
-        das outras séries (26 a 31/12, semana do Dia do Trabalho).
-      required: [nivel, item, evento, data, multiplicador, fator, anos, dias]
-      properties:
-        nivel: {type: string, enum: [categoria, produto]}
-        item: {type: string, description: id da categoria ou código do produto de grama}
-        nome: {type: string, nullable: true, description: nome do produto (nulo na categoria)}
-        evento: {type: string, example: Ano Novo}
-        data: {type: string, format: date}
-        multiplicador:
-          type: number
-          description: o que multiplicou o previsto e a faixa desses dias (> 1 alta, < 1 queda)
-        fator: {type: number, description: venda ÷ semana comum nas ocorrências passadas}
-        anos: {type: array, items: {type: integer}, description: anos das ocorrências usadas}
-        dias: {type: array, items: {type: string, format: date}, description: dias ajustados}
-
     UnidadePainel:
       type: object
       description: |
@@ -345,7 +358,7 @@ components:
             nullable: true
         previsao:
           type: array
-          description: 14 dias a partir do dia seguinte à última venda; previsto/inf/sup = soma das categorias
+          description: "Os dias previstos pelo treino (`configuracao.horizonte_previsao_dias`, 91) a partir do dia seguinte à última venda; previsto/inf/sup = soma das categorias. A tela mostra os primeiros 14 a 91 (ADR-021)"
           items:
             allOf:
               - $ref: "#/components/schemas/Faixa"
@@ -358,10 +371,6 @@ components:
                   categorias:
                     type: object
                     additionalProperties: {$ref: "#/components/schemas/Faixa"}
-        ajustes_datas:
-          type: array
-          description: As datas comemorativas que mudaram a previsão das séries da loja (ADR-019)
-          items: {$ref: "#/components/schemas/AjusteData"}
         produtos:
           type: array
           description: Produtos de grama do treino (com previsão primeiro)
@@ -381,8 +390,7 @@ components:
                     - type: object
                       properties:
                         data: {type: string, format: date}
-                        fator: {type: number, nullable: true, description: multiplicador da data comemorativa (ADR-019); nulo sem ajuste}
-              previsao_14d: {type: number, nullable: true}
+              previsao_14d: {type: number, nullable: true, description: "Soma dos 14 primeiros dias previstos (ordena a lista; a tela soma o horizonte escolhido)"}
         backtest_categorias:
           type: object
           description: Teste de acerto de cada categoria, dia a dia (o 1º dia de cada janela do walk-forward)
@@ -399,7 +407,7 @@ components:
 
     Painel:
       description: |
-        Formato `BaseReal` de `app-react/src/domain/types.ts`: previsão de 14 dias das 4
+        Formato `BaseReal` de `app-react/src/domain/types.ts`: previsão (até 91 dias) das 4
         categorias e dos produtos de grama de cada loja, com faixa de 95%, histórico,
         encomendas grandes, teste de acerto e planilhas carregadas. Montado de `sales` até o último
         dia com venda do último treino concluído e das tabelas do treino. Sem dados pessoais.
@@ -426,12 +434,14 @@ components:
           type: object
           description: O treino que gerou a previsão (`forecast_jobs.config`)
           properties:
-            horizonte_dias: {type: integer, example: 14}
+            horizonte_dias: {type: integer, example: 14, description: Horizonte do teste de acerto (walk-forward), que dá o status}
+            horizonte_previsao_dias: {type: integer, example: 91, description: "Dias previstos pelo treino; a tela escolhe de horizonte_dias até este (ADR-021)"}
             m: {type: integer, example: 7}
-            d: {type: integer, example: 0}
+            d: {type: integer, example: 0, description: "Com um candidato só, o d de todas as séries; com mais, o primeiro"}
+            d_candidatos: {type: array, items: {type: integer}, example: [0, 1], description: "d testados no walk-forward de cada série; o escolhido está em `ordem` (ADR-020)"}
             D: {type: integer, example: 0}
             alpha_ic: {type: number, example: 0.05}
-            janela_dias: {type: integer, example: 365}
+            janela_dias: {type: integer, example: 545}
             origens: {type: integer, example: 56}
             passo_origem_dias: {type: integer, example: 1}
             limiares_encomenda_un: {type: object, additionalProperties: {type: number}, example: {jardim-canada: 1342.6, itabirito: 1959.7}, description: "Por loja: pedido acima disto é encomenda grande — média + 4 desvios-padrão da quantidade dos pedidos da loja (ADR-018)"}
@@ -491,7 +501,8 @@ components:
         configuracao:
           type: object
           properties:
-            horizonte_dias: {type: integer, example: 14}
+            horizonte_dias: {type: integer, example: 14, description: Horizonte do teste de acerto (walk-forward)}
+            horizonte_previsao_dias: {type: integer, example: 91, description: "Dias previstos pelo último treino; a tela escolhe de 14 até este (ADR-021)"}
             limiares_encomenda_un: {type: object, additionalProperties: {type: number}, example: {jardim-canada: 1342.6, itabirito: 1959.7}, description: "Por loja: pedido acima disto é encomenda grande — média + 4 desvios-padrão da quantidade dos pedidos da loja (ADR-018)"}
             treino_na_api:
               type: boolean
@@ -586,18 +597,32 @@ components:
           items:
             $ref: "#/components/schemas/Registro"
 
+    Atividade:
+      description: Uma planilha enviada (`tipo = planilha`) ou um treino da previsão (`tipo = treino`). Os campos do outro tipo vêm nulos.
+      type: object
+      required: [tipo, id, inicio, fim, situacao, usuario, origem, arquivo, periodo, linhas_novas, linhas_duplicadas, dados_ate, series_com_previsao, series_sem_dados, series_com_falha, mensagem]
+      properties:
+        tipo: {type: string, enum: [planilha, treino]}
+        id: {type: integer}
+        inicio: {type: string, format: date-time}
+        fim: {type: string, format: date-time, nullable: true}
+        situacao: {type: string, enum: [concluido, sem_dados_novos, em_andamento, erro]}
+        usuario: {type: string, nullable: true, description: Nome de quem enviou ou treinou (nulo na carga inicial e no script)}
+        origem: {type: string, enum: [envio, carga_inicial, botao, script]}
+        arquivo: {type: string, nullable: true}
+        periodo: {type: array, nullable: true, items: {type: string, format: date}, minItems: 2, maxItems: 2, description: Primeiro e último dia da planilha}
+        linhas_novas: {type: integer, nullable: true}
+        linhas_duplicadas: {type: integer, nullable: true}
+        dados_ate: {type: string, format: date, nullable: true, description: Último dia com venda usado no treino}
+        series_com_previsao: {type: integer, nullable: true}
+        series_sem_dados: {type: integer, nullable: true}
+        series_com_falha: {type: integer, nullable: true}
+        mensagem: {type: string, nullable: true, description: O motivo do erro (só quando `situacao = erro`)}
+
     ResumoRegistros:
-      description: Totais do filtro. `por_visao` conta cada aba com os mesmos filtros; o resto vale para a aba pedida.
+      description: Totais do filtro.
       type: object
       properties:
-        por_visao:
-          type: object
-          properties:
-            todos: {type: integer}
-            encomendas: {type: integer}
-            cadastrados: {type: integer}
-            descontos: {type: integer}
-            devolucoes: {type: integer}
         registros: {type: integer}
         notas: {type: integer}
         quantidade: {type: number}
@@ -609,15 +634,17 @@ components:
     ConfigServico:
       type: object
       description: Como o serviço treina (o modal de confirmação mostra isto).
-      required: [m, d, D, janela_dias, origens, passo_dias, horizonte_dias, base, categoria_produtos]
+      required: [m, d, d_candidatos, D, janela_dias, origens, passo_dias, horizonte_dias, horizonte_previsao_dias, base, categoria_produtos]
       properties:
         m: {type: integer, example: 7, description: Período sazonal (semanal)}
-        d: {type: integer, example: 0, description: Diferenciação regular (fixa em 0 — séries estacionárias)}
+        d: {type: integer, example: 0, description: "Com um candidato só, o d de todas as séries; com mais, o primeiro"}
+        d_candidatos: {type: array, items: {type: integer}, example: [0, 1], description: "d testados no walk-forward de cada série; fica o que errou menos (ADR-020)"}
         D: {type: integer, example: 0, description: Diferenciação sazonal (fixa em 0 — o ciclo entra pelas dummies)}
-        janela_dias: {type: integer, example: 365, description: Janela deslizante de treino}
+        janela_dias: {type: integer, example: 545, description: Janela deslizante de treino (ADR-022)}
         origens: {type: integer, example: 56, description: Origens do walk-forward}
         passo_dias: {type: integer, example: 1, description: A origem anda este número de dias}
-        horizonte_dias: {type: integer, example: 14}
+        horizonte_dias: {type: integer, example: 14, description: Horizonte do walk-forward (o teste que dá o status)}
+        horizonte_previsao_dias: {type: integer, example: 91, description: "Dias da previsão final (ADR-021)"}
         base: {type: string, example: "fluxo diário (sem encomendas grandes: pedido acima de média + 4 desvios-padrão da quantidade de todos os pedidos da loja, ADR-018)"}
         categoria_produtos: {type: string, example: grama, description: Categoria cujos produtos são treinados um a um}
 
@@ -639,8 +666,7 @@ components:
         series_concluidas: {type: integer, description: "Delas, quantas já terminaram — base de `progresso_pct`"}
         progresso_pct: {type: number, format: float}
         serie_atual: {type: string, nullable: true, example: "Itabirito · Grama"}
-        series_treinadas: {type: integer, description: "Passaram nos limiares (MASE < 1 e IC 95% entre 90% e 98%)"}
-        series_baixa_confianca: {type: integer}
+        series_treinadas: {type: integer, description: "Séries com previsão"}
         series_dados_insuficientes: {type: integer}
         series_com_erro: {type: integer}
         mensagem: {type: string, nullable: true}
@@ -703,7 +729,7 @@ components:
         categoria: {type: string, nullable: true, example: grama}
         produto_codigo: {type: string, nullable: true}
         nome: {type: string, description: Nome da categoria ou do produto}
-        status: {type: string, enum: [trained, low_confidence, insufficient_data, error]}
+        status: {type: string, enum: [trained, insufficient_data, error]}
         ordem: {type: array, items: {type: integer}, nullable: true, example: [1, 0, 2]}
         ordem_sazonal: {type: array, items: {type: integer}, nullable: true, example: [0, 0, 1, 7]}
         aic: {type: number, nullable: true}
@@ -749,16 +775,41 @@ components:
           type: boolean
           nullable: true
           description: se a previsão contava com a loja fechada no dia (o calendário da época)
-        ajuste:
-          type: object
+
+    HistoricoPrevisao:
+      type: object
+      required: [serie, avaliacao]
+      properties:
+        serie:
+          type: array
+          items:
+            $ref: "#/components/schemas/DiaHistoricoPrevisao"
+        avaliacao:
+          allOf:
+            - $ref: "#/components/schemas/AvaliacaoHistorico"
           nullable: true
-          description: |
-            A data comemorativa que mudou o previsto do dia (ADR-019; `forecast_history.event_factor`):
-            o previsto do modelo sem ela é `previsto / multiplicador`. Nulo sem ajuste.
-          required: [multiplicador]
-          properties:
-            evento: {type: string, nullable: true, example: Dia das Mães}
-            multiplicador: {type: number, description: "> 1 alta, < 1 queda"}
+
+    AvaliacaoHistorico:
+      type: object
+      description: |
+        Métricas do walk-forward da série (56 origens andando 1 dia, 14 dias cada), nos dias de
+        loja aberta, no último treino concluído que a avaliou.
+      required: [status, treinado_em, dados_ate, dias_avaliados, mae, wape_pct, mase, largura_ic95, venda_media_dia]
+      properties:
+        status:
+          type: string
+          enum: [trained]
+        treinado_em: {type: string, format: date-time, description: fim do treino}
+        dados_ate: {type: string, format: date, nullable: true, description: último dia com venda do treino}
+        dias_avaliados: {type: integer, description: dias de loja aberta previstos no teste}
+        mae: {type: number, description: "erro médio absoluto por dia (MAE), em unidades"}
+        wape_pct:
+          type: number
+          nullable: true
+          description: "erro absoluto somado ÷ venda somada × 100 (WAPE); nulo sem venda"
+        mase: {type: number, description: "MAE ÷ erro médio da naïve sazonal (repetir a semana anterior) no treino; < 1 = melhor que ela"}
+        largura_ic95: {type: number, description: "distância média entre os limites da faixa de 95%, em unidades"}
+        venda_media_dia: {type: number, description: venda média nos dias avaliados, em unidades}
 
     ValidationError:
       type: object
@@ -955,7 +1006,7 @@ paths:
       tags: [painel]
       summary: Painel de previsão (dados das telas Visão Geral, Previsão e Relatórios)
       description: |
-        Previsão de 14 dias do último treino concluído (4 categorias e produtos de grama de
+        Previsão (até 91 dias, ADR-021) do último treino concluído (4 categorias e produtos de grama de
         cada loja; o total da loja é a soma das categorias), histórico, encomendas grandes e teste de
         acerto de cada categoria, no formato `BaseReal` do frontend. Fica em cache na API até
         as vendas, o calendário ou a previsão mudarem.
@@ -993,6 +1044,10 @@ paths:
         dias entre treinos, os 14, e os dias que sobram vêm do 1º dia das janelas do
         walk-forward do treino seguinte (`fonte = walk_forward`, `horizonte = 1`). `previsto`,
         `inf`, `sup`, `fonte` e `horizonte` são nulos antes do 1º treino.
+
+        `avaliacao`: as métricas do walk-forward da série (dias de loja aberta) no último treino
+        concluído que a avaliou — se o último treino a recusou (`insufficient_data`, `error`),
+        vale o anterior; nula se nenhum treino a avaliou.
       operationId: getHistoricoPrevisao
       security:
         - BearerAuth: []
@@ -1003,13 +1058,11 @@ paths:
            description: id da categoria ou código do produto}
       responses:
         "200":
-          description: Série diária
+          description: Série diária e avaliação do último treino
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/DiaHistoricoPrevisao"
+                $ref: "#/components/schemas/HistoricoPrevisao"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
@@ -1024,6 +1077,34 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorDetail"
+
+  /api/v1/atividades:
+    get:
+      tags: [painel]
+      summary: Log de uso do sistema — planilhas enviadas e treinos da previsão, do mais recente ao mais antigo
+      description: A reclassificação da base (scripts de manutenção) fica de fora. `mensagem` só vem quando deu erro.
+      operationId: getAtividades
+      security:
+        - BearerAuth: []
+      parameters:
+        - {name: limite, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 100}}
+      responses:
+        "200":
+          description: Eventos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Atividade"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          description: Limite fora de 1 a 500
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationError"
 
   /api/v1/analises:
     get:
@@ -1062,7 +1143,7 @@ paths:
   /api/v1/registros/linhas:
     get:
       tags: [painel]
-      summary: Uma página da base linha a linha (filtro, busca, aba e ordem feitos no banco)
+      summary: Uma página da base linha a linha (filtro, busca e ordem feitos no banco)
       operationId: getLinhasRegistros
       security:
         - BearerAuth: []
@@ -1073,12 +1154,13 @@ paths:
         - {name: pagamentos, in: query, schema: {type: array, items: {type: string}}, style: form, explode: true}
         - {name: cliente, in: query, schema: {type: string, enum: [todos, consumidor, cadastrado], default: todos}}
         - {name: tipo, in: query, schema: {type: string, enum: [todos, dia, encomenda], default: todos}}
+        - {name: desconto, in: query, schema: {type: string, enum: [todos, com, sem], default: todos}, description: linhas com ou sem desconto}
+        - {name: movimento, in: query, schema: {type: string, enum: [todos, venda, devolucao], default: todos}, description: "devolução = quantidade ou valor líquido negativo"}
         - {name: data_de, in: query, schema: {type: string, format: date}}
         - {name: data_ate, in: query, schema: {type: string, format: date}}
         - {name: valor_min, in: query, schema: {type: number}}
         - {name: valor_max, in: query, schema: {type: number}}
         - {name: busca, in: query, schema: {type: string, maxLength: 100}, description: produto, código ou nº da nota}
-        - {name: visao, in: query, schema: {type: string, enum: [todos, encomendas, cadastrados, descontos, devolucoes], default: todos}}
         - {name: ordem, in: query, schema: {type: string, enum: [data, loja, nota, produto, categoria, qtd, unit, desc, liq, pag, cliente, tipo], default: data}}
         - {name: direcao, in: query, schema: {type: string, enum: [asc, desc], default: desc}}
         - {name: pagina, in: query, schema: {type: integer, minimum: 1, default: 1}}
@@ -1102,7 +1184,7 @@ paths:
   /api/v1/registros/resumo:
     get:
       tags: [painel]
-      summary: Totais do filtro e contagem de cada aba
+      summary: Totais do filtro
       operationId: getResumoRegistros
       security:
         - BearerAuth: []
@@ -1113,12 +1195,13 @@ paths:
         - {name: pagamentos, in: query, schema: {type: array, items: {type: string}}, style: form, explode: true}
         - {name: cliente, in: query, schema: {type: string, enum: [todos, consumidor, cadastrado], default: todos}}
         - {name: tipo, in: query, schema: {type: string, enum: [todos, dia, encomenda], default: todos}}
+        - {name: desconto, in: query, schema: {type: string, enum: [todos, com, sem], default: todos}, description: linhas com ou sem desconto}
+        - {name: movimento, in: query, schema: {type: string, enum: [todos, venda, devolucao], default: todos}, description: "devolução = quantidade ou valor líquido negativo"}
         - {name: data_de, in: query, schema: {type: string, format: date}}
         - {name: data_ate, in: query, schema: {type: string, format: date}}
         - {name: valor_min, in: query, schema: {type: number}}
         - {name: valor_max, in: query, schema: {type: number}}
         - {name: busca, in: query, schema: {type: string, maxLength: 100}, description: produto, código ou nº da nota}
-        - {name: visao, in: query, schema: {type: string, enum: [todos, encomendas, cadastrados, descontos, devolucoes], default: todos}}
       responses:
         "200":
           description: Totais
@@ -1167,12 +1250,13 @@ paths:
         - {name: pagamentos, in: query, schema: {type: array, items: {type: string}}, style: form, explode: true}
         - {name: cliente, in: query, schema: {type: string, enum: [todos, consumidor, cadastrado], default: todos}}
         - {name: tipo, in: query, schema: {type: string, enum: [todos, dia, encomenda], default: todos}}
+        - {name: desconto, in: query, schema: {type: string, enum: [todos, com, sem], default: todos}, description: linhas com ou sem desconto}
+        - {name: movimento, in: query, schema: {type: string, enum: [todos, venda, devolucao], default: todos}, description: "devolução = quantidade ou valor líquido negativo"}
         - {name: data_de, in: query, schema: {type: string, format: date}}
         - {name: data_ate, in: query, schema: {type: string, format: date}}
         - {name: valor_min, in: query, schema: {type: number}}
         - {name: valor_max, in: query, schema: {type: number}}
         - {name: busca, in: query, schema: {type: string, maxLength: 100}, description: produto, código ou nº da nota}
-        - {name: visao, in: query, schema: {type: string, enum: [todos, encomendas, cadastrados, descontos, devolucoes], default: todos}}
         - {name: ordem, in: query, schema: {type: string, enum: [data, loja, nota, produto, categoria, qtd, unit, desc, liq, pag, cliente, tipo], default: data}}
         - {name: direcao, in: query, schema: {type: string, enum: [asc, desc], default: desc}}
       responses:
@@ -1361,9 +1445,9 @@ paths:
       summary: Disparar o treino das categorias e dos produtos de grama
       description: |
         Treina, em segundo plano, as 4 categorias e cada produto de grama de cada loja:
-        SARIMAX m=7, d=0, D=0 com constante e exógenas de calendário, ordem por AIC; walk-forward
-        com janela deslizante, origem andando 1 dia e horizonte de 14 dias; previsão dos 14 dias
-        seguintes à última venda. Grava andamento, log e resultados no banco e, ao concluir, o
+        SARIMAX m=7, D=0, com d = 0 (com constante) e d = 1 (sem) avaliados no walk-forward de cada
+        série — fica o que errou menos (ADR-020) —, exógenas de calendário, ordem por AIC para cada d; walk-forward com janela deslizante, origem andando
+        1 dia e horizonte de 14 dias; previsão dos 91 dias seguintes à última venda (ADR-021). Grava andamento, log e resultados no banco e, ao concluir, o
         histórico congelado (`forecast_history`), as planilhas que entraram no treino
         (`processing_log.forecast_job_id`) e apaga o walk-forward dos treinos mais antigos que
         os últimos `FORECAST_SERVICE_KEEP_BACKTEST_JOBS`. Com `TRAINING_RUNNER=externo` a API
@@ -1464,7 +1548,7 @@ paths:
       tags: [servico-previsao]
       summary: Resultado de cada série do treino
       description: |
-        Ordem, AIC, métricas do walk-forward e previsão dos próximos 14 dias de cada série
+        Ordem, AIC, métricas do walk-forward e previsão dos próximos 91 dias de cada série
         (categoria ou produto de grama, por loja). Série sem dados suficientes vem com
         `status = insufficient_data`, o motivo em `mensagem` e sem previsão. **Requer perfil admin.**
       operationId: getForecastServiceJobSeries

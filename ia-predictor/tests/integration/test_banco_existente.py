@@ -4,7 +4,7 @@ from datetime import date
 
 from sqlalchemy import create_engine, inspect, text
 
-from backend.infrastructure.database import Base, completar_colunas
+from backend.infrastructure.database import Base, completar_colunas, remover_baixa_confianca
 
 
 def test_historico_antigo_ganha_job_id(tmp_path):
@@ -52,3 +52,26 @@ def test_previsao_antiga_ganha_o_fator_das_datas(tmp_path):
     Base.metadata.create_all(engine)
     completar_colunas(engine)
     assert "event_factor" in {c["name"] for c in inspect(engine).get_columns("series_forecasts")}
+
+
+def test_banco_antigo_perde_a_baixa_confianca(tmp_path):
+    """`low_confidence` saiu do sistema: a série que o tinha teve previsão (vira `trained`) e a
+    contagem do treino, NOT NULL sem valor padrão, soma em `series_trained` e é apagada."""
+    engine = create_engine(f"sqlite:///{tmp_path / 'antigo.db'}")
+    Base.metadata.create_all(engine)
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE forecast_jobs ADD COLUMN series_low_confidence INTEGER NOT NULL DEFAULT 0"))
+        conn.execute(text("INSERT INTO forecast_jobs (id, trigger, status, created_at, total_series, done_series, "
+                          "progress_pct, series_trained, series_low_confidence, series_insufficient, series_failed) "
+                          "VALUES (1, 'manual', 'done', '2026-11-05', 23, 23, 100, 9, 14, 20, 0)"))
+        conn.execute(text("INSERT INTO units (id, name, city) VALUES ('itabirito', 'Itabirito', 'Itabirito')"))
+        conn.execute(text("INSERT INTO series_models (job_id, unit_id, level, series_key, status, trained_at) VALUES "
+                          "(1, 'itabirito', 'category', 'a', 'low_confidence', '2026-11-05'), "
+                          "(1, 'itabirito', 'category', 'b', 'insufficient_data', '2026-11-05')"))
+    remover_baixa_confianca(engine)
+    remover_baixa_confianca(engine)  # idempotente
+    assert "series_low_confidence" not in {c["name"] for c in inspect(engine).get_columns("forecast_jobs")}
+    with engine.begin() as conn:
+        assert conn.execute(text("SELECT series_trained FROM forecast_jobs")).scalar() == 23
+        assert sorted(conn.execute(text("SELECT status FROM series_models")).scalars()) == [
+            "insufficient_data", "trained"]

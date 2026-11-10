@@ -256,8 +256,7 @@ class ForecastJob(Base):
     done_series = Column(Integer, default=0, nullable=False)  # delas, quantas já terminaram
     current_series = Column(String, nullable=True)  # rótulo da série em treino, para o progresso
     progress_pct = Column(Float, default=0.0, nullable=False)
-    series_trained = Column(Integer, default=0, nullable=False)
-    series_low_confidence = Column(Integer, default=0, nullable=False)
+    series_trained = Column(Integer, default=0, nullable=False)  # séries com previsão
     series_insufficient = Column(Integer, default=0, nullable=False)
     series_failed = Column(Integer, default=0, nullable=False)
     message = Column(String, nullable=True)
@@ -280,8 +279,9 @@ class SeriesModel(Base):
     """Uma série treinada (ou recusada) num disparo do serviço de previsão.
 
     `level = category` (`category_id`) ou `product` (`product_code`, sempre de Grama).
-    `series_key` = `loja:nível:id`. Série sem dados suficientes fica registrada com
-    `status = insufficient_data` e o motivo em `message`, sem previsão. `metrics` é o
+    `series_key` = `loja:nível:id`. `status = trained`: a série ajustou e tem previsão. Série
+    sem dados suficientes fica registrada com `status = insufficient_data` e o motivo em
+    `message`, sem previsão; a que falhou, com `error`. `metrics` é o
     walk-forward nos dias de loja aberta; `params`, o que foi ajustado.
     """
 
@@ -294,7 +294,7 @@ class SeriesModel(Base):
     category_id = Column(String, ForeignKey("categories.id"), nullable=True)
     product_code = Column(String, ForeignKey("products.code"), nullable=True)
     series_key = Column(String, nullable=False)
-    status = Column(String, nullable=False, info={"hint": "trained|low_confidence|insufficient_data|error"})
+    status = Column(String, nullable=False, info={"hint": "trained|insufficient_data|error"})
     sarimax_order = Column(JSON, nullable=True, info={"hint": "[p,d,q]"})
     seasonal_order = Column(JSON, nullable=True, info={"hint": "[P,D,Q,m]"})
     aic = Column(Float, nullable=True)
@@ -318,7 +318,7 @@ class SeriesModel(Base):
 
 
 class SeriesForecast(Base):
-    """Previsão diária com faixa de 95% de uma série: os `FORECAST_HORIZON_DAYS` dias
+    """Previsão diária com faixa de 95% de uma série: os `FORECAST_MAX_HORIZON_DAYS` dias
     seguintes ao último dia com venda. `event_factor`: o multiplicador da data comemorativa
     que entrou no previsto e na faixa (ADR-019); nulo sem ajuste — o previsto do modelo é
     `predicted / event_factor`."""
@@ -432,6 +432,7 @@ def create_tables() -> None:
     """Cria todas as tabelas se ainda não existirem (idempotente)."""
     Base.metadata.create_all(bind=engine)
     completar_colunas(engine)
+    remover_baixa_confianca(engine)
 
 
 # Colunas acrescentadas a tabelas que já podem existir no banco (`create_all` não altera
@@ -453,6 +454,22 @@ def completar_colunas(bind) -> None:
             for coluna, tipo in colunas.items():
                 if coluna not in existentes:
                     conn.execute(text(f"ALTER TABLE {tabela} ADD COLUMN {coluna} {tipo}"))
+
+
+def remover_baixa_confianca(bind) -> None:
+    """Tira de um banco antigo a classificação `low_confidence` (removida do sistema em
+    2026-11-09): a série que a tinha teve previsão, então passa a `trained`, e a contagem
+    `forecast_jobs.series_low_confidence` (NOT NULL sem valor padrão no banco, que travaria
+    o treino se só saísse do ORM) soma em `series_trained` e é apagada. Idempotente."""
+    nomes = inspect(bind)
+    if "forecast_jobs" not in nomes.get_table_names():
+        return
+    with bind.begin() as conn:
+        if "series_low_confidence" in {c["name"] for c in nomes.get_columns("forecast_jobs")}:
+            conn.execute(text("UPDATE forecast_jobs SET series_trained = series_trained "
+                              "+ COALESCE(series_low_confidence, 0)"))
+            conn.execute(text("ALTER TABLE forecast_jobs DROP COLUMN series_low_confidence"))
+        conn.execute(text("UPDATE series_models SET status = 'trained' WHERE status = 'low_confidence'"))
 
 
 def get_db() -> Session:

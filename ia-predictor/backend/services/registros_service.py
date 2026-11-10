@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from datetime import date, timedelta
 from typing import Literal
 
-from sqlalchemy import String, and_, case, cast, distinct, extract, func, or_, select
+from sqlalchemy import String, and_, cast, distinct, extract, func, or_, select
 from sqlalchemy.orm import Session
 
 from backend.infrastructure.database import Category, Product, Sale, Unit
@@ -27,27 +27,26 @@ TAMANHO_MAXIMO = 200
 _LOTE_EXPORTACAO = 5000  # linhas lidas do banco e enviadas por vez na exportação
 SEM_PAGAMENTO = "NÃO INFORMADO"
 
-Visao = Literal["todos", "encomendas", "cadastrados", "descontos", "devolucoes"]
 Coluna = Literal["data", "loja", "nota", "produto", "categoria", "qtd", "unit", "desc", "liq", "pag",
                  "cliente", "tipo"]
-VISOES: tuple[str, ...] = ("todos", "encomendas", "cadastrados", "descontos", "devolucoes")
 
 
 @dataclass
 class Filtros:
-    """Os mesmos filtros da tela: meses, painel de filtros, busca e a aba (visão)."""
+    """Os mesmos filtros da tela: meses, painel de filtros e busca."""
     meses: list[str] = field(default_factory=list)          # AAAA-MM; vazio = todos
     lojas: list[str] = field(default_factory=list)
     categorias: list[str] = field(default_factory=list)
     pagamentos: list[str] = field(default_factory=list)     # como a tela mostra (ex.: "Pix")
     cliente: Literal["todos", "consumidor", "cadastrado"] = "todos"
     tipo: Literal["todos", "dia", "encomenda"] = "todos"
+    desconto: Literal["todos", "com", "sem"] = "todos"
+    movimento: Literal["todos", "venda", "devolucao"] = "todos"
     data_de: date | None = None
     data_ate: date | None = None
     valor_min: float | None = None
     valor_max: float | None = None
     busca: str = ""
-    visao: Visao = "todos"
 
 
 def nome_pagamento(bruto: str | None) -> str:
@@ -63,16 +62,6 @@ def _num(v: float | None, casas: int = 2):
 # --------------------------------------------------------------------------- #
 # Condições
 # --------------------------------------------------------------------------- #
-def _condicao_visao(visao: str):
-    return {
-        "todos": None,
-        "encomendas": Sale.is_bulk_order.is_(True),
-        "cadastrados": Sale.is_registered_customer.is_(True),
-        "descontos": Sale.discount > 0,
-        "devolucoes": or_(Sale.net_amount < 0, Sale.quantity < 0),
-    }[visao]
-
-
 def _pagamentos_brutos(db: Session, nomes: list[str]) -> list[str]:
     """Valores gravados em `sales.payment_method` que a tela mostra com estes nomes."""
     brutos = db.scalars(select(distinct(Sale.payment_method))).all()
@@ -81,7 +70,7 @@ def _pagamentos_brutos(db: Session, nomes: list[str]) -> list[str]:
 
 
 def _condicoes(db: Session, f: Filtros) -> list:
-    """Filtros + busca, sem a visão (as abas mostram a contagem de cada visão)."""
+    """Filtros + busca."""
     c: list = [Category.show_on_dashboard.is_(True)]
     if f.meses:
         faixas = []
@@ -103,6 +92,11 @@ def _condicoes(db: Session, f: Filtros) -> list:
         c.append(Sale.is_registered_customer.is_(f.cliente == "cadastrado"))
     if f.tipo != "todos":
         c.append(Sale.is_bulk_order.is_(f.tipo == "encomenda"))
+    if f.desconto != "todos":
+        c.append(Sale.discount > 0 if f.desconto == "com" else Sale.discount <= 0)
+    if f.movimento != "todos":
+        c.append(or_(Sale.net_amount < 0, Sale.quantity < 0) if f.movimento == "devolucao"
+                 else and_(Sale.net_amount >= 0, Sale.quantity >= 0))
     if f.data_de:
         c.append(Sale.sale_date >= f.data_de)
     if f.data_ate:
@@ -152,11 +146,7 @@ def _linha(r) -> dict:
 
 
 def _consulta_linhas(db: Session, f: Filtros, ordem: str | None, direcao: str):
-    condicoes = _condicoes(db, f)
-    visao = _condicao_visao(f.visao)
-    if visao is not None:
-        condicoes.append(visao)
-    consulta = _com_joins(select(*_COLUNAS_LINHA)).where(*condicoes)
+    consulta = _com_joins(select(*_COLUNAS_LINHA)).where(*_condicoes(db, f))
     colunas = _ORDEM.get(ordem or "", [])
     chaves = [c.desc() if direcao == "desc" else c.asc() for c in colunas]
     return consulta.order_by(*chaves, Sale.id)
@@ -188,30 +178,21 @@ def indice(db: Session) -> dict:
 
 
 def linhas(db: Session, f: Filtros, ordem: str | None, direcao: str, pagina: int, tamanho: int) -> dict:
-    """Uma página do filtro (na visão escolhida), já ordenada."""
+    """Uma página do filtro, já ordenada."""
     tamanho = max(1, min(tamanho, TAMANHO_MAXIMO))
     consulta = _consulta_linhas(db, f, ordem, direcao).limit(tamanho).offset((max(pagina, 1) - 1) * tamanho)
     return {"pagina": max(pagina, 1), "tamanho": tamanho, "linhas": [_linha(r) for r in db.execute(consulta)]}
 
 
 def resumo(db: Session, f: Filtros) -> dict:
-    """Totais do filtro numa consulta só: contagem de cada aba (sem a visão) e, na visão
-    escolhida, linhas, notas distintas e as somas de quantidade, desconto e valor."""
-    visao = _condicao_visao(f.visao)
-
-    def na_visao(expr):
-        return expr if visao is None else case((visao, expr))
-
+    """Totais do filtro numa consulta só: linhas, notas distintas e as somas de quantidade,
+    desconto e valor."""
     chave_nota = Sale.unit_id + "-" + cast(Sale.sale_date, String) + "-" + Sale.document_number
-    colunas = [func.count(case((cond, 1))) if cond is not None else func.count()
-               for cond in (_condicao_visao(v) for v in VISOES)]
-    colunas += [func.count(distinct(na_visao(chave_nota))), func.sum(na_visao(Sale.quantity)),
-                func.sum(na_visao(Sale.discount)), func.sum(na_visao(Sale.net_amount))]
-    r = db.execute(_com_joins(select(*colunas)).where(*_condicoes(db, f))).one()
-    por_visao = dict(zip(VISOES, (int(n) for n in r[:len(VISOES)])))
-    return {"por_visao": por_visao, "registros": por_visao[f.visao], "notas": int(r[len(VISOES)] or 0),
-            "quantidade": _num(r[len(VISOES) + 1], 3), "desconto": _num(r[len(VISOES) + 2]),
-            "valor_liquido": _num(r[len(VISOES) + 3])}
+    colunas = (func.count(), func.count(distinct(chave_nota)), func.sum(Sale.quantity),
+               func.sum(Sale.discount), func.sum(Sale.net_amount))
+    registros, notas, quantidade, desconto, valor = db.execute(_com_joins(select(*colunas)).where(*_condicoes(db, f))).one()
+    return {"registros": int(registros), "notas": int(notas or 0), "quantidade": _num(quantidade, 3),
+            "desconto": _num(desconto), "valor_liquido": _num(valor)}
 
 
 def itens_da_nota(db: Session, loja: str, dia: date, nota: str) -> list[dict]:

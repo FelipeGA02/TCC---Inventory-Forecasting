@@ -57,7 +57,7 @@ previsão      = previsão do SARIMAX × multiplicador, no previsto e nos limite
   Mães de Itabirito o atingiria (3,4, com o fator só de 2024). Com 2024 e 2025 juntos,
   nenhuma data passa de 2,74 (tabela abaixo).
 - **Sem ocorrência passada completa, sem ajuste.** No walk-forward, o fator usa só a venda
-  anterior à origem: as métricas e o status saem com o ajuste, sem olhar o período avaliado.
+  anterior à origem: as métricas saem com o ajuste, sem olhar o período avaliado.
 - **As datas vêm da regra**, não de `calendar_days.special_date_name`: o calendário gravado
   vai até 31/12/2026, e sem a data marcada o ajuste sumiria sem aviso.
 - **Desligável** com `FORECAST_SERVICE_EVENT_FACTOR=false` (a alta e a queda). A configuração
@@ -171,15 +171,11 @@ Ficam de fora:
 - **A queda encolhe a faixa de 95% junto:** onde o modelo errava muito para cima, a cobertura
   desses dias sobe (Plantas diversas de Jardim Canadá: de 71% para 96%). Onde ele errava menos,
   ela cai (Grama de Jardim Canadá: de 71% para 60%).
-- **A tela diz quando a semana foi ajustada** (`openapi.yaml` 5.1.0):
-  - **Na Previsão,** um aviso lista cada série ajustada nos 14 dias, por exemplo "Grama em
-    Itabirito: previsão de 26/12 a 31/12 reduzida a 35% pelo Ano Novo — nessa semana, em 2025 e
-    2026, a loja vendeu 35% de uma semana comum". Os dados vêm de `ajustes_datas` em cada loja
-    do `GET /api/v1/painel`, lido de `series_models.params.ajustes_datas`.
-  - **No histórico da previsão,** a dica do dia diz "previsão reduzida a 35% pelo Ano Novo"
-    (`ajuste`, de `forecast_history.event_factor`; a data sai da regra, por
-    `evento_do_dia`).
-  - **No relatório gerencial,** uma tabela "Datas comemorativas".
+- **A tela não fala do ajuste** (`openapi.yaml` 6.0.0, 2026-11-08): o fator é interno. A tela
+  mostra o previsto e a faixa já multiplicados, sem aviso, e a API não entrega o fator. Ele
+  continua gravado (`series_forecasts.event_factor`, `forecast_history.event_factor`,
+  `series_models.params.ajustes_datas`) e no log do treino. Na 5.1.0 a tela avisava o ajuste
+  na Previsão, no histórico e no relatório gerencial; os avisos saíram a pedido do autor.
 - **Constituição, Princípio III (v4.0.0):** o ajuste que o walk-forward do treino quase
   nunca atravessa é validado em experimento próprio (doc 08), com a receita de produção, e
   revisto a cada ano de vendas. O Princípio II permite o ajuste como estatística.

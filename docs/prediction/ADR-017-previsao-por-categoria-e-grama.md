@@ -4,6 +4,9 @@
 **Aceita:** ADR-016 (categoria por modelo próprio) · **Revisa:** ADR-009 e ADR-011 (hierarquia
 L1 por unidade + desagregação), ADR-006 (treino agendado), ADR-015 (script do treino fora da API)
 **Constituição:** Princípios II e V emendados na v4.0.0 (2026-11-05)
+**Revisado por:** ADR-020 (d de cada série escolhido pelo walk-forward entre 0 e 1 — antes d = 0
+fixo) e ADR-021 (o treino prevê 91 dias e a tela escolhe de 14 a
+91 — antes 14; walk-forward continua com h = 14)
 
 ---
 
@@ -46,9 +49,9 @@ conservadora, mais larga que a exata. Não há mais modelo da loja, desagregaç�
 | Série | fluxo diário: venda sem as notas acima de 2.000 un. (ADR-013; desde o ADR-018, acima de média + 4 desvios-padrão da quantidade dos pedidos da loja), sem `Servico e taxa` |
 | Modelo | SARIMAX com m = 7, d = 0, D = 0 e constante; ordem (p, q)(P, Q) por AIC no grid p, q ∈ 0..2 e P, Q ∈ 0..1, só com a janela antes da 1ª origem |
 | Exógenas | 6 dummies de dia da semana, `loja_fechada` e `abertura_excepcional` (calendário de cada loja) |
-| Janela | deslizante, 365 dias (`FORECAST_SERVICE_WINDOW_DAYS`) |
+| Janela | deslizante, 365 dias (`FORECAST_SERVICE_WINDOW_DAYS`); **545 desde o ADR-022** (a regra dos 28 dias com venda continua nos últimos 365) |
 | Validação | walk-forward com 56 origens andando 1 dia (8 semanas), cada uma prevendo 14 dias; métricas nos dias de loja aberta |
-| Status | `trained` se MASE < 1 e cobertura da faixa de 95% em [90%, 98%]; senão `low_confidence` (a previsão sai e a tela a mostra igual; desde 2026-11-05, sem selo nem aviso de confiança) |
+| Status | `trained`: a série ajustou e tem previsão; MASE, cobertura da faixa de 95% e as outras métricas do walk-forward ficam registradas, sem classificar a série |
 | Sem dados | `insufficient_data`, sem previsão: menos de 180 dias antes da 1ª origem; no produto, venda em menos de 28 dias da última janela (o critério e a origem do 28 estão no doc 07 §2) |
 | Previsão | os 14 dias seguintes à última venda, com faixa de 95% |
 | Diagnóstico | Ljung-Box (14 dias) e Shapiro-Wilk dos resíduos do ajuste final, gravados e citados no log quando p ≤ 0,05; não mudam o status |
@@ -109,9 +112,8 @@ carga não agenda treino: responde `needs_training` quando há venda nova.
   `insufficient_data` (venda em menos de 28 dias). Com a classificação SKU a SKU de
   04/11/2026, que pôs a grama preta, o capim dos Texas e a semente de braquiária em Grama,
   são 19 produtos e 43 séries (8 de categoria e 35 de produto), 23 com previsão (8 de
-  categoria e 15 de grama: 11 em Jardim Canadá e 4 em Itabirito). No treino de 05/11/2026,
-  9 ficaram `trained` e 14 `low_confidence` (antes, 9 e 8); as 6 séries novas, de capim dos
-  Texas e grama preta, ficaram todas `low_confidence`. A lista e o resultado estão no doc 07 §2. Com `TRAINING_WORKERS`
+  categoria e 15 de grama: 11 em Jardim Canadá e 4 em Itabirito; antes, 17). A lista e o
+  resultado estão no doc 07 §2. Com `TRAINING_WORKERS`
   processos, o treino cai na mesma proporção.
 - **Rastreabilidade:**
   - `forecast_jobs` guarda o disparo, a configuração e a versão do código;

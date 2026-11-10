@@ -69,11 +69,8 @@ flowchart TD
     J --> K[fit_sarimax]
     K --> L[walk_forward_cv<br/>≥4 folds, origem móvel, h=14d<br/>→ MASE, RMSSE, cobertura IC]
     L --> M[residual_tests<br/>Ljung-Box + Shapiro-Wilk]
-    M --> M1{MASE < 1.0 E cobertura ∈ [90,98]<br/>E simulação de reposição<br/>melhor que regra ingênua 7d?}
-    M1 -- sim --> M2[status = trained]
-    M1 -- não --> M3[status = low_confidence<br/>previsão ainda gerada]
+    M --> M2[status = trained<br/>métricas registradas]
     M2 --> N[model_registry.save_artifact<br/>joblib: modelo + importâncias]
-    M3 --> N
     N --> O{Mais categorias?}
     O -- sim --> E
     O -- não --> Q[Registra RetrainHistory<br/>started_at, finished_at, contagens]
@@ -82,15 +79,13 @@ flowchart TD
 
     style A2 fill:#f9c74f
     style G1 fill:#f9c74f
-    style M3 fill:#f9c74f
     style M2 fill:#90be6d
     style R fill:#43aa8b,color:#fff
 ```
 
 **Notas de rastreabilidade**: exceções por categoria são capturadas e logadas
 individualmente — não abortam o pipeline. RNF-03 exige que o ciclo conclua em < 2h.
-Princípio III da constituição (walk-forward CV ≥4 folds + MASE < 1.0 + simulação de
-reposição antes de `status = "trained"`).
+Princípio III da constituição (walk-forward CV ≥4 folds antes da previsão).
 
 ---
 
@@ -109,7 +104,7 @@ flowchart TD
     A([APScheduler — todo dia 03:00]) --> A1{calendar_days mudou depois<br/>da última forecast_runs done?}
     A1 -- não --> Z0([Fim — nada a gerar])
     A1 -- sim --> B[Abre forecast_runs<br/>start_date = data_until + 1<br/>end_date = start_date + 59]
-    B --> C{Para cada unidade<br/>com modelo trained/low_confidence}
+    B --> C{Para cada unidade<br/>com modelo treinado}
     C --> D[Carrega o modelo da loja<br/>model_artifacts.artifact_path]
     D --> E[Prevê start_date…end_date<br/>exógenas de calendar_days, IC 95%]
     E --> F[Previsão por categoria<br/>e por produto da loja]

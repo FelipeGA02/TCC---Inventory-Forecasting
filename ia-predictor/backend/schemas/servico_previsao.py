@@ -10,12 +10,14 @@ class ConfigServico(BaseModel):
     """Como o serviço treina — o modal de confirmação mostra isto."""
 
     m: int
-    d: int
+    d: int  # com um candidato só, o d de todas as séries; com mais, o primeiro
+    d_candidatos: list[int]  # d testados no walk-forward de cada série; fica o que errou menos (ADR-020)
     D: int
     janela_dias: int
     origens: int
     passo_dias: int
-    horizonte_dias: int
+    horizonte_dias: int  # do walk-forward (o teste que dá o status)
+    horizonte_previsao_dias: int  # dias previstos; a tela escolhe de horizonte_dias até este (ADR-021)
     base: str
     categoria_produtos: str
 
@@ -31,8 +33,7 @@ class TreinoServico(BaseModel):
     series_concluidas: int = 0
     progresso_pct: float = 0.0
     serie_atual: str | None = None
-    series_treinadas: int = 0
-    series_baixa_confianca: int = 0
+    series_treinadas: int = 0  # séries com previsão
     series_dados_insuficientes: int = 0
     series_com_erro: int = 0
     mensagem: str | None = None
@@ -77,7 +78,7 @@ class SerieTreinada(BaseModel):
     categoria: str | None = None
     produto_codigo: str | None = None
     nome: str
-    status: str  # trained|low_confidence|insufficient_data|error
+    status: str  # trained|insufficient_data|error
     ordem: list[int] | None = None
     ordem_sazonal: list[int] | None = None
     aic: float | None = None

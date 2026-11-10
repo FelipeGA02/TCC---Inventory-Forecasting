@@ -997,8 +997,7 @@ treino ao d errado, em três camadas.
 **A solução: decidir por experimento, não por teste.** Em vez de arbitrar a divergência com
 outro teste, criou-se a variante `A1_eda_d1`, com d **fixo** em 1, e comparou-se com as
 demais nas **mesmas 26 rodadas** de walk-forward. **A d = 1 venceu nas duas lojas**: MASE
-0,58, 24 de 26 rodadas vencidas, IC95 entre 91% e 94% — o que levou o L1 a
-`status = "trained"`. O ganho se concentra onde a teoria previa, nas fases em que o nível
+0,58, 24 de 26 rodadas vencidas, IC95 entre 91% e 94%. O ganho se concentra onde a teoria previa, nas fases em que o nível
 sai da média: em dezembro/2025 a parcela do balcão coberta pela previsão sobe de 71% para
 88% em Jardim Canadá e de 73% para 86% em Itabirito. No ano inteiro a diferença é pequena
 (erro médio de 1.337 → 1.282 por dia em Jardim Canadá e 489 → 486 em Itabirito): o d = 1
@@ -1148,8 +1147,8 @@ se |tendência| > 40%/ano:       motivos += "avaliar d = 1 ou termo de nível"
 nível ← "insuficiente" se insufficient_data; "atenção" se há motivos; senão "ok"
 ```
 
-**Impacto no SARIMAX.** É uma prévia do `status` que o modelo recebe (`trained`,
-`low_confidence` ou `insufficient_data`). Itabirito iria para `low_confidence`.
+**Impacto no SARIMAX.** É uma prévia de quais séries têm dados para treinar
+(`insufficient_data`) e de onde o modelo terá mais dificuldade (Itabirito).
 
 **Base na literatura.** Nenhuma. Os limites (180 dias, 12%, 30×, Fs 0,1, 40%/ano) são
 **heurísticas do projeto**. Cada motivo aponta para um bloco que tem base própria
@@ -1590,7 +1589,7 @@ para cada loja u e cada rodada do walk-forward (origem):
 | Exógenas | 6 dummies de dia, `loja_fechada`, `abertura_excepcional` | 1.4, 2.1, 2.3, 2.6 (e doc 03) |
 | Fora das exógenas | pagamento, vendedor, clima, janela de 7 dias | 1.4, 2.6 (e doc 03) |
 | Validação | 26 rodadas × 14 dias contra a naïve semanal | 3.3, 4.2 |
-| Resultado | MASE 0,58 nas 2 lojas; vence a naïve em 24/26 rodadas; IC95 com 91–94% de acerto → `trained` | doc 04 §3.2 |
+| Resultado | MASE 0,58 nas 2 lojas; vence a naïve em 24/26 rodadas; IC95 com 91–94% de acerto | doc 04 §3.2 |
 
 ---
 

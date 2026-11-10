@@ -1,25 +1,35 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, CheckCircle2, ChevronsUpDown, Loader2, Scale, Target, TrendingUp, type LucideIcon } from "lucide-react";
+import { ArrowUpDown, Check, ChevronsUpDown, Loader2, Percent, Ruler, type LucideIcon } from "lucide-react";
 import { Area, CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "../ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
-import type { CategoriaId, DiaHistoricoPrevisao, MetricasModelo, ProdutoDaLoja, StatusModelo, UnidadeId } from "@/domain/types";
-import { CORES_CATEGORIA, categorias, nomeCategoria, produtosDe, unidades } from "../../data/mockData";
+import type {
+  AvaliacaoHistorico,
+  CategoriaId,
+  DiaHistoricoPrevisao,
+  HistoricoPrevisao as DadosHistorico,
+  MetricasModelo,
+  ProdutoDaLoja,
+  StatusModelo,
+  UnidadeId,
+} from "@/domain/types";
+import { CORES_CATEGORIA, categorias, nomeCategoria, produtosDe, unidades } from "../../data/painel";
 import { api } from "../../data/api";
 import { mensagemDoErro } from "@/lib/http/errors";
 import { Segmentado, StatusBadge } from "../shared";
 import { eixo, estiloTooltip } from "@/styles/tokens";
-import { formatarData, formatarDecimal, formatarDiaMes, formatarMesAno, formatarNumero, formatarQtd } from "@/lib/format";
+import { formatarData, formatarDiaMes, formatarMesAno, formatarNumero, formatarQtd } from "@/lib/format";
 
 /**
  * Aba "Histórico de previsão": para cada categoria e cada produto de grama de cada loja (cada
  * um com o seu modelo), o vendido (sem encomendas grandes) desde o começo da base × o
  * previsto congelado de cada dia — o que a previsão mostrava antes dele (`fonte = forecast`)
  * ou, nos dias que nenhuma previsão cobriu, o teste do treino com as vendas até a véspera
- * (`walk_forward`). Antes do 1º treino só há vendido. Os 4 indicadores são os do teste do
- * último treino.
+ * (`walk_forward`). Antes do 1º treino só há vendido. Os 4 indicadores vêm com o histórico
+ * (`avaliacao`): o teste do último treino que avaliou a série, em linguagem simples, com o nome
+ * técnico entre parênteses.
  */
 
 type Tipo = "categoria" | "produto";
@@ -29,10 +39,10 @@ type Periodo = string;
 const chave = (p: ProdutoDaLoja) => `${p.unidade}-${p.codigo}`;
 
 // A série de cada item é buscada quando ele é aberto e guardada enquanto a tela existir.
-const historicosBuscados = new Map<string, Promise<DiaHistoricoPrevisao[]>>();
+const historicosBuscados = new Map<string, Promise<DadosHistorico>>();
 
 function useHistorico(loja: UnidadeId, nivel: Tipo, item: string | undefined) {
-  const [estado, setEstado] = useState<{ chave: string; serie?: DiaHistoricoPrevisao[]; erro?: string } | null>(null);
+  const [estado, setEstado] = useState<{ chave: string; dados?: DadosHistorico; erro?: string } | null>(null);
   const k = item ? `${loja}/${nivel}/${item}` : "";
   useEffect(() => {
     if (!item) return;
@@ -44,7 +54,7 @@ function useHistorico(loja: UnidadeId, nivel: Tipo, item: string | undefined) {
       busca.catch(() => historicosBuscados.delete(k));
     }
     busca
-      .then((serie) => vivo && setEstado({ chave: k, serie }))
+      .then((dados) => vivo && setEstado({ chave: k, dados }))
       .catch((e: unknown) => vivo && setEstado({ chave: k, erro: mensagemDoErro(e) }));
     return () => {
       vivo = false;
@@ -59,55 +69,53 @@ function useHistorico(loja: UnidadeId, nivel: Tipo, item: string | undefined) {
 // ---------------------------------------------------------------------------
 
 const pct = (v: number) => `${formatarNumero(Math.round(v))}%`;
-const acerto14d = (m: MetricasModelo) => (m.erro_total_14d_pct != null ? pct(Math.max(0, 100 - m.erro_total_14d_pct)) : "—");
 
-function equilibrio(previstoSobreReal: number | null): string {
-  if (previstoSobreReal == null) return "—";
-  const d = previstoSobreReal - 100;
-  if (Math.abs(d) < 3) return "na medida";
-  return d > 0 ? `${pct(d)} acima` : `${pct(-d)} abaixo`;
-}
+/** Erro em % da venda (WAPE) a partir das métricas do painel, para a lista de produtos. */
+const erroPct = (m: MetricasModelo) => (m.venda_media_dia > 0 ? pct((m.mae / m.venda_media_dia) * 100) : "—");
 
-const INDICADORES: { icone: LucideIcon; titulo: string; valor: (m: MetricasModelo) => string; explica: (m: MetricasModelo) => string }[] = [
+type Fmt = (v: number) => string;
+
+type Indicador = {
+  icone: LucideIcon;
+  titulo: string;
+  tecnico: string;
+  valor: (a: AvaliacaoHistorico, fmt: Fmt) => string;
+  explica: (a: AvaliacaoHistorico, fmt: Fmt) => string;
+};
+
+/** Na ordem em que um gestor de vendas olha: o erro em %, o erro em unidades e a margem. */
+const INDICADORES: Indicador[] = [
   {
-    icone: Target,
-    titulo: "Acerto no total de 2 semanas",
-    valor: acerto14d,
-    explica: (m) => (m.erro_total_14d_pct != null ? `o total de 14 dias ficou, em média, ${pct(m.erro_total_14d_pct)} acima ou abaixo do vendido` : ""),
+    icone: Percent,
+    titulo: "Quanto a previsão erra",
+    tecnico: "WAPE",
+    valor: (a) => (a.wape_pct != null ? pct(a.wape_pct) : "—"),
+    explica: (a) =>
+      a.wape_pct != null
+        ? `A cada 100 unidades vendidas, a previsão apresenta um erro equivalente a ${formatarNumero(Math.round(a.wape_pct))} unidades.`
+        : "Sem venda no período testado para comparar.",
   },
   {
-    icone: CheckCircle2,
-    titulo: "Venda dentro da faixa",
-    valor: (m) => pct(m.cobertura_ic95_pct),
-    explica: () => "dos dias a venda ficou entre o mínimo e o máximo previstos",
+    icone: Ruler,
+    titulo: "Erro por dia, em unidades",
+    tecnico: "MAE",
+    valor: (a, fmt) => fmt(a.mae),
+    explica: (a, fmt) => `A previsão erra, em média, ${fmt(a.mae)} unidades por dia em relação às vendas reais.`,
   },
   {
-    icone: TrendingUp,
-    titulo: "Melhor que repetir a semana anterior",
-    valor: (m) => `${m.rodadas_vence_naive} de ${m.rodadas}`,
-    explica: (m) =>
-      m.erro_relativo_naive != null ? `previsões de 2 semanas; no geral erra ${pct((1 - m.erro_relativo_naive) * 100)} menos` : "previsões de 2 semanas",
-  },
-  {
-    icone: Scale,
-    titulo: "Previsto x vendido",
-    valor: (m) => equilibrio(m.previsto_sobre_real_pct),
-    explica: () => "somando todo o período: se tende a exagerar ou a ficar curta",
+    icone: ArrowUpDown,
+    titulo: "Margem de incerteza",
+    tecnico: "IC 95%",
+    valor: (a, fmt) => `± ${fmt(a.largura_ic95 / 2)}`,
+    explica: (a, fmt) =>
+      `A previsão considera uma variação de até ${fmt(a.largura_ic95 / 2)} unidades para mais ou para menos, com 95% de confiança.`,
   },
 ];
 
-/** Título do tooltip: o dia e de onde veio o previsto dele. */
+/** Título do tooltip: o dia (e se a previsão contava com a loja fechada). */
 function rotuloDoDia(data: string, d: DiaHistoricoPrevisao | undefined): string {
   const partes = [formatarData(data)];
-  if (d?.fonte === "forecast" && d.horizonte) partes.push(`previsto ${d.horizonte} dia${d.horizonte > 1 ? "s" : ""} antes`);
-  if (d?.fonte === "walk_forward") partes.push("teste do treino, com as vendas até a véspera");
   if (d?.loja_fechada) partes.push("a previsão contava com a loja fechada");
-  if (d?.ajuste) {
-    const pelo = d.ajuste.evento ? ` pelo ${d.ajuste.evento}` : " pela data comemorativa";
-    partes.push(d.ajuste.multiplicador < 1
-      ? `previsão reduzida a ${Math.round(d.ajuste.multiplicador * 100)}%${pelo}`
-      : `previsão multiplicada por ${formatarDecimal(d.ajuste.multiplicador)}${pelo}`);
-  }
   return partes.join(" · ");
 }
 
@@ -156,7 +164,7 @@ export function HistoricoPrevisao({ produtoSelecionado, onSelecionarProduto }: {
   const comModelo = tipo === "categoria" ? !!modeloCat?.metricas : !!produto?.modelo.metricas;
   const historico = useHistorico(lojaId, tipo, !comModelo ? undefined : tipo === "categoria" ? cat : produto?.codigo);
 
-  const meses = useMemo(() => [...new Set((historico?.serie ?? []).map((d) => d.data.slice(0, 7)))].reverse(), [historico]);
+  const meses = useMemo(() => [...new Set((historico?.dados?.serie ?? []).map((d) => d.data.slice(0, 7)))].reverse(), [historico]);
   const mesSelecionado = !["3m", "ano", "tudo"].includes(periodo) ? periodo : "";
 
   return (
@@ -224,7 +232,7 @@ export function HistoricoPrevisao({ produtoSelecionado, onSelecionarProduto }: {
                   ? "Selecione um produto."
                   : "Esta loja não tem produtos de grama com previsão no último treino."}
             </p>
-          ) : !historico?.serie ? (
+          ) : !historico?.dados ? (
             <p className="text-xs p-8 flex items-center justify-center gap-2" style={{ color: historico?.erro ? "var(--destructive)" : "var(--muted-foreground)" }}>
               {historico?.erro ?? (
                 <>
@@ -235,10 +243,9 @@ export function HistoricoPrevisao({ produtoSelecionado, onSelecionarProduto }: {
           ) : tipo === "categoria" ? (
             <PainelHistorico
               titulo={`${nomeCategoria(cat)} · ${loja.nome}`}
-              subtitulo="previsão feita só com a venda da categoria nesta loja"
-              status={modeloCat!.status}
-              metricas={modeloCat!.metricas!}
-              serie={historico.serie}
+              status={historico.dados.avaliacao?.status ?? modeloCat!.status}
+              avaliacao={historico.dados.avaliacao}
+              serie={historico.dados.serie}
               periodo={periodo}
               cor={CORES_CATEGORIA[cat]}
               fmt={formatarNumero}
@@ -246,9 +253,9 @@ export function HistoricoPrevisao({ produtoSelecionado, onSelecionarProduto }: {
           ) : (
             <PainelHistorico
               titulo={`${produto!.nome} · ${produto!.nomeUnidade}`}
-              status={produto!.modelo.status}
-              metricas={produto!.modelo.metricas!}
-              serie={historico.serie}
+              status={historico.dados.avaliacao?.status ?? produto!.modelo.status}
+              avaliacao={historico.dados.avaliacao}
+              serie={historico.dados.serie}
               periodo={periodo}
               cor={CORES_CATEGORIA[produto!.categoria]}
               fmt={formatarQtd}
@@ -335,10 +342,10 @@ function SeletorProduto({
                       </span>
                       <span className="text-right flex-shrink-0">
                         <span className="block" style={{ fontWeight: 700 }}>
-                          {m ? acerto14d(m) : "—"}
+                          {m ? erroPct(m) : "—"}
                         </span>
                         <span className="block text-[10px]" style={{ color: "var(--muted-foreground)" }}>
-                          acerto
+                          erro (WAPE)
                         </span>
                       </span>
                     </CommandItem>
@@ -359,31 +366,26 @@ function SeletorProduto({
 
 function PainelHistorico({
   titulo,
-  subtitulo,
   status,
-  metricas,
+  avaliacao,
   serie,
   periodo,
   cor,
   fmt,
 }: {
   titulo: string;
-  subtitulo?: string;
   status: StatusModelo;
-  metricas: MetricasModelo;
+  avaliacao: AvaliacaoHistorico | null;
   serie: DiaHistoricoPrevisao[];
   periodo: Periodo;
   cor: string;
   fmt: (v: number) => string;
 }) {
-  // O previsto em duas linhas: o que a tela mostrava (congelado) e o teste do treino, nos
-  // dias que nenhuma previsão cobriu (antes do 1º treino, ou intervalo maior que 14 dias)
+  // Uma linha só de previsto, venha ele da previsão gravada ou do walk-forward do treino
   const dadosGrafico = useMemo(
     () =>
       filtrarPeriodo(serie, periodo).map((d) => ({
         ...d,
-        previsto_tela: d.fonte === "forecast" ? d.previsto : null,
-        previsto_teste: d.fonte === "walk_forward" ? d.previsto : null,
         faixa: d.inf != null && d.sup != null ? ([d.inf, d.sup] as [number, number]) : null,
       })),
     [serie, periodo],
@@ -399,34 +401,42 @@ function PainelHistorico({
           <p className="text-sm" style={{ fontWeight: 600 }}>
             {titulo}
           </p>
-          <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-            {subtitulo ? `${subtitulo}. ` : ""}
-            {inicioPrevisto
-              ? `O previsto começa em ${formatarData(inicioPrevisto)}: até ali o modelo aprendia com as vendas. Cada dia mostra o que a previsão dizia antes dele; nos dias que nenhuma previsão cobriu, o teste do treino com as vendas até a véspera.`
-              : "O previsto ainda não foi gravado: aparece depois do próximo treino."}
-          </p>
+          {!inicioPrevisto && (
+            <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+              O previsto ainda não foi gravado: aparece depois do próximo treino.
+            </p>
+          )}
         </div>
         <StatusBadge status={status} compacto />
       </div>
 
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-        {INDICADORES.map((ind) => {
-          const Icone = ind.icone;
-          return (
-            <div key={ind.titulo} className="rounded-lg p-3" style={{ background: "var(--background)", border: "1px solid var(--border)" }}>
-              <p className="text-[11px] inline-flex items-center gap-1.5" style={{ color: "var(--muted-foreground)", fontWeight: 600 }}>
-                <Icone size={13} style={{ color: "var(--primary)" }} /> {ind.titulo}
-              </p>
-              <p className="text-xl mt-0.5" style={{ fontWeight: 700 }}>
-                {ind.valor(metricas)}
-              </p>
-              <p className="text-[11px]" style={{ color: "var(--muted-foreground)" }}>
-                {ind.explica(metricas)}
-              </p>
-            </div>
-          );
-        })}
-      </div>
+      {avaliacao ? (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {INDICADORES.map((ind) => {
+            const Icone = ind.icone;
+            return (
+              <div key={ind.titulo} className="rounded-lg p-3" style={{ background: "var(--background)", border: "1px solid var(--border)" }}>
+                <p className="text-[11px] inline-flex items-center gap-1.5" style={{ color: "var(--muted-foreground)", fontWeight: 600 }}>
+                  <Icone size={13} style={{ color: "var(--primary)" }} /> {ind.titulo}
+                </p>
+                <p className="text-xl mt-0.5" style={{ fontWeight: 700 }}>
+                  {ind.valor(avaliacao, fmt)}
+                </p>
+                <p className="text-[11px]" style={{ color: "var(--muted-foreground)" }}>
+                  {ind.explica(avaliacao, fmt)}
+                </p>
+                <p className="text-[10px] mt-1" style={{ color: "var(--muted-foreground)", opacity: 0.75 }}>
+                  {ind.tecnico}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="text-xs rounded-lg p-3" style={{ color: "var(--muted-foreground)", background: "var(--background)" }}>
+          As medidas de acerto aparecem depois do primeiro treino que testar este item.
+        </p>
+      )}
 
       {serie.length === 0 ? (
         <p className="text-xs text-center py-10 rounded-lg" style={{ color: "var(--muted-foreground)", background: "var(--background)" }}>
@@ -439,10 +449,7 @@ function PainelHistorico({
               <span className="inline-block w-4 h-0.5" style={{ background: "var(--foreground)" }} /> Vendido (sem encomendas grandes)
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <span className="inline-block w-4 h-0.5" style={{ background: cor }} /> Previsto (o que a tela mostrava)
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="inline-block w-4 border-t-2 border-dashed" style={{ borderColor: cor }} /> Previsto no teste do treino
+              <span className="inline-block w-4 h-0.5" style={{ background: cor }} /> Previsto pelo modelo
             </span>
             <span className="inline-flex items-center gap-1.5">
               <span className="inline-block w-4 h-2.5 rounded-sm" style={{ background: cor, opacity: 0.18 }} /> Faixa prevista
@@ -470,7 +477,7 @@ function PainelHistorico({
                 formatter={(v: number | [number, number], nome: string) =>
                   nome === "faixa" && Array.isArray(v)
                     ? [`${fmt(v[0])} a ${fmt(v[1])}`, "Faixa prevista"]
-                    : [fmt(v as number), nome === "real" ? "Vendido" : nome === "previsto_teste" ? "Previsto no teste" : "Previsto"]
+                    : [fmt(v as number), nome === "real" ? "Vendido" : "Previsto pelo modelo"]
                 }
               />
               {marcaInicio && (
@@ -483,8 +490,7 @@ function PainelHistorico({
               )}
               <Area dataKey="faixa" stroke="none" fill={cor} fillOpacity={0.15} isAnimationActive={false} />
               <Line dataKey="real" stroke="var(--foreground)" strokeWidth={1.5} dot={!longo(periodo) ? { r: 2 } : false} isAnimationActive={false} />
-              <Line dataKey="previsto_tela" stroke={cor} strokeWidth={2} dot={false} isAnimationActive={false} />
-              <Line dataKey="previsto_teste" stroke={cor} strokeWidth={2} strokeDasharray="5 4" dot={false} isAnimationActive={false} />
+              <Line dataKey="previsto" stroke={cor} strokeWidth={2} dot={false} isAnimationActive={false} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>

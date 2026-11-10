@@ -14,10 +14,9 @@ loja) em `previsores`:
     }
 
 `modelo` = {ordem, ordem_sazonal, aic, status, metricas, mensagem} (sem previsão, só
-`status` e `mensagem`); `backtest` = o 1º dia de cada janela do walk-forward (h = 1);
-`ajustes` = as datas comemorativas da previsão (ADR-019: `Ajuste.como_dict`), que a loja
-recebe juntas em `ajustes_datas`. A
-previsão da loja é a soma das 4 categorias, dia a dia — inclusive os limites da faixa, o
+`status` e `mensagem`); `backtest` = o 1º dia de cada janela do walk-forward (h = 1). O
+fator das datas comemorativas (ADR-019) já vem aplicado no previsto e é interno: o painel
+não o mostra. A previsão da loja é a soma das 4 categorias, dia a dia — inclusive os limites da faixa, o
 que dá uma faixa conservadora (mais larga que a exata da soma).
 """
 from __future__ import annotations
@@ -50,6 +49,20 @@ def metricas_da_tela(m: dict | None) -> dict | None:
                                      "erro_total_14d_pct", "ljung_box_p", "shapiro_p")}}
 
 
+def avaliacao_do_historico(metricas: dict | None, status: str, treinado_em: str, dados_ate: str | None) -> dict | None:
+    """Avaliação de uma série na tela de histórico: as métricas do walk-forward do último
+    treino que a avaliou, nos dias de loja aberta. `wape_pct` = erro absoluto somado ÷ venda
+    somada (= MAE ÷ venda média do dia, os dois sobre os mesmos dias). Sem métricas: None."""
+    if not metricas or metricas.get("mae") is None:
+        return None
+    mae, venda = metricas["mae"], metricas.get("venda_media_dia")
+    return {"status": status, "treinado_em": treinado_em, "dados_ate": dados_ate,
+            "dias_avaliados": metricas.get("dias_avaliados"), "mae": mae,
+            "wape_pct": round(mae / venda * 100, 1) if venda else None,
+            "mase": metricas.get("mase"), "largura_ic95": metricas.get("largura_ic95"),
+            "venda_media_dia": venda}
+
+
 def _evento(dia) -> str | None:
     for nome in (dia["nome_feriado"], dia["data_comemorativa"]):
         if isinstance(nome, str) and nome:
@@ -77,29 +90,16 @@ def _previsao_da_loja(prev: dict, cal_u: pd.DataFrame, ids_cat: list[str]) -> li
     return previsao
 
 
-def _ajustes_da_loja(prev: dict, ids_cat: list[str], nomes: pd.Series) -> list[dict]:
-    """As datas comemorativas que mudaram a previsão dos 14 dias da loja (ADR-019), uma por
-    série: a alta de Flores de corte, a queda de fim de ano e do Dia do Trabalho nas outras."""
-    saida = []
-    series = [("categoria", k, None, prev["categorias"].get(k) or {}) for k in ids_cat]
-    series += [("produto", s, nomes.get(s), p) for s, p in prev["produtos"].items()]
-    for nivel, item, nome, p in series:
-        for a in p.get("ajustes") or []:
-            saida.append({"nivel": nivel, "item": item, "nome": nome, "evento": a["evento"], "data": a["data"],
-                          "multiplicador": a["multiplicador"], "fator": a["fator"], "anos": a["anos"],
-                          "dias": a["dias"]})
-    return sorted(saida, key=lambda a: (a["data"], a["nivel"], -abs(a["multiplicador"] - 1)))
-
-
 def montar_unidade(v: pd.DataFrame, cal_u: pd.DataFrame, loja: dict, ids_cat: list[str],
-                   prev: dict) -> dict:
+                   prev: dict, dias_ordem: int = 14) -> dict:
     """Uma loja do painel. `v`: vendas da loja (sem serviços) até o fim do treino;
-    `cal_u`: calendário da loja indexado por data."""
+    `cal_u`: calendário da loja indexado por data. A previsão vem com todos os dias do treino
+    (até 91, ADR-021); `previsao_14d` de cada produto soma os primeiros `dias_ordem` (14) e só
+    ordena a lista — a tela soma o horizonte escolhido."""
     fluxo = v[~v["encomenda"]]
     enc = v[v["encomenda"]]
     ini, fim = v["emissao"].min(), v["emissao"].max()
     idx = pd.date_range(ini, fim, freq="D")
-    fechados = set(cal_u.index[cal_u["loja_fechada"] == 1])
 
     # ---- Histórico (venda sem encomendas grandes por categoria + encomendas grandes à parte)
     painel = fluxo[fluxo["cat"].isin(ids_cat)]
@@ -118,12 +118,10 @@ def montar_unidade(v: pd.DataFrame, cal_u: pd.DataFrame, loja: dict, ids_cat: li
          "encomendas": r1(sem_enc.loc[d]), "categorias": {k: r1(row.get(k, 0)) for k in ids_cat}}
         for d, row in sem.iterrows()]
 
-    # ---- Produtos de grama do treino (com ou sem modelo), na ordem da previsão de 14 dias
+    # ---- Produtos de grama do treino (com ou sem modelo), na ordem da previsão das 2 primeiras semanas
     matriz = (fluxo.groupby(["emissao", "produto_cod"])["qtdade"].sum().unstack(fill_value=0.0)
               .reindex(idx, fill_value=0.0))
     cat_sku = v.groupby("produto_cod")["cat"].agg(lambda x: x.mode().iloc[0])
-    j8 = painel[painel["emissao"] >= ini8]
-    vend8 = j8.groupby("produto_cod")["qtdade"].sum()
     nomes = v.groupby("produto_cod")["produto_nome"].last()
     subcats = v.groupby("produto_cod")["categoria_fina"].agg(lambda x: x.mode().iloc[0])
     vendido_total = fluxo.groupby("produto_cod")["qtdade"].sum()
@@ -133,28 +131,19 @@ def montar_unidade(v: pd.DataFrame, cal_u: pd.DataFrame, loja: dict, ids_cat: li
         if s not in nomes.index:
             continue  # produto do treino sem venda na loja até o fim do treino
         d = matriz[s] if s in matriz else pd.Series(0.0, index=idx)
-        desde_1a = d[d.index >= d[d > 0].index.min()] if (d > 0).any() else d
-        aberto = desde_1a[~desde_1a.index.isin(fechados)]
-        sem8 = (desde_1a.reindex(pd.date_range(ini8, fim), fill_value=0)
-                .resample("W-SUN", label="left", closed="left").sum())
         previsao_p = p["previsao"]  # vazia quando o produto ficou sem modelo neste treino
         produtos.append({
             "codigo": s, "nome": nomes[s], "categoria": cat_sku[s], "subcategoria": subcats[s],
-            "dias_com_venda": int((desde_1a > 0).sum()),
-            "pct_dias_abertos_com_venda": r1((aberto > 0).mean() * 100) if len(aberto) else 0.0,
-            "media_dia_aberto": r1(aberto.mean()) if len(aberto) else 0.0,
-            "vendido_8_semanas": r1(vend8.get(s, 0.0)),
+            "dias_com_venda": int((d > 0).sum()),
             "vendido_total": r1(vendido_total.get(s, 0.0)),
             "vendido_em_encomendas": r1(vendido_enc.get(s, 0.0)),
-            "historico_semanal": [r1(x) for x in sem8.values],
             "historico_diario": [{"data": str(dt.date()), "vendido": r1(x)}
                                  for dt, x in d.loc[fim - pd.Timedelta(days=27):fim].items()],
             "modelo": p["modelo"],
             "previsao": previsao_p,
-            "previsao_14d": r1(sum(x["previsto"] for x in previsao_p)) if previsao_p else None,
+            "previsao_14d": r1(sum(x["previsto"] for x in previsao_p[:dias_ordem])) if previsao_p else None,
         })
-    produtos.sort(key=lambda x: (x["previsao_14d"] is None, -(x["previsao_14d"] or x["vendido_8_semanas"])))
-    ajustes = _ajustes_da_loja(prev, ids_cat, nomes)
+    produtos.sort(key=lambda x: (x["previsao_14d"] is None, -(x["previsao_14d"] or x["vendido_total"])))
 
     # ---- Encomendas grandes: resumo e últimas
     if len(enc):
@@ -185,7 +174,6 @@ def montar_unidade(v: pd.DataFrame, cal_u: pd.DataFrame, loja: dict, ids_cat: li
         "encomendas": encomendas,
         "categorias_modelo": {k: (prev["categorias"].get(k) or {}).get("modelo") for k in ids_cat},
         "previsao": _previsao_da_loja(prev, cal_u, ids_cat),
-        "ajustes_datas": ajustes,
         "historico_diario": historico_diario,
         "historico_semanal": historico_semanal,
         "produtos": produtos,
@@ -216,7 +204,8 @@ def montar_painel(df: pd.DataFrame, cal: pd.DataFrame, lojas: list[dict], catego
         if u["id"] not in previsores:
             continue
         cal_u = cal[cal["unit_id"] == u["id"]].set_index("data")
-        unidades.append(montar_unidade(df[df["unit_id"] == u["id"]], cal_u, u, ids_cat, previsores[u["id"]]))
+        unidades.append(montar_unidade(df[df["unit_id"] == u["id"]], cal_u, u, ids_cat, previsores[u["id"]],
+                                       dias_ordem=configuracao.get("horizonte_dias") or 14))
     return {
         "gerado_em": gerado_em,
         "fonte": "banco de dados (vendas, calendário e o último treino concluído da previsão)",

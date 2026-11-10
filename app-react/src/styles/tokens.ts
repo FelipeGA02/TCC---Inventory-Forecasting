@@ -20,8 +20,8 @@ export interface EstiloStatus {
   borda: string;
 }
 
-/** Previsão gerada (status `trained` ou `low_confidence`): a tela não separa as duas; o acerto
- *  no teste do treino aparece nos indicadores e nos relatórios. */
+/** Previsão gerada (status `trained`); o acerto no teste do treino aparece nos indicadores e
+ *  nos relatórios. */
 const comPrevisao: EstiloStatus = {
   label: "Com previsão",
   explicacao: "A previsão foi gerada. O acerto no teste do treino está nos indicadores.",
@@ -33,7 +33,6 @@ const comPrevisao: EstiloStatus = {
 /** Status da previsão de cada categoria e produto de grama, em linguagem da loja. */
 export const estiloStatus: Record<StatusModelo, EstiloStatus> = {
   trained: comPrevisao,
-  low_confidence: comPrevisao,
   insufficient_data: {
     label: "Poucos dados",
     explicacao: "Vendeu pouco para prever: menos de 180 dias de histórico ou, no produto, venda em poucos dias do último ano.",

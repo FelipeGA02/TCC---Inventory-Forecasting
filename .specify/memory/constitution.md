@@ -1,8 +1,10 @@
 <!-- Sync Impact Report
   Version change: 3.1.0 → 4.0.0
   Motivação: alinhar a constituição ao sistema que roda desde o ADR-017 (2026-10-26) e às
-    decisões seguintes (ADR-018, ADR-019, retirada do selo de confiança em 2026-11-05). As
-    pendências estavam listadas no CLAUDE.md ("emenda pendente").
+    decisões seguintes (ADR-018 a ADR-022). Reúne duas emendas feitas em paralelo, ambas
+    numeradas 4.0.0: a de 2026-11-05 (Princípios II, III, V e VI; as pendências estavam
+    listadas no CLAUDE.md como "emenda pendente") e a de 2026-11-09 (a classificação
+    `low_confidence` sai do sistema, pedido do usuário). Consolidadas no merge da PR #47.
   MAJOR porque redefine os Princípios II, III e V e remove um Quality Gate (simulação de
     reposição).
   Modified:
@@ -11,22 +13,26 @@
       (ADR-016: categoria direta vence a desagregação em 7 de 8 pares; ADR-017). Ajuste
       pós-modelo das datas comemorativas (ADR-019) permitido como estatística, não ML.
     - Princípio III — walk-forward com o protocolo do sistema (56 origens andando 1 dia,
-      h = 14, janela deslizante de 365 dias); sem a simulação de reposição (L3 fora,
-      ADR-011); `low_confidence` não exibe selo nem aviso no dashboard (status no log, no
-      serviço de previsão e na API); o fator das datas é validado em experimento próprio
-      (doc 08), fora do walk-forward do treino.
+      h = 14, janela deslizante de 545 dias, d de cada série escolhido no walk-forward)
+      antes de gravar a previsão; MASE e cobertura como métricas de referência registradas
+      em cada série, sem classificar nem gerar aviso (toda série que ajusta fica
+      `trained`); sem a simulação de reposição (L3 fora, ADR-011); o fator das datas é
+      validado em experimento próprio (doc 08), fora do walk-forward do treino.
     - Princípio IV — exemplos sem reposição; status sem rótulo de confiança.
     - Princípio V — `retrain_history`/`forecast_runs` → `processing_log`, `forecast_jobs`,
       `forecast_job_logs`, `series_models`, `forecast_history`; treino sem dados novos =
       `skipped`; logs pela API `/api/v1/servico-previsao/*`.
     - Princípio VI — perfis com as rotas atuais (admin: upload e treino; viewer: contexto,
       painel, histórico, análises, registros).
+    - Quality Gates / Critérios de Aceitação de Modelos — MASE e cobertura:
+      "`status = "low_confidence"` + alerta no dashboard" → "registrado nas métricas da
+      série; não classifica nem gera aviso".
   Removed:
     - Quality Gate "Simulação de reposição (perda + ruptura)".
     - Critério "Geração da previsão < 15min" (a previsão sai do próprio treino).
   Templates:
     ✅ .specify/templates/plan-template.md (genérico: gates lidos desta constituição)
-    ✅ .specify/templates/spec-template.md (genérico, sem referência a princípio)
+    ✅ .specify/templates/spec-template.md (genérico, sem referência a princípio ou status)
     ✅ .specify/templates/tasks-template.md (genérico)
     ✅ .claude/skills/speckit-*/SKILL.md (sem nome de princípio desatualizado)
     ✅ CLAUDE.md (Regras Invioláveis sem "emenda pendente"; v4.0.0)
@@ -77,30 +83,34 @@ curtas e esparsas de varejo; a evidência do próprio projeto (ADR-016) decide o
 
 ### III. Validação Obrigatória Antes de Produção
 
-Toda série treinada MUST ser avaliada com walk-forward de origem móvel antes de receber
-`status = "trained"`: no sistema, 56 origens andando 1 dia (≥ 4 folds), horizonte de 14
-dias, janela deslizante de 365 dias, ordem escolhida só com a janela anterior à primeira
-origem. Todo parâmetro estimado dos dados (fator das datas, limiar de encomenda) MUST usar
-só a venda anterior a cada origem.
+Toda série treinada MUST ser avaliada com walk-forward de origem móvel antes de a previsão
+ser gravada: no sistema, 56 origens andando 1 dia (≥ 4 folds), horizonte de 14 dias,
+janela deslizante de 545 dias (ADR-022), ordem escolhida só com a janela anterior à
+primeira origem e d escolhido pelo erro do walk-forward (ADR-020). Todo parâmetro estimado
+dos dados (fator das datas, limiar de encomenda) MUST usar só a venda anterior a cada
+origem.
 
-Limiares de aceitação:
+Métricas de referência, MUST ser registradas em cada série (`series_models.metrics`) e no
+log do treino:
 
-- **MASE < 1.0** (a série MUST bater a previsão ingênua sazonal semanal);
-- **cobertura empírica do intervalo de 95%** MUST ficar em [90%, 98%].
+- **MASE** (referência: < 1.0, o modelo bate a previsão ingênua sazonal semanal);
+- **cobertura empírica do intervalo de 95%** (referência: [90%, 98%]).
 
-Série que não atingir os limiares MUST ficar com `status = "low_confidence"`: a previsão é
-gerada e a tela a mostra do mesmo jeito, **sem selo nem aviso de confiança**; o status MUST
-ficar registrado no log do treino, no serviço de previsão e na API. MAPE e SMAPE são
-calculados e reportados como **informativos** (instáveis com contagem baixa) — não
-classificam.
+As métricas MUST NOT classificar a série nem gerar aviso no dashboard: toda série que
+ajusta tem previsão (`status = "trained"`). Série sem histórico suficiente fica
+`insufficient_data` e série cujo ajuste falha fica `error`, ambas sem previsão. MAPE e
+SMAPE continuam sendo calculados e reportados, mas são **informativos** (instáveis com
+contagem baixa).
 
 Ajuste que o walk-forward do treino quase nunca atravessa (as datas comemorativas,
 ADR-019: as 56 origens cobrem só as 8 semanas antes da última venda) MUST ser validado em
 experimento próprio, com a receita de produção, com e sem o ajuste, nas ocorrências
 passadas da data (doc 08), e revisto quando entrar um ano novo de vendas.
-**Rationale**: artigo TCC seção 6.5; qualidade mínima medida contra a naïve antes de
-informar a compra de produto perecível. A loja decide a compra (ADR-011): o sistema
-informa quanto deve vender, e a simulação de perda e ruptura saiu com a reposição.
+**Rationale**: artigo TCC seção 6.5; o walk-forward mede a qualidade contra a naïve antes
+de a previsão informar a compra de produto perecível, e as métricas ficam disponíveis
+(tela de histórico, API, log) sem um rótulo que a loja não usa para decidir. A loja decide
+a compra (ADR-011): o sistema informa quanto deve vender, e a simulação de perda e ruptura
+saiu com a reposição.
 
 ### IV. Interface para Usuário Não Técnico
 
@@ -148,7 +158,7 @@ dados operacionais da empresa parceira.
 
 | Métrica | Limiar | Ação se falhar |
 | --- | --- | --- |
-| MASE (categoria e produto de grama) | < 1.0 | `status = "low_confidence"` (previsão gerada, sem aviso na tela) |
+| MASE (categoria e produto de grama) | < 1.0 | registrado nas métricas da série; não classifica nem gera aviso |
 | Cobertura do IC 95% | ∈ [90%, 98%] | idem |
 | Ljung-Box p-value (resíduos do ajuste final) | > 0.05 | citado no log; não bloqueia |
 | Shapiro-Wilk p-value (resíduos do ajuste final) | > 0.05 | citado no log; não bloqueia |
@@ -194,4 +204,4 @@ Versionamento semântico: MAJOR = remoção/redefinição de princípio; MINOR =
 ou exigência ampliada; PATCH = clarificação ou correção de texto.
 Revisão obrigatória a cada Sprint concluído.
 
-**Version**: 4.0.0 | **Ratified**: 2026-07-28 | **Last Amended**: 2026-11-05
+**Version**: 4.0.0 | **Ratified**: 2026-07-28 | **Last Amended**: 2026-11-09

@@ -51,6 +51,7 @@ uma nova ADR, use o próximo número livre (o maior `ADR-0NN` já usado em qualq
 | [ADR-020](prediction/ADR-020-diferenciacao-por-serie.md) | predição | d de cada série escolhido pelo walk-forward entre 0 (com constante) e 1 (sem) — revisa o d = 0 fixo do ADR-017; evidência no doc 10 |
 | [ADR-021](prediction/ADR-021-horizonte-de-previsao-selecionavel.md) | predição | O treino prevê 91 dias; a tela mostra de 2 semanas a 3 meses (padrão 2 semanas); walk-forward e status continuam com h = 14; retreino semanal — revisa os 14 dias do ADR-017; evidência no doc 09 |
 | [ADR-022](prediction/ADR-022-janela-de-treino-de-545-dias.md) | predição | Janela de treino de 545 dias (antes 365) em todas as séries; a regra dos 28 dias com venda do produto continua nos últimos 365 (`FORECAST_SERVICE_MIN_SALE_WINDOW_DAYS`); ícone de informação nas 4 gramas pequenas de Jardim Canadá — revisa a janela do ADR-017; evidência no doc 11 |
+| [ADR-023](prediction/ADR-023-historico-com-a-previsao-mais-antiga.md) | predição | Histórico da previsão com o registro mais antigo de cada dia: os 14 primeiros dias de cada previsão e a janela mais antiga do walk-forward (até 14 dias antes); nenhum dia gravado é trocado; sai o complemento — revisa o histórico do ADR-017 |
 
 ## Documentos "a criar" com caminho fixo (não mover ao criar)
 

@@ -14,8 +14,8 @@ Três grupos de tabelas:
     previsões" ou pelo script `treinar_previsoes`), `forecast_job_logs` e, por série — as 4
     categorias e cada produto de grama, por loja —, `series_models`, `series_forecasts` e
     `series_backtest_points`. As telas leem o último treino `done`. Cada treino concluído
-    atualiza `forecast_history`, o previsto de cada dia já passado (congelado), para o
-    histórico da previsão.
+    atualiza `forecast_history`, o previsto mais antigo de cada dia, para o histórico da
+    previsão.
 
 Resumos por loja, categoria e produto (volume, SKUs, encomendas grandes, venda das últimas 8
 semanas...) não são gravados: saem de `sales` até `forecast_jobs.data_until`.
@@ -357,14 +357,15 @@ class ForecastHistory(Base):
     """Histórico da previsão de cada categoria e produto de grama de uma loja: o previsto de
     cada dia, para a tela comparar com o vendido (que sai de `sales`, sem encomendas grandes).
 
-    Ao contrário de `series_backtest_points` (refeito a cada treino), aqui o dia fica
-    congelado (`domain.historico_previsao`): cada disparo concluído do serviço de previsão
-    troca os dias do início da previsão dele em diante e nunca mexe nos anteriores; dia que
-    nenhuma previsão cobriu (antes do 1º treino, ou treino seguinte com mais de 14 dias de
-    intervalo) vem do 1º dia das janelas do walk-forward e só preenche dia vazio.
+    Ao contrário de `series_backtest_points` (refeito a cada treino), aqui cada dia guarda o
+    registro mais antigo dele e nunca é trocado (`domain.historico_previsao`, ADR-023): cada
+    disparo concluído do serviço de previsão só grava os dias sem registro — os 14 primeiros
+    dias da previsão dele e, do walk-forward, a janela mais antiga que previu cada dia (até 14
+    dias antes; antes do 1º treino, ou com mais de 14 dias entre treinos).
 
     `source`: `forecast` (previsão do disparo `job_id`) ou `walk_forward`. `origin_date`: 1º
-    dia da janela — o início da previsão, ou o próprio dia no walk-forward. `item`: id da
+    dia da janela que previu o dia — o início da previsão, ou a origem no walk-forward
+    (horizonte = `day − origin_date + 1`). `item`: id da
     categoria ou código do produto. `store_closed`: se o calendário dava a loja fechada no
     dia quando ele foi previsto — explica um previsto zero se o calendário mudar depois.
     `event_factor`: o multiplicador da data comemorativa que entrou no previsto (ADR-019) —

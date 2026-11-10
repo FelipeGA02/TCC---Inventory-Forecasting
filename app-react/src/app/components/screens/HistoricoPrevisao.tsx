@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowUpDown, Check, ChevronsUpDown, Loader2, Percent, Ruler, type LucideIcon } from "lucide-react";
+import { ArrowUpDown, Check, ChevronsUpDown, Loader2, Ruler, type LucideIcon } from "lucide-react";
 import { Area, CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "../ui/command";
@@ -10,7 +10,6 @@ import type {
   CategoriaId,
   DiaHistoricoPrevisao,
   HistoricoPrevisao as DadosHistorico,
-  MetricasModelo,
   ProdutoDaLoja,
   StatusModelo,
   UnidadeId,
@@ -25,9 +24,10 @@ import { formatarData, formatarDiaMes, formatarMesAno, formatarNumero, formatarQ
 /**
  * Aba "Histórico de previsão": para cada categoria e cada produto de grama de cada loja (cada
  * um com o seu modelo), o vendido (sem encomendas grandes) desde o começo da base × o
- * previsto congelado de cada dia — o que a previsão mostrava antes dele (`fonte = forecast`)
- * ou, nos dias que nenhuma previsão cobriu, o teste do treino com as vendas até a véspera
- * (`walk_forward`). Antes do 1º treino só há vendido. Os 4 indicadores vêm com o histórico
+ * previsto mais antigo de cada dia: a primeira previsão gravada para ele (`fonte = forecast`,
+ * os 14 primeiros dias de cada treino) ou, nos dias que nenhuma previsão cobriu, a janela mais
+ * antiga do teste do treino que o previu, até 14 dias antes (`walk_forward`). O tooltip diz
+ * com quantos dias de antecedência (`horizonte`). Antes do 1º treino só há vendido. Os indicadores vêm com o histórico
  * (`avaliacao`): o teste do último treino que avaliou a série, em linguagem simples, com o nome
  * técnico entre parênteses.
  */
@@ -68,11 +68,6 @@ function useHistorico(loja: UnidadeId, nivel: Tipo, item: string | undefined) {
 // Indicadores em linguagem simples
 // ---------------------------------------------------------------------------
 
-const pct = (v: number) => `${formatarNumero(Math.round(v))}%`;
-
-/** Erro em % da venda (WAPE) a partir das métricas do painel, para a lista de produtos. */
-const erroPct = (m: MetricasModelo) => (m.venda_media_dia > 0 ? pct((m.mae / m.venda_media_dia) * 100) : "—");
-
 type Fmt = (v: number) => string;
 
 type Indicador = {
@@ -83,18 +78,8 @@ type Indicador = {
   explica: (a: AvaliacaoHistorico, fmt: Fmt) => string;
 };
 
-/** Na ordem em que um gestor de vendas olha: o erro em %, o erro em unidades e a margem. */
+/** O erro em unidades e a margem. (O erro em % da venda, WAPE, saiu da tela em 10/11/2026.) */
 const INDICADORES: Indicador[] = [
-  {
-    icone: Percent,
-    titulo: "Quanto a previsão erra",
-    tecnico: "WAPE",
-    valor: (a) => (a.wape_pct != null ? pct(a.wape_pct) : "—"),
-    explica: (a) =>
-      a.wape_pct != null
-        ? `A cada 100 unidades vendidas, a previsão apresenta um erro equivalente a ${formatarNumero(Math.round(a.wape_pct))} unidades.`
-        : "Sem venda no período testado para comparar.",
-  },
   {
     icone: Ruler,
     titulo: "Erro por dia, em unidades",
@@ -112,9 +97,13 @@ const INDICADORES: Indicador[] = [
   },
 ];
 
-/** Título do tooltip: o dia (e se a previsão contava com a loja fechada). */
+/** Título do tooltip: o dia, quando e de onde veio o previsto e se ele contava com a loja fechada. */
 function rotuloDoDia(data: string, d: DiaHistoricoPrevisao | undefined): string {
   const partes = [formatarData(data)];
+  if (d?.horizonte != null) {
+    const antes = d.horizonte === 1 ? "previsto na véspera" : `previsto ${d.horizonte} dias antes`;
+    partes.push(`${antes} (${d.fonte === "walk_forward" ? "teste do treino" : "previsão"})`);
+  }
   if (d?.loja_fechada) partes.push("a previsão contava com a loja fechada");
   return partes.join(" · ");
 }
@@ -342,10 +331,10 @@ function SeletorProduto({
                       </span>
                       <span className="text-right flex-shrink-0">
                         <span className="block" style={{ fontWeight: 700 }}>
-                          {m ? erroPct(m) : "—"}
+                          {m ? formatarQtd(m.mae) : "—"}
                         </span>
                         <span className="block text-[10px]" style={{ color: "var(--muted-foreground)" }}>
-                          erro (WAPE)
+                          erro por dia
                         </span>
                       </span>
                     </CommandItem>
@@ -381,18 +370,25 @@ function PainelHistorico({
   cor: string;
   fmt: (v: number) => string;
 }) {
-  // Uma linha só de previsto, venha ele da previsão gravada ou do walk-forward do treino
+  // Duas linhas de previsto: o teste do treino (walk-forward, tracejada) e a previsão gravada
   const dadosGrafico = useMemo(
     () =>
       filtrarPeriodo(serie, periodo).map((d) => ({
         ...d,
+        previsto: d.fonte === "forecast" ? d.previsto : null,
+        previsto_teste: d.fonte === "walk_forward" ? d.previsto : null,
         faixa: d.inf != null && d.sup != null ? ([d.inf, d.sup] as [number, number]) : null,
       })),
     [serie, periodo],
   );
-  // 1º dia com previsto: a data fixa de treino (antes dela, o modelo ainda estava aprendendo)
   const inicioPrevisto = serie.find((d) => d.previsto != null)?.data;
-  const marcaInicio = inicioPrevisto && dadosGrafico.some((d) => d.data === inicioPrevisto) && dadosGrafico[0]!.data !== inicioPrevisto;
+  const inicioTeste = serie.find((d) => d.fonte === "walk_forward")?.data;
+  const inicioPrevisao = serie.find((d) => d.fonte === "forecast")?.data;
+  const temTeste = !!inicioTeste;
+  const temPrevisao = !!inicioPrevisao;
+  // marca o 1º dia de cada fonte, se ele está no período e não é o 1º ponto do gráfico
+  const marca = (dia?: string) => !!dia && dadosGrafico.some((d) => d.data === dia) && dadosGrafico[0]!.data !== dia;
+  const NOMES: Record<string, string> = { real: "Vendido", previsto: "Previsto (previsão)", previsto_teste: "Previsto (teste do treino)" };
 
   return (
     <div className="p-5 flex flex-col gap-4">
@@ -411,7 +407,7 @@ function PainelHistorico({
       </div>
 
       {avaliacao ? (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {INDICADORES.map((ind) => {
             const Icone = ind.icone;
             return (
@@ -448,9 +444,16 @@ function PainelHistorico({
             <span className="inline-flex items-center gap-1.5">
               <span className="inline-block w-4 h-0.5" style={{ background: "var(--foreground)" }} /> Vendido (sem encomendas grandes)
             </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="inline-block w-4 h-0.5" style={{ background: cor }} /> Previsto pelo modelo
-            </span>
+            {temTeste && (
+              <span className="inline-flex items-center gap-1.5">
+                <span className="inline-block w-4 border-t-2 border-dashed" style={{ borderColor: cor }} /> Previsto no teste do treino (até 14 dias antes)
+              </span>
+            )}
+            {temPrevisao && (
+              <span className="inline-flex items-center gap-1.5">
+                <span className="inline-block w-4 h-0.5" style={{ background: cor }} /> Previsto pela previsão
+              </span>
+            )}
             <span className="inline-flex items-center gap-1.5">
               <span className="inline-block w-4 h-2.5 rounded-sm" style={{ background: cor, opacity: 0.18 }} /> Faixa prevista
             </span>
@@ -477,12 +480,20 @@ function PainelHistorico({
                 formatter={(v: number | [number, number], nome: string) =>
                   nome === "faixa" && Array.isArray(v)
                     ? [`${fmt(v[0])} a ${fmt(v[1])}`, "Faixa prevista"]
-                    : [fmt(v as number), nome === "real" ? "Vendido" : "Previsto pelo modelo"]
+                    : [fmt(v as number), NOMES[nome] ?? nome]
                 }
               />
-              {marcaInicio && (
+              {marca(inicioTeste) && (
                 <ReferenceLine
-                  x={inicioPrevisto}
+                  x={inicioTeste}
+                  stroke="var(--muted-foreground)"
+                  strokeDasharray="4 4"
+                  label={{ value: "início do teste do treino", position: "insideTopLeft", fontSize: 10, fill: "var(--muted-foreground)" }}
+                />
+              )}
+              {marca(inicioPrevisao) && (
+                <ReferenceLine
+                  x={inicioPrevisao}
                   stroke="var(--muted-foreground)"
                   strokeDasharray="4 4"
                   label={{ value: "início da previsão", position: "insideTopLeft", fontSize: 10, fill: "var(--muted-foreground)" }}
@@ -490,6 +501,7 @@ function PainelHistorico({
               )}
               <Area dataKey="faixa" stroke="none" fill={cor} fillOpacity={0.15} isAnimationActive={false} />
               <Line dataKey="real" stroke="var(--foreground)" strokeWidth={1.5} dot={!longo(periodo) ? { r: 2 } : false} isAnimationActive={false} />
+              <Line dataKey="previsto_teste" stroke={cor} strokeWidth={2} strokeDasharray="5 3" dot={false} isAnimationActive={false} />
               <Line dataKey="previsto" stroke={cor} strokeWidth={2} dot={false} isAnimationActive={false} />
             </ComposedChart>
           </ResponsiveContainer>

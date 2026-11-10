@@ -134,7 +134,7 @@ export interface DiaBacktest extends Faixa {
 
 /**
  * Um dia do histórico da previsão (`/api/v1/painel/historico/...`): o vendido sem encomendas
- * grandes e o previsto congelado — o da última previsão feita antes do dia. Nulo antes do 1º treino.
+ * grandes e o previsto mais antigo do dia — a primeira previsão gravada para ele. Nulo antes do 1º treino.
  */
 export interface DiaHistoricoPrevisao {
   data: string;
@@ -142,9 +142,9 @@ export interface DiaHistoricoPrevisao {
   previsto: number | null;
   inf: number | null;
   sup: number | null;
-  /** "forecast": a previsão que a loja viu; "walk_forward": dia que nenhuma previsão cobriu. */
+  /** "forecast": a previsão que a loja viu; "walk_forward": dia que nenhuma previsão cobriu (a janela mais antiga do teste do treino). */
   fonte: "forecast" | "walk_forward" | null;
-  /** A quantos dias do início da previsão o dia estava (1 no walk-forward). */
+  /** Com quantos dias de antecedência o dia foi previsto (1 = na véspera; até 14). */
   horizonte: number | null;
   /** Se a previsão contava com a loja fechada no dia (calendário da época). */
   loja_fechada: boolean | null;

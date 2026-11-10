@@ -10,7 +10,7 @@ info:
     pelo walk-forward — ADR-020; janela deslizante de
     545 dias — ADR-022, testado dia a dia em 8 semanas com h = 14); o total da loja é a soma das categorias (ADR-017). A previsão é treinada pelo
     admin (`POST /api/v1/servico-previsao/treinos`) depois de carregar as planilhas; não há
-    treino agendado. O histórico da previsão guarda o previsto de cada dia, congelado. A
+    treino agendado. O histórico da previsão guarda o previsto mais antigo de cada dia. A
     loja decide a compra; o sistema informa quanto deve vender (ADR-011).
 
     ## Autenticação
@@ -27,6 +27,12 @@ info:
     Relatórios leem `/api/v1/painel`, o histórico da previsão lê
     `/api/v1/painel/historico/*` ao abrir cada item, e Conferir Dados consulta a base
     **paginada** em `/api/v1/registros/*`.
+
+    ## 9.0.2
+    Sem mudança de contrato. O histórico da previsão (`/api/v1/painel/historico/*`) guarda o
+    registro mais antigo de cada dia (ADR-023): do walk-forward, a janela que previu o dia
+    primeiro (`horizonte` até 14, não mais só 1); da previsão, os 14 primeiros dias de cada treino.
+    Nenhum dia gravado é trocado por um treino seguinte.
 
     ## 9.0.1
     Sem mudança de contrato. A janela de treino passa de 365 para 545 dias (ADR-022): muda o valor de
@@ -78,7 +84,7 @@ info:
     produtos regulares), o teste de acerto por produto (`/painel/produtos/.../backtest`) e as
     rotas nunca implementadas (products, forecast, alerts, simulation, reports). O painel lê
     o último treino do serviço de previsão; o upload não agenda treino (`needs_training`).
-  version: "9.0.1"
+  version: "9.0.2"
   contact:
     name: Daniel Nunes da Silva & Felipe Gurgel Araújo
     email: felipegurgel5@gmail.com
@@ -765,12 +771,12 @@ components:
           nullable: true
           enum: [forecast, walk_forward, null]
           description: |
-            `forecast`: a previsão que a loja viu (congelada); `walk_forward`: dia que
-            nenhuma previsão cobriu, previsto no teste do treino com as vendas até a véspera
+            `forecast`: a previsão que a loja viu (a primeira que cobriu o dia); `walk_forward`:
+            dia que nenhuma previsão cobriu, com a janela mais antiga do teste do treino que o previu
         horizonte:
           type: integer
           nullable: true
-          description: a quantos dias do início da previsão o dia estava (1 no walk-forward)
+          description: com quantos dias de antecedência o dia foi previsto (1 = na véspera; até 14)
         loja_fechada:
           type: boolean
           nullable: true
@@ -1039,11 +1045,13 @@ paths:
         Um ponto por dia, do começo da base até o último dia com venda do último treino
         concluído do serviço de previsão (`/api/v1/servico-previsao/treinos`): o vendido sem
         encomendas grandes (de `sales`) e o previsto gravado em `forecast_history`. O previsto
-        de cada dia é o da última previsão feita antes dele e não muda depois que o dia passa:
-        com treinos a cada 9 dias, ficam os 9 primeiros dias de cada previsão; com mais de 14
-        dias entre treinos, os 14, e os dias que sobram vêm do 1º dia das janelas do
-        walk-forward do treino seguinte (`fonte = walk_forward`, `horizonte = 1`). `previsto`,
-        `inf`, `sup`, `fonte` e `horizonte` são nulos antes do 1º treino.
+        de cada dia é o registro mais antigo dele, que não é trocado: cada treino grava os 14
+        primeiros dias da sua previsão e, do walk-forward, a janela mais antiga que previu cada
+        dia (até 14 dias antes, `fonte = walk_forward`), só nos dias que ainda não tinham
+        registro. Com treinos semanais, cada dia fica com a previsão do treino que o previu
+        primeiro; antes do 1º treino, ou quando o treino seguinte demorou mais de 14 dias, os
+        dias vêm do walk-forward. `horizonte`: com quantos dias de antecedência o dia foi
+        previsto. `previsto`, `inf`, `sup`, `fonte` e `horizonte` são nulos antes do 1º treino.
 
         `avaliacao`: as métricas do walk-forward da série (dias de loja aberta) no último treino
         concluído que a avaliou — se o último treino a recusou (`insufficient_data`, `error`),

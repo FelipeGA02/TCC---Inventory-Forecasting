@@ -1,8 +1,10 @@
 """Preenche o histórico da previsão (`forecast_history`) a partir do último treino concluído
-do serviço de previsão, num banco em que esse treino é anterior à gravação do histórico.
-Pode rodar mais de uma vez: dia já gravado antes do início da previsão não muda.
+do serviço de previsão, com a regra do ADR-023: de cada dia do walk-forward guardado, a janela
+mais antiga que o previu, e os 14 primeiros dias da previsão. Pode rodar mais de uma vez: dia
+já gravado não muda.
 
-`--recriar` apaga o histórico antes — o que o treino antigo do painel gravou, se houver.
+`--recriar` apaga o histórico antes — para refazer um histórico gravado com a regra anterior
+(a última previsão antes do dia, com o walk-forward só de 1 dia antes).
 
 Uso (a partir de `ia-predictor/`):
     python -m backend.scripts.semear_historico [--recriar]

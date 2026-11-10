@@ -1,6 +1,14 @@
 # Contexto do artigo e fatos consolidados
 
-## Estado em 05/11/2026 (vale sobre as seções antigas abaixo)
+## Estado em 09/11/2026 (vale sobre as seções abaixo)
+
+- **DOCX vigente:** `docs/project/TCC2 - Relatorio Tecnico - v5.docx`, feito sobre `TCC2 - Relatorio Tecnico.docx` (edições do autor em Word, sem a seção 6 anterior: Justificativa = 2, Interface = 6, Resultados = 7, Conclusão = 8).
+- **Regras do autor (09/11/2026):** log1p e testes fora do fluxo de produção (ADF, KPSS, Holt-Winters, Random Forest, clima, desagregação) só aparecem em Resultados; fora de Metodologia e Resultados, sem excesso de números; cada tópico fica no seu objetivo; nada de ";" no texto (exceto nas citações e referências ABNT).
+- **Solução descrita:** ADR-017 a ADR-021 (limiar por loja, fator das datas, d por série, previsão de 91 dias). E1 a E12 estão no Quadro 5 (Seção 7.2). E12 vem do job 3 do SQLite local (09/11/2026). O sumário é campo TOC real: atualizar com `TablesOfContents.Item(1).Update()`.
+- **Artigo no modelo da faculdade:** `docs/project/TCC2 - Artigo - Modelo Dom Helder.docx` (18 páginas, limite de 12 a 20), com Introdução, Referencial, Metodologia, Resultados e Discussão, Conclusão, Referências e Apêndices A e B. A v5 continua como relatório completo. Pendente: e-mails institucionais e área do doutorado do orientador, marcados em amarelo nas notas de rodapé.
+- **Atenção à ferramenta Bash:** `\\n` em comando chega como `\n`; em script use `chr(92)+'n'`.
+
+## Estado em 05/11/2026
 
 - **DOCX vigente:** `docs/project/TCC2 - Relatorio Tecnico - v4.docx` (v4, 05/11/2026: sem a classificação confiável/cautela, 4.7 integrada à arquitetura; scripts em `exemplos/revisao_2026-11-05_v4/`). A v3 foi montada a partir do DOCX **nativo** da v2
   (`Downloads/TCC2 - Relatorio Tecnico - v2 (comentarios atendidos).docx`). A cópia de mesmo nome em `docs/project/`

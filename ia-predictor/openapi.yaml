@@ -8,7 +8,7 @@ info:
     (padrão 14, ADR-021), com intervalo de confiança de 95%. Cada uma das 4 categorias e cada
     produto de grama, em cada loja, tem o seu SARIMAX (m = 7, D = 0; d = 0 ou 1 escolhido série a série
     pelo walk-forward — ADR-020; janela deslizante de
-    365 dias, testado dia a dia em 8 semanas com h = 14); o total da loja é a soma das categorias (ADR-017). A previsão é treinada pelo
+    545 dias — ADR-022, testado dia a dia em 8 semanas com h = 14); o total da loja é a soma das categorias (ADR-017). A previsão é treinada pelo
     admin (`POST /api/v1/servico-previsao/treinos`) depois de carregar as planilhas; não há
     treino agendado. O histórico da previsão guarda o previsto de cada dia, congelado. A
     loja decide a compra; o sistema informa quanto deve vender (ADR-011).
@@ -27,6 +27,10 @@ info:
     Relatórios leem `/api/v1/painel`, o histórico da previsão lê
     `/api/v1/painel/historico/*` ao abrir cada item, e Conferir Dados consulta a base
     **paginada** em `/api/v1/registros/*`.
+
+    ## 9.0.1
+    Sem mudança de contrato. A janela de treino passa de 365 para 545 dias (ADR-022): muda o valor de
+    `janela_dias` na configuração do treino e do painel, e a descrição acima.
 
     ## 9.0.0
     Conferir Dados sem abas: saem o parâmetro `visao` de `/api/v1/registros/*` e o `por_visao` do
@@ -74,7 +78,7 @@ info:
     produtos regulares), o teste de acerto por produto (`/painel/produtos/.../backtest`) e as
     rotas nunca implementadas (products, forecast, alerts, simulation, reports). O painel lê
     o último treino do serviço de previsão; o upload não agenda treino (`needs_training`).
-  version: "9.0.0"
+  version: "9.0.1"
   contact:
     name: Daniel Nunes da Silva & Felipe Gurgel Araújo
     email: felipegurgel5@gmail.com
@@ -437,7 +441,7 @@ components:
             d_candidatos: {type: array, items: {type: integer}, example: [0, 1], description: "d testados no walk-forward de cada série; o escolhido está em `ordem` (ADR-020)"}
             D: {type: integer, example: 0}
             alpha_ic: {type: number, example: 0.05}
-            janela_dias: {type: integer, example: 365}
+            janela_dias: {type: integer, example: 545}
             origens: {type: integer, example: 56}
             passo_origem_dias: {type: integer, example: 1}
             limiares_encomenda_un: {type: object, additionalProperties: {type: number}, example: {jardim-canada: 1342.6, itabirito: 1959.7}, description: "Por loja: pedido acima disto é encomenda grande — média + 4 desvios-padrão da quantidade dos pedidos da loja (ADR-018)"}
@@ -636,7 +640,7 @@ components:
         d: {type: integer, example: 0, description: "Com um candidato só, o d de todas as séries; com mais, o primeiro"}
         d_candidatos: {type: array, items: {type: integer}, example: [0, 1], description: "d testados no walk-forward de cada série; fica o que errou menos (ADR-020)"}
         D: {type: integer, example: 0, description: Diferenciação sazonal (fixa em 0 — o ciclo entra pelas dummies)}
-        janela_dias: {type: integer, example: 365, description: Janela deslizante de treino}
+        janela_dias: {type: integer, example: 545, description: Janela deslizante de treino (ADR-022)}
         origens: {type: integer, example: 56, description: Origens do walk-forward}
         passo_dias: {type: integer, example: 1, description: A origem anda este número de dias}
         horizonte_dias: {type: integer, example: 14, description: Horizonte do walk-forward (o teste que dá o status)}

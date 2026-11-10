@@ -239,7 +239,7 @@ def test_treino_em_processos_paralelos(client, admin, config_rapida, monkeypatch
 def test_produto_sem_vendas_suficientes_fica_registrado_sem_previsao(client, admin, monkeypatch):
     _forcar_novo_treino(monkeypatch)
     monkeypatch.setattr(settings, "TRAINING_WORKERS", 1)
-    exigente = ConfigTreino(janela_dias=30, origens=3, grade_pq=(0, 1), grade_PQ=(0,), min_historico_dias=20,
+    exigente = ConfigTreino(janela_dias=30, janela_venda_dias=30, origens=3, grade_pq=(0, 1), grade_PQ=(0,), min_historico_dias=20,
                             min_dias_com_venda=29)  # o produto 100 vende 25 dias por janela de 30
     monkeypatch.setattr(servico_previsao, "config_treino", lambda: exigente)
     assert client.post(f"{BASE}/treinos", headers=admin).status_code == 202

@@ -19,7 +19,7 @@ from backend.domain.models.trainer import (
 )
 
 FIM = pd.Timestamp("2026-02-28")
-RAPIDA = ConfigTreino(janela_dias=60, origens=4, grade_pq=(0, 1), grade_PQ=(0,), min_historico_dias=30,
+RAPIDA = ConfigTreino(janela_dias=60, janela_venda_dias=60, origens=4, grade_pq=(0, 1), grade_PQ=(0,), min_historico_dias=30,
                       min_dias_com_venda=10)
 
 
@@ -193,6 +193,20 @@ def test_produto_que_quase_nao_vende_fica_sem_modelo():
     assert r.status == evaluator.STATUS_DADOS_INSUFICIENTES
     assert "vendeu em 3 dia(s)" in r.motivo
     assert r.previsao is None and r.backtest is None
+
+
+def test_dias_com_venda_do_produto_contam_no_periodo_proprio_nao_na_janela_de_treino():
+    # ADR-022: a janela de treino cresceu (545 dias), mas a regra dos dias com venda continua no
+    # período dela (365): produto que só vendeu antes desse período não volta a ter previsão
+    y, X, aberta = _serie()
+    y[:] = 0.0
+    y.iloc[-150:-60] = 5.0  # 90 dias com venda, todos antes dos últimos 60
+    janela_maior = ConfigTreino(janela_dias=180, janela_venda_dias=60, origens=4, grade_pq=(0, 1), grade_PQ=(0,),
+                                min_historico_dias=30, min_dias_com_venda=10)
+    assert "vendeu em 0 dia(s) nos últimos 60" in motivo_inelegivel(y, janela_maior, NIVEL_PRODUTO)
+    mesma_janela = ConfigTreino(janela_dias=180, janela_venda_dias=180, origens=4, grade_pq=(0, 1), grade_PQ=(0,),
+                                min_historico_dias=30, min_dias_com_venda=10)
+    assert motivo_inelegivel(y, mesma_janela, NIVEL_PRODUTO) is None
 
 
 def test_historico_curto_fica_sem_modelo():

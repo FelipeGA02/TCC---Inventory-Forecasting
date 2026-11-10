@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import * as DicaPrimitive from "@radix-ui/react-tooltip";
-import { CalendarDays, History, Search } from "lucide-react";
+import { CalendarDays, History, Info, Search } from "lucide-react";
 import { Area, CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Input } from "../ui/input";
@@ -501,8 +501,9 @@ function DetalheProduto({ p, horizonte, onVerHistorico }: { p: ProdutoDaLoja; ho
     <div className="flex flex-col gap-4">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <p className="text-sm" style={{ fontWeight: 600 }}>
+          <p className="text-sm inline-flex items-center gap-1.5" style={{ fontWeight: 600 }}>
             {p.nome}
+            {ehGramaEsparsa(p) && <InfoGramaEsparsa />}
           </p>
           <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
             cód. {p.codigo} · {nomeCategoria(p.categoria)} · {p.nomeUnidade}
@@ -549,6 +550,39 @@ function DetalheProduto({ p, horizonte, onVerHistorico }: { p: ProdutoDaLoja; ho
         </ComposedChart>
       </ResponsiveContainer>
     </div>
+  );
+}
+
+/**
+ * Gramas de Jardim Canadá que vendem pouco e em poucos dias: no teste de 2025–2026 (doc 11 §4.1,
+ * ADR-022), a previsão delas não acertou mais do que repetir a venda da semana anterior.
+ */
+const GRAMAS_ESPARSAS: Record<string, string[]> = {
+  "jardim-canada": ["00013475", "00150005", "166", "1294"],
+};
+
+function ehGramaEsparsa(p: ProdutoDaLoja): boolean {
+  return GRAMAS_ESPARSAS[p.unidade]?.includes(p.codigo) ?? false;
+}
+
+/** Ícone de informação: ao passar o mouse, explica por que a previsão deste produto é só uma referência. */
+function InfoGramaEsparsa() {
+  return (
+    <DicaPrimitive.Provider delayDuration={100}>
+      <DicaPrimitive.Root>
+        <DicaPrimitive.Trigger asChild>
+          <button type="button" aria-label="Sobre a previsão deste produto" className="inline-flex" style={{ color: "var(--muted-foreground)" }}>
+            <Info size={14} />
+          </button>
+        </DicaPrimitive.Trigger>
+        <CaixaDica>
+          <p className="text-xs max-w-[280px]" style={{ fontWeight: 400, lineHeight: 1.45 }}>
+            Esta grama vende pouco e em poucos dias. Para ela, a previsão diária não acerta mais do que olhar o que vendeu
+            na semana passada. Use os números como referência, junto com a experiência da loja.
+          </p>
+        </CaixaDica>
+      </DicaPrimitive.Root>
+    </DicaPrimitive.Provider>
   );
 }
 

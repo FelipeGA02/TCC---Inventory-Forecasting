@@ -58,7 +58,7 @@ venda da base (`data_until`).
 
 **Quem treina.** Fica `insufficient_data`, sem previsão e com o motivo no log:
 - a série com menos de 180 dias antes da 1ª origem do walk-forward;
-- o produto que vendeu em menos de 28 dias da última janela de 365.
+- o produto que vendeu em menos de 28 dos últimos 365 dias.
 
 **A partir de quando uma série tem previsão.** Os 180 dias contam antes da 1ª origem do
 walk-forward, e não até a última venda. A 1ª origem fica 68 dias antes da última venda: são
@@ -67,8 +67,8 @@ dias à frente. Então a série precisa de **249 dias de calendário** (180 + 69
 primeira venda até a última, o que dá pouco mais de 8 meses. Os dias contados são de
 calendário, inclusive os zeros (domingo, feriado, dia sem venda). A série de categoria
 começa na primeira venda da loja, e a de produto, na primeira venda do produto naquela loja.
-O produto de grama precisa ainda de venda em pelo menos 28 desses dias, dentro da última
-janela de 365. Com os parâmetros padrão (`MIN_OBSERVATIONS_DAYS=180`,
+O produto de grama precisa ainda de venda em pelo menos 28 desses dias, dentro dos últimos
+365 dias. Com os parâmetros padrão (`MIN_OBSERVATIONS_DAYS=180`,
 `FORECAST_SERVICE_WF_ORIGINS=56`, `FORECAST_HORIZON_DAYS=14`), um produto que estreia hoje
 ganha previsão no primeiro treino depois de 249 dias e 28 dias com venda. Com dados até
 28/02/2026, isso vale para quem vendeu pela primeira vez até 25/06/2025.
@@ -79,8 +79,10 @@ em cada loja e a cada treino (`motivo_inelegivel` em `backend/domain/models/trai
 
 1. **Histórico:** 180 dias antes da 1ª origem do walk-forward, ou seja, 249 dias de
    calendário desde a primeira venda do produto na loja (`MIN_OBSERVATIONS_DAYS`).
-2. **Frequência de venda:** venda em pelo menos 28 dias da última janela de 365
-   (`FORECAST_SERVICE_MIN_SALE_DAYS`). Conta dias com venda, não quantidade, e as encomendas
+2. **Frequência de venda:** venda em pelo menos 28 dos últimos 365 dias
+   (`FORECAST_SERVICE_MIN_SALE_DAYS` e `FORECAST_SERVICE_MIN_SALE_WINDOW_DAYS`). Esse período é
+   separado da janela de treino (545 dias, ADR-022): a janela maior não traz de volta produto
+   que parou de vender. Conta dias com venda, não quantidade, e as encomendas
    grandes ficam de fora. Esta é a regra que separa o produto regular do irregular.
 
 O produto que falha em qualquer uma vira `insufficient_data`: fica sem previsão, e o motivo
@@ -217,10 +219,11 @@ a cada treino: com planilhas novas, um produto pode passar dos 28 dias ou cair a
 **Para cada série treinável:**
 
 1. **Ordem por AIC.** O grid é p, q ∈ 0..2 e P, Q ∈ 0..1, com m = 7, D = 0 e as 8 exógenas de
-   calendário. Ajusta só na janela de 365 dias que termina na véspera da 1ª origem, então a
+   calendário. Ajusta só na janela de treino (545 dias, `FORECAST_SERVICE_WINDOW_DAYS`, ADR-022; até
+   10/11/2026, 365) que termina na véspera da 1ª origem, então a
    escolha não vê o período avaliado. Isso é feito duas vezes, com d = 0 (com constante) e d = 1
    (sem), e os passos 1 e 2 rodam para cada um (ADR-020).
-2. **Walk-forward.** São 56 origens andando 1 dia. Em cada uma, o modelo é reajustado nos 365
+2. **Walk-forward.** São 56 origens andando 1 dia. Em cada uma, o modelo é reajustado nos 545
    dias antes dela e prevê os 14 dias seguintes. As janelas se sobrepõem: cada dia avaliado
    aparece em até 14 origens, uma por horizonte. As métricas são dos dias de loja aberta:
    - MASE;
@@ -234,7 +237,7 @@ a cada treino: com planilhas novas, um produto pode passar dos 28 dias ou cair a
 3. **Complemento.** A última origem completa fica 13 dias antes da última venda. As 13
    origens seguintes preveem só o próprio dia (h = 1), fora das métricas, para o histórico
    (§4).
-4. **Ajuste final.** Ajusta nos últimos 365 dias e prevê os 91 dias seguintes à última venda
+4. **Ajuste final.** Ajusta nos últimos 545 dias e prevê os 91 dias seguintes à última venda
    (`FORECAST_MAX_HORIZON_DAYS`, ADR-021; o walk-forward continua com 14). Desse ajuste saem:
    - os coeficientes (`series_models.params.coeficientes`);
    - o diagnóstico dos resíduos: Ljung-Box até 14 dias e Shapiro-Wilk, em

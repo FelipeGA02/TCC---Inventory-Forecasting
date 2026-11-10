@@ -173,6 +173,7 @@ def config_treino() -> ConfigTreino:
         origens=settings.FORECAST_SERVICE_WF_ORIGINS, passo=1,
         min_historico_dias=settings.MIN_OBSERVATIONS_DAYS,
         min_dias_com_venda=settings.FORECAST_SERVICE_MIN_SALE_DAYS,
+        janela_venda_dias=settings.FORECAST_SERVICE_MIN_SALE_WINDOW_DAYS,
         **({} if settings.FORECAST_SERVICE_EVENT_FACTOR else {"fator_datas": (), "queda_datas": ()}),
     )
 
@@ -187,6 +188,7 @@ def _receita() -> dict:
             "janela_dias": settings.FORECAST_SERVICE_WINDOW_DAYS, "origens": settings.FORECAST_SERVICE_WF_ORIGINS,
             "min_historico_dias": settings.MIN_OBSERVATIONS_DAYS,
             "min_dias_com_venda": settings.FORECAST_SERVICE_MIN_SALE_DAYS,
+            "janela_venda_dias": settings.FORECAST_SERVICE_MIN_SALE_WINDOW_DAYS,
             "datas_comemorativas": settings.FORECAST_SERVICE_EVENT_FACTOR}
 
 
@@ -732,7 +734,7 @@ def _executar(job_id: int, cfg: ConfigTreino) -> None:
         for s, motivo in inelegiveis:
             _gravar_serie(job_id, s, ResultadoSerie(status=evaluator.STATUS_DADOS_INSUFICIENTES, motivo=motivo,
                                                     dias_historico=len(s.y),
-                                                    dias_com_venda_janela=int((s.y.iloc[-cfg.janela_dias:] > 0).sum())),
+                                                    dias_com_venda_janela=int((s.y.iloc[-cfg.janela_venda_dias:] > 0).sum())),
                           cfg, contadores, total, treinada=False)
 
         historico = defaultdict(lambda: ([], []))  # loja → (walk-forward, previsão)

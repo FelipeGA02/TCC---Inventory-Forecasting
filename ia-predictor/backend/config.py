@@ -44,9 +44,10 @@ class Settings(BaseSettings):
     FORECAST_SERVICE_D_CANDIDATES: list[int] = [0, 1]  # ADR-020: d testados no walk-forward de cada série; [0] = d = 0 em tudo
     SEASONAL_PERIOD: int = 7              # m — sazonalidade semanal do SARIMAX
     MIN_OBSERVATIONS_DAYS: int = 180      # histórico mínimo antes da 1ª origem do walk-forward
-    FORECAST_SERVICE_WINDOW_DAYS: int = 365     # janela deslizante de treino (dias)
+    FORECAST_SERVICE_WINDOW_DAYS: int = 545     # janela deslizante de treino (dias) — ADR-022 (antes 365; doc 11)
     FORECAST_SERVICE_WF_ORIGINS: int = 56       # origens do walk-forward, andando 1 dia (8 semanas)
-    FORECAST_SERVICE_MIN_SALE_DAYS: int = 28    # produto: dias com venda na última janela para treinar
+    FORECAST_SERVICE_MIN_SALE_DAYS: int = 28    # produto: dias com venda nos últimos FORECAST_SERVICE_MIN_SALE_WINDOW_DAYS para treinar
+    FORECAST_SERVICE_MIN_SALE_WINDOW_DAYS: int = 365  # período da regra acima, separado da janela de treino (ADR-022)
     FORECAST_SERVICE_KEEP_BACKTEST_JOBS: int = 4  # treinos concluídos que guardam o walk-forward inteiro
     FORECAST_SERVICE_EVENT_FACTOR: bool = True  # datas comemorativas (ADR-019): alta em Flores de corte, queda de fim de ano e Dia do Trabalho nas outras
     TRAINING_WORKERS: int = 8             # processos no treino (no servidor: o nº de CPUs)

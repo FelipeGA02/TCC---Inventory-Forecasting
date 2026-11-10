@@ -65,7 +65,12 @@ class ConfigTreino:
     d_candidatos: tuple[int, ...] = ()
     horizonte: int = 14             # do walk-forward (validação e métricas)
     horizonte_previsao: int | None = None  # dias da previsão final; None = `horizonte`
+    # janela deslizante de treino; a produção usa FORECAST_SERVICE_WINDOW_DAYS (545, ADR-022). O padrão
+    # fica em 365 para os experimentos de training_scripts/ continuarem reproduzindo o que documentaram
     janela_dias: int = 365
+    # período em que o produto precisa ter vendido em `min_dias_com_venda` dias para ser treinado;
+    # separado da janela de treino para a janela maior não trazer de volta produto parado (ADR-022)
+    janela_venda_dias: int = 365
     origens: int = 56
     passo: int = 1
     grade_pq: tuple[int, ...] = (0, 1, 2)
@@ -147,9 +152,9 @@ def motivo_inelegivel(y: pd.Series, config: ConfigTreino, nivel: str) -> str | N
         return (f"histórico de {len(antes)} dias antes do período de validação; "
                 f"o mínimo é {config.min_historico_dias}")
     if nivel == NIVEL_PRODUTO:
-        dias = int((y.iloc[-config.janela_dias:] > 0).sum())
+        dias = int((y.iloc[-config.janela_venda_dias:] > 0).sum())
         if dias < config.min_dias_com_venda:
-            return (f"vendeu em {dias} dia(s) nos últimos {config.janela_dias}; "
+            return (f"vendeu em {dias} dia(s) nos últimos {config.janela_venda_dias}; "
                     f"o mínimo é {config.min_dias_com_venda}")
     return None
 

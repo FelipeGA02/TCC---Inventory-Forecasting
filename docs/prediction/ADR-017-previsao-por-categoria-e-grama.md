@@ -49,7 +49,7 @@ conservadora, mais larga que a exata. Não há mais modelo da loja, desagregaç�
 | Série | fluxo diário: venda sem as notas acima de 2.000 un. (ADR-013; desde o ADR-018, acima de média + 4 desvios-padrão da quantidade dos pedidos da loja), sem `Servico e taxa` |
 | Modelo | SARIMAX com m = 7, d = 0, D = 0 e constante; ordem (p, q)(P, Q) por AIC no grid p, q ∈ 0..2 e P, Q ∈ 0..1, só com a janela antes da 1ª origem |
 | Exógenas | 6 dummies de dia da semana, `loja_fechada` e `abertura_excepcional` (calendário de cada loja) |
-| Janela | deslizante, 365 dias (`FORECAST_SERVICE_WINDOW_DAYS`) |
+| Janela | deslizante, 365 dias (`FORECAST_SERVICE_WINDOW_DAYS`); **545 desde o ADR-022** (a regra dos 28 dias com venda continua nos últimos 365) |
 | Validação | walk-forward com 56 origens andando 1 dia (8 semanas), cada uma prevendo 14 dias; métricas nos dias de loja aberta |
 | Status | `trained`: a série ajustou e tem previsão; MASE, cobertura da faixa de 95% e as outras métricas do walk-forward ficam registradas, sem classificar a série |
 | Sem dados | `insufficient_data`, sem previsão: menos de 180 dias antes da 1ª origem; no produto, venda em menos de 28 dias da última janela (o critério e a origem do 28 estão no doc 07 §2) |

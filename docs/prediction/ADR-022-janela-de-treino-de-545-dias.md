@@ -51,9 +51,11 @@ janela, e mediu também até onde a previsão aguenta.
    partir de 4–8 semanas.
 5. **Ícone de informação nas 4 gramas pequenas de Jardim Canadá.** São a Esmeralda (ITO) 00013475,
    a Preta pelo de urso saco 00150005, a Preta pelo de urso BDJA 166 e o Capim dos Texas verde 1294.
-   - Na tela de Previsão, ao lado do nome do produto, um ícone explica, ao passar o mouse, que a
-     previsão delas não acerta mais do que olhar a venda da semana anterior.
-   - No doc 11 §4.1, elas perdem da naïve já nas 2 primeiras semanas (erro ÷ naïve 1,02–1,17).
+   - Na tela de Previsão, ao lado do nome do produto, um ícone mostra, ao passar o mouse: "Esta grama
+     vende pouco e em poucos dias. Para ela, use os números como referência, junto com a experiência
+     da loja."
+   - O motivo (doc 11 §4.1): elas perdem da naïve já nas 2 primeiras semanas (erro ÷ naïve
+     1,02–1,17). A tela não cita a comparação, só orienta o uso.
    - A lista fica no frontend (`GRAMAS_ESPARSAS` em `PrevisaoSarimax.tsx`) e é revista quando o
      estudo for refeito.
    - Nenhuma outra mensagem foi acrescentada à tela.

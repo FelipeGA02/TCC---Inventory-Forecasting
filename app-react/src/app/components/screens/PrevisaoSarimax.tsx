@@ -577,8 +577,8 @@ function InfoGramaEsparsa() {
         </DicaPrimitive.Trigger>
         <CaixaDica>
           <p className="text-xs max-w-[280px]" style={{ fontWeight: 400, lineHeight: 1.45 }}>
-            Esta grama vende pouco e em poucos dias. Para ela, a previsão diária não acerta mais do que olhar o que vendeu
-            na semana passada. Use os números como referência, junto com a experiência da loja.
+            Esta grama vende pouco e em poucos dias. Para ela, use os números como referência, junto com a experiência da
+            loja.
           </p>
         </CaixaDica>
       </DicaPrimitive.Root>

@@ -20,7 +20,7 @@ do SARIMAX pelo AIC"];
   met [label="Manter o d de menor erro e calcular as métricas:
 MASE, erro relativo,
 cobertura e largura do intervalo de 95%"];
-  fin [label="Ajustar nos últimos 365 dias e prever os 91 dias\nseguintes (intervalo de 95%) e aplicar o\nfator das datas comemorativas"];
+  fin [label="Ajustar nos últimos 545 dias e prever os 91 dias\nseguintes (intervalo de 95%) e aplicar o\nfator das datas comemorativas"];
   gh  [label="Gravar previsões, histórico congelado\ne registro do treino"];
   tel [label="Exibir previsão, histórico e relatórios"];
   fim [shape=doublecircle, label="", width=0.26, height=0.26, fixedsize=true, style=filled, fillcolor="#000000", color="#000000"];

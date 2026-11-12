@@ -1,0 +1,34 @@
+const path = require("path");
+const APP = "c:/Users/felip/OneDrive/Documentos/Estudos/TCC/TCC---Inventory-Forecasting/app-react";
+const { chromium } = require(path.join(APP, "node_modules", "@playwright/test"));
+const OUT = process.argv[2];
+(async () => {
+  const browser = await chromium.launch();
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "pt-BR", timezoneId: "America/Sao_Paulo" });
+  await ctx.addInitScript(() => { window.print = () => {}; });
+  const page = await ctx.newPage();
+  const wait = async () => { await page.waitForTimeout(500); await page.getByText(/^(Carregando|Abrindo|Retomando)/).first().waitFor({ state: "detached", timeout: 60000 }).catch(() => {}); };
+  const shot = async (name) => {
+    await page.waitForLoadState("networkidle").catch(() => {});
+    await page.addStyleTag({ content: "*,*::before,*::after{animation-duration:0s!important;transition-duration:0s!important}" });
+    await page.waitForTimeout(1800);
+    const s = await page.addStyleTag({ content: ".h-screen{height:auto!important;min-height:100vh}.h-screen .overflow-hidden,main{overflow:visible!important}" });
+    await page.screenshot({ path: path.join(OUT, name + ".png"), fullPage: true });
+    await s.evaluate((el) => el.remove());
+  };
+  await page.goto("http://localhost:5199/"); await page.waitForURL(/\/login$/);
+  await page.getByLabel("E-mail").fill(process.env.EM); await page.getByLabel("Senha").fill(process.env.PW);
+  await page.getByRole("button", { name: "Entrar" }).click();
+  await page.getByRole("navigation").getByRole("link", { name: "Início" }).waitFor(); await wait();
+  await page.getByRole("navigation").getByRole("link", { name: "Previsão de Vendas" }).click(); await wait();
+  await page.getByText(/^Produto \(\d+\)$/).first().click(); await page.waitForTimeout(1500);
+  await page.mouse.move(5, 890);
+  await shot("f_previsao_produto");
+  await page.getByRole("navigation").getByRole("link", { name: "Relatórios" }).click(); await wait();
+  const pop = ctx.waitForEvent("page", { timeout: 60000 });
+  await page.getByRole("button", { name: "PDF" }).first().click();
+  const p2 = await pop; await p2.waitForLoadState("load").catch(() => {}); await p2.waitForTimeout(2500);
+  await p2.pdf({ path: path.join(OUT, "relatorio_gerencial.pdf"), format: "A4", printBackground: true });
+  console.log("pdf ok");
+  await browser.close();
+})().catch((e) => { console.error(e); process.exit(1); });

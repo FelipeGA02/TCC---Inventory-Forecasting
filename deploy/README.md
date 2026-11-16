@@ -2,6 +2,9 @@
 
 A decisão e as alternativas estão no [ADR-015](../docs/backend/ADR-015-publicacao-render-vercel.md).
 
+> **Azure:** a API também pode ir para o Azure Container Apps, com o botão "Treinar previsões"
+> ligando um job de treino — passo a passo em [azure/README.md](azure/README.md).
+
 ```
 navegador ──► Vercel (front estático)
          └──► Render "verde-perto-api" (Virgínia, EUA) ──► Neon (São Paulo)

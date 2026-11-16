@@ -7,8 +7,12 @@ disparo fica em `forecast_jobs` com `trigger = script`, com o log de cada série
 (`skipped`) se os dados não mudaram desde o último treino concluído. Não roda junto com um
 treino em andamento.
 
+No Azure (`TRAINING_RUNNER=azure_job`, deploy/azure/README.md) é o comando do Container
+Apps Job, com `--pendente`: executa o disparo que o botão "Treinar previsões" deixou
+`pending`; sem disparo pendente (job iniciado à mão no portal), treina como o script comum.
+
 Uso (a partir de `ia-predictor/`):
-    python -m backend.scripts.treinar_previsoes [--workers N] [--forcar]
+    python -m backend.scripts.treinar_previsoes [--workers N] [--forcar] [--pendente]
 
 `--forcar` treina mesmo sem dados novos (por exemplo, para o código novo do treino valer sobre
 a mesma base); o log do disparo registra que foi forçado.
@@ -32,12 +36,26 @@ def main() -> int:
                              "proot/Termux: 1)")
     parser.add_argument("--forcar", action="store_true",
                         help="treina mesmo que os dados não tenham mudado desde o último treino concluído")
+    parser.add_argument("--pendente", action="store_true",
+                        help="executa o disparo pendente do botão (job do Azure); sem ele, treina como sempre")
     args = parser.parse_args()
     settings.TRAINING_WORKERS = max(1, args.workers)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s", datefmt="%H:%M:%S")
 
     print(f"[treinar_previsoes] banco: {engine.url.render_as_string(hide_password=True)}", flush=True)
     create_tables()
+    if args.pendente:
+        t0 = time.time()
+        try:
+            job = servico_previsao.executar_pendente()
+        except servico_previsao.TreinoEmAndamento:
+            print("[treinar_previsoes] já existe um treino em andamento", flush=True)
+            return 1
+        if job is not None:
+            print(f"[treinar_previsoes] treino {job.id} (pedido pelo botão): {job.status} em "
+                  f"{time.time() - t0:.0f} s — {job.message}", flush=True)
+            return 1 if job.status == "error" else 0
+        print("[treinar_previsoes] nenhum treino pendente: treinando como o script comum", flush=True)
     with SessionLocal() as db:
         if not servico_previsao.dados_alterados(db):
             print("[treinar_previsoes] os dados não mudaram desde o último treino: "

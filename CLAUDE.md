@@ -240,7 +240,8 @@ FORECAST_SERVICE_MIN_SALE_WINDOW_DAYS=365  # período da regra acima, separado d
 FORECAST_SERVICE_KEEP_BACKTEST_JOBS=4  # treinos concluídos que guardam o walk-forward inteiro
 FORECAST_SERVICE_EVENT_FACTOR=true # fator das datas comemorativas: alta em Flores de corte, queda de fim de ano e Dia do Trabalho nas outras (ADR-019)
 TRAINING_WORKERS=8                 # processos no treino (proot/Termux de desenvolvimento: use 1)
-TRAINING_RUNNER=local              # local: botão "Treinar previsões" (thread da API) · externo: a API não treina (Render, script treinar_previsoes)
+TRAINING_RUNNER=local              # local: botão "Treinar previsões" (thread da API) · azure_job: o botão liga o Container Apps Job (deploy/azure/README.md) · externo: a API não treina (Render, script treinar_previsoes)
+AZURE_TRAINING_JOB_ID=            # com azure_job: /subscriptions/.../providers/Microsoft.App/jobs/verde-perto-treino
 ```
 
 ---

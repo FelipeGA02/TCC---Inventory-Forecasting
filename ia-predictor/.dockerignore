@@ -10,3 +10,6 @@ models
 tests
 training_scripts/output
 training_scripts/results
+.venv
+venv
+*.log

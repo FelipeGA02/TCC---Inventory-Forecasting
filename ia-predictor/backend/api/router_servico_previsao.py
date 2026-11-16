@@ -4,7 +4,8 @@
     mudaram desde o último treino concluído. A aba de notificações consulta isto.
   * `POST /treinos`: dispara o treino em segundo plano (202). Sem dados novos, registra o
     disparo como `skipped` e responde 200 sem treinar. 409 se já houver treino rodando;
-    503 se esta API não treina (`TRAINING_RUNNER=externo`).
+    503 se esta API não treina (`TRAINING_RUNNER=externo`) ou se o Azure não iniciou o job do
+    treino (`TRAINING_RUNNER=azure_job`).
   * `GET  /treinos/{id}`, `/treinos/{id}/logs` e `/treinos/{id}/series`: o disparo, o log
     do treino e o resultado de cada série com a previsão dos próximos dias.
 
@@ -48,6 +49,7 @@ _MSG_INICIADO = "Treino iniciado em segundo plano. Acompanhe o progresso nas not
 _MSG_FORA = ("Nesta instalação a previsão é atualizada pela equipe do projeto, fora do sistema. "
              "Avise a equipe quando enviar planilhas novas.")
 _MSG_NAO_ENCONTRADO = "Treino não encontrado."
+_MSG_NAO_INICIADO = "Não foi possível iniciar o treino no servidor. Tente de novo em alguns minutos."
 
 
 def _treino(job: ForecastJob | None) -> TreinoServico | None:
@@ -101,6 +103,8 @@ def disparar(response: Response, user: User = Depends(require_admin)) -> Disparo
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=_MSG_FORA)
     except servico_previsao.TreinoEmAndamento:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=_MSG_EM_ANDAMENTO)
+    except servico_previsao.TreinoNaoIniciado:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=_MSG_NAO_INICIADO)
     if not iniciou:
         response.status_code = status.HTTP_200_OK
     return DisparoResposta(iniciado=iniciou, mensagem=_MSG_INICIADO if iniciou else job.message,

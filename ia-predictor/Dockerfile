@@ -1,4 +1,4 @@
-# Imagem da API (Render, ver render.yaml e deploy/README.md).
+# Imagem da API e do job de treino (Render: render.yaml e deploy/README.md; Azure: deploy/azure/README.md).
 # Mesma versão de Python do ambiente local (os pins de requirements.txt são testados nela).
 FROM python:3.14-slim
 
@@ -25,6 +25,10 @@ RUN useradd --create-home app \
     && mkdir -p data models training_scripts/output \
     && chown -R app /app
 USER app
+
+# commit do código (versão gravada em cada treino); o build do Azure passa --build-arg GIT_COMMIT=...
+ARG GIT_COMMIT=""
+ENV GIT_COMMIT=${GIT_COMMIT}
 
 EXPOSE 8000
 # Um processo só (o cache e, com TRAINING_RUNNER=local, o agendador ficam na memória dele).

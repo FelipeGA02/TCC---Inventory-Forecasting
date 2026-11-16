@@ -2,7 +2,9 @@
 
 É o treino da previsão do sistema (ADR-017): a previsão (91 dias gravados, a tela mostra de 14
 a 91 — ADR-021), o histórico e os relatórios leem o último disparo concluído. Disparado pelo botão "Treinar previsões" (só
-admin), roda em segundo plano numa thread da API; com `TRAINING_RUNNER=externo` (API no
+admin), roda em segundo plano numa thread da API; com `TRAINING_RUNNER=azure_job` o botão
+registra o disparo e liga um Container Apps Job no Azure, que o executa
+(`treinar_previsoes --pendente`, `executar_pendente`); com `TRAINING_RUNNER=externo` (API no
 Render) roda pelo script `backend/scripts/treinar_previsoes.py`, de outra máquina, com o
 mesmo código (`treinar_agora`). Não há agendador: a loja envia as planilhas e treina. Grava
 tudo no banco de `DATABASE_URL` (o Neon, em produção — ADR-014):
@@ -93,7 +95,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
-from sqlalchemy import case, delete, func, insert, select, update
+from sqlalchemy import and_, case, delete, func, insert, or_, select, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
@@ -125,6 +127,7 @@ from backend.infrastructure.database import (
     SeriesModel,
     SessionLocal,
 )
+from backend.infrastructure import azure_job
 from backend.services import base_vendas
 from training_scripts.preprocessing.remove_encomendas_06 import K_DESVIOS, LIMIAR_QTD_VENDA
 
@@ -142,6 +145,9 @@ _EM_CURSO = ("pending", "running")
 # no proot) e o disparo vira `error` — o admin não fica bloqueado esperando um treino morto.
 _BATIMENTO_S = 30
 _SEM_SINAL_APOS = timedelta(minutes=3)
+# Disparo `pending` do botão com `TRAINING_RUNNER=azure_job`: o job do Azure leva alguns
+# minutos para subir o contêiner e pegar o disparo. Sem começar em 15 minutos, não começou.
+_PENDENTE_SEM_INICIO_APOS = timedelta(minutes=15)
 _INTERVALO_PROGRESSO_S = 2.0              # no modo sequencial, grava o andamento no máximo a cada 2 s
 # Esperas entre as tentativas de gravar no banco durante o treino (~1 min no total): o treino
 # leva mais de uma hora, e uma queda curta da conexão (DNS, rede) com o Postgres remoto
@@ -158,6 +164,10 @@ class TreinoEmAndamento(Exception):
 
 class TreinoForaDaApi(Exception):
     """`TRAINING_RUNNER=externo`: esta API não treina."""
+
+
+class TreinoNaoIniciado(Exception):
+    """`TRAINING_RUNNER=azure_job`: o Azure não iniciou o job do treino."""
 
 
 # --------------------------------------------------------------------------- #
@@ -226,10 +236,11 @@ def _marcar_parados(db: Session, trava_e_minha: bool = False) -> None:
     adquirir a trava (o disparo), então nenhum treino deste processo está rodando."""
     if _TRAVA.locked() and not trava_e_minha:
         return
-    limite = datetime.now() - _SEM_SINAL_APOS
-    parados = db.scalars(select(ForecastJob).where(
-        ForecastJob.status.in_(_EM_CURSO),
-        func.coalesce(ForecastJob.heartbeat_at, ForecastJob.created_at) < limite)).all()
+    agora = datetime.now()
+    ultimo_sinal = func.coalesce(ForecastJob.heartbeat_at, ForecastJob.created_at)
+    parados = db.scalars(select(ForecastJob).where(or_(
+        and_(ForecastJob.status == "running", ultimo_sinal < agora - _SEM_SINAL_APOS),
+        and_(ForecastJob.status == "pending", ultimo_sinal < agora - _PENDENTE_SEM_INICIO_APOS)))).all()
     for job in parados:
         job.status, job.finished_at = "error", datetime.now()
         job.message = "O treino foi interrompido (o servidor reiniciou ou o processo parou). Dispare de novo."
@@ -259,7 +270,8 @@ def dados_alterados(db: Session) -> bool:
 
 
 def na_api() -> bool:
-    return settings.TRAINING_RUNNER == "local"
+    """Se o botão "Treinar previsões" treina (nesta API ou no job do Azure)."""
+    return settings.TRAINING_RUNNER != "externo"
 
 
 # --------------------------------------------------------------------------- #
@@ -316,6 +328,9 @@ def iniciar(user_id: int | None) -> tuple[ForecastJob, bool]:
     try:
         cfg = config_treino()
         job, treinar = _abrir(user_id, "manual", cfg)
+        if treinar and settings.TRAINING_RUNNER == "azure_job":
+            _ligar_job_azure(job)
+            return job, True
         if treinar:
             threading.Thread(target=_executar, args=(job.id, cfg), daemon=True,
                              name=f"servico-previsao-{job.id}").start()
@@ -324,6 +339,49 @@ def iniciar(user_id: int | None) -> tuple[ForecastJob, bool]:
     finally:
         if not iniciou:  # quando inicia, quem libera é a thread do treino
             _TRAVA.release()
+
+
+def _ligar_job_azure(job: ForecastJob) -> None:
+    """Liga o Container Apps Job, que pega este disparo `pending` (`executar_pendente`). Se o
+    Azure recusar, o disparo vira `error` e o admin vê a mensagem."""
+    try:
+        execucao = azure_job.iniciar_job(settings.AZURE_TRAINING_JOB_ID)
+    except azure_job.FalhaAoIniciarJob as e:
+        log.error("serviço de previsão: o Azure não iniciou o job do treino %s: %s", job.id, e)
+        with SessionLocal() as db:
+            j = db.get(ForecastJob, job.id)
+            j.status, j.finished_at = "error", datetime.now()
+            j.message = "Não foi possível iniciar o treino no servidor. Tente de novo em alguns minutos."
+            db.add(ForecastJobLog(job_id=job.id, level="error", message=f"{j.message} ({str(e)[:500]})"))
+            db.commit()
+        raise TreinoNaoIniciado() from e
+    _registrar(job.id, "Treino enviado ao servidor de treino (Azure Container Apps Job"
+               + (f", execução {execucao}" if execucao else "") + "); começa em 1 a 3 minutos.")
+    _atualizar_job(job.id, message="Ligando o servidor de treino: começa em 1 a 3 minutos.")
+
+
+def executar_pendente() -> ForecastJob | None:
+    """O job do Azure (`treinar_previsoes --pendente`): executa o disparo `pending` mais antigo,
+    registrado pelo botão, e só volta no fim. `None` se não houver disparo pendente."""
+    if not _TRAVA.acquire(blocking=False):
+        raise TreinoEmAndamento()
+    executou = False
+    try:
+        with SessionLocal() as db:
+            _marcar_parados(db, trava_e_minha=True)
+            job = db.scalar(select(ForecastJob).where(ForecastJob.status == "pending").order_by(ForecastJob.id))
+            if job is None:
+                return None
+            if db.scalar(select(ForecastJob.id).where(ForecastJob.status == "running")) is not None:
+                raise TreinoEmAndamento()
+            job_id = job.id
+        executou = True
+        _executar(job_id, config_treino())  # libera a trava ao terminar
+    finally:
+        if not executou:
+            _TRAVA.release()
+    with SessionLocal() as db:
+        return db.get(ForecastJob, job_id)
 
 
 def treinar_agora(user_id: int | None = None, trigger: str = "script", cfg: ConfigTreino | None = None,
@@ -349,8 +407,8 @@ def treinar_agora(user_id: int | None = None, trigger: str = "script", cfg: Conf
 
 def versao_codigo() -> str | None:
     """Commit do código que treinou, para saber com qual versão cada previsão do histórico
-    foi feita: `RENDER_GIT_COMMIT` no Render, senão o `git` da pasta do projeto."""
-    commit = os.environ.get("RENDER_GIT_COMMIT")
+    foi feita: `RENDER_GIT_COMMIT` no Render, `GIT_COMMIT` na imagem do Azure, senão o `git` da pasta do projeto."""
+    commit = os.environ.get("RENDER_GIT_COMMIT") or os.environ.get("GIT_COMMIT")
     if commit:
         return commit[:12]
     try:

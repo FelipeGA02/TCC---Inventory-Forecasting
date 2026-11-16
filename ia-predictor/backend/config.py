@@ -51,9 +51,13 @@ class Settings(BaseSettings):
     FORECAST_SERVICE_KEEP_BACKTEST_JOBS: int = 4  # treinos concluídos que guardam o walk-forward inteiro
     FORECAST_SERVICE_EVENT_FACTOR: bool = True  # datas comemorativas (ADR-019): alta em Flores de corte, queda de fim de ano e Dia do Trabalho nas outras
     TRAINING_WORKERS: int = 8             # processos no treino (no servidor: o nº de CPUs)
-    # onde o treino roda: "local" (thread da API, pelo botão "Treinar previsões") ou "externo"
-    # (a API não treina: script treinar_previsoes em outra máquina; API no Render, ADR-015)
-    TRAINING_RUNNER: Literal["local", "externo"] = "local"
+    # onde o treino roda: "local" (thread da API, pelo botão "Treinar previsões"), "azure_job"
+    # (o botão liga o Container Apps Job de AZURE_TRAINING_JOB_ID, que roda treinar_previsoes
+    # --pendente — deploy/azure/README.md) ou "externo" (a API não treina: script
+    # treinar_previsoes em outra máquina; API no Render, ADR-015)
+    TRAINING_RUNNER: Literal["local", "azure_job", "externo"] = "local"
+    # id do job no Azure: /subscriptions/<id>/resourceGroups/<grupo>/providers/Microsoft.App/jobs/<nome>
+    AZURE_TRAINING_JOB_ID: str = ""
     MAX_UPLOAD_MB: int = 50
 
     # CORS
@@ -74,6 +78,8 @@ class Settings(BaseSettings):
             valor = getattr(self, nome)
             if len(valor) < 8 or _de_exemplo(valor):
                 faltando.append(f"{nome} (senha própria com 8 ou mais caracteres)")
+        if self.TRAINING_RUNNER == "azure_job" and "/providers/Microsoft.App/jobs/" not in self.AZURE_TRAINING_JOB_ID:
+            faltando.append("AZURE_TRAINING_JOB_ID (id do Container Apps Job do treino, com TRAINING_RUNNER=azure_job)")
         if faltando:
             raise RuntimeError("Configure no .env ou nas variáveis do servidor: " + "; ".join(faltando))
 

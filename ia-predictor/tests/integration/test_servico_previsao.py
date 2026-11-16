@@ -581,3 +581,76 @@ def test_script_treina_fora_da_api_e_pula_sem_dados_novos(client, monkeypatch, c
         logs = list(db.scalars(select(ForecastJobLog.message).where(ForecastJobLog.job_id == job.id)))
     assert (job.trigger, job.status) == ("script", "done")
     assert any("pelo script com --forcar" in m for m in logs)
+
+
+# --------------------------------------------------------------------------- #
+# TRAINING_RUNNER=azure_job: o botão liga o Container Apps Job, que executa o disparo
+# --------------------------------------------------------------------------- #
+def test_botao_liga_o_job_do_azure_que_executa_o_disparo(client, admin, config_rapida, monkeypatch):
+    from backend.scripts import treinar_previsoes
+
+    _forcar_novo_treino(monkeypatch)
+    monkeypatch.setattr(settings, "TRAINING_RUNNER", "azure_job")
+    pedidos = []
+    monkeypatch.setattr(servico_previsao.azure_job, "iniciar_job",
+                        lambda job_id: pedidos.append(job_id) or "execucao-1")
+    assert client.get(f"{BASE}/status", headers=admin).json()["treino_na_api"] is True
+    r = client.post(f"{BASE}/treinos", headers=admin)
+    assert r.status_code == 202, r.text
+    jid = r.json()["treino"]["id"]
+    assert pedidos == [settings.AZURE_TRAINING_JOB_ID]
+    with SessionLocal() as db:
+        assert db.get(ForecastJob, jid).status == "pending"  # a API não treina: espera o job
+    # um segundo clique enquanto o job sobe não liga outro
+    assert client.post(f"{BASE}/treinos", headers=admin).status_code == 409
+
+    monkeypatch.setattr("sys.argv", ["treinar_previsoes", "--workers", "1", "--pendente"])
+    assert treinar_previsoes.main() == 0
+    with SessionLocal() as db:
+        job = db.get(ForecastJob, jid)
+        logs = list(db.scalars(select(ForecastJobLog.message).where(ForecastJobLog.job_id == jid)))
+    assert (job.trigger, job.status) == ("manual", "done")
+    assert any("Azure Container Apps Job" in m for m in logs)
+
+
+def test_azure_que_nao_inicia_o_job_responde_503(client, admin, config_rapida, monkeypatch):
+    _forcar_novo_treino(monkeypatch)
+    monkeypatch.setattr(settings, "TRAINING_RUNNER", "azure_job")
+
+    def recusa(job_id):
+        raise servico_previsao.azure_job.FalhaAoIniciarJob("HTTP 403: sem permissão")
+    monkeypatch.setattr(servico_previsao.azure_job, "iniciar_job", recusa)
+    r = client.post(f"{BASE}/treinos", headers=admin)
+    assert r.status_code == 503 and "servidor" in r.json()["detail"]
+    with SessionLocal() as db:
+        job = servico_previsao.ultimo(db)
+    assert job.status == "error"  # não fica pendente bloqueando o próximo clique
+    assert client.get(f"{BASE}/status", headers=admin).json()["em_andamento"] is None
+
+
+def test_disparo_pendente_que_o_job_nao_pegou_vira_erro(client, admin):
+    with SessionLocal() as db:
+        recente = ForecastJob(status="pending", heartbeat_at=datetime.now() - timedelta(minutes=5))
+        antigo = ForecastJob(status="pending", heartbeat_at=datetime.now() - timedelta(minutes=20))
+        db.add_all([recente, antigo])
+        db.commit()
+        rid, aid = recente.id, antigo.id
+    try:
+        client.get(f"{BASE}/status", headers=admin)
+        with SessionLocal() as db:
+            assert db.get(ForecastJob, rid).status == "pending"  # o contêiner ainda pode estar subindo
+            assert db.get(ForecastJob, aid).status == "error"
+    finally:
+        with SessionLocal() as db:
+            db.execute(delete(ForecastJobLog).where(ForecastJobLog.job_id.in_([rid, aid])))
+            db.execute(delete(ForecastJob).where(ForecastJob.id.in_([rid, aid])))
+            db.commit()
+
+
+def test_azure_job_exige_o_id_do_job(monkeypatch):
+    from backend.config import Settings
+
+    s = Settings(JWT_SECRET_KEY="k" * 40, ADMIN_PASSWORD="Senha-forte-1", VIEWER_PASSWORD="Senha-forte-2",
+                 TRAINING_RUNNER="azure_job", AZURE_TRAINING_JOB_ID="")
+    with pytest.raises(RuntimeError, match="AZURE_TRAINING_JOB_ID"):
+        s.exigir_segredos()

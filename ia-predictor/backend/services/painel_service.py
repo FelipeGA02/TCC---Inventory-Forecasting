@@ -260,7 +260,7 @@ def contexto(db: Session) -> dict:
         "configuracao": {**_horizontes(config),
                          "limiares_encomenda_un": base_vendas.limiares_encomenda_atuais(db),
                          # falso no Render: o front não oferece "Treinar previsões"
-                         "treino_na_api": settings.TRAINING_RUNNER == "local"},
+                         "treino_na_api": settings.TRAINING_RUNNER != "externo"},
         "base": {"inicio": str(inicio) if inicio else None, "fim": str(fim) if fim else None,
                  "linhas": int(linhas), "skus": int(skus)},
         "previsao": previsao,

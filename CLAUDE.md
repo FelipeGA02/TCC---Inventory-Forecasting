@@ -183,6 +183,10 @@ python -m backend.scripts.reclassificar_produtos [--aplicar]
 # Preencher o histórico da previsão de um banco antigo a partir do último treino
 python -m backend.scripts.semear_historico [--recriar]
 
+# Base de demonstração (apresentação, LGPD): SQLite com o schema, as contagens, os ids e os
+# horários do Neon, vendas inventadas e o treino real rodado sobre elas (~1 h). Só lê o Neon
+python -m backend.scripts.gerar_base_demonstracao [--destino floricultura.db] [--recriar] [--semente 2026]
+
 # Rodar testes unitários
 pytest ia-predictor/tests/unit/ -v
 

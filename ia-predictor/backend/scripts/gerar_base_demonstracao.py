@@ -21,13 +21,17 @@ nível que varia devagar e as datas comemorativas do ADR-019 — com ruído mode
 ter resultados bons e coerentes. Os produtos de grama sem previsão no Neon recebem venda esparsa
 com os mesmos dias com venda (ou o mesmo histórico curto), e ficam sem previsão pelo mesmo motivo.
 
-O treino não é inventado: é o mesmo do botão "Treinar previsões" (`servico_previsao`), com a
-configuração do treino do Neon, sobre as vendas inventadas. Depois os ids (treino, séries, log,
-previsões, walk-forward, histórico, vendas) e os horários do treino viram os do Neon.
+Os resultados das séries não são inventados: saem do treino do sistema (`servico_previsao`, com
+a configuração do treino do Neon) sobre as vendas inventadas — as mesmas séries, o log, a
+gravação e o histórico. Por padrão o ajuste de cada série é o rápido (`treinar_serie_rapida`:
+ordem fixa, ajustada antes do walk-forward e aplicada a cada origem, ~2 min no total); com
+`--treino-completo`, o do botão "Treinar previsões" (grid de ordens e reajuste a cada origem,
+~1 h). Depois os ids (treino, séries, log, previsões, walk-forward, histórico, vendas) e os
+horários do treino viram os do Neon.
 
-Uso (a partir de `ia-predictor/`; leva ~1 h com o treino, que usa todos os núcleos):
+Uso (a partir de `ia-predictor/`):
     python -m backend.scripts.gerar_base_demonstracao [--destino floricultura.db] [--recriar]
-        [--origem URL_DO_NEON] [--semente 2026] [--workers N] [--sem-treino]
+        [--origem URL_DO_NEON] [--semente 2026] [--workers N] [--sem-treino] [--treino-completo]
 
 `--origem`: o banco a espelhar (padrão: `DATABASE_URL` do `.env`). Depois, para usar a base:
 `DATABASE_URL=sqlite:///./floricultura.db` no `.env`.
@@ -82,8 +86,11 @@ SAZONAL = {  # amplitude, dia do ano do pico
     "grama": (0.22, 300), "plantas-diversas": (0.12, 285), "produtos-de-jardim": (0.10, 290), "flores-de-corte": (0.05, 130),
 }
 TENDENCIA_ANO = 0.07
-CV = {"grama": 0.14, "plantas-diversas": 0.11, "produtos-de-jardim": 0.12, "flores-de-corte": 0.14}
-CV_PRODUTO = (0.15, 0.20)  # produto de grama com mais / menos de 50 un./dia
+CV = {"grama": 0.12, "plantas-diversas": 0.11, "produtos-de-jardim": 0.11, "flores-de-corte": 0.14}
+# grama: o ruído do dia comum a todos os produtos da loja (`CV["grama"]`) e o de cada produto,
+# com mais / menos de 50 un./dia — sem o comum, a soma ficaria lisa e a naïve empataria
+CV_PRODUTO = (0.10, 0.16)
+SIGMA_NIVEL = 0.009  # variação diária do nível (AR(1) no log)
 # alta de Flores de corte na semana da data (ADR-019) e queda das outras séries
 ALTA_FLORES = {"Dia da Mulher": 2.6, "Dia das Mães": 3.0, "Dia dos Namorados": 2.4, "Natal": 2.2, "Ano Novo": 1.6}
 QUEDA = {"Ano Novo": {"grama": 0.72, "plantas-diversas": 0.76, "produtos-de-jardim": 0.76},
@@ -196,7 +203,7 @@ def _criar_schema(meta: MetaData, destino) -> None:
 # --------------------------------------------------------------------------- #
 # 3. Vendas inventadas
 # --------------------------------------------------------------------------- #
-def _ar(n: int, rng, phi: float = 0.985, sigma: float = 0.012) -> np.ndarray:
+def _ar(n: int, rng, phi: float = 0.985, sigma: float = SIGMA_NIVEL) -> np.ndarray:
     """Nível que varia devagar (AR(1) no log), em torno de 1."""
     e = rng.normal(0.0, sigma, n)
     x = np.empty(n)
@@ -333,7 +340,8 @@ def _gerar_vendas(perfil: dict, rng) -> tuple[pd.DataFrame, dict, dict]:
         janelas = _janelas_das_datas(dias, set(ALTA_FLORES) | set(QUEDA))
 
         # Grama: produto a produto (com previsão: venda todo dia; sem: esparsa, pelo motivo do Neon)
-        mu_grama = _venda_esperada("grama", NIVEL[loja]["grama"], dias, cal, rng, janelas)
+        k = 1.0 / CV["grama"] ** 2
+        mu_grama = _venda_esperada("grama", NIVEL[loja]["grama"], dias, cal, rng, janelas) * rng.gamma(k, 1.0 / k, len(dias))
         q_produto = {}
         for cod in skus[(loja, "grama")]:
             s = series.get(f"{loja}:product:{cod}")
@@ -546,11 +554,101 @@ def _planilhas(perfil: dict, vendas: pd.DataFrame, limiares: dict, resumo: dict,
 # --------------------------------------------------------------------------- #
 # 5. Treino e espelho dos ids e horários
 # --------------------------------------------------------------------------- #
-def _treinar(perfil: dict):
+# Treino rápido: uma ordem fixa por `d` (as que o treino completo mais escolhe nestas séries)
+ORDEM_RAPIDA = {0: (1, 0, 2), 1: (0, 1, 2)}
+ORDEM_SAZONAL_RAPIDA = (0, 1)  # (P, Q)
+
+
+def treinar_serie_rapida(y: pd.Series, X: pd.DataFrame, aberta: pd.Series, config, nivel: str,
+                         ao_progredir=None, com_fator: bool = False, com_queda: bool = False):
+    """`trainer.treinar_serie` sem o grid de ordens e sem reajustar a cada origem: para cada `d`,
+    a ordem de `ORDEM_RAPIDA` é ajustada uma vez na janela antes da 1ª origem e aplicada (filtro
+    de Kalman, sem reestimar) à janela de cada origem; fica o `d` do walk-forward que errou menos,
+    reajustado na última janela para a previsão. Mesmas métricas, faixa, datas comemorativas e
+    diagnóstico dos resíduos. ~3 ajustes por série em vez de ~185."""
+    import warnings
+
+    from backend.domain.models import evaluator
+    from backend.domain.models.forecaster import ajustar, prever
+    from backend.domain.models.trainer import (ResultadoSerie, _ajustes_datas, _janela, motivo_inelegivel,
+                                               origens_walk_forward)
+
+    fim = y.index.max()
+    janela_final = y.iloc[-config.janela_dias:]
+    base = ResultadoSerie(status=evaluator.STATUS_DADOS_INSUFICIENTES, dias_historico=len(y),
+                          dias_com_venda_janela=int((janela_final > 0).sum()),
+                          treino_inicio=janela_final.index.min(), treino_fim=fim)
+    if motivo := motivo_inelegivel(y, config, nivel):
+        base.motivo = motivo
+        return base
+    origens = origens_walk_forward(fim, config)
+    try:
+        avaliados = {}
+        for d in config.ds:
+            ordem, sazonal = ORDEM_RAPIDA[d], (ORDEM_SAZONAL_RAPIDA[0], config.D, ORDEM_SAZONAL_RAPIDA[1], config.m)
+            pre = _janela(y, origens[0], config.janela_dias)
+            ajuste = ajustar(pre, X.loc[pre.index], ordem, sazonal, config.maxiter)
+            linhas = []
+            for origem in origens:
+                treino = _janela(y, origem, config.janela_dias)
+                futuro = pd.date_range(origem, periods=config.horizonte, freq="D")
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    res = ajuste.apply(treino, exog=X.loc[treino.index], refit=False)
+                prev, inf, sup = prever(res, X.loc[futuro], config.alpha)
+                fator, _ = _ajustes_datas(y, X, origem, futuro, config, com_fator, com_queda)
+                ultima_semana = treino.values[-config.m:]
+                escala = float(np.mean(np.abs(treino.values[config.m:] - treino.values[:-config.m])))
+                for h, dia in enumerate(futuro):
+                    linhas.append({"origem": origem, "data": dia, "horizonte": h + 1, "previsto": float(prev[h] * fator[h]),
+                                   "ic_inf": float(inf[h] * fator[h]), "ic_sup": float(sup[h] * fator[h]),
+                                   "real": float(y.loc[dia]), "naive": float(ultima_semana[h % config.m]),
+                                   "escala": escala, "aberta": bool(aberta.loc[dia]), "fator": float(fator[h])})
+            pontos = pd.DataFrame(linhas)
+            avaliados[d] = (ordem, sazonal, float(ajuste.aic), pontos, evaluator.metricas_walk_forward(pontos))
+        d = min(avaliados, key=lambda k: (avaliados[k][4]["mae"], config.ds.index(k)))
+        ordem, sazonal, aic, pontos, metricas = avaliados[d]
+        base.ordem, base.ordem_sazonal, base.aic, base.ordens_convergidas = ordem, sazonal, round(aic, 2), 1
+        base.metricas = {**metricas, "origens_com_falha": 0}
+        if len(config.ds) > 1:
+            base.metricas["d_escolhido"] = d
+            base.metricas["selecao_d"] = {
+                str(k): {"ordem": [list(o), list(s)], "aic": round(a, 2),
+                         **{c: m.get(c) for c in ("mae", "mase", "cobertura_ic95_pct")}}
+                for k, (o, s, a, _, m) in avaliados.items()}
+        base.backtest = pontos.drop(columns=["escala", "aberta"])
+
+        futuro = pd.date_range(fim + pd.Timedelta(days=1), periods=config.dias_previsao, freq="D")
+        res = ajustar(janela_final, X.loc[janela_final.index], ordem, sazonal, config.maxiter)
+        prev, inf, sup = prever(res, X.loc[futuro], config.alpha)
+        fator, lista = _ajustes_datas(y, X, futuro[0], futuro, config, com_fator, com_queda)
+        base.previsao = pd.DataFrame({"data": futuro, "previsto": prev * fator, "ic_inf": inf * fator,
+                                      "ic_sup": sup * fator, "fator": fator})
+        base.ajustes = [a.como_dict() for a in lista]
+        base.coeficientes = {nome: round(float(v), 6) for nome, v in res.params.items()}
+        base.diagnostico = evaluator.diagnostico_residuos(res.resid, descartar=config.m)
+        base.status, base.motivo = evaluator.STATUS_TREINADO, None
+        return base
+    except Exception as erro:  # noqa: BLE001 — como no trainer: a falha de uma série não derruba as outras
+        base.status = evaluator.STATUS_ERRO
+        base.motivo = f"{type(erro).__name__}: {erro}"[:500]
+        return base
+
+
+def tarefa_rapida(args: tuple):
+    """`trainer.treinar_serie_tarefa` com `treinar_serie_rapida` (processo separado)."""
+    chave, y, X, aberta, config, nivel, com_fator, com_queda = args
+    return chave, treinar_serie_rapida(y, X, aberta, config, nivel, com_fator=com_fator, com_queda=com_queda)
+
+
+def _treinar(perfil: dict, completo: bool):
     from backend.services import servico_previsao
 
+    if not completo:  # o resto do treino (séries, log, gravação, histórico) é o do serviço
+        servico_previsao.treinar_serie = treinar_serie_rapida
+        servico_previsao.treinar_serie_tarefa = tarefa_rapida
     job = perfil["job"]
-    log(f"treinando (o mesmo treino do botão, {os.environ['TRAINING_WORKERS']} processos)...")
+    log(f"treinando ({'completo, o mesmo do botão' if completo else 'rápido'}, {os.environ['TRAINING_WORKERS']} processos)...")
     t0 = time.monotonic()
     feito = servico_previsao.treinar_agora(user_id=job["user_id"], trigger=job["trigger"])
     if feito.status != "done":
@@ -665,6 +763,8 @@ def main() -> None:
     parser.add_argument("--semente", type=int, default=2026, help="semente das vendas inventadas")
     parser.add_argument("--workers", type=int, default=os.cpu_count() or 4, help="processos no treino")
     parser.add_argument("--sem-treino", action="store_true", help="só grava a base, sem treinar")
+    parser.add_argument("--treino-completo", action="store_true",
+                        help="o treino do botão (grid de ordens e reajuste a cada origem, ~1 h) em vez do rápido")
     args = parser.parse_args()
 
     destino = args.destino.resolve()
@@ -703,7 +803,7 @@ def main() -> None:
     _gravar_base(perfil, vendas, limiares, resumo, args.semente)
     if args.sem_treino:
         return
-    _espelhar_ids_e_horarios(perfil, _treinar(perfil))
+    _espelhar_ids_e_horarios(perfil, _treinar(perfil, args.treino_completo))
     _conferir(perfil, origem)
     log(f"pronto: {destino} — para usar, DATABASE_URL=sqlite:///./{destino.name} no .env (a partir de ia-predictor/)")
 

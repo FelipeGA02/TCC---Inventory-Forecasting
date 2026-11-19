@@ -1,5 +1,11 @@
 # Contexto do artigo e fatos consolidados
 
+## Estado em 18/11/2026 (vale sobre as seções abaixo)
+
+- **Relatório corrigido:** `docs/project/TCC2 - Relatorio Tecnico - Final - Corrigido.docx` (+ PDF, 63 páginas), feito sobre `TCC2 - Relatorio Tecnico - Final.docx` (gerado pelo `builder.py` do modelo Aula 2, Times 12, listas estáticas, equações não existiam) com as correções do orientador em `TCC2 - Relatorio Tecnico - Final - COMENTÁRIOS.pdf` (mapa em `docs/project/correcoes_TCC2_comentarios.md`). O `Final.docx` original não está no git: não sobrescrever.
+- **Regras do orientador (18/11/2026):** listas em itens com ";" no fim de cada item, exceto o último (vale para todas as listas); listas de figuras/quadros/tabelas sem tabulação entre "Figura N –" e o título, com "Anexo A –"/"Apêndice A –" nas figuras e quadros de anexo/apêndice; resumo com contexto, problema, objetivo, a ferramenta criada e resultados com números explicados (o que é MASE < 1, o que são as 19 de 23 séries, o que é a cobertura); fórmulas da média, do desvio-padrão (amostral, n − 1, como `pandas.std`), do limiar (Equações 1 a 3, Seção 5.4) e do MASE (Equação 4, Seção 5.5), em OMML com `oMathPara` + `eqArr` e "#(n)".
+- **Telas (Figuras 9 a 13):** capturadas de `http://localhost:5173` com a API 8000 sobre `ia-predictor/floricultura.db`, a **base de demonstração** (`backend/scripts/gerar_base_demonstracao.py`: estrutura e volume do Neon, vendas inventadas). Texto da 10.2, 11.1 e fontes das figuras dizem isso. Figura 10 = conferência (sem gravar) de `ia-predictor/tests/upload_marco_2026/marco_2026_com_erros.xlsx`. Receita em `exemplos/correcoes_orientador_2026-11-18/` (`capturar.mjs` com Playwright + Chrome instalado, 1440 px, escala 2 → `editar.py` → `run.sh`: Word, `listas.py`, Word de novo); capturas em `docs/project/telas_base_demonstracao/`.
+
 ## Estado em 09/11/2026 (vale sobre as seções abaixo)
 
 - **DOCX vigente:** `docs/project/TCC2 - Relatorio Tecnico - v5.docx`, feito sobre `TCC2 - Relatorio Tecnico.docx` (edições do autor em Word, sem a seção 6 anterior: Justificativa = 2, Interface = 6, Resultados = 7, Conclusão = 8).

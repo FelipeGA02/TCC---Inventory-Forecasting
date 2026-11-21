@@ -1,5 +1,27 @@
 # Contexto do artigo e fatos consolidados
 
+## Estado em 21/11/2026 (vale sobre as seções abaixo)
+
+- **Revisão sobre o Corrigido** (`exemplos/pendencias_2026-11-21/editar.py`, lista em
+  `docs/project/pendencias_TCC2_corrigido.md`). Editado direto no XML, sem Word: sumário e
+  listas de figuras, quadros e tabelas **não foram repaginados**. O PDF Corrigido ficou
+  desatualizado.
+- **Saíram:** a referência IGLEWICZ e HOAGLIN (o "média + 4 desvios" agora se apoia no E2), toda
+  menção ao CRISP-DM (6.1 descreve as etapas da Figura 1) e as siglas MAPE, WAPE e ARIMA.
+- **Entraram citações** para todas as referências que estavam sem citação:
+  - 5.3: Croston; Syntetos e Boylan (2005); Teunter et al.; Gross e Sohl;
+  - 5.4: Chen e Liu; Bartezzaghi e Verganti; Kalchschmidt et al.;
+  - E5: KPSS (Kwiatkowski et al.) e ADF (Schwert);
+  - E8: Diebold e Mariano e Holm, com 4 séries significativas (doc 11 §3.1).
+- **Retreinamento**: o texto (E7, Quadro 7, 2.2 e 10.1.2) diz **mensal**, a cada exportação das
+  planilhas do mês, com o máximo de dois meses. O ADR-021 diz semanal.
+- **Figura 10 × 11.3**: a planilha de teste é a mesma. Na base de demonstração, as 22 vendas "já
+  carregadas" da base real aparecem como novas, porque a chave de duplicidade (nota, produto,
+  data, quantidade, valor) é fictícia nessa base: 12.388 + 22 = 12.410. O texto da 10.2 explica isso.
+- **Publicação**: o texto ainda descreve a API no Render com o treino por *script*, mas o ADR-024
+  (Azure) já foi aceito. A atualização dessas passagens ficou pendente, à espera de decisão do
+  usuário.
+
 ## Estado em 18/11/2026 (vale sobre as seções abaixo)
 
 - **Relatório corrigido:** `docs/project/TCC2 - Relatorio Tecnico - Final - Corrigido.docx` (+ PDF, 63 páginas), feito sobre `TCC2 - Relatorio Tecnico - Final.docx` (gerado pelo `builder.py` do modelo Aula 2, Times 12, listas estáticas, equações não existiam) com as correções do orientador em `TCC2 - Relatorio Tecnico - Final - COMENTÁRIOS.pdf` (mapa em `docs/project/correcoes_TCC2_comentarios.md`). O `Final.docx` original não está no git: não sobrescrever.

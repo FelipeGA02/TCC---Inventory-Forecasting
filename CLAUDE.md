@@ -302,7 +302,7 @@ e `backend/domain/models/trainer.py`.
 | Resíduos | Ljung-Box (14 dias) e Shapiro-Wilk do ajuste final, em `series_models.metrics`, citados no log quando p ≤ 0,05 | dimensão "diagnóstico de resíduos" do artigo; não bloqueia |
 | Treino | botão "Treinar previsões" (admin) ou script `treinar_previsoes`; `skipped` se vendas, calendário, catálogo e a receita do modelo (d de cada família, horizontes, janela...) não mudaram (SHA-256) | com planilhas semanais, a gestora treina quando termina de enviar; não há agendador |
 | Histórico | `forecast_history`: o registro mais antigo de cada dia (ADR-023); cada treino `done` grava só os dias sem registro — os 14 primeiros da previsão e, do walk-forward, a janela mais antiga de cada dia (até 14 dias antes) | a linha do histórico mostra o erro com a antecedência com que a loja planeja, não o da véspera |
-| Retreino | a cada planilha semanal | doc 09 / ADR-021 §4: treino mensal erra 2% a mais na média e 15% no pior mês; trimestral, 3% e 32% (viradas de temporada: janeiro, novembro) | a tela mostra o que a loja viu, sem reescrever o passado |
+| Retreino | **mensal**, a cada exportação das planilhas do mês (decisão de 21/11/2026, no relatório do TCC: rotina mais prática para a loja); intervalo máximo de 2 meses. O ADR-021 recomendava semanal | doc 09 / ADR-021 §4: treino mensal erra 2% a mais na média e 15% no pior mês; trimestral, 3% e 32% (viradas de temporada: janeiro, novembro) | a tela mostra o que a loja viu, sem reescrever o passado |
 | Conferência da planilha | `POST /upload/verificacao` avisa os dias de loja aberta que ficariam sem venda antes de gravar | uma semana esquecida viraria venda zero no treino e no histórico |
 
 ## Experimentos anteriores: L1 por unidade + desagregação (registro histórico)

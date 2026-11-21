@@ -1,0 +1,22 @@
+<section id="experimentos" class="sage" data-transition="fade">
+<div class="head">
+<p class="eyebrow">Desenvolvimento · experimentos</p>
+<h2>Cada decisão saiu de um experimento</h2>
+</div>
+<table class="tbl rise">
+<tr class="hd"><th style="width:8%">Exp.</th><th style="width:30%">O que testamos</th><th style="width:62%">Decisão para o sistema</th></tr>
+<tr><td>E1</td><td>Variáveis exógenas</td><td>Dia da semana, loja fechada e abertura excepcional</td></tr>
+<tr><td>E2</td><td>Critério de encomenda grande</td><td>Média + 4 desvios-padrão dos pedidos de cada loja</td></tr>
+<tr><td>E3</td><td>Transformação logarítmica</td><td>Descartada: previa só 89,6% do volume vendido</td></tr>
+<tr><td>E4</td><td>Nível de agregação</td><td>Modelo próprio por categoria; total da loja = soma</td></tr>
+<tr><td>E5</td><td>Diferenciação (d)</td><td>d escolhido por série na validação: −3,6% no erro</td></tr>
+<tr><td>E6</td><td>Datas comemorativas</td><td>Metade da alta em Flores de corte; queda no fim do ano</td></tr>
+<tr><td>E7</td><td>Horizonte e retreino</td><td>Prevê 91 dias, valida em 14; retreinar em até 2 meses</td></tr>
+<tr><td>E8</td><td>Janela de treino</td><td>545 dias em todas as séries: −1,9% no erro</td></tr>
+<tr><td>E9</td><td>Solução definitiva</td><td>As 23 séries validadas no próprio treino do sistema</td></tr>
+</table>
+<div class="grow"></div>
+<p class="rise" style="--i:2; font-size:24px">Protocolo: um fator por vez, mesmo período de teste e mesmas métricas; diferença menor que 5% conta como empate.</p>
+<div class="foot"><p>Sistema de previsão de vendas · Floricultura Verde Perto · TCC 2026</p><p class="pg"></p></div>
+<aside>[FELIPE · 8:30–9:15] Nenhuma dessas escolhas foi feita no achismo. Cada uma saiu de um experimento, sempre mudando um fator por vez, com o mesmo período de teste e as mesmas métricas, e tratando diferenças menores que cinco por cento como empate. A tabela resume os nove experimentos: as variáveis exógenas, o critério das encomendas grandes, a transformação logarítmica, que nós descartamos porque subestimava o volume, o nível de agregação, a diferenciação, as datas comemorativas, o horizonte e a frequência de retreino, a janela de treino e, por fim, a solução definitiva. No próximo slide eu destaco os três que mais pesaram no resultado.</aside>
+</section>

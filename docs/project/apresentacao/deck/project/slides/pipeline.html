@@ -1,0 +1,18 @@
+<section id="pipeline" class="sage" data-transition="fade">
+<div class="head">
+<p class="eyebrow">Desenvolvimento · preparação dos dados</p>
+<h2>Da planilha do ERP à série diária</h2>
+</div>
+<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:24px">
+<div class="card rise"><p class="tag">1 · Extração</p><p>Uma linha por produto de cada nota; hash SHA-256 recusa planilha repetida.</p></div>
+<div class="card rise" style="--i:1"><p class="tag">2 · Padronização</p><p>Textos, datas, quantidades e valores; serviços e taxas saem da série.</p></div>
+<div class="card rise" style="--i:2"><p class="tag">3 · Categorias</p><p>Cada produto em Grama, Plantas diversas, Produtos de jardim ou Flores de corte, pelo nome.</p></div>
+<div class="card rise" style="--i:3; border-color:#A9481F"><p class="tag">4 · Encomendas grandes</p><p>Pedido acima de média + 4 desvios-padrão da loja vira fluxo à parte.</p></div>
+<div class="card rise" style="--i:4"><p class="tag">5 · Calendário</p><p>Feriados (BrasilAPI), loja fechada e abertura excepcional, por loja.</p></div>
+<div class="card rise" style="--i:5"><p class="tag">6 · Série diária</p><p>Por loja e categoria e por produto de grama, sem as encomendas grandes.</p></div>
+</div>
+<div class="grow"></div>
+<div class="band rise" style="--i:6"><p>Encomenda grande: <b>L = x̄ + 4s</b> (Iglewicz e Hoaglin, 1993), recalculado a cada planilha. Em Itabirito, 5% dos dias concentravam 61,8% do erro; com a separação, a variação do fluxo diário (CV) caiu de 2,35 para 0,77.</p></div>
+<div class="foot"><p>Sistema de previsão de vendas · Floricultura Verde Perto · TCC 2026</p><p class="pg"></p></div>
+<aside>[FELIPE · 6:30–7:25] Obrigado, Daniel. A preparação dos dados é um pipeline de seis grandes passos, que o próprio sistema executa a cada planilha enviada. Primeiro, a extração: o relatório vem em blocos por nota, então lemos uma linha por produto, e um hash do arquivo impede que a mesma planilha entre duas vezes. Depois padronizamos textos, datas e valores e tiramos serviços e taxas. Em seguida cada produto é classificado numa das quatro categorias, pelo nome, porque o relatório não traz o grupo. O passo quatro foi o que mais mudou o resultado: as encomendas grandes. Na série de Itabirito, cinco por cento dos dias concentravam quase dois terços do erro do modelo. Eram pedidos de empresas, combinados com antecedência. Então um pedido acima da média mais quatro desvios-padrão da loja passa a ser um fluxo separado, mostrado à parte no painel, e o modelo prevê a venda do dia a dia. Com isso, o coeficiente de variação da série de Itabirito caiu de 2,35 para 0,77. Por fim, montamos o calendário de cada loja, com feriados, dias fechados e aberturas excepcionais, e a série diária de cada categoria e de cada produto de grama.</aside>
+</section>

@@ -1,0 +1,16 @@
+<section id="lstm" class="sage" data-transition="fade">
+<div class="head">
+<p class="eyebrow">Apêndice · pergunta provável</p>
+<h2>Por que não usamos LSTM?</h2>
+</div>
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:24px">
+<div class="card rise" style="padding:26px 34px"><p class="ct">Pouco histórico</p><p>26 meses de vendas; cada série treina com 545 dias. Uma rede recorrente precisa de muito mais observações para não sobreajustar.</p></div>
+<div class="card rise" style="--i:1; padding:26px 34px"><p class="ct">O que a literatura mostra</p><p>Na M4 (Makridakis et al., 2020), os métodos só de ML ficaram atrás dos estatísticos em séries como as nossas; os melhores foram estatísticos ou híbridos.</p></div>
+<div class="card rise" style="--i:2; padding:26px 34px"><p class="ct">O que a loja precisa</p><p>Uma faixa de 95% e efeitos legíveis (domingo, feriado, data). O SARIMAX entrega isso direto; numa LSTM exigiria técnicas extras.</p></div>
+<div class="card rise" style="--i:3; padding:26px 34px"><p class="ct">Custo de operar</p><p>23 séries × 56 origens × 2 valores de d a cada treino, já em 75 minutos, num servidor gratuito de 512 MB.</p></div>
+</div>
+<div class="grow"></div>
+<div class="band rise" style="--i:4"><p>Regra do projeto: <b>aprendizado de máquina só entra com evidência de que vence o SARIMAX no mesmo walk-forward</b>. Um modelo global com todas as séries fica como trabalho futuro.</p></div>
+<div class="foot"><p>Sistema de previsão de vendas · Floricultura Verde Perto · TCC 2026</p><p class="pg"></p></div>
+<aside>RESPOSTA SUGERIDA (FELIPE, ~1 min): "Consideramos, mas escolhemos começar pelo modelo estatístico por quatro motivos. Primeiro, volume de dados: temos 26 meses de vendas, e cada série treina com 545 dias; uma LSTM tem milhares de parâmetros e, com tão poucas observações por série, tende a decorar o histórico. Segundo, a literatura: na competição M4, com cem mil séries, os métodos puramente de aprendizado de máquina ficaram atrás dos estatísticos, e os melhores resultados vieram de métodos estatísticos ou híbridos. Terceiro, o que a loja usa: ela precisa de uma faixa de incerteza e de entender o efeito de domingo, feriado e data comemorativa; o SARIMAX dá a faixa de 95% e coeficientes interpretáveis direto do modelo. Quarto, o custo: retreinamos 23 séries, com 56 origens de validação e dois valores de d, a cada carga, e a hospedagem gratuita tem 512 MB. Por isso adotamos a regra de que um modelo de aprendizado de máquina só entra se vencer o SARIMAX no mesmo protocolo de walk-forward, e isso fica como trabalho futuro, de preferência com um modelo global treinado em todas as séries juntas." CUIDADOS: (1) não dizer que "ML perdeu tudo" na M4: o vencedor (Smyl, ES-RNN) foi um híbrido de suavização exponencial com rede neural; (2) se citarem a M5, vencida por LightGBM: a M5 tinha cerca de 42 mil séries do Walmart e 5 anos de dados, e o modelo ganhador era global, treinado em todas as séries juntas, cenário bem diferente das nossas 23 séries e 26 meses; (3) sermos honestos: não treinamos uma LSTM; os experimentos compararam variações do modelo estatístico (log, desagregação, d, janelas) e a desagregação hierárquica.</aside>
+</section>

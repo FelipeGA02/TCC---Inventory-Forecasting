@@ -1,0 +1,23 @@
+<section id="arquitetura" data-transition="fade">
+<div class="head">
+<p class="eyebrow">Resultados · o sistema</p>
+<h2>Arquitetura: painel, API e serviço de previsão</h2>
+</div>
+<div class="rise" style="position:relative; width:1664px; height:560px">
+<div class="card" style="position:absolute; left:0px; top:0px; width:440px; height:230px; box-sizing:border-box; gap:8px"><p class="tag">Navegador</p><p class="ct">Painel web</p><p>React 18 · Recharts · MUI · publicado na Vercel</p></div>
+<div class="card" style="position:absolute; left:612px; top:0px; width:440px; height:230px; box-sizing:border-box; gap:8px"><p class="tag">Back-end</p><p class="ct">API REST</p><p>FastAPI · JWT + bcrypt · contrato OpenAPI · Render (Docker)</p></div>
+<div class="card" style="position:absolute; left:1224px; top:0px; width:440px; height:230px; box-sizing:border-box; gap:8px"><p class="tag">Dados</p><p class="ct">Banco de dados</p><p>PostgreSQL no Neon (produção) · SQLite (local e testes)</p></div>
+<div class="card" style="position:absolute; left:612px; top:330px; width:440px; height:230px; box-sizing:border-box; gap:8px; border-color:#A9481F"><p class="tag">Previsão</p><p class="ct">Serviço de previsão</p><p>statsmodels · SARIMAX · walk-forward · processos paralelos</p></div>
+<div style="position:absolute; left:0px; top:330px; width:520px; height:230px; display:flex; flex-direction:column; gap:14px; justify-content:center">
+<p style="font-size:24px">Monólito modular em camadas: rotas → serviços → domínio → infraestrutura.</p>
+<p style="font-size:24px">O domínio, com a lógica de previsão, não depende de framework nem de banco.</p>
+</div>
+<x-connector x1="440" y1="115" x2="612" y2="115" head="both" style="color:#2C6B4C; border-width:3px"></x-connector>
+<x-connector x1="1052" y1="115" x2="1224" y2="115" head="both" style="color:#2C6B4C; border-width:3px"></x-connector>
+<x-connector x1="832" y1="230" x2="832" y2="330" head="end" style="color:#2C6B4C; border-width:3px"></x-connector>
+<x-connector x1="1052" y1="445" x2="1444" y2="230" route="hv" head="end" style="color:#A9481F; border-width:3px"></x-connector>
+<p style="position:absolute; left:452px; top:60px; width:150px; font-size:24px; text-align:center; color:#5A6860">HTTP · JSON</p>
+</div>
+<div class="foot"><p>Sistema de previsão de vendas · Floricultura Verde Perto · TCC 2026</p><p class="pg"></p></div>
+<aside>[FELIPE · 12:00–12:45] Agora o sistema que leva tudo isso à empresa. O painel web, em React, conversa com uma API REST em FastAPI, com autenticação por JWT, senhas em bcrypt e o contrato documentado em OpenAPI. A API grava no banco PostgreSQL, no serviço Neon, e usa SQLite no desenvolvimento e nos testes. O serviço de previsão é chamado pela API em segundo plano ou por um script, ajusta os modelos em processos paralelos e grava as previsões, as métricas e o histórico no banco. O treino de produção leva cerca de setenta e cinco minutos, dentro do limite de duas horas que definimos como requisito. O back-end é um monólito modular em camadas, e a lógica de previsão fica num domínio que não depende de framework nem de banco, o que facilitou os testes: são cento e noventa e seis testes automatizados aprovados.</aside>
+</section>

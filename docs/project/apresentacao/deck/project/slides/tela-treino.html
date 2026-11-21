@@ -1,0 +1,17 @@
+<section id="tela-treino" data-transition="fade">
+<div class="head">
+<p class="eyebrow">Apêndice · treinar previsões</p>
+<h2>Treino em segundo plano e notificações</h2>
+</div>
+<div class="row" style="gap:48px; align-items:flex-start">
+<img class="shot" src="/_blob/3d059cb29fab369a940004d04efdf57f" alt="Painel de notificações aberto mostrando o andamento do treino e avisos sobre a base de vendas" style="flex:none; width:960px; height:600px">
+<ul style="flex:1; font-size:24px; line-height:1.4; color:#45524B; margin:0; padding-left:32px">
+<li style="margin-bottom:14px">Botão “Treinar previsões”, visível só para a gestora (perfil administrador)</li>
+<li style="margin-bottom:14px">Andamento série a série no sino; o painel continua utilizável</li>
+<li style="margin-bottom:14px">Sem dados novos desde o último treino, o pedido é dispensado (impressão digital SHA-256)</li>
+<li style="margin-bottom:14px">Avisos: vendas que a previsão ainda não usa e séries para usar com cautela</li>
+</ul>
+</div>
+<div class="foot"><p>Base de demonstração com vendas fictícias</p><p class="pg"></p></div>
+<aside>Apoio para perguntas. Cada treino fica registrado em forecast_jobs com a configuração, a versão do código, o período dos dados e as contagens de séries; cada série em series_models com ordem, métricas, diagnóstico dos resíduos e coeficientes. Na produção o treino roda por script, porque o plano gratuito do Render tem 512 MB de memória; com 12 processos levou 75 minutos (limite do RNF03: 2 horas).</aside>
+</section>

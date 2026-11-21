@@ -1,0 +1,25 @@
+<section id="modelo" data-transition="fade">
+<div class="head">
+<p class="eyebrow">Desenvolvimento · modelo</p>
+<h2>SARIMAX: série temporal com calendário</h2>
+</div>
+<div class="row" style="gap:48px; align-items:stretch">
+<div class="col" style="width:960px; gap:22px">
+<p class="rise" style="font-size:24px; font-weight:700; color:#1C2B24">O que entra na previsão de cada dia</p>
+<div class="row rise" style="--i:1; gap:24px; align-items:center"><p class="pill" style="flex:none; width:270px; text-align:center">AR · MA</p><p style="font-size:28px">as vendas e os erros dos dias anteriores</p></div>
+<div class="row rise" style="--i:2; gap:24px; align-items:center"><p class="pill" style="flex:none; width:270px; text-align:center">Semana · m = 7</p><p style="font-size:28px">o ciclo semanal da loja</p></div>
+<div class="row rise" style="--i:3; gap:24px; align-items:center"><p class="pill" style="flex:none; width:270px; text-align:center">Exógenas</p><p style="font-size:28px">segunda a sábado, loja fechada e abertura excepcional: valores já conhecidos no futuro</p></div>
+<div class="row rise" style="--i:4; gap:24px; align-items:center"><p class="pill" style="flex:none; width:270px; text-align:center">d = 0 ou 1</p><p style="font-size:28px">escolhido em cada série pelo menor erro na validação</p></div>
+<div class="row rise" style="--i:5; gap:24px; align-items:center"><p class="pill" style="flex:none; width:270px; text-align:center; background:#F3D9C6; color:#7A3314">Datas</p><p style="font-size:28px">fator depois do ajuste: Flores de corte sobem nas datas; as outras caem no fim do ano</p></div>
+</div>
+<div class="card rise" style="--i:3; flex:1; background:#17382A; border-color:#17382A; gap:18px">
+<p class="ct" style="color:#F6F4EE">Na prática</p>
+<p style="color:#C9DCD1"><span style="font-weight:700; color:#EDB07A">23 séries</span>: 4 categorias × 2 lojas + 15 produtos de grama</p>
+<p style="color:#C9DCD1"><span style="font-weight:700; color:#EDB07A">545 dias</span> de janela de treino</p>
+<p style="color:#C9DCD1"><span style="font-weight:700; color:#EDB07A">91 dias</span> previstos, com faixa de 95%</p>
+<p style="color:#C9DCD1">Total da loja = soma das categorias</p>
+</div>
+</div>
+<div class="foot"><p>Sistema de previsão de vendas · Floricultura Verde Perto · TCC 2026</p><p class="pg"></p></div>
+<aside>[FELIPE · 7:25–8:30] O modelo central é o SARIMAX, o mesmo do artigo de Arunraj. De forma simples: a previsão de cada dia combina as vendas e os erros dos dias anteriores, que são os termos AR e MA, o ciclo semanal, com período sete, e as variáveis exógenas de calendário: um indicador para cada dia de segunda a sábado, um para loja fechada e um para abertura excepcional, como Itabirito no Dia das Mães. A vantagem dessas variáveis é que os valores futuros já são conhecidos: sabemos hoje que daqui a dez dias é domingo ou feriado. A ordem de diferenciação, d igual a zero ou um, é escolhida série a série pelo menor erro na validação. E as datas comemorativas entram como um fator aplicado depois do ajuste, porque cada data aparece no máximo duas vezes no histórico. Na prática são vinte e três séries: as quatro categorias das duas lojas e quinze produtos de grama, cada uma com seu próprio modelo, treinado nos últimos quinhentos e quarenta e cinco dias, prevendo noventa e um dias à frente com uma faixa de 95%. O total da loja é a soma das categorias.</aside>
+</section>

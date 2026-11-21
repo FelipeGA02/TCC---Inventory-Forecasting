@@ -1,0 +1,35 @@
+<section id="validacao" data-transition="fade">
+<div class="head">
+<p class="eyebrow">Desenvolvimento · validação</p>
+<h2>Walk-forward: testar como o sistema é usado</h2>
+</div>
+<div class="row" style="gap:64px; align-items:flex-start">
+<div class="col rise" style="width:940px; gap:18px">
+<svg aria-label="Cinco linhas do tempo: em cada uma a janela de treino termina um dia depois da anterior e é seguida por 14 dias de previsão comparados com a venda real" width="940" height="330" viewBox="0 0 940 330">
+<rect x="0" y="10" width="520" height="40" rx="8" fill="#2C6B4C"/><rect x="528" y="10" width="200" height="40" rx="8" fill="#A9481F"/>
+<rect x="0" y="80" width="560" height="40" rx="8" fill="#2C6B4C"/><rect x="568" y="80" width="200" height="40" rx="8" fill="#A9481F"/>
+<rect x="0" y="150" width="600" height="40" rx="8" fill="#2C6B4C"/><rect x="608" y="150" width="200" height="40" rx="8" fill="#A9481F"/>
+<rect x="0" y="220" width="640" height="40" rx="8" fill="#2C6B4C"/><rect x="648" y="220" width="200" height="40" rx="8" fill="#A9481F"/>
+<rect x="0" y="290" width="680" height="40" rx="8" fill="#2C6B4C" opacity="0.55"/><rect x="688" y="290" width="200" height="40" rx="8" fill="#A9481F" opacity="0.55"/>
+</svg>
+<div class="row" style="gap:40px">
+<div class="row" style="gap:12px; align-items:center"><div style="width:28px; height:28px; border-radius:6px; background:#2C6B4C"></div><p style="font-size:24px">treino: só o que veio antes da origem</p></div>
+<div class="row" style="gap:12px; align-items:center"><div style="width:28px; height:28px; border-radius:6px; background:#A9481F"></div><p style="font-size:24px">14 dias previstos × vendidos</p></div>
+</div>
+<p style="font-size:24px">A origem anda 1 dia por vez: 56 origens (8 semanas) a cada treino.</p>
+</div>
+<div class="col rise" style="--i:2; flex:1; gap:24px">
+<div class="card" style="gap:10px">
+<p class="ct">MASE</p>
+<p>Erro do modelo ÷ erro de repetir a venda da semana anterior.</p>
+<p class="lead">Abaixo de 1: o modelo erra menos que essa referência.</p>
+</div>
+<div class="card" style="gap:10px">
+<p class="ct">Cobertura da faixa</p>
+<p>Em quantos dias a venda real ficou dentro da faixa de 95%.</p>
+</div>
+</div>
+</div>
+<div class="foot"><p>Sistema de previsão de vendas · Floricultura Verde Perto · TCC 2026</p><p class="pg"></p></div>
+<aside>[FELIPE · 10:15–11:00] Como medimos se o modelo é bom? Com validação walk-forward, que reproduz o uso real. Em cada linha do desenho, o modelo treina só com o que aconteceu antes de uma data, a origem, prevê os catorze dias seguintes e compara com o que foi vendido de fato. Depois a origem anda um dia e tudo se repete. A cada treino do sistema são cinquenta e seis origens, oito semanas, e as métricas são calculadas nos dias de loja aberta. A principal métrica é o MASE, de Hyndman e Koehler: o erro do modelo dividido pelo erro de uma previsão ingênua que repete a venda da semana anterior. Abaixo de um, o modelo erra menos que essa referência. Escolhemos o MASE e não o MAPE porque há muitos dias de venda baixa ou zero, e o MAPE explode nesses casos. Também medimos a cobertura: em quantos dias a venda real caiu dentro da faixa de 95%.</aside>
+</section>

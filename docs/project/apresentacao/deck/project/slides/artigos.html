@@ -1,0 +1,26 @@
+<section id="artigos" data-transition="fade">
+<div class="head">
+<p class="eyebrow">Contextualização · referencial teórico</p>
+<h2>Os dois artigos que fundamentam o trabalho</h2>
+</div>
+<div class="row" style="gap:32px; align-items:stretch">
+<div class="card rise" style="flex:1; gap:14px">
+<p class="tag">Artigo 1 · o modelo</p>
+<p class="ct">Arunraj, Ahrens e Fernandes (2016)</p>
+<p style="font-style:italic">Application of SARIMAX model to forecast daily sales in food retail industry</p>
+<p style="font-size:26px"><span style="font-weight:700; color:#1C2B24">Propõe:</span> SARIMAX com variáveis de calendário e promoção para a venda diária de perecíveis.</p>
+<p class="lead" style="font-size:26px">O que levamos: o SARIMAX com variáveis exógenas de calendário, que no nosso E1 zerou o erro nos feriados.</p>
+</div>
+<div class="card rise" style="--i:1; flex:1; gap:14px">
+<p class="tag">Artigo 2 · o nível da previsão</p>
+<p class="ct">Huber, Gossmann e Stuckenschmidt (2017)</p>
+<p style="font-style:italic">Cluster-based hierarchical demand forecasting for perishable goods</p>
+<p style="font-size:26px"><span style="font-weight:700; color:#1C2B24">Propõe:</span> previsão hierárquica de perecíveis, em níveis como loja, categoria e produto.</p>
+<p class="lead" style="font-size:26px">O que levamos: escolher o nível de agregação; testamos prever a loja e dividir (top-down), e o modelo direto na categoria venceu.</p>
+</div>
+</div>
+<div class="grow"></div>
+<p class="rise" style="--i:2; font-size:24px">Os dois são estudos de método, sem ferramenta para a empresa: essa é a lacuna do trabalho. Apoio: Hyndman e Athanasopoulos (2021) · Syntetos, Boylan e Croston (2005) · Makridakis et al., M4 (2020).</p>
+<div class="foot"><p>Sistema de previsão de vendas · Floricultura Verde Perto · TCC 2026</p><p class="pg"></p></div>
+<aside>[DANIEL · 3:30–4:45] Dois artigos sustentam as principais decisões do trabalho. O primeiro é de Arunraj, Ahrens e Fernandes, de 2016, que aplica o SARIMAX para prever a venda diária no varejo de alimentos perecíveis, com variáveis de calendário e de promoção. Dele veio o nosso modelo central: um SARIMAX com variáveis exógenas de calendário. E o resultado se repetiu aqui: as variáveis de calendário praticamente zeraram o erro nos feriados. O segundo é de Huber, Gossmann e Stuckenschmidt, de 2017, sobre previsão hierárquica de perecíveis, ou seja, em que nível prever: loja, categoria ou produto. Dele veio a pergunta de agregação. Nós testamos a estratégia top-down, prever a loja e dividir entre as categorias, contra um modelo direto em cada categoria, e o modelo direto venceu. A diferença entre esses trabalhos e o nosso é que eles são estudos de método, sem uma ferramenta que a empresa use no dia a dia, e é essa lacuna que o sistema preenche. Como apoio, usamos Hyndman e Athanasopoulos para as métricas e a validação, Syntetos e Boylan para classificar a demanda irregular e a competição M4. Com isso encerro a contextualização e passo para o desenvolvimento.</aside>
+</section>

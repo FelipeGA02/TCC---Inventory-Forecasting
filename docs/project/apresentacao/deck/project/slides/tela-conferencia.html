@@ -1,0 +1,17 @@
+<section id="tela-conferencia" data-transition="fade">
+<div class="head">
+<p class="eyebrow">Apêndice · carregar planilha</p>
+<h2>Conferência antes de gravar</h2>
+</div>
+<div class="row" style="gap:48px; align-items:flex-start">
+<img class="shot" src="/_blob/cdfa995cc78f5b3735d0b3a65fcf1e8f" alt="Tela Carregar Planilha na etapa Conferir, com o período de cada loja e os totais de vendas novas, já carregadas e linhas ignoradas" style="flex:none; width:960px; height:600px">
+<ul style="flex:1; font-size:24px; line-height:1.4; color:#45524B; margin:0; padding-left:32px">
+<li style="margin-bottom:14px">Quatro etapas: enviar, conferir, gravar e pronto</li>
+<li style="margin-bottom:14px">Período de cada loja, vendas novas, já carregadas e linhas ignoradas</li>
+<li style="margin-bottom:14px">Aviso dos dias de loja aberta sem venda, que virariam venda zero no modelo</li>
+<li style="margin-bottom:14px">Planilha repetida é recusada pelo hash SHA-256, sem duplicar dados</li>
+</ul>
+</div>
+<div class="foot"><p>Base de demonstração com vendas fictícias</p><p class="pg"></p></div>
+<aside>Apoio para perguntas. A importação ocorre em duas chamadas: a conferência, que lê e compara sem gravar, e a gravação, depois da confirmação. Na gravação o limiar de encomenda grande de cada loja é recalculado. Defeito conhecido e assumido no artigo: uma nota repetida inteira dentro da mesma planilha entra duas vezes (a duplicidade é verificada contra a base gravada) — está nos trabalhos futuros.</aside>
+</section>

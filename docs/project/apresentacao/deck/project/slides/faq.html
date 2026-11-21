@@ -1,0 +1,16 @@
+<section id="faq" data-transition="fade">
+<div class="head">
+<p class="eyebrow">Apêndice · respostas rápidas</p>
+<h2>Outras perguntas prováveis</h2>
+</div>
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:20px 24px">
+<div class="card" style="padding:22px 32px; gap:8px"><p class="ct" style="font-size:24px">Por que tirar as encomendas grandes?</p><p>Pedidos de empresas combinados antes; em Itabirito, 5% dos dias tinham 61,8% do erro. Ficam à parte.</p></div>
+<div class="card" style="padding:22px 32px; gap:8px"><p class="ct" style="font-size:24px">Por que não usar log nas vendas?</p><p>E3: reduzia o MAE, mas previa só 89,6% do volume (devolve a mediana). A compra depende do volume.</p></div>
+<div class="card" style="padding:22px 32px; gap:8px"><p class="ct" style="font-size:24px">Por que não prever cada produto?</p><p>99,3% dos produtos têm demanda irregular. A grama é prevista produto a produto porque é comprada assim.</p></div>
+<div class="card" style="padding:22px 32px; gap:8px"><p class="ct" style="font-size:24px">Por que MASE e não MAPE?</p><p>Dias de venda baixa ou zero fazem o MAPE explodir; o MASE compara com a referência em qualquer volume.</p></div>
+<div class="card" style="padding:22px 32px; gap:8px"><p class="ct" style="font-size:24px">E as 4 séries com MASE acima de 1?</p><p>Gramas de pouco volume em Jardim Canadá, com aviso na tela. Uma delas: MASE 2,24, mas 43% menos erro que a referência.</p></div>
+<div class="card" style="padding:22px 32px; gap:8px"><p class="ct" style="font-size:24px">Como foi escolhido d = 0 ou d = 1?</p><p>O AIC não compara diferenciações diferentes; o walk-forward de cada série decide: −3,6% no erro (E5).</p></div>
+</div>
+<div class="foot"><p>Sistema de previsão de vendas · Floricultura Verde Perto · TCC 2026</p><p class="pg"></p></div>
+<aside>Detalhes para as respostas. Encomendas: limiar = média + 4 desvios-padrão dos pedidos de cada loja (1.343 un. em Jardim Canadá, 1.960 em Itabirito); 3 desvios derrubava a cobertura abaixo de 90% em Grama e Plantas de JC. Log: com log1p a volta à escala original dá a mediana, não a média; na série total com encomendas cobriu só 46,1% do volume. MASE × erro relativo: o MASE usa o erro da naïve no treino; em séries esparsas o treino tem poucos picos e o denominador fica pequeno, por isso Capim dos Texas roxo (1293) tem MASE 2,236 e erro relativo 0,570. Prophet (se perguntarem): não comparamos experimentalmente; ele cobre tendência, sazonalidade e feriados, o mesmo que o SARIMAX com calendário já trata; a diferença do trabalho é a ferramenta operacional, e a comparação fica como trabalho futuro. Retreino: mensal (a cada exportação do mês) perde 2% na média do ano; o máximo recomendado é 2 meses (pior mês +28,6%).</aside>
+</section>

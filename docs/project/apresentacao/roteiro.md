@@ -120,6 +120,8 @@ Para mostrar a importação ao vivo, gerar antes uma planilha fictícia (em `ia-
 
 **Como falar dos dados:** na demo, chamem de "base de demonstração". Se perguntarem diretamente se o modelo usou os dados da empresa, respondam com a verdade, como está no artigo: os modelos foram treinados e validados com o histórico de vendas cedido pela empresa, e a demonstração usa vendas fictícias para preservar os dados da parceira.
 
+**Alternativa mais próxima do sistema real:** o script `gerar_base_demonstracao` monta um SQLite com o schema, as lojas, o catálogo e o calendário do Neon (só leitura) e **vendas inventadas**, e treina as mesmas 23 séries sobre elas (~3 min). As telas das figuras 9–13 do artigo (`docs/project/telas_base_demonstracao/`) vêm dessa base. Em `ia-predictor/`: `.venv\Scripts\python -m backend.scripts.gerar_base_demonstracao --destino demo.db`; depois, suba a API normal (`uvicorn backend.main:app --app-dir .`) com `DATABASE_URL=sqlite:///./demo.db` no `.env`, e o login é o dos usuários do `.env`. Depois da apresentação, voltem o `DATABASE_URL` para o valor original. Como lê o Neon, precisa do `.env` com acesso a ele; se não der, fiquem com a base dos testes acima.
+
 **Plano B:** se a aplicação não subir, usem os slides 19–25 (as mesmas telas).
 
 ## 5. Perguntas prováveis

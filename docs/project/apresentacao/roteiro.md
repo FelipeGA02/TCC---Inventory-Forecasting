@@ -15,14 +15,14 @@ Daniel Nunes da Silva · Felipe Gurgel Araújo — Ciência da Computação, Cen
 | Objetivos | Slide 5 (geral + 4 grupos de específicos) |
 | 2 artigos principais | Slide 6: Arunraj, Ahrens e Fernandes (2016) e Huber, Gossmann e Stuckenschmidt (2017) |
 | ~10 min de desenvolvimento | Slides 7–16 (4:45–13:45, 9 min) + encerramento em 1 min 15 s |
-| Fluidez na fala | Falas completas nas notas de cada slide e na seção 3; só 2 trocas de voz |
+| Fluidez na fala | Falas completas nas notas de cada slide e na seção 3; só 3 trocas de voz |
 | Slides da aplicação no final | Slide 16 (visão geral) + apêndice 19–25 com 6 telas |
 | Aplicação com dados fictícios | Todas as telas vêm da base sintética dos testes E2E; demo ao vivo com a mesma base (seção 4) |
 | Pronto para "por que não LSTM?" | Slide 26 + resposta roteirizada (seção 5.1) |
 
 ## 2. Divisão e tempos
 
-Divisão: **Daniel** abre e apresenta contexto, problema e objetivos (slides 1–5); **Felipe** apresenta os artigos, a metodologia, a análise exploratória, o modelo e os resultados (6–14); **Daniel** volta com arquitetura, aplicação e encerramento (15–18). A metodologia (7) ficou com o Felipe porque está entre os artigos e a análise exploratória: assim são só duas trocas de voz. Tempo de fala: Daniel ~6 min 30 s, Felipe ~8 min 30 s.
+Divisão: **Daniel** abre e apresenta contexto, problema e objetivos (slides 1–5); **Felipe** apresenta os artigos, a metodologia, a análise exploratória, o modelo e os resultados (6–14); **Daniel** volta com arquitetura, aplicação e limitações (15–17); **Felipe** faz a conclusão (18). A metodologia (7) ficou com o Felipe porque está entre os artigos e a análise exploratória. São três trocas de voz. Tempo de fala: Daniel ~5 min 55 s, Felipe ~9 min 05 s.
 
 | # | Slide | Quem | Tempo | Ideia que precisa ficar |
 | --- | --- | --- | --- | --- |
@@ -42,8 +42,8 @@ Divisão: **Daniel** abre e apresenta contexto, problema e objetivos (slides 1�
 | 14 | Resultados | Felipe | 11:00–12:00 | 19 de 23 com MASE < 1; 8 de 8 categorias → **passa ao Daniel** |
 | 15 | Arquitetura | Daniel | 12:00–12:45 | React + FastAPI + serviço de previsão + Postgres |
 | 16 | A aplicação | Daniel | 12:45–13:45 | ciclo da gestora |
-| 17 | Limitações e futuros | Daniel | 13:45–14:25 | encomendas grandes e histórico curto |
-| 18 | Conclusão | Daniel | 14:25–15:00 | objetivo alcançado; abre para perguntas |
+| 17 | Limitações e futuros | Daniel | 13:45–14:25 | encomendas grandes e histórico curto → **passa ao Felipe** |
+| 18 | Conclusão | Felipe | 14:25–15:00 | objetivo alcançado; abre para perguntas |
 | 19–27 | Apêndice | — | perguntas | telas, LSTM, respostas rápidas |
 
 **Marcos de tempo** (para quem estiver cronometrando): slide 7 começa por volta de **4:45**; slide 12 por volta de **9:15**; slide 17 por volta de **13:45**. Se estiverem atrasados no slide 12, encurtem o 13 (só a frase do MASE) e o 15 (só "painel, API, serviço de previsão e banco").
@@ -52,7 +52,7 @@ Divisão: **Daniel** abre e apresenta contexto, problema e objetivos (slides 1�
 
 As mesmas falas estão nas notas do apresentador de cada slide. São um guia, não um texto para ler: decorem a primeira frase de cada slide e falem o resto com as próprias palavras.
 
-**1 · Capa (Daniel)** — Boa noite, professores e colegas. Eu sou o Daniel Nunes da Silva e este é o Felipe Gurgel Araújo. Vamos apresentar o nosso trabalho de conclusão de curso: um sistema de previsão de vendas desenvolvido para a Floricultura Verde Perto, sob orientação do professor Marcos Wander Rodrigues, no conteúdo, e do professor Ricardo Luiz de Freitas, na metodologia. Nos próximos quinze minutos vamos mostrar o problema da empresa, o que nos propusemos a fazer, como desenvolvemos a solução e o que ela entregou. Eu começo pelo contexto e pelos objetivos, o Felipe apresenta a fundamentação, os dados, o modelo e os resultados, e eu volto para o sistema e a conclusão.
+**1 · Capa (Daniel)** — Boa noite, professores e colegas. Eu sou o Daniel Nunes da Silva e este é o Felipe Gurgel Araújo. Vamos apresentar o nosso trabalho de conclusão de curso: um sistema de previsão de vendas desenvolvido para a Floricultura Verde Perto, sob orientação do professor Marcos Wander Rodrigues, no conteúdo, e do professor Ricardo Luiz de Freitas, na metodologia. Nos próximos quinze minutos vamos mostrar o problema da empresa, o que nos propusemos a fazer, como desenvolvemos a solução e o que ela entregou. Eu começo pelo contexto e pelos objetivos, o Felipe apresenta a fundamentação, os dados, o modelo e os resultados, eu volto para o sistema e as limitações, e o Felipe faz a conclusão.
 
 **2 · A empresa (Daniel)** — A nossa entidade parceira é a Floricultura Verde Perto, que vende flores, plantas, grama e produtos de jardinagem em duas lojas: Jardim Canadá, em Nova Lima, e Itabirito. Boa parte do que ela vende é perecível: se a loja compra demais, a flor e a planta se perdem; se compra de menos, o cliente não encontra o produto. A grama responde por quase metade do volume, seguida de plantas diversas e produtos de jardim. Flores de corte pesam pouco no volume, mas são as mais sensíveis ao calendário — guardem esse detalhe, ele volta no modelo.
 
@@ -84,9 +84,9 @@ As mesmas falas estão nas notas do apresentador de cada slide. São um guia, n�
 
 **16 · A aplicação (Daniel)** — Para a gestora, é um ciclo de cinco passos: carrega a planilha que já exportava; confere antes de gravar — vendas novas, repetidas e dias sem venda; clica em "Treinar previsões"; consulta a previsão diária com a faixa, de duas semanas a três meses; e compara o previsto com o vendido e baixa relatórios. A imagem é da base de demonstração, com vendas fictícias. No final, se quiserem, mostramos as telas.
 
-**17 · Limitações e futuros (Daniel)** — A principal limitação são as encomendas grandes, que pesam no volume, principalmente em Itabirito, e não são previstas porque dependem de negociação. Vinte e seis meses não bastam para a sazonalidade anual, a extração do ERP é manual e a usabilidade foi validada só nas reuniões. Como futuros: receber as encomendas com antecedência, oferecer uma quantidade de referência para estoque, prever flores de corte por produto e medir o efeito do sistema nas perdas e rupturas.
+**17 · Limitações e futuros (Daniel)** — A principal limitação são as encomendas grandes, que pesam no volume, principalmente em Itabirito, e não são previstas porque dependem de negociação. Vinte e seis meses não bastam para a sazonalidade anual, a extração do ERP é manual e a usabilidade foi validada só nas reuniões. Como futuros: receber as encomendas com antecedência, oferecer uma quantidade de referência para estoque, prever flores de corte por produto e medir o efeito do sistema nas perdas e rupturas. *"Felipe, com você."*
 
-**18 · Conclusão (Daniel)** — O histórico que a empresa já tinha, organizado com o calendário de cada loja, virou uma previsão diária avaliada a cada treino. O objetivo geral foi alcançado, com quinze de dezessete requisitos atendidos e dois parcialmente. E os resultados indicam que modelos estatísticos com calendário funcionam na floricultura, desde que a demanda seja agregada em séries densas e as encomendas grandes sejam tratadas à parte. Agradecemos aos orientadores, à Verde Perto e à banca. Ficamos à disposição para as perguntas.
+**18 · Conclusão (Felipe)** — Obrigado, Daniel. O histórico que a empresa já tinha, organizado com o calendário de cada loja, virou uma previsão diária avaliada a cada treino. O objetivo geral foi alcançado, com quinze de dezessete requisitos atendidos e dois parcialmente. E os resultados indicam que modelos estatísticos com calendário funcionam na floricultura, desde que a demanda seja agregada em séries densas e as encomendas grandes sejam tratadas à parte. Agradecemos aos orientadores, à Verde Perto e à banca. Ficamos à disposição para as perguntas.
 
 ## 4. A aplicação na hora das perguntas (dados fictícios)
 

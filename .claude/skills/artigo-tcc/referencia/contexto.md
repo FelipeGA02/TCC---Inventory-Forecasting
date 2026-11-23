@@ -18,6 +18,20 @@
 - **Figura 10 × 11.3**: a planilha de teste é a mesma. Na base de demonstração, as 22 vendas "já
   carregadas" da base real aparecem como novas, porque a chave de duplicidade (nota, produto,
   data, quantidade, valor) é fictícia nessa base: 12.388 + 22 = 12.410. O texto da 10.2 explica isso.
+- **Apêndice B (21/11/2026, pedido do orientador: "no mínimo 4 atas")**: "APÊNDICE B – ATAS DAS
+  REUNIÕES COM A ENTIDADE PARCEIRA", entre o Apêndice A e o Anexo A, com as atas 05 a 08
+  (13/10, 20/10, 3/11 e 10/11/2026), uma página da ata por folha (imagem do PDF da pasta
+  `Relatórios`, 150 dpi, 22,5 cm de altura), com um rótulo "Ata da reunião NN – data" e sem
+  número de figura. A 6.2 remete ao apêndice. As atas 01 a 04 (TCC1) não entraram. As atas 05 a 08
+  **não estão assinadas**. Relatório com 90 páginas. As listas de figuras, quadros e tabelas são
+  **texto fixo**: o `word_finalize.ps1` não as atualiza. Recalcule pelo PDF (receita em
+  `exemplos/atas_apendice_2026-11-21/`).
+- **Termo do intervalo (21/11/2026, decisão do usuário)**: o texto usa "intervalo de confiança"
+  (Resumo, objetivo f, 6.5, 11.8, 12) e "confidence-interval" no Abstract. As formas curtas
+  "intervalo de 95%" ficam, e "faixa provável" só aparece onde o texto descreve a tela. Não
+  voltar a "predição" ou "previsão".
+- **Palavra-chave (21/11/2026, pedido do orientador)**: "Atacado e varejo de floricultura" /
+  "Floriculture wholesale and retail".
 - **Publicação**: o texto ainda descreve a API no Render com o treino por *script*, mas o ADR-024
   (Azure) já foi aceito. A atualização dessas passagens ficou pendente, à espera de decisão do
   usuário.

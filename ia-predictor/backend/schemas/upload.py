@@ -3,6 +3,7 @@ espelham `openapi.yaml` (fonte da verdade)."""
 from __future__ import annotations
 
 from datetime import date
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -49,3 +50,32 @@ class UploadCheckResponse(BaseModel):
     units: list[UploadUnitPeriod]
     missing_days: list[UploadMissingDays]
     warnings: list[str]  # avisos da leitura (linhas ignoradas)
+    treatments: list["UploadTreatmentGroup"] = []  # cada tratamento, item a item, para corrigir a planilha
+
+
+class UploadTreatmentColumn(BaseModel):
+    key: str
+    label: str
+
+
+class UploadTreatmentItem(BaseModel):
+    line: int | None = None            # linha do Excel, para achar e corrigir
+    values: dict[str, str | None]      # coluna → valor como está na planilha (None = vazio)
+    highlight: list[str] = []          # colunas com o problema
+
+
+class UploadTreatmentGroup(BaseModel):
+    """Um problema da planilha (`domain.etl.tratamentos`): onde está, os campos ligados a ele e
+    o que fazer. `corrigir` interrompe (a venda fica de fora); `aviso` não impede gravar."""
+    kind: str
+    level: Literal["corrigir", "aviso"]
+    title: str
+    how_to_fix: str | None
+    count: int
+    count_label: str
+    columns: list[UploadTreatmentColumn]
+    items: list[UploadTreatmentItem]
+    total_items: int                   # itens antes do corte (a tela lista até 100 por grupo)
+
+
+UploadCheckResponse.model_rebuild()

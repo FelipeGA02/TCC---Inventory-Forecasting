@@ -88,9 +88,14 @@ def tratar_dados(
     output_csv: str = FORMATTED_CSV,
     report_json: str = FORMATTED_REPORT_JSON,
     verbose: bool = True,
+    removidas_csv: str | None = None,
 ) -> dict:
+    """Limpeza da Etapa 2. Com `removidas_csv`, grava também cada linha removida com o
+    `motivo` (a chave de `linhas_removidas`), o `campo` e o `valor` que a derrubou — a
+    conferência da tela de importação mostra isso para a loja corrigir a planilha."""
     df = pd.read_csv(input_csv, sep=';', encoding='utf-8', dtype=str, keep_default_na=False)
     linhas_lidas = len(df)
+    removidas = []
 
     for col in df.columns:
         df[col] = df[col].map(_padronizar_texto)
@@ -98,24 +103,42 @@ def tratar_dados(
     clientes_corrigidos = _corrigir_cliente_sem_nome(df)
 
     vazias = (df[CAMPOS_OBRIGATORIOS] == '').any(axis=1)
+    if removidas_csv is not None and vazias.any():
+        campos = (df.loc[vazias, CAMPOS_OBRIGATORIOS] == '').apply(
+            lambda r: ', '.join(c for c in CAMPOS_OBRIGATORIOS if r[c]), axis=1)
+        removidas.append(df.loc[vazias].assign(motivo='campo_obrigatorio_vazio', campo=campos, valor=''))
     df = df.loc[~vazias].copy()
 
     datas = pd.to_datetime(df['emissao'], format='%d/%m/%Y', errors='coerce')
     data_invalida = datas.isna()
     exemplos_data_invalida = df.loc[data_invalida, 'emissao'].unique()[:10].tolist()
+    if removidas_csv is not None and data_invalida.any():
+        removidas.append(df.loc[data_invalida].assign(motivo='data_invalida', campo='emissao',
+                                                      valor=df.loc[data_invalida, 'emissao']))
     df = df.loc[~data_invalida].copy()
     df['emissao'] = datas[~data_invalida].dt.strftime('%Y-%m-%d')
 
     invalidas = pd.Series(False, index=df.index)
     vazios = {}
+    originais = df[CAMPOS_NUMERICOS].copy()
+    primeiro_invalido = pd.Series('', index=df.index)
     for col in CAMPOS_NUMERICOS:
         df[col], vazios[col], invalido = _para_float(df[col])
+        primeiro_invalido = primeiro_invalido.mask(invalido & (primeiro_invalido == ''), col)
         invalidas |= invalido
+    if removidas_csv is not None and invalidas.any():
+        campo = primeiro_invalido[invalidas]
+        valor = [originais.at[i, c] for i, c in campo.items()]
+        removidas.append(originais.loc[invalidas].combine_first(df.loc[invalidas])[df.columns]
+                         .assign(motivo='valor_nao_numerico', campo=campo, valor=valor))
     # Vazio contado só nas linhas que ficam na base.
     vazios_por_campo = {col: int((vazio & ~invalidas).sum()) for col, vazio in vazios.items()}
     df = df.loc[~invalidas].copy()
 
     df.to_csv(output_csv, sep=';', index=False, encoding='utf-8')
+    if removidas_csv is not None:
+        colunas = list(df.columns) + ['motivo', 'campo', 'valor']
+        (pd.concat(removidas) if removidas else pd.DataFrame(columns=colunas))[colunas]             .to_csv(removidas_csv, sep=';', index=False, encoding='utf-8')
 
     resumo = {
         'executado_em': datetime.now().isoformat(),

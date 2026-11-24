@@ -28,10 +28,10 @@ de 10% acima de fevereiro.
 
 | # | Caso | Onde | O que a importação faz | Na corrigida |
 | --- | --- | --- | --- | --- |
-| 1 | Nota sem a linha `Cliente:` | Itabirito 05/03, CE 30744 | Etapa 1 pula a nota → **Linhas ignoradas** | linha do cliente de volta |
-| 2 | Nota sem o cabeçalho `Produto` | J. Canadá 10/03, F3 11031 | Etapa 1 pula a nota → **Linhas ignoradas** | cabeçalho de volta |
+| 1 | Nota sem a linha `Cliente:` | Itabirito 05/03, CE 30744 | entra sem o cliente (o cliente não é obrigatório) → **aviso** "Nota sem a linha “Cliente:”" | linha do cliente de volta |
+| 2 | Nota sem o cabeçalho `Produto` | J. Canadá 10/03, F3 11031 | entra normalmente: o cabeçalho é só o título da lista de itens, e a lista começa no primeiro item (sem aviso) | cabeçalho de volta |
 | 3 | `Emissão:` vazia | J. Canadá 12/03, C7 28418 (5 linhas) | Etapa 2: campo obrigatório vazio → **Linhas ignoradas** | data 12/03/2026 |
-| 4 | Produto sem código (`GRAMA ESMERALDA`, sem `cód - `) | J. Canadá 06/03, CN 28240 (1 de 4 linhas) | Etapa 2: campo obrigatório vazio → **Linhas ignoradas** | código de volta |
+| 4 | Produto sem código (`TERRA VEGETAL ADUBADA 25KG GRAM TERRA`, sem `cód - `) | J. Canadá 06/03, CN 28240 (1 de 4 linhas) | Etapa 2: campo obrigatório vazio → **Linhas ignoradas** | código de volta |
 | 5 | Data inexistente `20/13/2026` | Itabirito 20/03, C9 28793 (4 linhas) | Etapa 2: data inválida → **Linhas ignoradas** | 20/03/2026 |
 | 6 | Data fora do padrão `2026-03-24` | J. Canadá 24/03, C7 28980 (1 linha) | Etapa 2: data inválida → **Linhas ignoradas** | 24/03/2026 |
 | 7 | Quantidade em texto (`dez`) | Itabirito 11/03, C9 28390 (1 de 9 linhas) | Etapa 2: valor não numérico → **Linhas ignoradas** | número |
@@ -55,24 +55,31 @@ Casos certos, iguais nas duas planilhas:
 | Notas do Garden Center (`GARDEN CENTER VERDE PERTO LTDA`) | ~8% das notas de J. Canadá | contam como Jardim Canadá |
 | Frete e serviços | sorteados | gravados; ficam fora do tamanho do pedido e da previsão |
 
-As **19 linhas ignoradas** são 2 notas puladas na leitura (casos 1 e 2), 13 linhas removidas na
-limpeza (6 com campo vazio, casos 3 e 4; 5 com data inválida, casos 5 e 6; 2 com valor não
-numérico, casos 7 e 8) e 4 de empresa sem loja (caso 9).
+As **17 linhas ignoradas** são 13 linhas removidas na limpeza (6 com campo vazio, casos 3 e 4;
+5 com data inválida, casos 5 e 6; 2 com valor não numérico, casos 7 e 8) e 4 de empresa sem
+loja (caso 9). Até 23/11/2026 as notas dos casos 1 (sem a linha `Cliente:`) e 2 (sem o
+cabeçalho `Produto`) eram puladas na leitura, e o total era 19.
+
+Na conferência, cada caso aparece com a linha do Excel e os campos ligados a ele, o do
+problema em destaque. **Erro** (a venda fica de fora até corrigir): casos 2 a 8. **Aviso**
+(não impede gravar): casos 1, 9 e 11. Os casos 2, 12 e 13 são tratados sem aviso. Com algum
+erro, a tela não deixa gravar: só "Enviar outra planilha". Com só avisos, "Gravar mesmo assim".
 
 ## Números esperados na tela (conferidos com o serviço de importação)
 
 Base: SQLite local com as vendas até 28/02/2026.
 
 **1. `marco_2026_com_erros.xlsx`, conferência:** período 27/02/2026 a 31/03/2026 · Vendas
-novas **12.388** · Já estavam carregadas **22** · Linhas ignoradas **19**. Avisos:
+novas **12.390** · Já estavam carregadas **22** · Linhas ignoradas **17**. A tela não deixa
+gravar (há erros). Avisos:
 
 - Itabirito: faltam as vendas de 3 dias com a loja aberta (16/03/2026 a 18/03/2026). A última venda da loja já carregada é de 28/02/2026 e esta planilha traz a loja de 27/02/2026 a 31/03/2026.
 - Jardim Canadá: faltam as vendas de 1 dia com a loja aberta (02/03/2026). A última venda da loja já carregada é de 28/02/2026 e esta planilha traz a loja de 28/02/2026 a 31/03/2026.
 - 4 linha(s) de empresa sem loja cadastrada foram ignoradas: VERDE PERTO FILIAL BH LTDA
 
-Depois de "Gravar mesmo assim": os mesmos números, com o aviso de treinar a previsão. O
-registro diz "7 linha(s) nova(s) de encomenda grande", com limiar Itabirito 1.926 un. e
-Jardim Canadá 1.321 un. São os 2 pedidos da tabela acima.
+Até 23/11/2026 dava para gravar assim ("Gravar mesmo assim"); o registro dizia "7 linha(s)
+nova(s) de encomenda grande", com limiar Itabirito 1.926 un. e Jardim Canadá 1.321 un. Hoje
+a gravação fica para a planilha corrigida (abaixo).
 
 **2. `marco_2026_corrigida.xlsx` numa base em 28/02:** período 02/03 a 31/03 · Vendas novas
 **13.057** · Já estavam carregadas **0** · Linhas ignoradas **0** · nenhum aviso. Depois de
@@ -97,9 +104,9 @@ duplicado." (409).
 - **Nota repetida dentro da mesma planilha** (caso 14). A duplicata só é procurada contra a
   base, nunca dentro do arquivo, porque o mesmo produto pode vir em duas linhas da mesma nota.
   Uma nota inteira repetida (mesmo número, mesmos itens) entra duas vezes.
-- **Nota pulada na leitura conta 1 em "Linhas ignoradas"**, tenha quantas linhas tiver (casos
-  1 e 2 têm 1 linha cada, por isso o total fecha).
-- **Correções silenciosas** (casos 12 e 13): nenhum aviso na tela.
+- **Nota pulada na leitura conta 1 em "Linhas ignoradas"**, tenha quantas linhas tiver. Na
+  planilha de teste nenhuma nota é pulada (os casos 1 e 2 entram).
+- **Correções silenciosas** (casos 2, 12 e 13): nenhum aviso na tela.
 - **Categoria desconhecida:** a classificação sempre devolve uma categoria, então o aviso
   "linha(s) de categoria desconhecida" não tem como aparecer a partir de uma planilha.
 - **Arquivo acima de 50 MB** (413): não foi gerado.

@@ -36,7 +36,7 @@ import hashlib
 import os
 import tempfile
 import time
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import date, datetime, timedelta
 
 import pandas as pd
@@ -44,11 +44,13 @@ from sqlalchemy import case, func, insert, select, update
 from sqlalchemy.orm import Session
 
 from backend.config import settings
+from backend.domain.etl import tratamentos
 from backend.domain.etl.cobertura import DiasFaltando, dias_faltando
 from backend.infrastructure.database import CalendarDay, Category, ProcessingLog, Product, Sale, Unit
 from training_scripts.preprocessing.classificacao_03 import classificar
 from training_scripts.preprocessing.extrair_base_01 import FIELDS, parse_xlsx
 from training_scripts.preprocessing.remove_encomendas_06 import CHAVE_VENDA, K_DESVIOS, LIMIAR_QTD_VENDA, limiar_por_desvios
+from training_scripts.preprocessing.taxonomy.unidades import map_unidade
 from training_scripts.preprocessing.tratamento_de_dados_02 import tratar_dados
 
 EXTENSOES = (".xlsx", ".xlsm")
@@ -92,6 +94,7 @@ class VerificacaoUpload:
     units: list[dict]          # unit_id, unit_name, first_day, last_day, rows, last_day_loaded
     missing_days: list[dict]   # unit_id, unit_name, days, ranges [{start, end}], message
     warnings: list[str]        # avisos da leitura (linhas ignoradas); os de dias faltando vão em `missing_days`
+    treatments: list[dict] = field(default_factory=list)  # `domain.etl.tratamentos`, item a item
 
 
 @dataclass
@@ -110,6 +113,11 @@ class _Preparada:
     ultimas_na_base: dict     # loja → última venda já carregada
     nomes_lojas: dict
     limiares_encomenda: dict = field(default_factory=dict)  # loja → limiar (`_marcar_encomendas`)
+    # detalhe para a conferência (`_tratamentos`): o que cada etapa tirou ou corrigiu
+    puladas: list = field(default_factory=list)              # notas que a Etapa 1 não leu
+    removidas_df: pd.DataFrame | None = None                 # linhas que a Etapa 2 tirou, com o motivo
+    sem_loja_df: pd.DataFrame | None = None
+    sem_categoria_df: pd.DataFrame | None = None
 
     @property
     def rows_skipped(self) -> int:
@@ -126,30 +134,47 @@ def _chave(df: pd.DataFrame) -> pd.Series:
                               df["gross_amount"].round(CASAS_CHAVE["gross_amount"]))), index=df.index)
 
 
-def _etapas_1_a_3(caminho_xlsx: str, nome: str, pasta: str) -> tuple[pd.DataFrame, int, dict]:
-    """Etapas 1–3 do pré-processamento sobre uma planilha. Devolve a base classificada, as
-    linhas puladas na leitura e o resumo da limpeza."""
-    registros, pulados = parse_xlsx(caminho_xlsx)
+COLUNAS_LINHA = ["linha_planilha", "linha_documento"]
+COLUNAS_CONFERENCIA = COLUNAS_LINHA + ["sem_linha_cliente"]  # `parse_xlsx(com_linha=True)`
+
+
+@dataclass
+class _Etapas:
+    df: pd.DataFrame            # base classificada (Etapa 3), com a linha do Excel
+    puladas: list               # notas que a Etapa 1 não leu (`parse_xlsx`, `skipped`)
+    limpeza: dict               # resumo da Etapa 2
+    removidas: pd.DataFrame     # linhas que a Etapa 2 tirou, com `motivo`, `campo` e `valor`
+
+
+def _etapas_1_a_3(caminho_xlsx: str, nome: str, pasta: str) -> _Etapas:
+    """Etapas 1–3 do pré-processamento sobre uma planilha, com a linha do Excel de cada venda
+    e o detalhe do que a leitura e a limpeza tiraram (conferência da tela)."""
+    registros, pulados = parse_xlsx(caminho_xlsx, com_linha=True)
     if not registros:
         raise PlanilhaInvalida(
             "Não encontramos vendas nesta planilha. Confira se é o relatório “Contas a Receber” "
             "exportado do sistema da loja.")
     base01 = os.path.join(pasta, "Base01.csv")
     with open(base01, "w", newline="", encoding="utf-8") as fh:
-        escritor = csv.DictWriter(fh, fieldnames=FIELDS, delimiter=";")
+        escritor = csv.DictWriter(fh, fieldnames=FIELDS + COLUNAS_CONFERENCIA, delimiter=";")
         escritor.writeheader()
         for r in registros:
             escritor.writerow({**r, "arquivo_origem": nome})
     base02 = os.path.join(pasta, "BaseFormatada02.csv")
     base03 = os.path.join(pasta, "BaseClassificada03.csv")
+    removidas_csv = os.path.join(pasta, "removidas02.csv")
     limpeza = tratar_dados(input_csv=base01, output_csv=base02,
-                           report_json=os.path.join(pasta, "etapa02.json"), verbose=False)
+                           report_json=os.path.join(pasta, "etapa02.json"), verbose=False,
+                           removidas_csv=removidas_csv)
     classificar(input_csv=base02, output_csv=base03, produtos_csv=os.path.join(pasta, "produtos03.csv"),
                 report_json=os.path.join(pasta, "etapa03.json"), verbose=False)
     df = pd.read_csv(base03, sep=";", dtype=str, keep_default_na=False)
     for c in ["qtdade", "vl_unit", "vl_total", "vl_desconto", "tot_liq"]:
         df[c] = pd.to_numeric(df[c])
-    return df, len(pulados), limpeza
+    for c in COLUNAS_LINHA:
+        df[c] = pd.to_numeric(df[c], errors="coerce")
+    removidas = pd.read_csv(removidas_csv, sep=";", dtype=str, keep_default_na=False)
+    return _Etapas(df=df, puladas=pulados, limpeza=limpeza, removidas=removidas)
 
 
 def _conferir_arquivo(db: Session, conteudo: bytes, nome: str) -> str:
@@ -182,7 +207,8 @@ def verificar(db: Session, conteudo: bytes, nome: str) -> VerificacaoUpload:
         missing_days=[{"unit_id": f.unit_id, "unit_name": p.nomes_lojas[f.unit_id], "days": len(f.dias),
                        "ranges": [{"start": a, "end": b} for a, b in f.intervalos], "message": texto}
                       for f, texto in zip(p.faltando, p.avisos_faltando())],
-        warnings=p.avisos)
+        warnings=p.avisos,
+        treatments=[asdict(g) for g in _tratamentos(p)])
 
 
 def processar(db: Session, conteudo: bytes, nome: str, user_id: int | None) -> ResultadoUpload:
@@ -216,7 +242,9 @@ def _preparar(db: Session, conteudo: bytes, nome: str, registro: ProcessingLog |
         caminho = os.path.join(pasta, "planilha" + os.path.splitext(nome)[1].lower())
         with open(caminho, "wb") as fh:
             fh.write(conteudo)
-        df, pulados_leitura, limpeza = _etapas_1_a_3(caminho, nome, pasta)
+        etapas = _etapas_1_a_3(caminho, nome, pasta)
+    df, limpeza = etapas.df, etapas.limpeza
+    pulados_leitura = len(etapas.puladas)
     removidas = sum(limpeza["linhas_removidas"].values())
 
     # ---- loja e categoria
@@ -227,7 +255,8 @@ def _preparar(db: Session, conteudo: bytes, nome: str, registro: ProcessingLog |
         empresas = sorted(df.loc[sem_loja, "empresa"].unique())
         avisos.append(f"{int(sem_loja.sum())} linha(s) de empresa sem loja cadastrada "
                       f"foram ignoradas: {', '.join(empresas)}")
-        df = df[~sem_loja].copy()
+    sem_loja_df = df[sem_loja].copy()
+    df = df[~sem_loja].copy()
     if df.empty:
         raise PlanilhaInvalida("Nenhuma linha da planilha é de uma loja cadastrada.")
 
@@ -238,7 +267,8 @@ def _preparar(db: Session, conteudo: bytes, nome: str, registro: ProcessingLog |
     sem_categoria = df["category_id"].isna()
     if sem_categoria.any():
         avisos.append(f"{int(sem_categoria.sum())} linha(s) de categoria desconhecida foram ignoradas.")
-        df = df[~sem_categoria].copy()
+    sem_categoria_df = df[sem_categoria].copy()
+    df = df[~sem_categoria].copy()
 
     df["emissao"] = pd.to_datetime(df["emissao"])
     vendas = pd.DataFrame({
@@ -253,7 +283,9 @@ def _preparar(db: Session, conteudo: bytes, nome: str, registro: ProcessingLog |
         "discount": df["vl_desconto"],
         "net_amount": df["tot_liq"],
         "payment_method": df["pagamento"],
-        "is_registered_customer": df["cliente_nome"].str.strip().str.upper() != "CONSUMIDOR",
+        # sem a linha `Cliente:` (código e nome vazios) a venda conta como de consumidor
+        "is_registered_customer": (df["cliente_nome"].str.strip().str.upper() != "CONSUMIDOR")
+                                  & ((df["cliente_nome"].str.strip() != "") | (df["cliente_cod"].str.strip() != "")),
         "is_bulk_order": False,  # `_marcar_encomendas`
     })
 
@@ -276,7 +308,28 @@ def _preparar(db: Session, conteudo: bytes, nome: str, registro: ProcessingLog |
                       pulados_leitura=pulados_leitura, removidas=removidas,
                       ignoradas=int(sem_loja.sum()) + int(sem_categoria.sum()), limpeza=limpeza,
                       avisos=avisos, faltando=_dias_faltando(db, vendas, ultimas), ultimas_na_base=ultimas,
-                      nomes_lojas={u.id: u.name for u in unidades})
+                      nomes_lojas={u.id: u.name for u in unidades},
+                      puladas=etapas.puladas, removidas_df=etapas.removidas,
+                      sem_loja_df=sem_loja_df, sem_categoria_df=sem_categoria_df)
+
+
+def _tratamentos(p: _Preparada) -> list[tratamentos.GrupoTratamento]:
+    """O que interrompe (fica de fora) e o que só avisa, item a item, para a tela de conferência."""
+    def loja_de(empresa: str) -> str | None:
+        unidade = map_unidade(" ".join(empresa.split()))
+        return unidade if unidade in p.nomes_lojas.values() else (empresa or None)
+
+    loja = lambda r: loja_de(str(r.get("empresa") or ""))  # noqa: E731
+    faltando = [{"unit_id": f.unit_id, "unit_name": p.nomes_lojas[f.unit_id], "days": len(f.dias),
+                 "ranges": [{"start": a, "end": b} for a, b in f.intervalos]} for f in p.faltando]
+    return tratamentos.ordenar([
+        tratamentos.notas_fora_do_formato(p.puladas, loja_de),
+        *tratamentos.linhas_removidas(p.removidas_df, loja_de),
+        tratamentos.sem_linha_cliente(p.df, loja),
+        tratamentos.dias_sem_venda(faltando),
+        tratamentos.empresas_sem_loja(p.sem_loja_df),
+        tratamentos.categoria_desconhecida(p.sem_categoria_df, loja),
+    ])
 
 
 def produtos_de_servico():

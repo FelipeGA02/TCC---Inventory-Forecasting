@@ -1,12 +1,17 @@
 import { useState, useRef, useCallback } from "react";
-import { Upload, FileSpreadsheet, CheckCircle2, Loader2, Sparkles, AlertTriangle, Lock } from "lucide-react";
+import {
+  Upload, FileSpreadsheet, CheckCircle2, Loader2, Sparkles, AlertTriangle, Lock,
+  XCircle, ChevronDown,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
 import { Progress } from "../ui/progress";
 import { useNavigate } from "react-router";
 import { contexto } from "../../data/painel";
-import { api, type ResultadoUpload, type VerificacaoUpload } from "../../data/api";
+import {
+  api, type GrupoTratamento, type NivelTratamento, type ResultadoUpload, type VerificacaoUpload,
+} from "../../data/api";
 import { useDados } from "../../data/CarregarDados";
 import { useServicoPrevisao } from "../../data/ServicoPrevisao";
 import { useAuth } from "../../auth/AuthContext";
@@ -121,7 +126,7 @@ export function ImportarPlanilha() {
       .catch((e: unknown) => toast.error(e instanceof ApiError && e.detail ? e.detail : mensagemDoErro(e)));
 
   return (
-    <div className="p-6 flex flex-col gap-6 max-w-3xl mx-auto">
+    <div className={`p-6 flex flex-col gap-6 mx-auto w-full ${currentStep === 2 && verificacao ? "max-w-5xl" : "max-w-3xl"}`}>
       {/* Stepper */}
       <div className="flex items-center gap-0">
         {steps.map((step, idx) => {
@@ -404,7 +409,99 @@ export function ImportarPlanilha() {
 const periodo = (inicio: string, fim: string) =>
   inicio === fim ? formatarData(inicio) : `${formatarData(inicio)} a ${formatarData(fim)}`;
 
-/** O que a carga faria, com os dias que ficariam sem venda — antes de gravar. */
+/** Ícone e cor de cada nível: o resto fica com as cores da tela. */
+const NIVEIS: Record<NivelTratamento, { cor: string; Icone: typeof AlertTriangle }> = {
+  corrigir: { cor: "var(--destructive)", Icone: XCircle },
+  aviso: { cor: ALERTA.cor, Icone: AlertTriangle },
+};
+
+/** Um problema: onde está (linha do Excel), os campos ligados a ele — o do problema em
+ * destaque — e como corrigir. */
+function GrupoDeTratamento({ grupo: g }: { grupo: GrupoTratamento }) {
+  const { cor, Icone } = NIVEIS[g.level];
+  const comLinha = g.items.some((i) => i.line !== null);
+  return (
+    <details id={`tratamento-${g.kind}`} className="group rounded-lg border" style={{ borderColor: "var(--border)" }} open>
+      <summary className="flex items-center gap-2.5 px-4 py-2.5 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
+        <Icone size={16} style={{ color: cor, flexShrink: 0 }} />
+        <span className="flex-1 text-sm" style={{ fontWeight: 600, color: "var(--foreground)" }}>
+          {g.title}
+        </span>
+        <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+          {g.count_label}
+        </span>
+        <ChevronDown size={16} className="transition-transform group-open:rotate-180" style={{ color: "var(--muted-foreground)" }} />
+      </summary>
+      <div className="px-4 pb-3 flex flex-col gap-2">
+        {g.how_to_fix && (
+          <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+            {g.how_to_fix}
+          </p>
+        )}
+        {g.items.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr style={{ color: "var(--muted-foreground)" }}>
+                  {comLinha && <th className="text-left pr-4 py-1.5" style={{ fontWeight: 500 }}>Linha</th>}
+                  {g.columns.map((c) => (
+                    <th key={c.key} className="text-left pr-4 py-1.5 whitespace-nowrap" style={{ fontWeight: 500 }}>
+                      {c.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {g.items.map((i, n) => (
+                  <tr key={n} style={{ borderTop: "1px solid var(--border)" }}>
+                    {comLinha && (
+                      <td className="pr-4 py-1.5 align-top" style={{ fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
+                        {i.line ?? "—"}
+                      </td>
+                    )}
+                    {g.columns.map((c) => {
+                      const problema = i.highlight.includes(c.key);
+                      const valor = i.values[c.key];
+                      return (
+                        <td
+                          key={c.key}
+                          className="pr-4 py-1.5 align-top"
+                          style={problema ? { color: cor, fontWeight: 600 } : undefined}
+                        >
+                          {valor ?? (problema ? <em style={{ fontWeight: 400 }}>vazio</em> : "—")}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {g.total_items > g.items.length && (
+          <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+            e mais {g.total_items - g.items.length}.
+          </p>
+        )}
+      </div>
+    </details>
+  );
+}
+
+/** Só o que a loja precisa corrigir ou conferir: primeiro os erros, depois os avisos. */
+function Tratamentos({ grupos }: { grupos: GrupoTratamento[] }) {
+  const visiveis = [...grupos.filter((g) => g.level === "corrigir"), ...grupos.filter((g) => g.level === "aviso")];
+  if (!visiveis.length) return null;
+  return (
+    <div className="flex flex-col gap-2">
+      {visiveis.map((g) => (
+        <GrupoDeTratamento key={g.kind} grupo={g} />
+      ))}
+    </div>
+  );
+}
+
+/** O que a carga faria, com cada tratamento da planilha — antes de gravar. */
 function Conferencia({
   verificacao: v,
   tamanho,
@@ -417,6 +514,10 @@ function Conferencia({
   onConfirmar: () => void;
 }) {
   const faltando = v.missing_days.length > 0;
+  const grupos = v.treatments ?? null;
+  // Erro tira venda da planilha: só grava depois de corrigir. Aviso não impede gravar.
+  const comErro = grupos ? grupos.some((g) => g.level === "corrigir") : false;
+  const comAviso = grupos ? faltando || grupos.some((g) => g.level === "aviso") : faltando || v.rows_skipped > 0;
   return (
     <Card className="border" style={{ borderColor: "var(--border)" }}>
       <CardContent className="p-8 flex flex-col gap-5">
@@ -450,13 +551,13 @@ function Conferencia({
 
         <div className="grid grid-cols-3 gap-4 w-full">
           {[
-            { label: "Vendas novas", value: formatarNumero(v.rows_new) },
-            { label: "Já estavam carregadas", value: formatarNumero(v.rows_duplicate) },
-            { label: "Linhas ignoradas", value: formatarNumero(v.rows_skipped) },
+            { label: "Vendas novas", value: v.rows_new },
+            { label: "Já estavam carregadas", value: v.rows_duplicate },
+            { label: "Linhas ignoradas", value: v.rows_skipped },
           ].map((stat) => (
             <div key={stat.label} className="rounded-lg p-4 text-center" style={{ background: "var(--secondary)", border: "1px solid var(--border)" }}>
               <p className="text-xl mb-0.5" style={{ color: "var(--primary)", fontWeight: 700 }}>
-                {stat.value}
+                {formatarNumero(stat.value)}
               </p>
               <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
                 {stat.label}
@@ -465,31 +566,36 @@ function Conferencia({
           ))}
         </div>
 
-        {faltando && (
-          <div role="alert" className="rounded-lg px-4 py-3 text-sm flex flex-col gap-2" style={{ background: ALERTA.fundo, border: `1px solid ${ALERTA.borda}`, color: ALERTA.cor }}>
-            <p className="flex items-center gap-2" style={{ fontWeight: 600 }}>
-              <AlertTriangle size={16} style={{ flexShrink: 0 }} /> Faltam vendas de alguns dias
-            </p>
-            <ul className="flex flex-col gap-1">
-              {v.missing_days.map((m) => (
-                <li key={m.unit_id}>{m.message}</li>
-              ))}
-            </ul>
-            <p className="text-xs">
-              Se gravar assim, esses dias contam como dias sem venda na previsão até a planilha deles ser enviada. Tem a
-              planilha desses dias? Grave esta e envie a outra em seguida, antes de treinar as previsões.
-            </p>
-          </div>
-        )}
-
-        {v.warnings.length > 0 && (
-          <ul className="w-full text-xs flex flex-col gap-1" style={{ color: ALERTA.cor }}>
-            {v.warnings.map((e) => (
-              <li key={e} className="flex gap-2">
-                <AlertTriangle size={13} style={{ flexShrink: 0, marginTop: 1 }} /> {e}
-              </li>
-            ))}
-          </ul>
+        {grupos ? (
+          <Tratamentos grupos={grupos} />
+        ) : (
+          <>
+            {faltando && (
+              <div role="alert" className="rounded-lg px-4 py-3 text-sm flex flex-col gap-2" style={{ background: ALERTA.fundo, border: `1px solid ${ALERTA.borda}`, color: ALERTA.cor }}>
+                <p className="flex items-center gap-2" style={{ fontWeight: 600 }}>
+                  <AlertTriangle size={16} style={{ flexShrink: 0 }} /> Faltam vendas de alguns dias
+                </p>
+                <ul className="flex flex-col gap-1">
+                  {v.missing_days.map((m) => (
+                    <li key={m.unit_id}>{m.message}</li>
+                  ))}
+                </ul>
+                <p className="text-xs">
+                  Se gravar assim, esses dias contam como dias sem venda na previsão até a planilha deles ser enviada. Tem a
+                  planilha desses dias? Grave esta e envie a outra em seguida, antes de treinar as previsões.
+                </p>
+              </div>
+            )}
+            {v.warnings.length > 0 && (
+              <ul className="w-full text-xs flex flex-col gap-1" style={{ color: ALERTA.cor }}>
+                {v.warnings.map((e) => (
+                  <li key={e} className="flex gap-2">
+                    <AlertTriangle size={13} style={{ flexShrink: 0, marginTop: 1 }} /> {e}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
         )}
 
         {v.rows_new === 0 && (
@@ -498,13 +604,20 @@ function Conferencia({
           </p>
         )}
 
-        <div className="flex gap-3 flex-wrap justify-end">
+        <div className="flex items-center gap-3 flex-wrap justify-end sticky bottom-0 pt-3 -mx-8 px-8 -mb-8 pb-6" style={{ background: "var(--card, #fff)", borderTop: "1px solid var(--border)" }}>
+          {comErro && (
+            <p className="text-xs mr-auto flex items-center gap-1.5" style={{ color: "var(--destructive)" }}>
+              <XCircle size={14} /> Corrija os erros na planilha e envie de novo para gravar.
+            </p>
+          )}
           <Button variant="outline" onClick={onCancelar}>
-            Cancelar
+            {comErro ? "Enviar outra planilha" : "Cancelar"}
           </Button>
-          <Button style={{ background: "var(--primary)", color: "#fff" }} onClick={onConfirmar}>
-            {faltando ? "Gravar mesmo assim" : v.rows_new === 0 ? "Registrar a planilha" : "Gravar as vendas"}
-          </Button>
+          {!comErro && (
+            <Button style={{ background: "var(--primary)", color: "#fff" }} onClick={onConfirmar}>
+              {comAviso ? "Gravar mesmo assim" : v.rows_new === 0 ? "Registrar a planilha" : "Gravar as vendas"}
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>

@@ -1,5 +1,22 @@
 # Contexto do artigo e fatos consolidados
 
+## Estado em 23/11/2026 (vale sobre as seções abaixo)
+
+- **Conferência da planilha** (código: `backend/domain/etl/tratamentos.py`, `ImportarPlanilha.tsx`): cada
+  problema vem com a linha do Excel e os campos ligados a ele. **Erro** (campo obrigatório vazio ou
+  inválido: data de emissão, código do produto, quantidade) bloqueia a gravação; **aviso** (nota sem a
+  linha do cliente, empresa sem loja, dias sem venda, produto sem categoria) não bloqueia. A nota sem a
+  linha `Cliente:` e a nota sem o cabeçalho `Produto | Qtdade | ...` passaram a ser lidas
+  (`extrair_base_01.parse_xlsx`); nas 26 planilhas reais nenhuma nota era pulada, a base não muda.
+- **Números da planilha de teste** (relatório 10.2/11.3, artigo 4.6): 12.390 vendas novas, 22 já
+  carregadas, 17 linhas ignoradas; a com erros não grava, a corrigida grava 13.057 e marca os 2 pedidos de
+  encomenda grande; reenviada, é recusada. Na base de demonstração (Figura 10): 12.390 + 22 = **12.412**.
+- **Figura 10** recapturada (`docs/project/telas_base_demonstracao/fig10_conferencia.png`, 1440 × 740,
+  escala 2, base de demonstração `ia-predictor/floricultura.db` copiada): totais, o grupo "Campo
+  obrigatório vazio" e a gravação bloqueada. Relatório com 91 páginas (listas fixas corrigidas com
+  `exemplos/atas_apendice_2026-11-21/listas.py` + `fix_listas.py`); artigo com 20. Script:
+  `scratchpad/tcc/editar_conferencia.py` (não copiado para `exemplos/`).
+
 ## Estado em 21/11/2026 (vale sobre as seções abaixo)
 
 - **Revisão sobre o Corrigido** (`exemplos/pendencias_2026-11-21/editar.py`, lista em

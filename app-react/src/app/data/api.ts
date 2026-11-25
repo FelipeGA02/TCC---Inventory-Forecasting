@@ -44,6 +44,34 @@ export interface VerificacaoUpload {
   missing_days: { unit_id: string; unit_name: string; days: number; ranges: { start: string; end: string }[]; message: string }[];
   /** Avisos da leitura (linhas ignoradas). */
   warnings: string[];
+  /** Cada tratamento da planilha, item a item (linha do Excel, loja, data, nota), para corrigir. */
+  treatments?: GrupoTratamento[];
+}
+
+/** corrigir: interrompe (a venda fica de fora até a planilha ser corrigida) · aviso: não impede gravar. */
+export type NivelTratamento = "corrigir" | "aviso";
+
+export interface ItemTratamento {
+  /** Linha do Excel. */
+  line: number | null;
+  /** Coluna → valor como está na planilha (null = vazio). */
+  values: Record<string, string | null>;
+  /** Colunas com o problema. */
+  highlight: string[];
+}
+
+export interface GrupoTratamento {
+  kind: string;
+  level: NivelTratamento;
+  title: string;
+  how_to_fix: string | null;
+  count: number;
+  count_label: string;
+  /** Os campos ligados ao problema, na ordem da tabela. */
+  columns: { key: string; label: string }[];
+  items: ItemTratamento[];
+  /** Itens antes do corte (a API lista até 100 por grupo). */
+  total_items: number;
 }
 
 /** Serviço de previsão (`/api/v1/servico-previsao/*`, só admin). */

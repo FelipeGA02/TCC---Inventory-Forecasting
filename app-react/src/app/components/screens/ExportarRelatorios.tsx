@@ -79,7 +79,6 @@ function detalhe(a: Atividade): string {
     return [
       a.dados_ate ? `vendas até ${formatarData(a.dados_ate)}` : "",
       `${formatarNumero(a.series_com_previsao ?? 0)} previsões geradas`,
-      a.series_sem_dados ? `${formatarNumero(a.series_sem_dados)} itens com pouca venda` : "",
       a.series_com_falha ? `${formatarNumero(a.series_com_falha)} com falha` : "",
     ]
       .filter(Boolean)

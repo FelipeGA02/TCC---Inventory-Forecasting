@@ -1,5 +1,58 @@
 # Contexto do artigo e fatos consolidados
 
+## Estado em 23/11/2026 (vale sobre as seções abaixo)
+
+- **Conferência da planilha** (código: `backend/domain/etl/tratamentos.py`, `ImportarPlanilha.tsx`): cada
+  problema vem com a linha do Excel e os campos ligados a ele. **Erro** (campo obrigatório vazio ou
+  inválido: data de emissão, código do produto, quantidade) bloqueia a gravação; **aviso** (nota sem a
+  linha do cliente, empresa sem loja, dias sem venda, produto sem categoria) não bloqueia. A nota sem a
+  linha `Cliente:` e a nota sem o cabeçalho `Produto | Qtdade | ...` passaram a ser lidas
+  (`extrair_base_01.parse_xlsx`); nas 26 planilhas reais nenhuma nota era pulada, a base não muda.
+- **Números da planilha de teste** (relatório 10.2/11.3, artigo 4.6): 12.390 vendas novas, 22 já
+  carregadas, 17 linhas ignoradas; a com erros não grava, a corrigida grava 13.057 e marca os 2 pedidos de
+  encomenda grande; reenviada, é recusada. Na base de demonstração (Figura 10): 12.390 + 22 = **12.412**.
+- **Figura 10** recapturada (`docs/project/telas_base_demonstracao/fig10_conferencia.png`, 1440 × 740,
+  escala 2, base de demonstração `ia-predictor/floricultura.db` copiada): totais, o grupo "Campo
+  obrigatório vazio" e a gravação bloqueada. Relatório com 91 páginas (listas fixas corrigidas com
+  `exemplos/atas_apendice_2026-11-21/listas.py` + `fix_listas.py`); artigo com 20. Script:
+  `scratchpad/tcc/editar_conferencia.py` (não copiado para `exemplos/`).
+
+## Estado em 21/11/2026 (vale sobre as seções abaixo)
+
+- **Revisão sobre o Corrigido** (`exemplos/pendencias_2026-11-21/editar.py`, lista em
+  `docs/project/pendencias_TCC2_corrigido.md`). Editado direto no XML, sem Word: sumário e
+  listas de figuras, quadros e tabelas **não foram repaginados**. O PDF Corrigido ficou
+  desatualizado.
+- **Saíram:** a referência IGLEWICZ e HOAGLIN (o "média + 4 desvios" agora se apoia no E2), toda
+  menção ao CRISP-DM (6.1 descreve as etapas da Figura 1) e as siglas MAPE, WAPE e ARIMA.
+- **Entraram citações** para todas as referências que estavam sem citação:
+  - 5.3: Croston; Syntetos e Boylan (2005); Teunter et al.; Gross e Sohl;
+  - 5.4: Chen e Liu; Bartezzaghi e Verganti; Kalchschmidt et al.;
+  - E5: KPSS (Kwiatkowski et al.) e ADF (Schwert);
+  - E8: Diebold e Mariano e Holm, com 4 séries significativas (doc 11 §3.1).
+- **Retreinamento**: o texto (E7, Quadro 7, 2.2 e 10.1.2) diz **mensal**, a cada exportação das
+  planilhas do mês, com o máximo de dois meses. O ADR-021 diz semanal.
+- **Figura 10 × 11.3**: a planilha de teste é a mesma. Na base de demonstração, as 22 vendas "já
+  carregadas" da base real aparecem como novas, porque a chave de duplicidade (nota, produto,
+  data, quantidade, valor) é fictícia nessa base: 12.388 + 22 = 12.410. O texto da 10.2 explica isso.
+- **Apêndice B (21/11/2026, pedido do orientador: "no mínimo 4 atas")**: "APÊNDICE B – ATAS DAS
+  REUNIÕES COM A ENTIDADE PARCEIRA", entre o Apêndice A e o Anexo A, com as atas 05 a 08
+  (13/10, 20/10, 3/11 e 10/11/2026), uma página da ata por folha (imagem do PDF da pasta
+  `Relatórios`, 150 dpi, 22,5 cm de altura), com um rótulo "Ata da reunião NN – data" e sem
+  número de figura. A 6.2 remete ao apêndice. As atas 01 a 04 (TCC1) não entraram. As atas 05 a 08
+  **não estão assinadas**. Relatório com 90 páginas. As listas de figuras, quadros e tabelas são
+  **texto fixo**: o `word_finalize.ps1` não as atualiza. Recalcule pelo PDF (receita em
+  `exemplos/atas_apendice_2026-11-21/`).
+- **Termo do intervalo (21/11/2026, decisão do usuário)**: o texto usa "intervalo de confiança"
+  (Resumo, objetivo f, 6.5, 11.8, 12) e "confidence-interval" no Abstract. As formas curtas
+  "intervalo de 95%" ficam, e "faixa provável" só aparece onde o texto descreve a tela. Não
+  voltar a "predição" ou "previsão".
+- **Palavra-chave (21/11/2026, pedido do orientador)**: "Atacado e varejo de floricultura" /
+  "Floriculture wholesale and retail".
+- **Publicação**: o texto ainda descreve a API no Render com o treino por *script*, mas o ADR-024
+  (Azure) já foi aceito. A atualização dessas passagens ficou pendente, à espera de decisão do
+  usuário.
+
 ## Estado em 18/11/2026 (vale sobre as seções abaixo)
 
 - **Relatório corrigido:** `docs/project/TCC2 - Relatorio Tecnico - Final - Corrigido.docx` (+ PDF, 63 páginas), feito sobre `TCC2 - Relatorio Tecnico - Final.docx` (gerado pelo `builder.py` do modelo Aula 2, Times 12, listas estáticas, equações não existiam) com as correções do orientador em `TCC2 - Relatorio Tecnico - Final - COMENTÁRIOS.pdf` (mapa em `docs/project/correcoes_TCC2_comentarios.md`). O `Final.docx` original não está no git: não sobrescrever.

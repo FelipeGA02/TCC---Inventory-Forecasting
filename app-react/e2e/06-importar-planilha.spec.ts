@@ -40,7 +40,7 @@ test.describe("carregar planilha", () => {
     await expect(page.getByText("Confira antes de gravar")).toBeVisible();
     await expect(page.getByText(path.basename(PLANILHA_MARCO))).toBeVisible();
     await expect(page.getByText("última venda já carregada: 28/02/2026").first()).toBeVisible();
-    await expect(page.getByText("Faltam vendas de alguns dias")).toHaveCount(0);
+    await expect(page.getByText("Dias de loja aberta sem venda")).toHaveCount(0);
     await foto(page, "06-importar-conferencia");
 
     await page.getByRole("button", { name: "Gravar as vendas" }).click();
@@ -64,8 +64,8 @@ test.describe("carregar planilha", () => {
 
   test("avisa os dias de loja aberta que ficariam sem venda", async ({ page }) => {
     await escolher(page, PLANILHA_COM_FALTA);
-    const aviso = page.getByRole("alert");
-    await expect(aviso).toContainText("Faltam vendas de alguns dias");
+    const aviso = page.locator("#tratamento-dias_sem_venda");
+    await expect(aviso).toContainText("Dias de loja aberta sem venda");
     await expect(aviso).toContainText("09/03/2026 a 10/03/2026");
     await expect(page.getByRole("button", { name: "Gravar mesmo assim" })).toBeVisible();
     await foto(page, "06-importar-dias-faltando");

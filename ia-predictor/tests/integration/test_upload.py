@@ -72,18 +72,30 @@ MSG_FALTANDO = "faltam as vendas de 3 dias com a loja aberta (02/03/2026 a 04/03
 def _planilha_classificada(dias: list[date], lojas=("Jardim Canadá", "Itabirito")) -> pd.DataFrame:
     """A saída das Etapas 1–3 para uma planilha com uma venda de grama por loja e dia."""
     linhas = [{"doc_tipo": "C1", "doc_numero": f"T{d:%m%d}{i}", "pagamento": "PIX", "emissao": str(d),
-               "cliente_nome": "CONSUMIDOR", "empresa": loja, "unidade": loja, "produto_cod": "100",
+               "cliente_cod": "1", "cliente_nome": "CONSUMIDOR", "empresa": loja, "unidade": loja, "produto_cod": "100",
                "produto_nome": "GRAMA ESMERALDA M2", "categoria": "Grama", "categoria_fina": "Grama esmeralda",
                "qtdade": 10.0, "vl_unit": 2.0, "vl_total": 20.0, "vl_desconto": 0.0, "tot_liq": 20.0}
               for d in dias for i, loja in enumerate(lojas)]
-    return pd.DataFrame(linhas)
+    df = pd.DataFrame(linhas)
+    df["linha_planilha"] = range(10, 10 + len(df))
+    df["linha_documento"] = df["linha_planilha"] - 6
+    return df
+
+
+def _etapas(df: pd.DataFrame, puladas=None, removidas=None):
+    """O que `_etapas_1_a_3` devolveria para a planilha classificada `df`."""
+    return upload_service._Etapas(
+        df=df.copy(), puladas=puladas or [],
+        limpeza={"linhas_removidas": {} if removidas is None else removidas["motivo"].value_counts().to_dict(),
+                 "clientes_sem_nome_corrigidos": 0},
+        removidas=pd.DataFrame() if removidas is None else removidas)
 
 
 @pytest.fixture
 def planilha_marco(monkeypatch):
     df = _planilha_classificada([date(2026, 3, 5) + timedelta(days=i) for i in range(3)])
     monkeypatch.setattr(upload_service, "_etapas_1_a_3",
-                        lambda *a: (df.copy(), 0, {"linhas_removidas": {}, "clientes_sem_nome_corrigidos": 0}))
+                        lambda *a: _etapas(df))
     return {"file": ("marco 26.xlsx", b"planilha de teste: 05 a 07/03/2026")}
 
 
@@ -111,6 +123,44 @@ def test_conferencia_avisa_os_dias_faltando_sem_gravar(client, admin, planilha_m
     assert _contagens() == antes  # nada gravado, nem a linha da planilha
 
 
+def test_conferencia_lista_cada_problema_com_os_campos(client, admin, monkeypatch):
+    """Cada problema vem item a item: linha do Excel, os campos ligados a ele (o do problema em
+    `highlight`) e o que fazer. Só o que tira venda é `corrigir`; o resto é `aviso`."""
+    df = _planilha_classificada([date(2026, 3, 2), date(2026, 3, 3)])
+    df["sem_linha_cliente"] = "False"
+    df.loc[0, ["sem_linha_cliente", "cliente_cod", "cliente_nome"]] = ["True", "", ""]
+    puladas = [{"line": 500, "reason": "Esperava 'Produto' na linha 505, encontrado: '242 - BUQUE ROSAS'",
+                "content": "Documento: F3 11031", "emissao": "10/03/2026", "empresa": "Jardim Canadá"}]
+    removidas = pd.DataFrame([{"doc_tipo": "C9", "doc_numero": "28390", "emissao": "11/03/2026",
+                               "empresa": "Itabirito", "produto_cod": "451", "produto_nome": "GUINAFALIO SQ",
+                               "qtdade": "dez", "vl_unit": "3", "vl_total": "3",
+                               "linha_planilha": "26258", "linha_documento": "26244",
+                               "motivo": "valor_nao_numerico", "campo": "qtdade", "valor": "dez"}])
+    monkeypatch.setattr(upload_service, "_etapas_1_a_3", lambda *a: _etapas(df, puladas, removidas))
+    r = client.post("/api/v1/upload/verificacao", headers=admin, files={"file": ("problemas.xlsx", b"problemas")})
+    assert r.status_code == 200, r.text
+    grupos = {g["kind"]: g for g in r.json()["treatments"]}
+    assert [g["level"] for g in r.json()["treatments"]] == ["corrigir", "corrigir", "aviso"]
+
+    nota = grupos["nota_fora_do_formato"]
+    assert nota["count_label"] == "1 nota"
+    assert nota["items"] == [{"line": 505, "highlight": ["esperado"], "values": {
+        "nota": "F3 11031", "emissao": "10/03/2026", "loja": "Jardim Canadá",
+        "esperado": "Produto | Qtdade | Vl. Unit. | Vl. Total",
+        "encontrado": "242 - BUQUE ROSAS"}}]
+
+    texto = grupos["valor_nao_numerico"]
+    assert [c["key"] for c in texto["columns"]] == ["nota", "loja", "produto", "qtdade", "vl_unit", "vl_total"]
+    assert texto["items"][0]["line"] == 26258 and texto["items"][0]["highlight"] == ["qtdade"]
+    assert texto["items"][0]["values"]["qtdade"] == "dez"
+
+    cliente = grupos["sem_linha_cliente"]  # não interrompe: a venda entra sem o cliente
+    assert cliente["level"] == "aviso" and cliente["count_label"] == "1 nota"
+    assert cliente["items"][0]["line"] == 5 and cliente["items"][0]["highlight"] == ["cliente"]
+    assert cliente["items"][0]["values"]["cliente"] is None
+    assert r.json()["rows_new"] == len(df)  # a nota sem cliente conta como venda nova
+
+
 def test_conferencia_so_para_admin(client, viewer, planilha_marco):
     assert client.post("/api/v1/upload/verificacao", headers=viewer, files=planilha_marco).status_code == 403
 
@@ -118,7 +168,7 @@ def test_conferencia_so_para_admin(client, viewer, planilha_marco):
 def test_planilha_que_continua_a_base_nao_tem_aviso(client, admin, monkeypatch):
     df = _planilha_classificada([date(2026, 3, 2), date(2026, 3, 3)])  # segunda e terça depois da base
     monkeypatch.setattr(upload_service, "_etapas_1_a_3",
-                        lambda *a: (df, 0, {"linhas_removidas": {}, "clientes_sem_nome_corrigidos": 0}))
+                        lambda *a: _etapas(df))
     v = client.post("/api/v1/upload/verificacao", headers=admin,
                     files={"file": ("semana.xlsx", b"continua a base")}).json()
     assert v["missing_days"] == [] and v["warnings"] == []
@@ -156,7 +206,7 @@ def test_confirmar_grava_e_registra_o_aviso(client, admin, planilha_marco):
 
 def _enviar(client, admin, monkeypatch, df: pd.DataFrame, nome: str):
     monkeypatch.setattr(upload_service, "_etapas_1_a_3",
-                        lambda *a: (df.copy(), 0, {"linhas_removidas": {}, "clientes_sem_nome_corrigidos": 0}))
+                        lambda *a: _etapas(df))
     r = client.post("/api/v1/upload", headers=admin, files={"file": (nome, nome.encode())})
     assert r.status_code == 200, r.text
     with SessionLocal() as db:

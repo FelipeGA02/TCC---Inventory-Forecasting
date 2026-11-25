@@ -226,6 +226,14 @@ def _load_rows(input_path):
         wb.close()  # em read_only o handle do zip fica aberto ate o close explicito
 
 
+def _parece_item(row):
+    """Linha de item de um documento: texto na coluna do produto (que não é 'Totais' nem
+    'Documento:') e quantidade preenchida — o mesmo critério de `_parse_products`."""
+    texto = cell_str(row, PRODUCT_COLUMNS['produto'])
+    return (texto not in ('', 'Totais', 'Produto') and not texto.startswith('Documento:')
+            and row.get(PRODUCT_COLUMNS['qtdade']) is not None)
+
+
 def _parse_products(rows, i, total_rows):
     """Lê as linhas de produto até encontrar 'Totais'.
 
@@ -255,6 +263,7 @@ def _parse_products(rows, i, total_rows):
             'vl_desconto': rows[i].get(PRODUCT_COLUMNS['vl_desconto'], 0),
             'tot_liq': rows[i].get(PRODUCT_COLUMNS['tot_liq'], 0),
             'icms_ret': rows[i].get(PRODUCT_COLUMNS['icms_ret'], 0),
+            '_linha': i + 1,  # linha do Excel (1-based): a tela de importação aponta onde corrigir
         })
         i += 1
     return products, i
@@ -286,8 +295,19 @@ def _build_record(doc_type, doc_number, header, product):
     }
 
 
-def parse_xlsx(input_path):
-    """Faz o parse de um XLSX de contas a receber e retorna (records, skipped)."""
+def parse_xlsx(input_path, com_linha=False):
+    """Faz o parse de um XLSX de contas a receber e retorna (records, skipped).
+
+    Com `com_linha`, cada registro traz também `linha_planilha` (linha do produto no Excel),
+    `linha_documento` (linha do `Documento:`, onde fica a emissão) e `sem_linha_cliente`: a
+    conferência da importação mostra onde corrigir. Fora disso o registro tem só as colunas
+    de `FIELDS`.
+
+    A linha `Cliente:` é opcional: sem ela (a linha seguinte ao `Documento:` já é a
+    `Empresa:`), a nota entra com o cliente vazio. O cabeçalho `Produto | Qtdade | ...`
+    também: sem ele, a lista de itens começa na primeira linha que já é um item. As demais
+    linhas do bloco continuam obrigatórias: sem elas a nota vai para `skipped`.
+    """
     rows = _load_rows(input_path)
     total_rows = len(rows)
 
@@ -303,6 +323,7 @@ def parse_xlsx(input_path):
             continue
 
         start_line = i + 1
+        issue_date = company = None  # vão para `skipped` se a nota falhar depois de lidos
         try:
             # --- Cabeçalho do documento ---
             document = parse_field(cell_a, 'Documento:')
@@ -310,16 +331,21 @@ def parse_xlsx(input_path):
             issue_date = parse_field(cell_str(rows[i], HEADER_COLUMNS['emissao']), 'Emissão:')
             operator = parse_field(cell_str(rows[i], HEADER_COLUMNS['operador']), 'Operador:')
 
-            # --- Cliente ---
+            # --- Cliente (opcional: sem a linha, a nota entra sem cliente) ---
             i += 1
             client_raw = cell_str(rows[i], DETAIL_COLUMNS['cliente'])
             client = parse_field(client_raw, 'Cliente:')
-            if client is None:
-                raise ValueError(f"Esperava 'Cliente:' na linha {i+1}, encontrado: '{client_raw}'")
-            client_code, client_name = split_code_name(client)
+            sem_linha_cliente = client is None
+            if sem_linha_cliente:
+                if parse_field(cell_str(rows[i], DETAIL_COLUMNS['empresa']), 'Empresa:') is None:
+                    raise ValueError(f"Esperava 'Cliente:' na linha {i+1}, encontrado: '{client_raw}'")
+                client_code, client_name = '', ''
+            else:
+                client_code, client_name = split_code_name(client)
 
             # --- Empresa / Vendedor ---
-            i += 1
+            if not sem_linha_cliente:
+                i += 1
             company = parse_field(cell_str(rows[i], DETAIL_COLUMNS['empresa']), 'Empresa:')
             salesperson = parse_field(cell_str(rows[i], DETAIL_COLUMNS['vendedor']), 'Vendedor:')
 
@@ -333,8 +359,12 @@ def parse_xlsx(input_path):
             if cell_check == '':
                 i += 1
                 cell_check = cell_str(rows[i], 1)
+            # O cabeçalho é só o título da lista de itens: sem ele, se a linha já é um item
+            # (texto na coluna do produto e quantidade preenchida), a lista começa nela.
             if cell_check != 'Produto':
-                raise ValueError(f"Esperava 'Produto' na linha {i+1}, encontrado: '{cell_check}'")
+                if not _parece_item(rows[i]):
+                    raise ValueError(f"Esperava 'Produto' na linha {i+1}, encontrado: '{cell_check}'")
+                i -= 1
 
             # --- Produtos ---
             i += 1
@@ -361,7 +391,12 @@ def parse_xlsx(input_path):
             }
 
             for product in products:
-                records.append(_build_record(doc_type, doc_number, header, product))
+                registro = _build_record(doc_type, doc_number, header, product)
+                if com_linha:
+                    registro['linha_planilha'] = product['_linha']
+                    registro['linha_documento'] = start_line
+                    registro['sem_linha_cliente'] = sem_linha_cliente
+                records.append(registro)
 
             i += 1
 
@@ -370,6 +405,8 @@ def parse_xlsx(input_path):
                 'line': start_line,
                 'reason': str(e),
                 'content': cell_a,
+                'emissao': issue_date,
+                'empresa': company,
             })
             i += 1
 
